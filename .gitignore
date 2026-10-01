@@ -1,0 +1,7 @@
+/vuoro
+/vuoro.exe
+/dist/
+/node_modules/
+*.test
+*.out
+.env

@@ -1,0 +1,32 @@
+schema: 3
+actors:
+  - id: human:sothr
+    name: Drew Short
+  - id: agent:claude/vuoro-bootstrap
+    name: ""
+labels:
+  - agent
+  - ci
+  - credentials
+  - cross-repo
+  - desktop
+  - docs
+  - forge
+  - forgejo
+  - git-ticket
+  - github
+  - gitlab
+  - inbox
+  - review
+  - state
+  - ui
+milestones:
+  - v0.1.0
+series: []
+defaults:
+  type: task
+  priority: normal
+  actor: null
+  claim_expiry: null
+lock:
+  timeout: 10s
