@@ -24,7 +24,7 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-01T16:26:36Z
+updated_at: 2026-10-02T15:16:49Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -53,3 +53,4 @@ handoffs/2026-10-01-vuoro-bootstrap.md has the orientation.
 - [ ] I can comment inline, reply, resolve, approve, and submit a batch review without opening GitLab
 - [ ] An agent can draft a review as pending comments, and nothing posts without my action
 - [ ] just ci passes with CGO_ENABLED=0 and cross-builds linux, darwin, and windows
+- [ ] I can run a review with terva or with Claude Code, my choice, and talk to the agent while it reviews

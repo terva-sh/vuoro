@@ -30,8 +30,14 @@ record, so read them rather than trusting this page.
   repository's `.git/config`, as every terva-sh repository uses. The global
   identity on this machine is the employer's, and it must not leak in here.
 - **Stack.** Go with no cgo, tuohi for the window, terva-sh/design for styles,
-  terva for LLM features, and Preact, TypeScript, and Vite for the frontend,
-  as git-ticket-canvas does.
+  and Preact, TypeScript, and Vite for the frontend, as git-ticket-canvas does.
+- **vuoro is the front door to agentic review, and it drives the tools.**
+  Decided by the owner on 2026-10-02. vuoro runs reviews itself, and the person
+  talks to the agent doing them. It drives terva (`terva rpc`) and Claude Code
+  (stream-json) as subprocesses and imports neither, so the person chooses the
+  tool. terva-sh/terva-action-code-review is an internal proof of concept. It
+  is prior art to read, never a dependency to run. docs/plan.md section 6 has
+  the design.
 - **GitLab first.** The first working slice is gitlab.com. GitHub and Forgejo
   are filed as their own tickets against the `forge` interface, outside the
   v0.1.0 epic.
@@ -39,22 +45,12 @@ record, so read them rather than trusting this page.
   as "not required, but a helpful addition for most of my own repos".
   docs/plan.md section 7 describes it, and vuoro must work fully without it.
 
-## Found during bootstrap (a recommendation, not yet a decision)
-
-- **Reuse terva-action-code-review as the reviewer.** Found on 2026-10-02,
-  once the action's repository was readable. vuoro would draft reviews by
-  running the action's local mode and reading its `local-1.x` JSON, and it
-  would show the action's published Forgejo reviews without reposting them.
-  docs/plan.md section 6 has the starting position.
-  TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva for agent
-  actions) confirms or replaces it, with the owner.
-
 ## Verified state at handoff
 
 - No code exists. The repository has a README, AGENTS.md, docs/plan.md, the
   MIT licence, a justfile whose `ci` recipe is only the store check, and this
   handoff.
-- The ticket store has one epic and 22 tickets, all in `draft`.
+- The ticket store has one epic and 26 tickets, all in `draft`.
   `git ticket check --fix --dry-run --strict` and `git ticket doctor` were both
   clean.
 - Pins were read from Forgejo on 2026-10-02: terva v0.139.7, tuohi v0.1.0,
@@ -85,17 +81,25 @@ loopback server shown in a tuohi window) is the riskiest technical step,
 because tuohi only reached v0.1.0 on 2026-10-01, and its macOS engine has
 been tested only on GitHub's runners. Do it early.
 
-TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva for agent
-actions) and TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
-git-ticket store and ticket) also have no dependencies. Nothing depends on them
-until the change view exists, so they can wait.
+TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver interface for terva
+and Claude Code) has no dependencies either, and it gates every agent ticket.
+It can run alongside the scaffold, and it is the most interesting design
+question left: how an agent edits drafts. docs/plan.md section 6.2 starts from
+an MCP server that vuoro serves.
+
+TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its git-ticket store
+and ticket) has no dependencies, and nothing depends on it until the change
+view exists, so it can wait.
 
 ## Environment on the owner's workstation
 
-- **Go.** The workstation has Go 1.26.1. terva's `go.mod` declares 1.27.0, so
-  the module needs 1.27 once it imports terva. tuohi declares 1.26.0 and
-  design 1.25.0. The scaffold ticket decides between installing 1.27 and
-  relying on `GOTOOLCHAIN=auto`.
+- **Go.** The workstation has Go 1.26.1, and tuohi declares 1.26.0, so the
+  module starts at 1.26. vuoro imports no agent tool, so terva's 1.27 does not
+  apply.
+- **Agent tools.** Claude Code 2.1.285 is installed. terva on `PATH`
+  (`~/.local/bin/terva`) is 0.134.4, and the `terva rpc` documentation read
+  during bootstrap is v0.139.7's. Update terva before the driver spike, or the
+  spike measures an old protocol.
 - **Forgejo is the source, GitHub is a mirror.** Every terva-sh repository's
   `origin` is the internal Forgejo at `git.local.sothr.com/terva-sh`, and it
   reads anonymously over HTTPS from this machine. The GitHub mirrors trailed it
@@ -109,8 +113,7 @@ until the change view exists, so they can wait.
   `~/Workspace/git.local.sothr.com/terva-sh/`, cloned from Forgejo. design is
   identical on both forges at v0.1.0.
 - **Private repositories.** `terva-sh/meta` and `terva-sh/terva-code-review`
-  (the action's proposed dashboard, docs/plan.md section 6.5) refuse anonymous
-  reads.
+  (a dashboard the action's tickets propose) refuse anonymous reads.
 - **Forge CLIs.** `glab` is logged in to gitlab.com. `gh` and `tea` are not
   installed.
 - **GitLab token.** The age store (`ritual-secret ls`) has no GitLab token.
@@ -121,10 +124,13 @@ until the change view exists, so they can wait.
   review workflow, in Python. `tools/fetch_mr.py` handles the diff-truncation
   fallback, and `post_inline_suggestions.py` posts positioned inline
   suggestions. The adapter tickets should mine both for API detail.
-- **Employer policy on day-job code.** Under the employer's PHI policy, LLM calls
-  over day-job merge requests go through an API-key provider account covered by
-  the employer's BAA, never through a subscription login. Source code is low
-  risk, but do not route forge content anywhere the owner did not configure.
+- **Employer policy on day-job code.** Under the employer's PHI policy, LLM
+  calls over day-job merge requests go through an API-key provider account
+  covered by the employer's BAA, never through a subscription login. That
+  applies to whichever tool vuoro drives. A Claude Code session on a claude.ai
+  subscription login does not qualify. This is why each run records and shows
+  the account kind (docs/plan.md section 6.1). Source code is low risk, but do
+  not route forge content anywhere the owner did not configure.
 
 ## Process
 

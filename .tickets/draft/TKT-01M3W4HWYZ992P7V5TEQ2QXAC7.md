@@ -1,7 +1,7 @@
 ---
 schema: 3
 id: TKT-01M3W4HWYZ992P7V5TEQ2QXAC7
-title: "Agent: draft a review as pending comments I edit before posting"
+title: Turn review findings into pending drafts I edit before posting
 type: task
 status: draft
 status_reason: null
@@ -15,14 +15,14 @@ milestone: v0.1.0
 parent: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
 origin: null
 dependencies:
-  - TKT-01M3W4HWXJYKCNXM4G7E86YX1M
   - TKT-01M3W4HWTXC6EM9SS84A4WMEPG
+  - TKT-01M3YK0CM0SWMYXMM7A7M7J2QX
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T14:39:34Z
+updated_at: 2026-10-02T15:16:41Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -34,15 +34,13 @@ extensions: {}
 
 ## Description
 
-Draft a review by running terva-sh/terva-action-code-review's local mode over
-the change's base and head, as the terva spike decided, and turn its findings
-into pending draft comments at their lines. The project's own `.terva/`
-reviewer settings apply, read at the base commit. A finding with no anchor
-goes into the draft summary.
+Turn the findings of a review run, from TKT-01M3YK0CM0SWMYXMM7A7M7J2QX (Run a
+review: worktree, review profile, and validated findings), into pending draft
+comments at their lines. A finding with no anchor goes into the draft summary.
 
-Each draft is marked as drafted by an agent. The person edits, deletes, or
-keeps each one, and submits through the same control as their own comments.
-Nothing is posted by the agent.
+Each draft is marked as drafted by an agent, and it names the tool and model
+that drafted it. The person edits, deletes, or keeps each one, and submits
+through the same control as their own comments. Nothing is posted by the agent.
 
 ## Acceptance criteria
 

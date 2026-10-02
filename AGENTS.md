@@ -185,10 +185,19 @@ those two are the closest references.
   protection from TKT-01M3W4HWDY8XV92MXXQWA0AES7 (Refuse loopback API requests
   that did not come from vuoro's window). There are no exceptions for
   convenience.
-- **Boundaries are tested, not trusted.** Only `assist` imports terva, and only
-  from the packages in terva's `.api/packages.txt`. Only `tickets` imports
-  git-ticket. `forge` and `turn` import neither and do no network I/O in tests.
-  The inbox builds and works with both integrations absent.
+- **vuoro contains no agent.** It drives agent tools the person already has,
+  terva and Claude Code, as subprocesses over their own protocols, and imports
+  neither. Only the drivers under `agent/` know a tool's protocol. docs/plan.md
+  section 6 explains why.
+- **An agent's lockdown is proven, not assumed.** A driven agent reads its
+  worktree and nothing else. It gets no shell, no web access, no extensions,
+  and none of the person's own MCP servers, because those can include a forge
+  connector that writes. A driver whose lockdown has no recorded refusal is not
+  offered.
+- **Boundaries are tested, not trusted.** Only `tickets` imports git-ticket.
+  `forge` and `turn` import neither `agent` nor `tickets`, and they do no
+  network I/O in tests. The inbox builds and works with every agent tool
+  absent and with no ticket store.
 - **The forge is the record.** vuoro's state is a cache plus the person's own
   annotations. Never hold review state that the forge does not also hold.
 - **git-ticket integration writes and never commits.** A disposition note

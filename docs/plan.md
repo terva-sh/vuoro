@@ -27,9 +27,12 @@ events. It does not answer "what is waiting on me, and since when".
 vuoro is a desktop application. It gives one person one list of every review
 they give and get, across every forge they use, ordered by whose turn it is and
 for how long. From that list they read the change, comment, reply, resolve,
-approve, and submit, without opening the forge's web interface. It is also where
-agentic help attaches: an agent can summarise a change, draft a review, or draft
-a reply. The person edits the draft and decides whether to post it.
+approve, and submit, without opening the forge's web interface.
+
+It is also the front door to agentic review. vuoro runs a review with the agent
+tool the person chooses, terva or Claude Code, and keeps the conversation open
+beside the change. The person asks the agent questions, redirects it, and edits
+what it drafts. The person decides what gets posted.
 
 ### 2.1 Positions
 
@@ -39,10 +42,12 @@ a reply. The person edits the draft and decides whether to post it.
 - **An agent drafts. A person posts.** No agent output reaches a forge without
   an explicit action by the person in the UI. Agent output lands as pending
   draft comments that look and edit like the person's own, marked as drafted.
-- **The forge is the record.** vuoro keeps a cache and a person's private
-  annotations, such as a snooze or a note. It never holds review state that
-  the forge does not also hold. Deleting vuoro's state loses the annotations
-  and nothing else.
+- **The person chooses the agent.** vuoro drives agent tools the person
+  already has and contains none of its own. Section 6 explains how.
+- **The forge is the record of the review.** vuoro keeps a cache, the person's
+  private annotations, such as a snooze, and its own agent work: review runs,
+  their conversations, and drafts not yet posted. It never holds a posted
+  comment, a verdict, or a thread state that the forge does not also hold.
 - **Link out for what vuoro does not do.** Pipelines, merge trains, and
   settings stay in the forge. Every item carries its web URL.
 
@@ -80,20 +85,22 @@ with the `-check` form in CI.
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
 | `server` | The HTTP API and the embedded frontend. |
-| `assist` | The agent integration (section 6): the review action's local mode, and terva. The only package that knows about either. |
+| `agent` | The driver interface and normalised events (section 6). `agent/terva` and `agent/claude` are the drivers, and they are the only code that knows a tool's protocol. |
+| `review` | Review runs: worktrees, profiles, finding validation, and the drafts channel the agent writes through. |
 | `tickets` | The optional git-ticket integration (section 7). The only package that imports git-ticket. |
 | `web` | Frontend source and the committed `web/dist`. |
 
-`assist` and `tickets` are kept apart so the inbox builds and tests without
-either of them. A test holds that boundary, in the same way as
+`agent`, `review`, and `tickets` are kept apart so the inbox builds and tests
+without any of them. A test holds that boundary, in the same way as
 `terva/examples/harness/imports_test.go`.
 
 ### 3.2 Pins
 
 | Dependency | Pin at bootstrap | Note |
 |---|---|---|
-| Go | 1.27 if vuoro imports terva | terva's `go.mod` declares 1.27.0. Calling `terva rpc` instead (section 6.2) leaves the line at tuohi's 1.26. |
-| `terva.sh/terva` | v0.139.7 | Pre-1.0. A minor release can break the stable packages, with a note in `docs/migrating.md`. |
+| Go | 1.26 | tuohi's line. vuoro imports no agent tool, so terva's 1.27 does not apply (section 6.1). |
+| terva (a tool, not a module) | v0.139.7 | Driven over `terva rpc`. The protocol major version is in its `hello` response. |
+| Claude Code (a tool) | 2.1.285 | Driven over stream-json. The version on this workstation at bootstrap. |
 | `github.com/terva-sh/tuohi` | v0.1.0 | The first release. Its README still warns that the API can change. |
 | `github.com/terva-sh/design` | v0.1.0 | Has no `vuoro` accent yet. |
 | `github.com/terva-sh/git-ticket` | v0.24.0 | Library and CLI. This workstation had v0.23.0 installed. |
@@ -181,80 +188,97 @@ trusted-origin bindings are part of the answer. TKT-01M3W4HWDY8XV92MXXQWA0AES7
 (Refuse loopback API requests that did not come from vuoro's window) settles
 it, and it must land before any forge write exists.
 
-## 6. Agents (terva)
+## 6. Agents
 
-> Open question: TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva
-> for agent actions). This section is the starting position, rewritten on
-> 2026-10-02 after reading terva-sh/terva-action-code-review.
+> Open question: TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver
+> interface for terva and Claude Code). This section is the starting position.
 
-### 6.1 The reviewer already exists
+### 6.1 Drive the tools, do not embed them
 
-terva-sh/terva-action-code-review (on Forgejo) runs terva as a code reviewer.
-vuoro does not build a second one. The action offers what vuoro needs:
+vuoro runs reviews itself, and the person talks to the agent while it does.
+vuoro does not contain an agent. It drives agent tools that the person already
+has, each as a subprocess over the tool's own protocol, so the person picks the
+tool, the model, and the account:
 
-- **A local mode.** Its container image, or `node src/local-main.mjs` with git
-  and terva on `PATH`, reviews a range in a local checkout with
-  `--repo PATH --from BASE --to HEAD --format json`. It writes the result to
-  stdout and needs no forge credentials. The exit code is 0 for clean, 1 for a
-  finding at or above `--fail-severity`, and 2 when the review did not run.
-- **A versioned result.** `schemas/local-review.v1.schema.json`
-  (`local-1.x`) reuses the PR contract's shared definitions: finding,
-  severity, anchor (`path`, `side`, `commitSha`, `startLine`, `endLine`),
-  completion, and coverage. Those shapes are forge-neutral. The `repository`,
-  `publication`, and disposition blocks are Forgejo-shaped, and vuoro does not
-  copy them.
-- **The project's own reviewer settings.** `.terva/review.yml` and its named
-  reviewers are read at the base commit, never the head. A change cannot pick
-  its own reviewer. vuoro passes `--config-file` and `--reviewer` and does not
-  re-implement the format.
-- **Isolation.** terva runs with `--no-tools`, and the child gets only `PATH`,
-  `TERVA_HOME`, and one provider key, read from the environment.
+| Tool | Protocol | Resume | Lockdown to try |
+|---|---|---|---|
+| terva | `terva rpc`: NDJSON commands and events on stdin and stdout, `hello` with `TERVACORE_RPC_TOKEN` | `--session PATH` | `--tools`, `--no-mcp`, `--no-ext`, `--approval plan` |
+| Claude Code | `claude -p --input-format stream-json --output-format stream-json`, the protocol its SDKs speak | `--session-id`, `--resume` | `--tools Read,Grep,Glob`, `--strict-mcp-config`, `--restricted`, `--permission-mode` |
 
-So **drafting a review** means: fetch the change's base and head into a local
-checkout, run the action's local mode, validate the `local-1.x` result, and
-turn each anchored finding into a pending draft comment. A finding with no
-anchor goes into the draft summary. This works for GitLab and GitHub changes,
-not only Forgejo, because local mode reads git refs rather than a forge.
+Each tool sits behind one driver interface in `agent`. It covers starting a
+session in a working directory with a system prompt, a tool policy, and a
+model, sending a message, streaming events, cancelling, closing, and resuming.
+A third tool is a third driver. Nothing else in vuoro knows which tool runs.
 
-### 6.2 The other agent actions
+This decision, made by the owner on 2026-10-02, has three consequences:
 
-Summarising a change and drafting a reply are not reviews, and the action has
-no mode for them. They call terva directly. There are two ways:
+- **vuoro holds no model credential.** Each tool uses its own login or key.
+  vuoro records the tool, its version, the model, and the account kind where
+  the tool reports it, and it shows them on every run. The person can always
+  see where their code went.
+- **vuoro imports neither tool.** The Go line stays at tuohi's 1.26, and a
+  terva or Claude Code release cannot break vuoro's build. It can break a
+  driver, so each driver checks the tool's version and says when it is too old.
+- **The tools are prerequisites.** vuoro works without either, with every
+  agent action off. With one installed, that one is offered.
 
-- **`terva rpc` as a subprocess,** as the action does. The action's
-  architecture doc gives the reason: RPC keeps a consumer off terva's internal
-  Go packages and still gives streaming, cancellation, and session
-  continuation. vuoro would not import terva, and so it would not need Go 1.27.
-- **In process,** through the SDK (`packages/agent/sdk`) or the engine
-  (`packages/core` with `packages/provider`). Both are in `.api/packages.txt`.
-  It has fewer moving parts at run time, and it makes terva's Go line vuoro's.
+### 6.2 A review is a conversation
 
-The spike picks one. The starting position is RPC, for consistency with the
-action and because it keeps the Go line free.
+A review run checks out the change's head in a worktree under the state
+directory, computes the diff against the merge base, and starts a session with
+a review profile. The agent reports findings: severity, title, body, evidence,
+and an optional anchor (path, side, SHA, line range). vuoro validates each one.
+When a finding breaks a rule, vuoro tells the agent which rule, so the agent can
+correct it. Each valid finding becomes a pending draft comment, marked with the
+tool and model that drafted it.
 
-### 6.3 Reviews the action already published
+The session stays open beside the change. The person asks why, asks the agent
+to look somewhere else, or asks it to drop, merge, or reword a finding, and the
+agent's edits show as edits to the pending drafts. Closing the change keeps the
+session, and reopening resumes it.
 
-On a Forgejo pull request where the action has run, its review is already on
-the forge. vuoro shows it as review state, from the forge, and never posts it
-again. Its disposition flow, `/terva disposition REVIEW_ID FINDING_ID ...`, is
-a pull-request comment. vuoro can offer it as a control, but the person posts
-it, like any other comment.
+How an agent edits drafts is the spike's main question. There are two ways:
 
-### 6.4 What stays true whichever way the spike goes
+- **Structured output** that vuoro parses. Claude Code has `--json-schema`.
+  terva has nothing equivalent, so vuoro would have to validate prose.
+- **A small MCP server, served by vuoro,** whose only tools list, propose,
+  revise, and withdraw vuoro's pending drafts. Both tools speak MCP, so it
+  behaves the same for both. It also makes the boundary structural: the agent's
+  only write tool writes to a draft.
 
-- An agent's output is a draft. Posting is the person's action (section 2.1).
-- The provider, the model, and the key are the person's configuration, passed
-  through the environment. vuoro ships no default and never picks one.
-- An agent gets no tool that writes to a forge.
+The starting position is the MCP server.
 
-### 6.5 Next to terva-code-review
+### 6.3 Lockdown
 
-The action's tickets propose an optional dashboard, terva-sh/terva-code-review,
-that receives results the action reports. Its repository is not readable
-anonymously, and the reporting work is a draft spike there
-(TKT-01M2VQM5TKMZ9761Z69S3KPZ56). That is an organisation-wide record of
-action runs. vuoro is one person's queue across forges. The two could share
-the result contract, and the spike should say whether they meet anywhere else.
+An agent reads the worktree and nothing else. It gets no shell, no web access,
+no extensions, and none of the person's own MCP servers. Those can include a
+forge connector that writes, and a shell can run `glab` or `gh`. The spike
+proves the lockdown for each tool by asking the agent to run a command and
+recording the refusal. A driver that cannot prove its lockdown is not offered.
+
+### 6.4 Other actions
+
+Summarising a change, summarising what changed since my last review, and
+drafting a reply use the same drivers and the same lockdown. None of them is
+posted anywhere.
+
+### 6.5 Prior art
+
+terva-sh/terva-action-code-review is an internal proof of concept that runs
+terva as a Forgejo pull-request reviewer. vuoro is the front door to that kind
+of work, not a consumer of it, and it neither runs nor depends on the action.
+The action is worth reading for:
+
+- its review profiles and prompt templates (`templates/`)
+- its finding and anchor shapes (`schemas/review-result.v1.schema.json`)
+- its rule that reviewer settings come from the base commit, so a change
+  cannot pick its own reviewer
+- its panels, which run several models and reconcile what they find
+- its dispositions: accepted, declined, deferred
+- its `terva rpc` lockdown flags in `src/terva.mjs`
+
+terva's `raati` deliberation panel is prior art for several reviewers on one
+change. That work is filed after v0.1.0.
 
 ## 7. git-ticket (optional)
 

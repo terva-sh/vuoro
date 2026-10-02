@@ -24,9 +24,11 @@ turn: two replies on your threads, 3 days ago".
   how long it has been.
 - **Review in place:** the diff, the threads, inline comments, replies,
   resolve, approve or request changes, and submit as one batch.
-- **Agentic help, built on [terva](https://github.com/terva-sh/terva):**
-  summarise a change, draft a review, draft a reply. An agent only drafts.
-  Nothing reaches a forge until you post it.
+- **Agentic review, with the agent you choose:** vuoro runs a review with
+  [terva](https://github.com/terva-sh/terva) or Claude Code, whichever you
+  have, and keeps the conversation open beside the change. Ask it why, point it
+  somewhere else, and edit what it drafts. An agent only drafts. Nothing reaches
+  a forge until you post it.
 - **Optional [git-ticket](https://github.com/terva-sh/git-ticket) integration:**
   show the ticket a change implements, and record review dispositions on it.
 

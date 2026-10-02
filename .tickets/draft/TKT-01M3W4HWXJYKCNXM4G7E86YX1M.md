@@ -14,14 +14,15 @@ milestone: v0.1.0
 parent: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
 origin: null
 dependencies:
-  - TKT-01M3W4HWW7FHHC6VD5M0S9MV90
   - TKT-01M3W4HWSGA04D4VQ8WHBEJC2D
+  - TKT-01M3YK0CH5RHPJJS7E0DX9SH8X
+  - TKT-01M3YK0CJM8AJQH8129KEEF9TM
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T15:16:41Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -35,8 +36,8 @@ extensions: {}
 
 The first agent action, chosen because it is read-only and useful on every
 change. From the change view, ask for a summary of the change, or of the
-commits since my last review. Output streams into a panel, and it is never
-posted anywhere.
+commits since my last review, through the driver the person chose. Output
+streams into a panel and is never posted anywhere.
 
 ## Acceptance criteria
 
