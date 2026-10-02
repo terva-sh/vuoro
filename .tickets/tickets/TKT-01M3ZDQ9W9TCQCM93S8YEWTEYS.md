@@ -29,7 +29,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T23:03:23Z
-updated_at: 2026-10-02T23:03:29Z
+updated_at: 2026-10-02T23:17:19Z
 created_by:
   id: agent:claude-code/9c7c9cd7
   name: ""
@@ -61,9 +61,20 @@ lampi TKT-01M3D7YXPKK7115YHXQYZS0AKR decided this for the org. A push mirror for
 - [ ] .forgejo/workflows/terva-review.yml is installed at the v0.5.0 image digest
 - [ ] just sync-github fast-forwards the stale main and refuses when the two have diverged
 - [ ] docs/pr-reviews.md describes both review processes and the main sync
-- [ ] Forgejo CI is green on the adopting pull request
+- [x] Forgejo CI is green on the adopting pull request
 - [ ] terva-review publishes a review on the adopting pull request
 
 ## Implementation plan
 
 Copy the v0.5.1 single-review example and set warricksothr as the maintainer. Exclude web/dist/** and package-lock.json, and carry .tickets/**. Adapt tuohi's docs/pr-reviews.md and its fixed sync-github recipe. Test the recipe against scratch bare remotes in both directions and diverged. Open the Forgejo PR, then dispatch terva-review on it from this branch and read the result.
+
+## Notes
+
+**agent:claude-code/9c7c9cd7** at 2026-10-02T23:17:19Z
+
+The first terva-review (run 7553f8e1, Actions run 3, gpt-6.1-sol, head `d635e6e`) reviewed the adopting PR #1 and failed it with two findings. Both are accepted and fixed in the next commit.
+
+- **medium, accepted:** `REVIEW_CARRY_PATHS` was left commented out. The v0.5.1 example ships it commented, while lampi's copy enables it, and the adaptation missed that. Carry would have refused although this ticket and docs/pr-reviews.md promise it. Fixed by uncommenting it.
+- **low, accepted:** `sync-github` discarded the GitHub fetch's stderr and reported every failure as "github/main does not exist yet". It now probes with `git ls-remote --exit-code --heads github main`. Exit 2 means the remote answered without `main`, and any other failure keeps git's message and says the remote could not be read. Re-tested against scratch bare remotes: no main, unreachable remote, in sync, dry run, both fast-forward directions, divergence, and an unknown flag. tuohi's and lampi's copies of the recipe have the same defect. That is not fixed here.
+
+The review showed the workflow end to end on a private repository: the bot published a review and the `terva-review/code` status. PR CI (Actions run 19656) passed.

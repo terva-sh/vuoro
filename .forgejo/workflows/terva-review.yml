@@ -95,5 +95,5 @@ jobs:
           REVIEW_CARRY: ${{ inputs.carry }}
           # A ticket store goes here rather than in REVIEW_EXCLUDE_PATHS, so the
           # review still reads it and the commits that follow a review keep it.
-          # REVIEW_CARRY_PATHS: .tickets/**
+          REVIEW_CARRY_PATHS: .tickets/**
         run: node /action/src/main.mjs

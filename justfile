@@ -111,10 +111,18 @@ sync-github *flags:
         esac
     done
     git fetch --quiet origin main
-    if ! git fetch --quiet github main 2>/dev/null; then
+    # ls-remote exits 2 only when the remote answered and has no main, so an
+    # unreachable remote or a refused key is not reported as a missing branch.
+    found=0
+    git ls-remote --exit-code --heads github main >/dev/null || found=$?
+    if [ "$found" = 2 ]; then
         echo "github/main does not exist yet; push it with: git push github origin/main:refs/heads/main" >&2
         exit 1
+    elif [ "$found" != 0 ]; then
+        echo "sync-github: cannot read the github remote (git ls-remote exited $found)" >&2
+        exit 1
     fi
+    git fetch --quiet github main
     forgejo=$(git rev-parse origin/main)
     github=$(git rev-parse github/main)
     if [ "$forgejo" = "$github" ]; then
