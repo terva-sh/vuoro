@@ -357,7 +357,8 @@ Windows. Configuration lives in the platform config directory.
 `just ci` is the gate, and CI runs the same steps:
 
 - `gofmt` and `go vet`, with `CGO_ENABLED=0`
-- `go test -race ./...`
+- `go test ./...`, with `-race` on darwin, the only platform where the race
+  detector works without cgo
 - cross builds for linux, darwin, and windows
 - the frontend typecheck and tests, and a check that `web/dist` matches source
 - `design-tokens export -check`

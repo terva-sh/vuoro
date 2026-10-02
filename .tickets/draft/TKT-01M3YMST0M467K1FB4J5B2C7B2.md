@@ -20,12 +20,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-02T15:47:50Z
+updated_at: 2026-10-02T16:22:58Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---
@@ -43,3 +43,9 @@ the Forgejo workflow and stops there.
 
 - [ ] terva-sh/vuoro exists on Forgejo, created and pushed by the owner
 - [ ] The Forgejo CI workflow runs just ci on a pull request
+
+## Notes
+
+**agent:claude/vuoro-mvp-1** at 2026-10-02T16:22:58Z
+
+After the first push, check that .forgejo/workflows/ci.yml, and .github/workflows/ci.yml on the mirror, both go green. Then tick criterion 4 on TKT-01M3W4HWB551REE766G3TE2Y7D (Scaffold the Go module, justfile gate, and CI without cgo), which waits on that run. The Forgejo image is the internal registry's golang:1.27-alpine, which was not tested from here.

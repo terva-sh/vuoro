@@ -1,0 +1,69 @@
+# CI for vuoro on the GitHub mirror. Internal pull requests are gated by
+# .forgejo/workflows/ci.yml; this runs the same steps on linux, macOS, and
+# Windows hosted runners, which nothing internal can provide.
+#
+# Everything runs with CGO_ENABLED=0, the way vuoro ships. With cgo off the race
+# detector works on darwin only, so the macOS leg is the one that runs it. Go
+# comes from go.mod, so the 1.26 minimum is the version tested.
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CGO_ENABLED: "0"
+
+jobs:
+  check:
+    name: Vet, test and cross-build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install ticket checker
+        run: go install github.com/terva-sh/git-ticket/cmd/git-ticket@v0.24.0
+
+      - name: go vet (linux, darwin, windows)
+        run: |
+          go vet ./...
+          GOOS=darwin go vet ./...
+          GOOS=windows go vet ./...
+
+      - name: gofmt check
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
+
+      - name: go test
+        run: |
+          race=""
+          if [ "$(go env GOOS)" = darwin ]; then race="-race"; fi
+          go test $race ./...
+
+      - name: Cross-build every target
+        run: |
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            echo "== $t"
+            GOOS=${t%/*} GOARCH=${t#*/} go build ./...
+          done
+
+      - name: Ticket store
+        run: PATH="$(go env GOPATH)/bin:$PATH" git ticket check --fix --dry-run --strict

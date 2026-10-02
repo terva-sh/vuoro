@@ -230,10 +230,19 @@ those two are the closest references.
 
 ### Commands
 
-`just` lists the recipes, and `just ci` is the gate that CI runs. At bootstrap
-it is only the ticket-store check, and
-TKT-01M3W4HWB551REE766G3TE2Y7D (Scaffold the Go module, justfile gate, and CI
-without cgo) grows it into the full gate described in docs/plan.md section 9.
+`just` lists the recipes, and `just ci` is the gate that CI runs: go vet for
+this platform, darwin, and windows, the gofmt check, the tests, the cross
+builds, and the ticket-store check, all with `CGO_ENABLED=0`. The steps are
+repeated inline in `.forgejo/workflows/ci.yml`, because its container has no
+just, so change both together. docs/plan.md section 9 lists the steps still to
+come.
+
+The Go line is 1.26, tuohi's line. vuoro imports no agent tool (decision D7),
+so terva's 1.27 does not apply. Install Go 1.26 or later. Do not rely on
+`GOTOOLCHAIN` to fetch one.
+
+With cgo off, the race detector works on darwin and refuses on linux, so
+`just test` adds `-race` on darwin only. Do not turn cgo on to get it on linux.
 
 ### Commits and pull requests
 
