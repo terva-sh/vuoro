@@ -31,7 +31,7 @@ jobs:
       image: container.local.sothr.com/library/golang:1.27-alpine
     steps:
       - name: Install dependencies
-        run: apk add --no-cache git bash nodejs
+        run: apk add --no-cache git bash nodejs npm
 
       - name: Checkout
         uses: Actions-Mirrors/forgejo-actions-checkout@v6
@@ -57,6 +57,18 @@ jobs:
             echo "== $t"
             GOOS=${t%/*} GOARCH=${t#*/} go build ./...
           done
+
+      - name: Frontend dependencies
+        run: npm ci
+
+      - name: Frontend typecheck
+        run: npm run typecheck
+
+      - name: Frontend unit tests
+        run: npm run test:unit
+
+      - name: web/dist matches its source
+        run: npm run verify:dist
 
       - name: Ticket store
         run: git ticket check --fix --dry-run --strict

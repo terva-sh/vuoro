@@ -1,64 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>vuoro</title>
-  <style>
-    body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem; }
-    dt { font-weight: 600; }
-    dd { margin: 0 0 1rem; font-family: ui-monospace, monospace; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vuoro</title>
+  <script type="module" crossorigin src="./assets/index-BDElDZYU.js"></script>
 </head>
 <body>
-  <h1>vuoro</h1>
-  <p>The walking skeleton. This page comes from vuoro's own loopback server,
-    reads one value from it, and one from Go through a tuohi binding.</p>
-  <dl>
-    <dt>From the server, <code>GET /api/hello</code></dt>
-    <dd id="server">…</dd>
-    <dt>From Go, <code>await window.vuoro.version()</code></dt>
-    <dd id="binding">…</dd>
-  </dl>
-  <script>
-    // In a browser (vuoro -browser) there are no bindings.
-    const bound = typeof window.vuoro?.version === 'function';
-
-    // The per-launch token the API requires. The window gets it through a
-    // binding. A browser gets it in the URL fragment once, and the page keeps
-    // it in sessionStorage, which is scoped to this origin and port, and
-    // takes it out of the address bar.
-    async function token() {
-      if (bound) return window.vuoro.token();
-      const m = location.hash.match(/^#token=([A-Za-z0-9_-]+)$/);
-      if (m) {
-        sessionStorage.setItem('vuoro.token', m[1]);
-        history.replaceState(null, '', location.pathname + location.search);
-      }
-      const t = sessionStorage.getItem('vuoro.token');
-      if (!t) throw new Error('no token: open the URL that vuoro -browser printed');
-      return t;
-    }
-
-    async function load() {
-      const res = await fetch('/api/hello', { headers: { 'X-Vuoro-Token': await token() } });
-      if (!res.ok) throw new Error(`GET /api/hello: ${res.status}`);
-      const { version } = await res.json();
-      document.getElementById('server').textContent = `vuoro ${version}`;
-      if (!bound) {
-        document.getElementById('binding').textContent = 'no window, so no binding';
-        return `server=${JSON.stringify(version)}`;
-      }
-      const v = await window.vuoro.version();
-      document.getElementById('binding').textContent = `vuoro ${v}`;
-      return `server=${JSON.stringify(version)} binding=${JSON.stringify(v)}`;
-    }
-
-    load()
-      .then((detail) => bound && window.vuoro.report({ ok: true, detail }))
-      .catch((e) => {
-        document.body.append(`Failed: ${e}`);
-        if (bound) window.vuoro.report({ ok: false, detail: String(e) });
-      });
-  </script>
+<div id="app"></div>
 </body>
 </html>

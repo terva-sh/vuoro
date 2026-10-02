@@ -40,6 +40,10 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
       - name: Install ticket checker
         run: go install github.com/terva-sh/git-ticket/cmd/git-ticket@v0.24.0
 
@@ -72,6 +76,13 @@ jobs:
             echo "== $t"
             GOOS=${t%/*} GOARCH=${t#*/} go build ./...
           done
+
+      - name: Frontend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run test:unit
+          npm run verify:dist
 
       - name: Ticket store
         run: PATH="$(go env GOPATH)/bin:$PATH" git ticket check --fix --dry-run --strict

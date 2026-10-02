@@ -244,6 +244,12 @@ so terva's 1.27 does not apply. Install Go 1.26 or later. Do not rely on
 With cgo off, the race detector works on darwin and refuses on linux, so
 `just test` adds `-race` on darwin only. Do not turn cgo on to get it on linux.
 
+The frontend is Preact and TypeScript in `web/src`, built by Vite into
+`web/dist`, which is committed and embedded, so `go build` needs no Node.
+After changing `web/src`, run `just web-build` and commit `web/dist`.
+`just ci` fails when the two differ. `just web-setup` installs the locked
+packages first.
+
 `just test` skips the test that opens a window. `just test-gui` runs it, and
 the GitHub workflow's macOS leg runs it in CI.
 

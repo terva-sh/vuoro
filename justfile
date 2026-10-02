@@ -17,7 +17,7 @@ targets := "linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 wind
 default:
     @just --list
 
-# Build vuoro for this platform.
+# Build vuoro for this platform from the committed web/dist.
 build:
     go build -o vuoro .
 
@@ -64,9 +64,30 @@ cross:
         GOOS=${t%/*} GOARCH=${t#*/} go build ./...; \
     done
 
+# Install the locked frontend dependencies.
+web-setup:
+    npm ci
+
+# Typecheck and build web/src into web/dist; commit the result.
+web-build:
+    npm run build
+
+# Check the frontend's TypeScript without building it.
+web-typecheck:
+    npm run typecheck
+
+# Run the frontend's unit tests; accepts vitest arguments.
+[positional-arguments]
+web-test *args:
+    npm run test:unit -- "$@"
+
+# Fail if web/dist differs from a fresh build of web/src. Never writes web/dist.
+dist-verify:
+    npm run verify:dist
+
 # Validate the ticket store and detect pending repairs without writing.
 tickets-check:
     git ticket check --fix --dry-run --strict
 
 # The full gate. CI runs the same steps.
-ci: vet fmt-check test cross tickets-check
+ci: vet fmt-check test cross web-typecheck web-test dist-verify tickets-check
