@@ -2,7 +2,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { RunPanel } from './run'
 import type { Change, Draft, Reviewer, Setup } from './types'
-import { ago, Prose, Section, short } from './ui'
+import { ago, CommentBubble, Prose, Section, short, worstSeverity } from './ui'
 import { SubmitBar, waive } from './confirm'
 import { projectURL, RefsContext } from './markdown'
 import { Composer, makeWriter, WriteContext } from './write'
@@ -126,7 +126,9 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
               <button class="link file-link" key={f.new_path} title={f.new_path} onClick={() => pick(f.new_path)}>
                 <span class="file-name">
                   {f.new_path.split('/').pop()}
-                  {(byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && ' 💬'}
+                  {(byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && (
+                    <> <CommentBubble severity={worstSeverity(drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path))} /></>
+                  )}
                 </span>
                 <span class="file-dir">{f.new_path.includes('/') ? f.new_path.slice(0, f.new_path.lastIndexOf('/')) : ''}</span>
               </button>

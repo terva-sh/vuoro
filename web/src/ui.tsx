@@ -27,6 +27,25 @@ export function ConfidenceBadge({ c, mine }: { c: Confidence; mine?: boolean }) 
   )
 }
 
+export const severityOrder: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
+
+// worstSeverity is the most severe of some findings, or undefined for none.
+export function worstSeverity(ds: { severity: Severity }[]): Severity | undefined {
+  return severityOrder.find((s) => ds.some((d) => d.severity === s))
+}
+
+// CommentBubble marks a file with comments. Outlined in the colour of the
+// worst finding still to decide, and carrying its symbol, so the colour is
+// never the only sign.
+export function CommentBubble({ count, severity }: { count?: number; severity?: Severity }) {
+  return (
+    <span class={`badge bubble ${severity ? `severity-${severity}` : ''}`}
+      title={severity ? `The worst finding still to decide here is ${severity}` : 'Comments'}>
+      💬{count !== undefined && ` ${count}`}{severity && ` ${severityMark[severity]}`}
+    </span>
+  )
+}
+
 export function SeverityBadge({ severity }: { severity: Severity }) {
   return <span class={`badge severity-${severity}`}>{severityMark[severity]} {severity}</span>
 }

@@ -2,7 +2,7 @@ import { Fragment } from 'preact'
 import { useMemo, useState } from 'preact/hooks'
 import { parsePatch, patchLines, placeAll, type Place, type Row } from './diff'
 import type { Draft, FileDiff, ForgeDraft, Thread } from './types'
-import { ago, Prose, SeverityBadge } from './ui'
+import { ago, CommentBubble, Prose, SeverityBadge, worstSeverity } from './ui'
 import { post } from './api'
 import { Composer, useWriter } from './write'
 
@@ -221,7 +221,7 @@ export function FileView({ file, threads, drafts, mine = [], runID }: {
         </button>
         {tag && <span class="badge">{tag}</span>}
         {file.rebuilt && <span class="badge" title="The forge did not send this diff, and vuoro built it from both versions">rebuilt</span>}
-        {notes > 0 && <span class="badge">💬 {notes}</span>}
+        {notes > 0 && <CommentBubble count={notes} severity={worstSeverity(drafts)} />}
         {file.omitted ? (
           <span class="muted">binary or too large to show</span>
         ) : open ? (

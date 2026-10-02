@@ -249,3 +249,8 @@ main { padding: var(--ui-space-4); }
 /* A suggested change, as the author will see it to apply. */
 .draft .suggestion { margin: var(--ui-space-2) 0; }
 .draft .suggestion pre { margin-top: var(--ui-space-1); border: 1px solid var(--ui-accent); border-radius: var(--ui-radius-control); padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); overflow-x: auto; }
+
+/* A comment bubble takes the outline of its worst open finding, not its fill. */
+.badge.bubble { background: none; }
+.file-name .badge.bubble { font-family: var(--ui-font-sans); font-size: var(--ui-fs-note); padding: 0 4px; }
+.badge.bubble.severity-low, .badge.bubble.severity-info { border-color: var(--ui-muted); }

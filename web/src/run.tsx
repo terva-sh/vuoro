@@ -3,7 +3,7 @@ import { api, post } from './api'
 import { DraftCard } from './diffview'
 import type { Change, Draft, Entry, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
-import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, short, StatusBadge, usd } from './ui'
+import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
 
 // usePoll reads a run, quickly while anything works and slowly otherwise.
 function usePoll(id: string | undefined, onRun: (r: Run) => void) {
@@ -192,7 +192,6 @@ export function sourceLabel(d: Draft, byID: Map<string, Draft>, profile: Map<str
   return who.length === 1 ? `◇ raised by one reviewer, ${who[0]}, ${list}` : `merged ${list} (${who.join(', ')})`
 }
 
-const severityOrder = ['critical', 'high', 'medium', 'low', 'info']
 
 function Drafts({ run, onPick, onRun }: { run: Run; onPick: (path: string) => void; onRun: (r: Run) => void }) {
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
