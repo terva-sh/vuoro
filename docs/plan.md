@@ -348,8 +348,13 @@ terva 0.139.7. The evidence and the throwaway program are in
   endpoint for this session, and an optional resume reference. There is one
   tool policy, the reviewer's. The editor's arrives with the editor.
 - A session has `Send(text)`, which starts a turn, an event stream,
-  `Cancel`, which aborts the turn in flight, `Close`, and `Ref`, the handle
-  that a later `Start` resumes.
+  `Cancel`, which stops the turn in flight, `Close`, and `Ref`, the handle
+  that a later `Start` resumes. stream-json cannot abort one turn and keep the
+  process, so cancelling a Claude Code turn ends the session. Resuming it from
+  `Ref` continues the conversation.
+- A driver checks the lockdown at run time as well. If Claude Code's `init`
+  event offers any tool outside the allowed set, the driver ends the session
+  before any of the session's events reach vuoro.
 - The events both tools honour: text delta, tool call, tool result, denied
   (the tool and its input), usage, turn done (with an error when it failed),
   and session info (tool, version, model, account kind). Usage is per turn.
