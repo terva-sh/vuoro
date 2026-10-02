@@ -244,6 +244,9 @@ so terva's 1.27 does not apply. Install Go 1.26 or later. Do not rely on
 With cgo off, the race detector works on darwin and refuses on linux, so
 `just test` adds `-race` on darwin only. Do not turn cgo on to get it on linux.
 
+`just test` skips the test that opens a window. `just test-gui` runs it, and
+the GitHub workflow's macOS leg runs it in CI.
+
 ### Commits and pull requests
 
 Commit or push only when the person you are working with asks. Commit messages

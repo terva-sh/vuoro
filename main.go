@@ -1,18 +1,36 @@
 // Command vuoro is one desktop window for every code review you give and get.
 //
-// This is the scaffold. The walking skeleton replaces it with the loopback
-// server shown in a tuohi window (docs/plan.md section 3).
+// It serves its interface over a loopback HTTP server and shows it in a tuohi
+// window (docs/plan.md section 3). The server runs in a goroutine, and main
+// keeps the UI loop, which macOS requires to be on the main thread.
+//
+//	vuoro            open the window, until it is closed
+//	vuoro -browser   serve on loopback and print the URL, until interrupted
+//	vuoro -check     load the page, check it reached the server and Go, and
+//	                 exit 0 or 1
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"time"
+
+	"github.com/terva-sh/tuohi"
+	"github.com/terva-sh/vuoro/server"
+	"github.com/terva-sh/vuoro/web"
 )
 
 // version is set at release time with -ldflags "-X main.version=...".
 var version = "dev"
+
+// checkTimeout bounds -check, so a page that never reports cannot hang CI.
+const checkTimeout = 30 * time.Second
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -22,6 +40,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("vuoro", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "print the version and exit")
+	browser := fs.Bool("browser", false, "serve on loopback and print the URL, for a browser or debugging")
+	check := fs.Bool("check", false, "load the page, check it reached the server and Go, and exit 0 or 1")
+	addr := fs.String("addr", "127.0.0.1:0", "the loopback address to serve on")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -29,6 +50,100 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "vuoro %s\n", version)
 		return 0
 	}
-	fmt.Fprintln(stderr, "vuoro: there is no window yet; see docs/plan.md section 10")
-	return 1
+	if *browser && *check {
+		fmt.Fprintln(stderr, "vuoro: -browser and -check do not go together")
+		return 2
+	}
+	logger := log.New(stderr, "vuoro: ", 0)
+
+	ln, err := server.Listen(*addr)
+	if err != nil {
+		logger.Print(err)
+		return 1
+	}
+	srv := server.HTTPServer(server.New(web.Dist(), version))
+	go func() {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Printf("serve: %v", err)
+		}
+	}()
+	defer srv.Close()
+	url := "http://" + ln.Addr().String() + "/"
+
+	if *browser {
+		return serveForBrowser(url, stdout)
+	}
+	return showWindow(url, *check, logger)
+}
+
+// serveForBrowser prints the URL and serves until interrupted.
+func serveForBrowser(url string, stdout io.Writer) int {
+	fmt.Fprintln(stdout, url)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	<-sig
+	return 0
+}
+
+// report is what the page sends back through the vuoro.report binding.
+type report struct {
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail"`
+}
+
+// showWindow opens the window on url and runs the UI loop on the main thread.
+func showWindow(url string, check bool, logger *log.Logger) int {
+	app := &tuohi.App{Name: "vuoro", Exit: true}
+	reports := make(chan report, 1)
+
+	view := &tuohi.View{
+		URL:    url,
+		Title:  "vuoro",
+		Frame:  true,
+		Width:  1100,
+		Height: 760,
+		Bind: map[string]any{
+			// A binding runs on a goroutine of its own, never the UI thread.
+			"vuoro.version": func() string { return version },
+			"vuoro.report": func(r report) {
+				select {
+				case reports <- r:
+				default:
+				}
+				if check {
+					app.Quit()
+				}
+			},
+		},
+	}
+	if check {
+		go func() {
+			time.Sleep(checkTimeout)
+			logger.Printf("the page did not report within %v", checkTimeout)
+			app.Quit()
+		}()
+	}
+
+	if err := app.Show(view); err != nil {
+		logger.Print(err)
+		return 1
+	}
+	if err := app.Wait(); err != nil {
+		logger.Print(err)
+		return 1
+	}
+	if !check {
+		return 0
+	}
+	select {
+	case r := <-reports:
+		logger.Printf("check: ok=%v %s", r.OK, r.Detail)
+		if !r.OK {
+			return 1
+		}
+		return 0
+	default:
+		logger.Print("check: no report from the page")
+		return 1
+	}
 }

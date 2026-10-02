@@ -58,6 +58,14 @@ jobs:
           if [ "$(go env GOOS)" = darwin ]; then race="-race"; fi
           go test $race ./...
 
+      # The window itself, on the macOS engine. TUOHI_REQUIRE_GUI=1 fails the
+      # test if it would skip, so the step cannot pass by testing nothing.
+      - name: GUI check (macOS)
+        if: runner.os == 'macOS'
+        env:
+          TUOHI_REQUIRE_GUI: '1'
+        run: go test -race -count=1 -run TestCheck -v .
+
       - name: Cross-build every target
         run: |
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do

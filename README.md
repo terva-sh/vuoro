@@ -7,9 +7,10 @@ and submit without leaving it.
 
 *Vuoro* is Finnish for "turn", as in "it is your turn".
 
-> **Status: bootstrap.** There is no code yet, and the scope from here to v1.0
-> is settled. [docs/plan.md](docs/plan.md) is the design of record, and the
-> work is tracked as tickets in `.tickets/`.
+> **Status: walking skeleton.** `vuoro` opens a window over its own loopback
+> server and does nothing else yet. The scope from here to v1.0 is settled.
+> [docs/plan.md](docs/plan.md) is the design of record, and the work is
+> tracked as tickets in `.tickets/`.
 
 ## Why
 

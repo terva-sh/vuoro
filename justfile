@@ -46,6 +46,17 @@ test *args:
     race=""; if [ "$(go env GOOS)" = darwin ]; then race="-race"; fi; \
     go test $race "$@" ./...
 
+# Open the window and check that the page reached the server and Go. It
+# needs a display, so `just test` skips it.
+test-gui:
+    race=""; if [ "$(go env GOOS)" = darwin ]; then race="-race"; fi; \
+    TUOHI_REQUIRE_GUI=1 go test $race -count=1 -run TestCheck -v .
+
+# Build and open the window; forwards its arguments.
+[positional-arguments]
+run *args: build
+    ./vuoro "$@"
+
 # Build every package for every target.
 cross:
     for t in {{targets}}; do \
