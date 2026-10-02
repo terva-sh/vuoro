@@ -262,6 +262,12 @@ first when there is one, as in
 Commits use the repository's own identity, which is set in `.git/config`. Do
 not override it.
 
+Internal pull requests go to Forgejo (`origin`), where CI gates them and
+`terva-review` reviews them. GitHub (`github`) takes pull requests from work
+outside the internal network. The two `main` branches are kept equal with
+`just sync-github`, which never force-pushes. [docs/pr-reviews.md](docs/pr-reviews.md)
+describes both processes and how to request a review.
+
 ### Handoffs
 
 A session handoff is written to `~/.local/state/agent-handoffs/vuoro/` first.
