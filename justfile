@@ -91,3 +91,49 @@ tickets-check:
 
 # The full gate. CI runs the same steps.
 ci: vet fmt-check test cross web-typecheck web-test dist-verify tickets-check
+
+# Internal work merges on Forgejo (origin) and outside pull requests merge on
+# GitHub (github), so either main can move ahead of the other. This
+# fast-forwards whichever is behind. When both have moved it stops and names
+# the heads: merge them on a branch, land it through a Forgejo pull request,
+# and run this again. It never force-pushes, and without --yes it prints the
+# plan and pushes nothing. docs/pr-reviews.md.
+# Fast-forward the stale main between Forgejo and GitHub. Needs --yes.
+[positional-arguments]
+sync-github *flags:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    yes=false
+    for f in "$@"; do
+        case "$f" in
+            --yes) yes=true ;;
+            *) echo "sync-github: unknown flag $f" >&2; exit 2 ;;
+        esac
+    done
+    git fetch --quiet origin main
+    if ! git fetch --quiet github main 2>/dev/null; then
+        echo "github/main does not exist yet; push it with: git push github origin/main:refs/heads/main" >&2
+        exit 1
+    fi
+    forgejo=$(git rev-parse origin/main)
+    github=$(git rev-parse github/main)
+    if [ "$forgejo" = "$github" ]; then
+        echo "in sync at ${forgejo:0:12}"
+        exit 0
+    fi
+    if git merge-base --is-ancestor "$github" "$forgejo"; then
+        from=origin; to=github; head=$forgejo
+    elif git merge-base --is-ancestor "$forgejo" "$github"; then
+        from=github; to=origin; head=$github
+    else
+        echo "diverged: origin/main ${forgejo:0:12}, github/main ${github:0:12}" >&2
+        echo "merge them on a branch and land it through a Forgejo PR" >&2
+        exit 1
+    fi
+    echo "fast-forward $to/main to $from/main ${head:0:12}:"
+    git log --oneline "$to/main..$head"
+    if [ "$yes" != true ]; then
+        echo "dry run; pass --yes to push"
+        exit 0
+    fi
+    git push "$to" "$head:refs/heads/main"
