@@ -378,7 +378,9 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 			}
 			continue
 		}
-		t := forge.Thread{ID: d.ID, Resolvable: d.Resolvable, Resolved: d.Resolved}
+		// REST and draft notes name a discussion by its bare id, so the model
+		// does too.
+		t := forge.Thread{ID: strings.TrimPrefix(d.ID, "gid://gitlab/Discussion/"), Resolvable: d.Resolvable, Resolved: d.Resolved}
 		if p := notes[0].Position; p != nil && p.FilePath != "" {
 			t.Anchor = &forge.Anchor{
 				Path: p.FilePath, OldPath: p.OldPath, NewLine: deref(p.NewLine), OldLine: deref(p.OldLine),
@@ -386,7 +388,7 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 			}
 		}
 		for _, n := range notes {
-			t.Notes = append(t.Notes, forge.Note{ID: n.ID, Author: user(n.Author), Body: n.Body, At: n.CreatedAt, System: n.System})
+			t.Notes = append(t.Notes, forge.Note{ID: strings.TrimPrefix(n.ID, "gid://gitlab/Note/"), Author: user(n.Author), Body: n.Body, At: n.CreatedAt, System: n.System})
 		}
 		ch.Threads = append(ch.Threads, t)
 	}

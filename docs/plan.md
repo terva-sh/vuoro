@@ -358,6 +358,18 @@ A finding has severity, title, body, evidence, and an optional anchor (path,
 side, SHA, line range). Each valid finding is a pending draft comment, marked
 with the tool and model that drafted it.
 
+**Keeping a draft is the person's act.** An agent's draft stays in the run
+until the person keeps it, edits and keeps it, or drops it. Keeping it
+creates one of the person's own pending comments on the forge (a GitLab draft
+note), which no one else sees. Submit publishes all of them at once
+(`draft_notes/bulk_publish`), with an approval if the person asks for one. A
+kept or dropped draft can no longer be changed by its agent. An inline
+comment lands on the last line of the draft's range, because GitLab's
+multi-line positions need a line code that vuoro does not build yet. A draft
+anchored on a head that has since moved is refused rather than placed on the
+wrong line. The agent and review packages depend on no forge adapter, and a
+test holds that.
+
 An anchor must name lines that the change's diff shows, inside one hunk, on
 the side it names, because a forge places an inline comment only there. A
 draft anchored anywhere else comes back with the rule `anchor.notInDiff` and

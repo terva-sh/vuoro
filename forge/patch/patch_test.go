@@ -65,3 +65,21 @@ func TestAgreesWithGit(t *testing.T) {
 		}
 	}
 }
+
+func TestLineNamesBothSides(t *testing.T) {
+	p := "@@ -1,3 +1,4 @@\n a\n-b\n+B\n+C\n d\n"
+	for _, c := range []struct {
+		head     bool
+		line     int
+		old, new int
+		ok       bool
+	}{
+		{true, 1, 1, 1, true}, {true, 2, 0, 2, true}, {true, 3, 0, 3, true}, {true, 4, 3, 4, true},
+		{false, 2, 2, 0, true}, {false, 3, 3, 4, true}, {true, 9, 0, 0, false},
+	} {
+		o, n, ok := Line(p, c.head, c.line)
+		if o != c.old || n != c.new || ok != c.ok {
+			t.Errorf("Line(head=%v, %d) = %d %d %v, want %d %d %v", c.head, c.line, o, n, ok, c.old, c.new, c.ok)
+		}
+	}
+}

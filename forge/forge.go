@@ -210,3 +210,28 @@ type Draft struct {
 type Opener interface {
 	Open(ctx context.Context, ref Ref) (*Change, error)
 }
+
+// NewDraft is a pending comment the person writes or keeps: a reply when
+// ThreadID is set, an inline comment when Anchor is, and otherwise a general
+// comment. An inline anchor names the line on both sides when the line is
+// unchanged, and its Diff is the change's current DiffRefs.
+type NewDraft struct {
+	Body     string  `json:"body"`
+	ThreadID string  `json:"thread_id,omitempty"`
+	Anchor   *Anchor `json:"anchor,omitempty"`
+}
+
+// Writer is the write half of an adapter. Each call is one explicit action
+// of the person's in the UI: no agent reaches it.
+type Writer interface {
+	// CreateDraft adds a pending comment that only the person sees until
+	// they submit.
+	CreateDraft(ctx context.Context, ref Ref, d NewDraft) (Draft, error)
+	UpdateDraft(ctx context.Context, ref Ref, id, body string) error
+	DeleteDraft(ctx context.Context, ref Ref, id string) error
+	// Submit publishes every pending comment of the person's at once, so the
+	// review lands as one event.
+	Submit(ctx context.Context, ref Ref) error
+	Resolve(ctx context.Context, ref Ref, threadID string, resolved bool) error
+	Approve(ctx context.Context, ref Ref, approve bool) error
+}

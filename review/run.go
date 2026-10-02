@@ -473,6 +473,32 @@ func (m *Manager) find(runID, sessionID string) (*Run, *Session, error) {
 	return nil, nil, ErrNoRun
 }
 
+// Draft returns one draft of a run, and the head the run reviewed.
+func (m *Manager) Draft(runID, id string) (drafts.Draft, string, error) {
+	r := m.Get(runID)
+	if r == nil {
+		return drafts.Draft{}, "", ErrNoRun
+	}
+	d, ok := r.store.Get(id)
+	if !ok {
+		return drafts.Draft{}, "", ErrNoRun
+	}
+	return d, r.Head, nil
+}
+
+// Decide records the person's decision on one of a run's drafts.
+func (m *Manager) Decide(runID, id, decision, noteID string, edited bool) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	if _, err := r.store.Decide(id, decision, noteID, edited); err != nil {
+		return err
+	}
+	r.save()
+	return nil
+}
+
 // ErrNoRun means no run or session has that ID.
 var ErrNoRun = errors.New("review: no such run or session")
 

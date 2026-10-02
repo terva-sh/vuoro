@@ -22,6 +22,18 @@ func TestBoundaries(t *testing.T) {
 			}
 		}
 	}
+	// No code an agent run reaches can write to a forge: the agent drivers
+	// and the review runner depend on no forge adapter and not on the API
+	// that holds the write routes. An agent drafts, and a person posts.
+	runDeps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./agent/...", "./review/...").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range strings.Fields(string(runDeps)) {
+		if strings.HasPrefix(d, mod+"forge/") || d == mod+"app" || strings.HasPrefix(d, mod+"app/") {
+			t.Errorf("the agent or review packages depend on %s", d)
+		}
+	}
 	all, err := exec.Command("go", "list", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./...").Output()
 	if err != nil {
 		t.Fatal(err)

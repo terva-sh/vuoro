@@ -59,10 +59,16 @@ type Draft struct {
 	// Sources names the drafts a synthesizer merged into this one.
 	Sources []string `json:"sources,omitempty"`
 
-	Status   Status    `json:"status"`
-	Revision int       `json:"revision"`
-	Session  string    `json:"session"`    // the session that drafted it
-	Drafted  string    `json:"drafted_by"` // the tool and model, as the person sees them
+	Status   Status `json:"status"`
+	Revision int    `json:"revision"`
+	// Decision is the person's, never an agent's: "kept" made it a pending
+	// comment on the forge, NoteID, and "dropped" set it aside. Once decided,
+	// the agent can no longer change it.
+	Decision string    `json:"decision,omitempty"`
+	NoteID   string    `json:"note_id,omitempty"`
+	Edited   bool      `json:"edited,omitempty"` // the person changed the text before keeping it
+	Session  string    `json:"session"`          // the session that drafted it
+	Drafted  string    `json:"drafted_by"`       // the tool and model, as the person sees them
 	Updated  time.Time `json:"updated"`
 }
 
@@ -261,6 +267,46 @@ func (st *Store) Withdraw(s Session, id string) (Draft, error) {
 	return *d, nil
 }
 
+// Kept and Dropped are the person's decisions on a draft.
+const (
+	Kept    = "kept"
+	Dropped = "dropped"
+)
+
+// Decide records the person's decision on a pending draft. It is vuoro's
+// call, made from the UI, and no MCP tool reaches it.
+func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, d := range st.drafts {
+		if d.ID != id {
+			continue
+		}
+		switch {
+		case d.Status != Pending:
+			return Draft{}, fmt.Errorf("drafts: %s was withdrawn", id)
+		case d.Decision != "":
+			return Draft{}, fmt.Errorf("drafts: %s is already %s", id, d.Decision)
+		}
+		d.Decision, d.NoteID, d.Edited = decision, noteID, edited
+		d.Updated = st.now()
+		return *d, nil
+	}
+	return Draft{}, fmt.Errorf("drafts: no draft %s", id)
+}
+
+// Get returns one draft.
+func (st *Store) Get(id string) (Draft, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, d := range st.drafts {
+		if d.ID == id {
+			return *d, true
+		}
+	}
+	return Draft{}, false
+}
+
 // List returns the drafts s may see: a reviewer's own, or every draft for a
 // synthesizer. Withdrawn drafts are left out unless withdrawn is set.
 func (st *Store) List(s Session, withdrawn bool) []Draft {
@@ -300,6 +346,8 @@ func (st *Store) own(s Session, id string) (*Draft, error) {
 			return nil, &RuleError{"draft.owner", "id", "a draft this session proposed"}
 		case d.Status != Pending:
 			return nil, &RuleError{"draft.withdrawn", "id", "a draft that is still pending"}
+		case d.Decision != "":
+			return nil, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
 		}
 		return d, nil
 	}

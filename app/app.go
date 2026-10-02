@@ -36,6 +36,9 @@ type App struct {
 	// Tools are the agent tools vuoro knows, by name. Each is probed once,
 	// and only a tool that answers is offered to a run.
 	Tools map[string]agent.Driver
+	// Dial makes the client for a host. Nil means https on that host; a
+	// test points it at a fake forge.
+	Dial func(host string, token config.Secret) (*gitlab.Client, error)
 
 	probeOnce sync.Once
 	probes    map[string]probe
@@ -64,6 +67,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/close", a.closeRun)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
+	a.writeRoutes(mux)
 	return mux
 }
 
@@ -158,7 +162,13 @@ func (a *App) client(ctx context.Context, host string) (*gitlab.Client, error) {
 		}
 		token = t
 	}
-	c, err := gitlab.New("https://"+host, token)
+	dial := a.Dial
+	if dial == nil {
+		dial = func(host string, token config.Secret) (*gitlab.Client, error) {
+			return gitlab.New("https://"+host, token)
+		}
+	}
+	c, err := dial(host, token)
 	if err != nil {
 		return nil, err
 	}

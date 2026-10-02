@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HWYZ992P7V5TEQ2QXAC7
 title: "Pending drafts: keep, edit, or drop what agents drafted"
 type: task
-status: draft
+status: in-progress
 status_reason: null
 priority: normal
 due_on: null
@@ -19,15 +19,22 @@ dependencies:
   - TKT-01M3YK0CM0SWMYXMM7A7M7J2QX
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:claude/vuoro-mvp-1
+  branch: tickets/write
+  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
+  commit: 0b46f25b75d00ae6af5b3d67d2379b1577e57c63
+  session: null
+  claimed_at: 2026-10-02T20:04:06Z
+  expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T15:47:51Z
+updated_at: 2026-10-02T20:04:06Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---

@@ -169,3 +169,52 @@ func backtrack(a, b []string, trace [][]int, off, d int) []op {
 	}
 	return out
 }
+
+// Line finds a line of a diff by its number on one side, and returns its
+// number on both: old is 0 for an added line, and new is 0 for a removed one.
+// ok is false when the diff does not show the line.
+func Line(patch string, head bool, line int) (old, new int, ok bool) {
+	var o, n int
+	for _, l := range strings.Split(patch, "\n") {
+		if rest, isHunk := strings.CutPrefix(l, "@@ -"); isHunk {
+			ranges, _, _ := strings.Cut(rest, " @@")
+			a, b, _ := strings.Cut(ranges, " +")
+			o, n = atoi(a), atoi(b)
+			continue
+		}
+		if l == "" || l[0] == '\\' || o == 0 && n == 0 {
+			continue
+		}
+		switch l[0] {
+		case '+':
+			if head && n == line {
+				return 0, n, true
+			}
+			n++
+		case '-':
+			if !head && o == line {
+				return o, 0, true
+			}
+			o++
+		default:
+			if head && n == line || !head && o == line {
+				return o, n, true
+			}
+			o++
+			n++
+		}
+	}
+	return 0, 0, false
+}
+
+func atoi(s string) int {
+	s, _, _ = strings.Cut(s, ",")
+	v := 0
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return v
+		}
+		v = v*10 + int(c-'0')
+	}
+	return v
+}
