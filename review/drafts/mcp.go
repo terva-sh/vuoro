@@ -22,26 +22,32 @@ import (
 // which the transport allows. Its only tools are the four below. None of them
 // reaches a forge.
 type Server struct {
-	store *Store
-
 	mu       sync.Mutex
-	sessions map[[32]byte]Session // by the SHA-256 of the bearer token
+	sessions map[[32]byte]entry // by the SHA-256 of the bearer token
 }
 
-// NewServer serves store.
-func NewServer(store *Store) *Server {
-	return &Server{store: store, sessions: map[[32]byte]Session{}}
+// entry is a registered session and the store of the run it belongs to.
+type entry struct {
+	store *Store
+	sess  Session
 }
 
-// Register admits a session and returns the bearer token it must send.
-func (s *Server) Register(sess Session) string {
+// NewServer returns a server with no sessions. One server serves every run,
+// and each session's token names its run's store.
+func NewServer() *Server {
+	return &Server{sessions: map[[32]byte]entry{}}
+}
+
+// Register admits a session to store and returns the bearer token it must
+// send.
+func (s *Server) Register(store *Store, sess Session) string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
 	tok := base64.RawURLEncoding.EncodeToString(b)
 	s.mu.Lock()
-	s.sessions[sha256.Sum256([]byte(tok))] = sess
+	s.sessions[sha256.Sum256([]byte(tok))] = entry{store, sess}
 	s.mu.Unlock()
 	return tok
 }
@@ -53,15 +59,15 @@ func (s *Server) Unregister(token string) {
 	s.mu.Unlock()
 }
 
-func (s *Server) session(r *http.Request) (Session, bool) {
+func (s *Server) session(r *http.Request) (entry, bool) {
 	tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !ok || tok == "" {
-		return Session{}, false
+		return entry{}, false
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sess, ok := s.sessions[sha256.Sum256([]byte(tok))]
-	return sess, ok
+	e, ok := s.sessions[sha256.Sum256([]byte(tok))]
+	return e, ok
 }
 
 // protocolVersions are the MCP revisions this server speaks, newest first.
@@ -80,7 +86,7 @@ type rpcError struct {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	sess, ok := s.session(r)
+	e, ok := s.session(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -105,7 +111,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
-	result, rerr := s.dispatch(sess, req)
+	result, rerr := e.dispatch(req)
 	writeRPC(w, req.ID, result, rerr)
 }
 
@@ -123,7 +129,8 @@ func writeRPC(w http.ResponseWriter, id json.RawMessage, result any, rerr *rpcEr
 	_ = json.NewEncoder(w).Encode(msg)
 }
 
-func (s *Server) dispatch(sess Session, req rpcRequest) (any, *rpcError) {
+func (e entry) dispatch(req rpcRequest) (any, *rpcError) {
+	sess := e.sess
 	switch req.Method {
 	case "initialize":
 		var p struct {
@@ -152,7 +159,7 @@ func (s *Server) dispatch(sess Session, req rpcRequest) (any, *rpcError) {
 		if err := json.Unmarshal(req.Params, &p); err != nil {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
-		return s.call(sess, p.Name, p.Arguments), nil
+		return e.call(p.Name, p.Arguments), nil
 	}
 	return nil, &rpcError{-32601, "method not found: " + req.Method}
 }
@@ -231,7 +238,8 @@ func ToolNames() []string {
 	return []string{"list_drafts", "propose_draft", "revise_draft", "withdraw_draft"}
 }
 
-func (s *Server) call(sess Session, name string, args json.RawMessage) map[string]any {
+func (e entry) call(name string, args json.RawMessage) map[string]any {
+	sess := e.sess
 	if len(args) == 0 {
 		args = json.RawMessage("{}")
 	}
@@ -245,7 +253,7 @@ func (s *Server) call(sess Session, name string, args json.RawMessage) map[strin
 			IncludeWithdrawn bool `json:"include_withdrawn"`
 		}
 		if err = strictUnmarshal(args, &p); err == nil {
-			list := s.store.List(sess, p.IncludeWithdrawn)
+			list := e.store.List(sess, p.IncludeWithdrawn)
 			if list == nil {
 				list = []Draft{}
 			}
@@ -254,7 +262,7 @@ func (s *Server) call(sess Session, name string, args json.RawMessage) map[strin
 	case "propose_draft":
 		var p Proposal
 		if err = strictUnmarshal(args, &p); err == nil {
-			out, err = s.store.Propose(sess, p)
+			out, err = e.store.Propose(sess, p)
 		}
 	case "revise_draft":
 		var p struct {
@@ -262,14 +270,14 @@ func (s *Server) call(sess Session, name string, args json.RawMessage) map[strin
 			Proposal
 		}
 		if err = strictUnmarshal(args, &p); err == nil {
-			out, err = s.store.Revise(sess, p.ID, p.Proposal)
+			out, err = e.store.Revise(sess, p.ID, p.Proposal)
 		}
 	case "withdraw_draft":
 		var p struct {
 			ID string `json:"id"`
 		}
 		if err = strictUnmarshal(args, &p); err == nil {
-			out, err = s.store.Withdraw(sess, p.ID)
+			out, err = e.store.Withdraw(sess, p.ID)
 		}
 	default:
 		err = &RuleError{"tool.unknown", "name", "one of " + strings.Join(ToolNames(), ", ")}

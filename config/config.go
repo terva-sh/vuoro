@@ -26,6 +26,32 @@ import (
 // Config is the configuration file.
 type Config struct {
 	Forges []Forge `json:"forges"`
+	// Presets name the reviewers a run starts. With none, a run starts one
+	// code reviewer on the tool's default model.
+	Presets []Preset `json:"presets,omitempty"`
+	// Profiles are the person's own, beside the built-in code, security, and
+	// documentation profiles (D14).
+	Profiles []Profile `json:"profiles,omitempty"`
+}
+
+// Preset is a named set of reviewers.
+type Preset struct {
+	Name      string     `json:"name"`
+	Reviewers []Reviewer `json:"reviewers"`
+}
+
+// Reviewer is one reviewer in a preset: a profile on a tool and a model.
+type Reviewer struct {
+	Profile string `json:"profile"`
+	Tool    string `json:"tool,omitempty"`  // empty for the only tool available
+	Model   string `json:"model,omitempty"` // empty for the tool's default
+}
+
+// Profile is a review focus the person wrote.
+type Profile struct {
+	Name   string `json:"name"`
+	Title  string `json:"title"`
+	Prompt string `json:"prompt"`
 }
 
 // Forge is one forge account.
@@ -45,6 +71,10 @@ type Forge struct {
 	// TokenEnv names an environment variable holding the token. It is used
 	// when there is no TokenCommand.
 	TokenEnv string `json:"token_env,omitempty"`
+	// Clone is the git transport a review fetches the project over, with
+	// the person's own keys or credential helper: "ssh", the default, or
+	// "https".
+	Clone string `json:"clone,omitempty"`
 }
 
 // Dir is the directory the configuration file lives in: the platform's
@@ -125,6 +155,28 @@ func Parse(b []byte) (*Config, error) {
 		}
 		seen[f.Name] = true
 	}
+	presets := map[string]bool{}
+	for i, p := range c.Presets {
+		switch {
+		case p.Name == "" || presets[p.Name]:
+			return nil, fmt.Errorf("config: presets[%d]: a preset needs a name of its own", i)
+		case len(p.Reviewers) == 0:
+			return nil, fmt.Errorf("config: presets[%d]: a preset needs at least one reviewer", i)
+		}
+		for j, r := range p.Reviewers {
+			if r.Profile == "" {
+				return nil, fmt.Errorf("config: presets[%d].reviewers[%d]: a reviewer needs a profile", i, j)
+			}
+		}
+		presets[p.Name] = true
+	}
+	profiles := map[string]bool{}
+	for i, p := range c.Profiles {
+		if p.Name == "" || profiles[p.Name] || strings.TrimSpace(p.Prompt) == "" {
+			return nil, fmt.Errorf("config: profiles[%d]: a profile needs a name of its own and a prompt", i)
+		}
+		profiles[p.Name] = true
+	}
 	return &c, nil
 }
 
@@ -140,6 +192,8 @@ func (f Forge) check() error {
 		return errors.New("a forge needs a token_command or a token_env")
 	case len(f.TokenCommand) > 0 && f.TokenCommand[0] == "":
 		return errors.New("token_command needs a program")
+	case f.Clone != "" && f.Clone != "ssh" && f.Clone != "https":
+		return fmt.Errorf("clone %q: ssh or https", f.Clone)
 	}
 	u, err := url.Parse(f.URL)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" {

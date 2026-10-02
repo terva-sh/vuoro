@@ -161,6 +161,11 @@ func validateAnchor(a *Anchor) error {
 // Store holds one review run's drafts. It is safe for concurrent use, since
 // the run's sessions work in parallel.
 type Store struct {
+	// CheckAnchor, when set, checks an anchor against the change, such as
+	// that its lines are in the diff. It returns a *RuleError. Set it before
+	// any session starts.
+	CheckAnchor func(Anchor) error
+
 	mu     sync.Mutex
 	drafts []*Draft
 	next   int
@@ -172,7 +177,7 @@ func NewStore() *Store { return &Store{now: time.Now} }
 
 // Propose validates p and adds it as a pending draft by s.
 func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
-	if err := Validate(p, s.Role); err != nil {
+	if err := st.validate(p, s.Role); err != nil {
 		return Draft{}, err
 	}
 	st.mu.Lock()
@@ -192,7 +197,7 @@ func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 
 // Revise replaces the content of one of s's own pending drafts.
 func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
-	if err := Validate(p, s.Role); err != nil {
+	if err := st.validate(p, s.Role); err != nil {
 		return Draft{}, err
 	}
 	st.mu.Lock()
@@ -208,6 +213,23 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 	d.Revision++
 	d.Updated = st.now()
 	return *d, nil
+}
+
+func (st *Store) validate(p Proposal, role Role) error {
+	if err := Validate(p, role); err != nil {
+		return err
+	}
+	if p.Anchor != nil && st.CheckAnchor != nil {
+		a := *p.Anchor
+		if a.Side == "" {
+			a.Side = Head
+		}
+		if a.EndLine == 0 {
+			a.EndLine = a.StartLine
+		}
+		return st.CheckAnchor(a)
+	}
+	return nil
 }
 
 // Withdraw marks one of s's own pending drafts as withdrawn. It stays in the

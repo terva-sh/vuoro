@@ -17,9 +17,9 @@ import (
 
 // Ref names one change on one forge.
 type Ref struct {
-	Host    string // such as gitlab.com
-	Project string // the project's full path, such as group/sub/project
-	Number  int    // the merge request's iid, or the pull request's number
+	Host    string `json:"host"`    // such as gitlab.com
+	Project string `json:"project"` // the project's full path, such as group/sub/project
+	Number  int    `json:"number"`  // the merge request's iid, or the pull request's number
 }
 
 func (r Ref) String() string { return fmt.Sprintf("%s/%s!%d", r.Host, r.Project, r.Number) }
@@ -58,46 +58,46 @@ const (
 
 // Change is one merge request or pull request, as the forge reports it.
 type Change struct {
-	Ref          Ref
-	Title        string
-	Description  string
-	Author       User
-	WebURL       string
-	SourceBranch string
-	TargetBranch string
-	Diff         DiffRefs
-	Draft        bool
-	State        State
+	Ref          Ref      `json:"ref"`
+	Title        string   `json:"title"`
+	Description  string   `json:"description"`
+	Author       User     `json:"author"`
+	WebURL       string   `json:"web_url"`
+	SourceBranch string   `json:"source_branch"`
+	TargetBranch string   `json:"target_branch"`
+	Diff         DiffRefs `json:"diff"`
+	Draft        bool     `json:"draft"`
+	State        State    `json:"state"`
 	// Mergeability is the forge's own word for it, such as GitLab's
 	// detailedMergeStatus. MergeableByMe says whether the person can merge.
-	Mergeability string
-	Created      time.Time
-	Updated      time.Time
+	Mergeability string    `json:"mergeability"`
+	Created      time.Time `json:"created"`
+	Updated      time.Time `json:"updated"`
 
-	Reviewers []Reviewer
-	Assignees []User
+	Reviewers []Reviewer `json:"reviewers"`
+	Assignees []User     `json:"assignees"`
 	// Participants are everyone the forge counts as taking part.
-	Participants []User
-	Requests     []ReviewRequest
-	Reviews      []Review
-	Pushes       []Push
-	Threads      []Thread
-	Files        []FileDiff
+	Participants []User          `json:"participants"`
+	Requests     []ReviewRequest `json:"requests"`
+	Reviews      []Review        `json:"reviews"`
+	Pushes       []Push          `json:"pushes"`
+	Threads      []Thread        `json:"threads"`
+	Files        []FileDiff      `json:"files"`
 	// Drafts are the person's own pending comments on the forge.
-	Drafts []Draft
+	Drafts []Draft `json:"drafts"`
 }
 
 // DiffRefs are the SHAs an inline comment's position needs.
 type DiffRefs struct {
-	Base  string // the merge base
-	Start string // the target's head when the diff was taken
-	Head  string // the change's head
+	Base  string `json:"base"`  // the merge base
+	Start string `json:"start"` // the target's head when the diff was taken
+	Head  string `json:"head"`  // the change's head
 }
 
 // User is an account on the forge.
 type User struct {
-	Username string
-	Bot      bool
+	Username string `json:"username"`
+	Bot      bool   `json:"bot"`
 }
 
 // ReviewState is a reviewer's current state, where the forge keeps one.
@@ -113,16 +113,16 @@ const (
 // Reviewer is a requested reviewer and where they stand.
 type Reviewer struct {
 	User
-	State    ReviewState
-	CanMerge bool
+	State    ReviewState `json:"state"`
+	CanMerge bool        `json:"can_merge"`
 }
 
 // ReviewRequest records that a reviewer was asked, at a time. A re-request is
 // a new one.
 type ReviewRequest struct {
-	Reviewer string
-	By       string
-	At       time.Time
+	Reviewer string    `json:"reviewer"`
+	By       string    `json:"by"`
+	At       time.Time `json:"at"`
 }
 
 // Verdict is what a review said.
@@ -137,73 +137,73 @@ const (
 // Review is one reviewer's verdict at a time. SHA is the head it was given at,
 // where the forge records it; GitLab does not.
 type Review struct {
-	Reviewer  string
-	Verdict   Verdict
-	At        time.Time
-	SHA       string
-	Dismissed bool
+	Reviewer  string    `json:"reviewer"`
+	Verdict   Verdict   `json:"verdict"`
+	At        time.Time `json:"at"`
+	SHA       string    `json:"sha"`
+	Dismissed bool      `json:"dismissed"`
 }
 
 // Push is new commits arriving on the change. Head is set where the forge
 // says which commit the push ended at.
 type Push struct {
-	At   time.Time
-	Head string
-	By   string
+	At   time.Time `json:"at"`
+	Head string    `json:"head"`
+	By   string    `json:"by"`
 }
 
 // Thread is one discussion.
 type Thread struct {
-	ID         string
-	Anchor     *Anchor // nil for a general discussion
-	Resolvable bool
-	Resolved   bool
-	Notes      []Note
+	ID         string  `json:"id"`
+	Anchor     *Anchor `json:"anchor"` // nil for a general discussion
+	Resolvable bool    `json:"resolvable"`
+	Resolved   bool    `json:"resolved"`
+	Notes      []Note  `json:"notes"`
 }
 
 // Anchor places a thread on lines of a file at a SHA.
 type Anchor struct {
-	Path    string
-	OldPath string
-	NewLine int // 0 when the line is only on the old side
-	OldLine int // 0 when the line is only on the new side
-	Diff    DiffRefs
+	Path    string   `json:"path"`
+	OldPath string   `json:"old_path"`
+	NewLine int      `json:"new_line"` // 0 when the line is only on the old side
+	OldLine int      `json:"old_line"` // 0 when the line is only on the new side
+	Diff    DiffRefs `json:"diff"`
 }
 
 // Note is one comment in a thread.
 type Note struct {
-	ID     string
-	Author User
-	Body   string
-	At     time.Time
+	ID     string    `json:"id"`
+	Author User      `json:"author"`
+	Body   string    `json:"body"`
+	At     time.Time `json:"at"`
 	// System marks a note the forge wrote, such as "changed this line in
 	// version 3 of the diff". It never makes it anyone's turn.
-	System bool
+	System bool `json:"system"`
 }
 
 // FileDiff is one file's change.
 type FileDiff struct {
-	OldPath string
-	NewPath string
-	New     bool
-	Deleted bool
-	Renamed bool
+	OldPath string `json:"old_path"`
+	NewPath string `json:"new_path"`
+	New     bool   `json:"new"`
+	Deleted bool   `json:"deleted"`
+	Renamed bool   `json:"renamed"`
 	// Patch is the unified diff's hunks, without the --- and +++ header.
-	Patch string
+	Patch string `json:"patch"`
 	// Rebuilt says the forge did not send this diff, because it was too
 	// large or collapsed, and the adapter built it from both versions.
-	Rebuilt bool
+	Rebuilt bool `json:"rebuilt"`
 	// Binary or too large to rebuild: Patch is empty, and the file is
 	// listed so the person knows it changed.
-	Omitted bool
+	Omitted bool `json:"omitted"`
 }
 
 // Draft is a pending comment that the forge holds unpublished.
 type Draft struct {
-	ID       string
-	Body     string
-	ThreadID string  // set when it replies to a thread
-	Anchor   *Anchor // set when it is a new inline comment
+	ID       string  `json:"id"`
+	Body     string  `json:"body"`
+	ThreadID string  `json:"thread_id"` // set when it replies to a thread
+	Anchor   *Anchor `json:"anchor"`    // set when it is a new inline comment
 }
 
 // Opener opens one change with everything a review needs.

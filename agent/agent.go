@@ -106,11 +106,11 @@ type Event struct {
 
 // SessionInfo is what a run records about where the person's code went.
 type SessionInfo struct {
-	Tool    string
-	Version string
-	Model   string
-	Account string
-	Tools   []string // the tools the session was offered
+	Tool    string   `json:"tool"`
+	Version string   `json:"version"`
+	Model   string   `json:"model"`
+	Account string   `json:"account"`
+	Tools   []string `json:"tools"` // the tools the session was offered
 }
 
 // Tool is one tool call, its result, or its refusal.
@@ -124,6 +124,9 @@ type Tool struct {
 
 // TurnUsage is one turn's tokens and cost, as the tool reports them.
 type TurnUsage struct {
-	Input, Output, CacheRead, CacheWrite int64
-	CostUSD                              float64
+	Input      int64   `json:"input"`
+	Output     int64   `json:"output"`
+	CacheRead  int64   `json:"cache_read"`
+	CacheWrite int64   `json:"cache_write"`
+	CostUSD    float64 `json:"cost_usd"`
 }

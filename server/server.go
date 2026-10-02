@@ -43,6 +43,8 @@ type Config struct {
 	// MCP serves the drafts MCP server under /mcp/. It authenticates each
 	// agent session with a bearer token of its own, behind the same guard.
 	MCP http.Handler
+	// API serves the rest of /api/, behind the guard and its token.
+	API http.Handler
 }
 
 // New returns the server's handler. Every route goes through the guard, and
@@ -54,6 +56,11 @@ func New(c Config) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"version": c.Version})
 	})
+	if c.API != nil {
+		for _, m := range []string{"GET", "POST"} {
+			mux.Handle(m+" /api/", c.API)
+		}
+	}
 	if c.MCP != nil {
 		for _, m := range []string{"POST", "GET", "DELETE"} {
 			mux.Handle(m+" /mcp/", c.MCP)

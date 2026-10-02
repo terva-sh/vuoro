@@ -50,7 +50,8 @@ func start(t *testing.T) string {
 	}
 	addr := ln.Addr().String()
 	dist := fstest.MapFS{"index.html": {Data: []byte("<h1>vuoro</h1>")}}
-	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(Config{Addr: addr, Token: testToken, Dist: dist, Version: "v-test"}))}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusTeapot) })
+	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(Config{Addr: addr, Token: testToken, Dist: dist, Version: "v-test", API: api}))}
 	srv.Start()
 	t.Cleanup(srv.Close)
 	return addr
@@ -102,7 +103,7 @@ func TestTheAPIRefusesARequestWithoutTheToken(t *testing.T) {
 		"token prefix":  withToken(testToken[:5]),
 		"token as auth": func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+testToken) },
 	} {
-		for _, path := range []string{"/api/hello", "/api", "/api/nope"} {
+		for _, path := range []string{"/api/hello", "/api", "/api/nope", "/api/runs", "/api/runs/x/close"} {
 			if res := get(t, addr, path, edit); res.StatusCode != http.StatusForbidden {
 				t.Errorf("%s, GET %s: %s, want 403", name, path, res.Status)
 			}
@@ -159,6 +160,29 @@ func TestTokensAreFreshAndLong(t *testing.T) {
 	}
 	if len(a) < 43 {
 		t.Fatalf("token %d characters, want at least 43", len(a))
+	}
+}
+
+func TestTheAPIRoutesSitBehindTheToken(t *testing.T) {
+	addr := start(t)
+	for _, method := range []string{"GET", "POST"} {
+		req, _ := http.NewRequest(method, "http://"+addr+"/api/runs", nil)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusForbidden {
+			t.Fatalf("%s /api/runs without the token: %s", method, res.Status)
+		}
+		req.Header.Set(TokenHeader, testToken)
+		if res, err = http.DefaultClient.Do(req); err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusTeapot {
+			t.Fatalf("%s /api/runs with the token: %s, want it to reach the API", method, res.Status)
+		}
 	}
 }
 

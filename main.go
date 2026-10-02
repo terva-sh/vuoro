@@ -19,10 +19,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"github.com/terva-sh/tuohi"
+	"github.com/terva-sh/vuoro/agent"
+	"github.com/terva-sh/vuoro/agent/claude"
+	"github.com/terva-sh/vuoro/app"
+	"github.com/terva-sh/vuoro/config"
+	"github.com/terva-sh/vuoro/review"
+	"github.com/terva-sh/vuoro/review/drafts"
 	"github.com/terva-sh/vuoro/server"
+	"github.com/terva-sh/vuoro/state"
 	"github.com/terva-sh/vuoro/web"
 )
 
@@ -63,7 +71,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	// The per-launch token that the API requires (docs/plan.md section 5.2).
 	token := server.NewToken()
-	srv := server.HTTPServer(server.New(server.Config{Addr: ln.Addr().String(), Token: token, Dist: web.Dist(), Version: version}))
+	a, mcp, err := newApp("http://" + ln.Addr().String() + "/mcp/")
+	if err != nil {
+		logger.Print(err)
+		return 1
+	}
+	srv := server.HTTPServer(server.New(server.Config{
+		Addr: ln.Addr().String(), Token: token, Dist: web.Dist(), Version: version,
+		MCP: mcp, API: a.Handler(),
+	}))
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Printf("serve: %v", err)
@@ -76,6 +92,42 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return serveForBrowser(url, token, stdout)
 	}
 	return showWindow(url, token, *check, logger)
+}
+
+// newApp loads the person's configuration and builds the API. A missing
+// configuration file is not an error: changes then open anonymously. A
+// broken one is shown to the person rather than refused, so they can see why.
+func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
+	stateDir, err := config.StateDir()
+	if err != nil {
+		return nil, nil, err
+	}
+	a := &app.App{}
+	if path, err := config.Path(); err != nil {
+		a.ConfigErr = err
+	} else if c, err := config.Load(path); err == nil {
+		a.Config = c
+	} else if !errors.Is(err, os.ErrNotExist) {
+		a.ConfigErr = err
+	}
+	mcpDir := filepath.Join(stateDir, "mcp")
+	if err := state.MkdirAll(mcpDir); err != nil {
+		return nil, nil, err
+	}
+	srv := drafts.NewServer()
+	a.Tools = map[string]agent.Driver{"claude": &claude.Driver{ConfigDir: mcpDir}}
+	a.Runs = &review.Manager{
+		StateDir: stateDir,
+		Repos:    &review.Repos{Dir: filepath.Join(stateDir, "repos")},
+		Drafts:   srv,
+		MCPURL:   mcpURL,
+	}
+	if a.Config != nil {
+		for _, p := range a.Config.Profiles {
+			a.Runs.Profiles = append(a.Runs.Profiles, review.Profile(p))
+		}
+	}
+	return a, srv, nil
 }
 
 // serveForBrowser prints the URL and serves until interrupted. The token rides

@@ -88,9 +88,11 @@ with the `-check` form in CI.
 | `forge/gitlab`, `forge/github`, `forge/forgejo` | One adapter each. All the API knowledge lives here. |
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
-| `server` | The HTTP API and the embedded frontend. |
+| `state` | Whole-file, private writes under the state directory. |
+| `server` | The loopback server, its guard, and the embedded frontend. |
+| `app` | The API under `/api/`: opening changes and driving review runs. The server mounts it behind the guard. |
 | `agent` | The driver interface and normalised events (section 6). `agent/terva` and `agent/claude` are the drivers, and they are the only code that knows a tool's protocol. |
-| `review` | Review runs: worktrees, profiles, finding validation, and the drafts channel the agent writes through. |
+| `review` | Review runs: worktrees, profiles, finding validation, and the drafts channel the agent writes through (`review/drafts`). |
 | `tickets` | The optional git-ticket integration (section 7). The only package that imports git-ticket. |
 | `web` | Frontend source and the committed `web/dist`. |
 
@@ -258,6 +260,20 @@ secret in it:
 }
 ```
 
+Three fields are optional:
+
+- `clone` on a forge is the git transport a review fetches the project over:
+  `ssh`, the default, or `https`. Either uses the person's own keys or
+  credential helper, and vuoro never holds a git credential.
+- `presets` name the reviewers a run starts, each a `profile` with an
+  optional `tool` and `model`. With none, a run starts one code reviewer on
+  the tool's default model.
+- `profiles` are the person's own, beside the built-in code, security, and
+  documentation profiles, each a `name`, a `title`, and a `prompt`.
+
+With no config file, a change on a public project still opens, anonymously.
+The person's draft notes on the forge need a token, so they are not read.
+
 ### 5.2 The loopback server is local attack surface
 
 Every process on the machine can reach `127.0.0.1`. The server carries the
@@ -341,6 +357,21 @@ labelled. It is not voted away.
 A finding has severity, title, body, evidence, and an optional anchor (path,
 side, SHA, line range). Each valid finding is a pending draft comment, marked
 with the tool and model that drafted it.
+
+An anchor must name lines that the change's diff shows, inside one hunk, on
+the side it names, because a forge places an inline comment only there. A
+draft anchored anywhere else comes back with the rule `anchor.notInDiff` and
+the ranges it may use, or `anchor.notInChange` for a file the change does not
+touch. A finding about any other place drops its anchor and names the place
+in its description.
+
+A run fetches into a bare, partial clone under `repos/` (`--filter=blob:none`,
+so history costs commits and trees), taking the merge request's head ref
+(`refs/merge-requests/N/head` on GitLab, which also covers a change from a
+fork) and the target branch. git runs with hooks off and prompts off. The
+first message carries the change's title, description, open threads, and the
+forge's diff, up to 400 KiB, and lists the files past that for the reviewer
+to read.
 
 **Decided 2026-10-02: agents write drafts through an MCP server that vuoro
 serves** to each session. Its tools list, propose, revise, and withdraw pending

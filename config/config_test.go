@@ -85,6 +85,7 @@ func TestBadForgesAreRefused(t *testing.T) {
 		"no username":     func(f *Forge) { f.Username = "" },
 		"no token source": func(f *Forge) { f.TokenEnv = "" },
 		"empty program":   func(f *Forge) { f.TokenCommand = []string{""} },
+		"clone over ftp":  func(f *Forge) { f.Clone = "ftp" },
 	} {
 		f := good
 		edit(&f)
@@ -164,5 +165,24 @@ func TestTheEnvironmentIsTheFallback(t *testing.T) {
 	t.Setenv("VUORO_TEST_TOKEN", "")
 	if _, err := (Forge{Name: "g", TokenEnv: "VUORO_TEST_TOKEN"}).Token(context.Background()); err == nil {
 		t.Fatal("an empty variable was accepted")
+	}
+}
+
+func TestPresetsAndProfilesAreChecked(t *testing.T) {
+	ok := `{"forges":[],"presets":[{"name":"standard","reviewers":[{"profile":"code"},{"profile":"go","model":"opus"}]}],
+		"profiles":[{"name":"go","title":"Go","prompt":"Check the Go."}]}`
+	if _, err := Parse([]byte(ok)); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{
+		`{"presets":[{"name":"p","reviewers":[]}]}`,
+		`{"presets":[{"name":"","reviewers":[{"profile":"code"}]}]}`,
+		`{"presets":[{"name":"p","reviewers":[{"profile":"code"}]},{"name":"p","reviewers":[{"profile":"code"}]}]}`,
+		`{"presets":[{"name":"p","reviewers":[{"model":"opus"}]}]}`,
+		`{"profiles":[{"name":"go","title":"Go","prompt":" "}]}`,
+	} {
+		if _, err := Parse([]byte(bad)); err == nil {
+			t.Errorf("accepted %s", bad)
+		}
 	}
 }

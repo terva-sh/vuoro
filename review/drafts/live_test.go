@@ -27,7 +27,7 @@ func TestLiveClaude(t *testing.T) {
 	}
 	addr := ln.Addr().String()
 	st := NewStore()
-	mcp := NewServer(st)
+	mcp := NewServer()
 	hs := server.HTTPServer(server.New(server.Config{Addr: addr, Token: server.NewToken(), Dist: fstest.MapFS{}, MCP: mcp}))
 	go hs.Serve(ln)
 	defer hs.Close()
@@ -41,7 +41,7 @@ func TestLiveClaude(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bearer := mcp.Register(Session{ID: "r1", Role: Reviewer, Drafted: "claude haiku"})
+	bearer := mcp.Register(st, Session{ID: "r1", Role: Reviewer, Drafted: "claude haiku"})
 	d := &claude.Driver{ConfigDir: t.TempDir()}
 	s, err := d.Start(context.Background(), agent.Spec{
 		Dir: dir, Model: "haiku",

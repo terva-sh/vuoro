@@ -46,16 +46,16 @@ func callTool(t *testing.T, url, token, name string, args any) (string, bool) {
 func setup(t *testing.T) (*Store, *Server, string) {
 	t.Helper()
 	st := NewStore()
-	srv := NewServer(st)
+	srv := NewServer()
 	hs := httptest.NewServer(srv)
 	t.Cleanup(hs.Close)
 	return st, srv, hs.URL + "/mcp"
 }
 
 func TestTheServerExposesOnlyDraftTools(t *testing.T) {
-	_, srv, url := setup(t)
+	st, srv, url := setup(t)
 	for _, role := range []Role{Reviewer, Synthesizer} {
-		tok := srv.Register(Session{ID: "s", Role: role})
+		tok := srv.Register(st, Session{ID: "s", Role: role})
 		_, out := rpc(t, url, tok, "tools/list", nil)
 		var names []string
 		for _, tool := range out["result"].(map[string]any)["tools"].([]any) {
@@ -77,14 +77,14 @@ func TestTheServerExposesOnlyDraftTools(t *testing.T) {
 }
 
 func TestASessionMustProveWhichOneItIs(t *testing.T) {
-	_, srv, url := setup(t)
+	st, srv, url := setup(t)
 	if code, _ := rpc(t, url, "", "tools/list", nil); code != http.StatusUnauthorized {
 		t.Fatalf("no token: HTTP %d", code)
 	}
 	if code, _ := rpc(t, url, "not-a-token", "tools/list", nil); code != http.StatusUnauthorized {
 		t.Fatalf("wrong token: HTTP %d", code)
 	}
-	tok := srv.Register(alice)
+	tok := srv.Register(st, alice)
 	srv.Unregister(tok)
 	if code, _ := rpc(t, url, tok, "tools/list", nil); code != http.StatusUnauthorized {
 		t.Fatalf("unregistered token: HTTP %d", code)
@@ -92,8 +92,8 @@ func TestASessionMustProveWhichOneItIs(t *testing.T) {
 }
 
 func TestOverMCPAnInvalidDraftNamesTheRule(t *testing.T) {
-	_, srv, url := setup(t)
-	tok := srv.Register(alice)
+	st, srv, url := setup(t)
+	tok := srv.Register(st, alice)
 	text, isErr := callTool(t, url, tok, "propose_draft", map[string]any{
 		"severity": "high", "title": "x", "description": "y",
 		"anchor": map[string]any{"path": "calc.go", "start_line": 9, "end_line": 2},
@@ -111,7 +111,7 @@ func TestOverMCPAnInvalidDraftNamesTheRule(t *testing.T) {
 
 func TestOverMCPReviewersDraftAndASynthesizerMerges(t *testing.T) {
 	st, srv, url := setup(t)
-	ta, tb, ts := srv.Register(alice), srv.Register(bob), srv.Register(synth)
+	ta, tb, ts := srv.Register(st, alice), srv.Register(st, bob), srv.Register(st, synth)
 
 	_, out := rpc(t, url, ta, "initialize", map[string]any{"protocolVersion": "2025-03-26"})
 	if v := out["result"].(map[string]any)["protocolVersion"]; v != "2025-03-26" {
@@ -168,5 +168,18 @@ func TestOverMCPReviewersDraftAndASynthesizerMerges(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusMethodNotAllowed {
 		t.Fatalf("GET: HTTP %d", res.StatusCode)
+	}
+}
+
+func TestOneServerKeepsEachRunsDraftsApart(t *testing.T) {
+	st, srv, url := setup(t)
+	other := NewStore()
+	ta, ts := srv.Register(st, alice), srv.Register(other, synth)
+	if _, isErr := callTool(t, url, ta, "propose_draft", map[string]any{"severity": "low", "title": "t", "description": "d"}); isErr {
+		t.Fatal("propose failed")
+	}
+	text, _ := callTool(t, url, ts, "list_drafts", nil)
+	if text != `{"drafts":[]}` || len(other.All()) != 0 || len(st.All()) != 1 {
+		t.Fatalf("another run's synthesizer saw %s", text)
 	}
 }
