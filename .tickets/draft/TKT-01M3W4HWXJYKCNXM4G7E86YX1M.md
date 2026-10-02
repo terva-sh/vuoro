@@ -16,18 +16,17 @@ origin: null
 dependencies:
   - TKT-01M3W4HWSGA04D4VQ8WHBEJC2D
   - TKT-01M3YK0CH5RHPJJS7E0DX9SH8X
-  - TKT-01M3YK0CJM8AJQH8129KEEF9TM
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T15:16:41Z
+updated_at: 2026-10-02T16:51:18Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---

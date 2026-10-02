@@ -28,12 +28,12 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-02T15:57:57Z
+updated_at: 2026-10-02T16:51:37Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---
@@ -42,12 +42,15 @@ extensions: {}
 
 The first usable vuoro, for its owner on macOS. It is built orchestrator first:
 open a GitLab merge request by URL, run several reviewer sessions in parallel
-on any mix of terva and Claude Code, let a synthesizer session merge their
+on Claude Code, let a synthesizer session merge their
 drafts, talk to any of them, edit the drafts, and submit the review. The
 whose-turn inbox lands second and feeds the orchestrator.
 
 The decisions behind this scope were made with the owner on 2026-10-02 and are
 recorded in docs/plan.md section 10. v1.0.0 is a separate epic.
+
+terva is not an MVP reviewer: decision D28, after the driver spike found that
+terva 0.139.7 cannot be locked down. It moves to the v1.0.0 epic.
 
 ## Acceptance criteria
 
@@ -55,7 +58,7 @@ recorded in docs/plan.md section 10. v1.0.0 is a separate epic.
 - [ ] A review I wrote shows as my turn when a reviewer replies, with the age
 - [ ] I can comment inline, reply, resolve, approve, and submit a batch review without opening GitLab
 - [ ] just ci passes with CGO_ENABLED=0 and cross-builds linux, darwin, and windows
-- [ ] I can open a GitLab merge request by URL and run several reviewers on it in parallel, on terva, Claude Code, or both
 - [ ] A synthesizer session merges the reviewers' drafts and keeps each finding's sources
 - [ ] I can talk to any reviewer while it works, and nothing posts without my action
 - [ ] Every session shows its tool, model, tokens, and cost
+- [ ] I can open a GitLab merge request by URL and run several Claude Code reviewers on it in parallel

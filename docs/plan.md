@@ -199,7 +199,7 @@ it, and it must land before any forge write exists.
 > TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver interface for terva
 > and Claude Code), settled the interface and Claude Code's lockdown in section
 > 6.6. Open question: terva's lockdown, which terva 0.139.7 cannot provide.
-> Section 6.6 says why.
+> Section 6.6 says why, and D28 defers terva past the MVP.
 
 ### 6.1 Drive the tools, do not embed them
 
@@ -366,7 +366,7 @@ claude -p --input-format stream-json --output-format stream-json --verbose
 - The driver drops `CLAUDECODE` from the child's environment.
 
 **terva's lockdown is not available in 0.139.7.** terva cannot be offered as a
-reviewer until it is. Two gaps:
+reviewer until it is, and D28 moves it past the MVP. Two gaps:
 
 - **No server can be supplied for one run.** terva reads MCP servers only from
   `$TERVA_HOME/config.json` and a trusted project's config. `--mcp` narrows
@@ -473,7 +473,7 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    stylesheet. The repository moves to terva-sh/vuoro on Forgejo once the
    skeleton lands, with no public mirror yet.
 2. **The orchestrator, the first usable slice.** Open a GitLab merge request by
-   URL. Run a preset's reviewers in parallel on terva, Claude Code, or both.
+   URL. Run a preset's reviewers in parallel on Claude Code (D28).
    Talk to them, let a synthesizer merge their drafts, edit the drafts, and
    submit the review. Presets and profiles live in vuoro's own config, and code,
    security, and documentation profiles are built in. Cost is shown, and runs
@@ -493,6 +493,8 @@ TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0: every forge, the editor agent,
 and a terva-sh release).
 
 - **Every forge.** Forgejo next, then GitHub.
+- **terva as a reviewer**, once a terva release allows its lockdown (section
+  6.6, D28).
 - **The editor agent** (section 6.3), on the author's side, with its sandbox
   decided by a spike first.
 - **Reviews before a push.** Review a local branch or range with no forge, and

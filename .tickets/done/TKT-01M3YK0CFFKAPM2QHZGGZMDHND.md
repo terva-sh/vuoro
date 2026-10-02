@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3YK0CFFKAPM2QHZGGZMDHND
 title: Decide the agent driver interface for terva and Claude Code
 type: spike
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -16,17 +16,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/vuoro-mvp-1
-  branch: tickets/agent-driver
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 9bb4f92192f40038bbdabc95da7151abb575b157
-  session: null
-  claimed_at: 2026-10-02T16:23:17Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-02T15:16:29Z
-updated_at: 2026-10-02T16:33:49Z
+updated_at: 2026-10-02T16:51:47Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -74,9 +67,9 @@ Prior art: terva-sh/terva-action-code-review drives `terva rpc` with
 
 ## Acceptance criteria
 
-- [ ] docs/plan.md section 6 records the interface, the lockdown per tool, and the drafts channel, with the open-question marker removed
-- [ ] For each tool, a recorded transcript shows the agent refusing to run a command under the chosen lockdown
-- [ ] A throwaway Go program holds a two-turn conversation with each tool, streamed
+- [x] docs/plan.md section 6 records the interface, Claude Code's lockdown, and the drafts channel, and names terva's lockdown as the one open question
+- [x] For Claude Code, a recorded transcript shows the agent refused a command under the chosen lockdown
+- [x] A throwaway Go program holds a streamed conversation of two turns or more with Claude Code
 
 ## Notes
 
@@ -95,3 +88,11 @@ Claude Code is settled. The interface and the lockdown flags are in section 6.6,
 terva is not settled, and none of the three criteria can be ticked yet, because each one names both tools:
 - The workstation's terva login has expired, and no other provider is configured, so no terva transcript exists. The owner signs in again.
 - terva 0.139.7 cannot give one run a server that vuoro supplies while it keeps the person's login (no --mcp-config; --team-socket is hard-wired; TERVA_HOME moves auth.json). The person's config hooks always load, and no flag turns them off. Under AGENTS.md's rule, a driver without a proven lockdown is not offered. So terva needs an upstream change before it can be a reviewer, or a decision from the owner. Asked on 2026-10-02.
+
+**agent:claude/vuoro-mvp-1** at 2026-10-02T16:51:47Z
+
+Criteria narrowed on 2026-10-02 with the owner's approval (decision D28). The original three named both tools. The terva half moved to TKT-01M3YRE0E00TRVKXP8YVASHDGD (Prove terva's reviewer lockdown once terva can take a per-run server), under the v1.0.0 epic.
+
+## Summary
+
+The driver interface, Claude Code's reviewer lockdown, and the drafts channel's shape are recorded in docs/plan.md section 6.6. The transcripts in spikes/agentdriver/transcripts prove the lockdown: only the read tools and vuoro's drafts server, a harness denial for a disallowed Bash, reads confined to the worktree, and the reviewed change's CLAUDE.md, AGENTS.md, and hooks kept out. terva 0.139.7 cannot be locked down, so D28 defers it past the MVP, and TKT-01M3YRE0E00TRVKXP8YVASHDGD carries that work.

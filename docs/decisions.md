@@ -246,3 +246,23 @@ criteria go to every reviewer, so that the review checks the change against
 what was asked. At v1.0, finding dispositions are written back as ticket notes,
 and the editor sees the ticket too. The alternatives were all of it at v1.0, or
 all of it in the MVP.
+
+## After the driver spike
+
+### D28. The MVP drives Claude Code only, and terva waits past it
+
+The driver spike found on 2026-10-02 that terva 0.139.7 cannot run as a locked
+reviewer. It has no way to take vuoro's drafts server for one run while it
+keeps the person's login, and the person's config hooks always load (plan
+section 6.6). The owner chose to defer terva past the MVP. The MVP's reviewers
+run on Claude Code. The terva driver moves to v1.0.0 and waits on a spike that
+proves its lockdown against a terva release that allows one. No change to terva
+is asked for now.
+
+This narrows D7 and D11 for the MVP only. vuoro still drives tools as
+subprocesses and embeds none. Two alternatives were rejected:
+
+- asking terva upstream now for an exclusive per-run server flag and a way to
+  skip the person's hooks;
+- shipping the drafts tools as a terva extension through `--ext`, which departs
+  from D9 and still leaves the hooks loaded.

@@ -16,7 +16,6 @@ parent: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
 origin: null
 dependencies:
   - TKT-01M3YK0CH5RHPJJS7E0DX9SH8X
-  - TKT-01M3YK0CJM8AJQH8129KEEF9TM
   - TKT-01M3YMSSPF763ZMG6P9FAWQYXK
   - TKT-01M3YMSSRC81M0BYHK15TW9VDY
 blocks_on: none
@@ -24,12 +23,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:16:29Z
-updated_at: 2026-10-02T15:47:51Z
+updated_at: 2026-10-02T16:51:18Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---
