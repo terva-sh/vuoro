@@ -61,7 +61,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		logger.Print(err)
 		return 1
 	}
-	srv := server.HTTPServer(server.New(web.Dist(), version))
+	// The per-launch token that the API requires (docs/plan.md section 5.2).
+	token := server.NewToken()
+	srv := server.HTTPServer(server.New(ln.Addr().String(), token, web.Dist(), version))
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Printf("serve: %v", err)
@@ -71,14 +73,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 	url := "http://" + ln.Addr().String() + "/"
 
 	if *browser {
-		return serveForBrowser(url, stdout)
+		return serveForBrowser(url, token, stdout)
 	}
-	return showWindow(url, *check, logger)
+	return showWindow(url, token, *check, logger)
 }
 
-// serveForBrowser prints the URL and serves until interrupted.
-func serveForBrowser(url string, stdout io.Writer) int {
-	fmt.Fprintln(stdout, url)
+// serveForBrowser prints the URL and serves until interrupted. The token rides
+// in the fragment, which a browser never sends to a server, and the page moves
+// it into sessionStorage.
+func serveForBrowser(url, token string, stdout io.Writer) int {
+	fmt.Fprintf(stdout, "%s#token=%s\n", url, token)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	<-sig
@@ -92,7 +96,7 @@ type report struct {
 }
 
 // showWindow opens the window on url and runs the UI loop on the main thread.
-func showWindow(url string, check bool, logger *log.Logger) int {
+func showWindow(url, token string, check bool, logger *log.Logger) int {
 	app := &tuohi.App{Name: "vuoro", Exit: true}
 	reports := make(chan report, 1)
 
@@ -105,6 +109,9 @@ func showWindow(url string, check bool, logger *log.Logger) int {
 		Bind: map[string]any{
 			// A binding runs on a goroutine of its own, never the UI thread.
 			"vuoro.version": func() string { return version },
+			// tuohi offers bindings only to the origin the view trusts, its
+			// own loopback server, so only vuoro's page can read the token.
+			"vuoro.token": func() string { return token },
 			"vuoro.report": func(r report) {
 				select {
 				case reports <- r:

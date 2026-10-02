@@ -23,8 +23,24 @@
     // In a browser (vuoro -browser) there are no bindings.
     const bound = typeof window.vuoro?.version === 'function';
 
+    // The per-launch token the API requires. The window gets it through a
+    // binding. A browser gets it in the URL fragment once, and the page keeps
+    // it in sessionStorage, which is scoped to this origin and port, and
+    // takes it out of the address bar.
+    async function token() {
+      if (bound) return window.vuoro.token();
+      const m = location.hash.match(/^#token=([A-Za-z0-9_-]+)$/);
+      if (m) {
+        sessionStorage.setItem('vuoro.token', m[1]);
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+      const t = sessionStorage.getItem('vuoro.token');
+      if (!t) throw new Error('no token: open the URL that vuoro -browser printed');
+      return t;
+    }
+
     async function load() {
-      const res = await fetch('/api/hello');
+      const res = await fetch('/api/hello', { headers: { 'X-Vuoro-Token': await token() } });
       if (!res.ok) throw new Error(`GET /api/hello: ${res.status}`);
       const { version } = await res.json();
       document.getElementById('server').textContent = `vuoro ${version}`;

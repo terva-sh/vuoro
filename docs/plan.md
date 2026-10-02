@@ -186,11 +186,32 @@ GitLab notes for the adapter:
 ### 5.2 The loopback server is local attack surface
 
 Every process on the machine can reach `127.0.0.1`. The server carries the
-person's forge tokens, so it must refuse a request that does not prove it came
-from vuoro's own window: a per-launch secret, an origin check, or both. tuohi's
-trusted-origin bindings are part of the answer. TKT-01M3W4HWDY8XV92MXXQWA0AES7
-(Refuse loopback API requests that did not come from vuoro's window) settles
-it, and it must land before any forge write exists.
+person's forge tokens, so it refuses, with 403, any request that does not
+prove it came from vuoro's own page. TKT-01M3W4HWDY8XV92MXXQWA0AES7 (Refuse
+loopback API requests that did not come from vuoro's window) settled the
+mechanism on 2026-10-02, and `server/guard.go` holds it:
+
+- **It listens on 127.0.0.1 only.** `server.Listen` refuses every other
+  address, including `localhost`, `::1`, and `0.0.0.0`.
+- **Every route checks where the request came from.** `Host` must be exactly
+  `127.0.0.1:PORT`, so a page that rebinds a DNS name of its own to
+  127.0.0.1 is refused. `Origin`, when sent, must be vuoro's own origin, and
+  `Sec-Fetch-Site`, when sent, must be `same-origin` or `none`.
+- **The API needs a per-launch token.** Every route under `/api/` needs the
+  token in the `X-Vuoro-Token` header, compared in constant time. It is 32
+  random bytes, made at launch and never written down. The window reads it
+  through the `vuoro.token` binding, which tuohi offers only to the origin the
+  view trusts. `vuoro -browser` prints it in the URL fragment, which a browser
+  never sends to a server. The page moves it into `sessionStorage`, which is
+  scoped to the origin and port, and takes it out of the address bar.
+- **No cookie.** Browsers do not isolate cookies by port, so another local
+  server on 127.0.0.1 would receive one.
+- **The frontend's own files need no token.** They are the embedded build
+  output, the same for every launch, and a page has to load before it can
+  hold a token. They still pass the origin checks.
+
+A server added later, such as the drafts MCP endpoint, uses the same guard
+with a credential of its own.
 
 ## 6. Agents
 
