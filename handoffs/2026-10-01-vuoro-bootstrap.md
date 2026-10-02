@@ -1,7 +1,7 @@
 # 2026-10-01: vuoro bootstrap
 
-Owning ticket: TKT-01M3W4FGT1GY0X3TWJF81X3XWK (vuoro v0.1.0: one inbox for the
-reviews I give and get).
+Owning ticket: TKT-01M3W4FGT1GY0X3TWJF81X3XWK (vuoro v0.1.0 (MVP): orchestrated
+GitLab reviews, then the inbox).
 Baseline: the repository's first commit on `main`. Verify it with
 `git log --oneline -3` before relying on anything here.
 
@@ -38,9 +38,19 @@ record, so read them rather than trusting this page.
   tool. terva-sh/terva-action-code-review is an internal proof of concept. It
   is prior art to read, never a dependency to run. docs/plan.md section 6 has
   the design.
-- **GitLab first.** The first working slice is gitlab.com. GitHub and Forgejo
-  are filed as their own tickets against the `forge` interface, outside the
-  v0.1.0 epic.
+- **Scope from here to v1.0.0.** The owner settled 17 questions on 2026-10-02.
+  docs/plan.md section 10 is the result, and section 10.4 lists what was
+  decided against. In short:
+  - the MVP is built orchestrator first, with parallel reviewers and a
+    synthesizer;
+  - agents write only through vuoro's drafts MCP server;
+  - reviewers are read-only, always;
+  - mutation belongs to a separate editor agent at v1.0.0, one per review, in a
+    sandbox, and it never pushes;
+  - v1.0.0 is a public terva-sh release covering all three forges.
+- **GitLab first.** The MVP's forge is gitlab.com. Forgejo and then GitHub
+  are in the v1.0.0 epic, TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0: every
+  forge, the editor agent, and a terva-sh release).
 - **git-ticket integration is optional.** The owner asked for it mid-bootstrap
   as "not required, but a helpful addition for most of my own repos".
   docs/plan.md section 7 describes it, and vuoro must work fully without it.
@@ -50,7 +60,7 @@ record, so read them rather than trusting this page.
 - No code exists. The repository has a README, AGENTS.md, docs/plan.md, the
   MIT licence, a justfile whose `ci` recipe is only the store check, and this
   handoff.
-- The ticket store has one epic and 26 tickets, all in `draft`.
+- The ticket store has two epics and 45 tickets, all in `draft`.
   `git ticket check --fix --dry-run --strict` and `git ticket doctor` were both
   clean.
 - Pins were read from Forgejo on 2026-10-02: terva v0.139.7, tuohi v0.1.0,
@@ -59,47 +69,39 @@ record, so read them rather than trusting this page.
 
 ## Where to start
 
-Every ticket is a draft, and promotion is the owner's. These have no
-dependencies:
+Every ticket is a draft, and promotion is the owner's. The first usable slice
+is TKT-01M3YK0CPYG132897XVVZ9G4EF (Run reviewers in parallel, and synthesize
+their drafts). `git ticket deps TKT-01M3YK0CPYG132897XVVZ9G4EF --transitive` is
+the whole path to it. These have no dependencies, and they unlock it:
 
 1. **TKT-01M3W4HWB551REE766G3TE2Y7D (Scaffold the Go module, justfile gate, and
-   CI without cgo).** Everything with code waits on it. It also decides the Go
-   line (see the environment section below).
-2. **TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge model and the turn
-   rules).** This is the largest design risk, because the adapter, the turn
-   package, and the inbox all take their shape from it. It can run alongside
-   the scaffold.
-3. **TKT-01M3W4HWM6V2F20KNT03BSBNZY (Decide credential handling and the local
-   state format).** It is small, and it gates the GitLab adapter together with
-   the model spike.
+   CI without cgo).** Everything with code waits on it. It starts at Go 1.26.
+2. **TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver interface for
+   terva and Claude Code).** It gates every agent ticket, and it proves each
+   tool's read-only lockdown. It can run alongside the scaffold.
+3. **TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge model and the turn
+   rules)** and **TKT-01M3W4HWM6V2F20KNT03BSBNZY (Decide credential handling
+   and the local state format).** Together they gate opening a GitLab change by
+   URL.
 4. **TKT-01M3W4HWF70KRCRRXZQT2M9C7Y (Add a vuoro accent to terva-sh/design and
-   release it).** This is work in the design repository, not here. It is quick,
-   and the design stylesheet ticket waits on it.
+   release it).** This is work in the design repository. It is quick, and only
+   the stylesheet ticket waits on it.
 
 After the scaffold, TKT-01M3W4HWCNR50KXMCX741QD9XQ (Walking skeleton: a
 loopback server shown in a tuohi window) is the riskiest technical step,
 because tuohi only reached v0.1.0 on 2026-10-01, and its macOS engine has
-been tested only on GitHub's runners. Do it early.
-
-TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver interface for terva
-and Claude Code) has no dependencies either, and it gates every agent ticket.
-It can run alongside the scaffold, and it is the most interesting design
-question left: how an agent edits drafts. docs/plan.md section 6.2 starts from
-an MCP server that vuoro serves.
-
-TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its git-ticket store
-and ticket) has no dependencies, and nothing depends on it until the change
-view exists, so it can wait.
+been tested only on GitHub's runners. Do it early. When it lands,
+TKT-01M3YMST0M467K1FB4J5B2C7B2 (Move vuoro to terva-sh/vuoro on Forgejo once
+the skeleton lands) is the owner's push.
 
 ## Environment on the owner's workstation
 
 - **Go.** The workstation has Go 1.26.1, and tuohi declares 1.26.0, so the
   module starts at 1.26. vuoro imports no agent tool, so terva's 1.27 does not
   apply.
-- **Agent tools.** Claude Code 2.1.285 is installed. terva on `PATH`
-  (`~/.local/bin/terva`) is 0.134.4, and the `terva rpc` documentation read
-  during bootstrap is v0.139.7's. Update terva before the driver spike, or the
-  spike measures an old protocol.
+- **Agent tools.** Claude Code 2.1.285 and terva 0.139.7 are installed.
+  terva was updated on 2026-10-02 with `terva update`, which is how to keep it
+  current.
 - **Forgejo is the source, GitHub is a mirror.** Every terva-sh repository's
   `origin` is the internal Forgejo at `git.local.sothr.com/terva-sh`, and it
   reads anonymously over HTTPS from this machine. The GitHub mirrors trailed it
@@ -124,13 +126,14 @@ view exists, so it can wait.
   review workflow, in Python. `tools/fetch_mr.py` handles the diff-truncation
   fallback, and `post_inline_suggestions.py` posts positioned inline
   suggestions. The adapter tickets should mine both for API detail.
-- **Employer policy on day-job code.** Under the employer's PHI policy, LLM
-  calls over day-job merge requests go through an API-key provider account
-  covered by the employer's BAA, never through a subscription login. That
-  applies to whichever tool vuoro drives. A Claude Code session on a claude.ai
-  subscription login does not qualify. This is why each run records and shows
-  the account kind (docs/plan.md section 6.1). Source code is low risk, but do
-  not route forge content anywhere the owner did not configure.
+- **Employer policy on day-job code.** The employer's policy is about PHI, not
+  automation: no PHI goes into a Claude tool on a claude.ai subscription
+  login, and GitLab source code counts as low-risk. A review in vuoro is the
+  owner running review sessions by hand, so the owner's own login is fine for
+  it. The owner corrected an earlier, stricter reading of the policy on
+  2026-10-02. The risk that remains is PHI pasted into a change, such as
+  customer logs or a data dump in a fixture, and it is the same risk as in a
+  manual session.
 
 ## Process
 

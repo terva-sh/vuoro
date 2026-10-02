@@ -51,13 +51,13 @@ what it drafts. The person decides what gets posted.
 - **Link out for what vuoro does not do.** Pipelines, merge trains, and
   settings stay in the forge. Every item carries its web URL.
 
-### 2.2 Out of scope for v0.1
+### 2.2 Out of scope
 
 - Serving other people. vuoro is one person on one machine. Unlike
   git-ticket-canvas, it has no server mode.
-- Notifications, tray, and autostart. tuohi has all three, and they come after
-  the inbox is trustworthy.
 - Writing to a forge in anybody's name but the person running vuoro.
+
+Section 10 says what lands in the MVP and what lands in v1.0.0.
 
 ## 3. Shape
 
@@ -177,7 +177,7 @@ GitLab notes for the adapter:
   it is.
 - A keychain is attractive. Without cgo, it means calling `security` on macOS
   and the Secret Service over D-Bus on Linux. The spike decides whether that is
-  worth it for v0.1.
+  worth it for the MVP.
 
 ### 5.2 The loopback server is local attack surface
 
@@ -191,7 +191,9 @@ it, and it must land before any forge write exists.
 ## 6. Agents
 
 > Open question: TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver
-> interface for terva and Claude Code). This section is the starting position.
+> interface for terva and Claude Code) settles the interface and each tool's
+> lockdown flags. The drafts channel, the two agent classes, and the
+> orchestration shape were decided with the owner on 2026-10-02.
 
 ### 6.1 Drive the tools, do not embed them
 
@@ -222,45 +224,69 @@ This decision, made by the owner on 2026-10-02, has three consequences:
 - **The tools are prerequisites.** vuoro works without either, with every
   agent action off. With one installed, that one is offered.
 
-### 6.2 A review is a conversation
+### 6.2 A review is an orchestrated conversation
 
 A review run checks out the change's head in a worktree under the state
-directory, computes the diff against the merge base, and starts a session with
-a review profile. The agent reports findings: severity, title, body, evidence,
-and an optional anchor (path, side, SHA, line range). vuoro validates each one.
-When a finding breaks a rule, vuoro tells the agent which rule, so the agent can
-correct it. Each valid finding becomes a pending draft comment, marked with the
-tool and model that drafted it.
+directory, and computes the diff against the merge base. Then it starts the
+sessions that the person's preset names. Each session is a tool, a model, and a
+profile, and they run in parallel, each in a pane the person can talk to. The
+person asks why, sends a reviewer somewhere else, or asks it to drop or reword a
+finding. When the reviewers finish, a synthesizer session reads every
+reviewer's drafts. It proposes merged drafts that name their sources, and it
+says what it set aside and why. A finding only one reviewer raised is kept and
+labelled. It is not voted away.
 
-The session stays open beside the change. The person asks why, asks the agent
-to look somewhere else, or asks it to drop, merge, or reword a finding, and the
-agent's edits show as edits to the pending drafts. Closing the change keeps the
-session, and reopening resumes it.
+A finding has severity, title, body, evidence, and an optional anchor (path,
+side, SHA, line range). Each valid finding is a pending draft comment, marked
+with the tool and model that drafted it.
 
-How an agent edits drafts is the spike's main question. There are two ways:
+**Decided 2026-10-02: agents write drafts through an MCP server that vuoro
+serves** to each session. Its tools list, propose, revise, and withdraw pending
+drafts. A reviewer sees its own drafts, and the synthesizer lists them all. It
+behaves the same for both tools, and the agent sees the result of each edit at
+once. It also makes the boundary structural: an agent's only write tool writes
+to a draft. A proposed draft is validated, and a bad one comes back with the
+rule it broke, so the agent can correct it.
 
-- **Structured output** that vuoro parses. Claude Code has `--json-schema`.
-  terva has nothing equivalent, so vuoro would have to validate prose.
-- **A small MCP server, served by vuoro,** whose only tools list, propose,
-  revise, and withdraw vuoro's pending drafts. Both tools speak MCP, so it
-  behaves the same for both. It also makes the boundary structural: the agent's
-  only write tool writes to a draft.
+A run is pinned to the head SHA it reviewed. When the change moves, the run and
+its drafts show "reviewed at abc123, 2 commits behind". Nothing re-runs on its
+own.
 
-The starting position is the MCP server.
+Every session pane shows its tool, model, tokens, and cost as the tool reports
+them, and the run shows a total.
 
-### 6.3 Lockdown
+### 6.3 Two classes of agent
 
-An agent reads the worktree and nothing else. It gets no shell, no web access,
-no extensions, and none of the person's own MCP servers. Those can include a
-forge connector that writes, and a shell can run `glab` or `gh`. The spike
-proves the lockdown for each tool by asking the agent to run a command and
+**Reviewers are read-only, always** (decided 2026-10-02). A reviewer reads the
+worktree through Read, Grep, and Glob, and it writes only through the drafts
+server. It gets no shell, no web access, no extensions, and none of the person's
+own MCP servers. Those can include a forge connector that writes, and a shell
+can run `glab` or `gh`. A reviewer never runs the change's code. The driver
+spike proves the lockdown for each tool by asking the agent to run a command and
 recording the refusal. A driver that cannot prove its lockdown is not offered.
+
+**The editor is the only agent that writes code** (v1.0.0). Mutation is a
+different class of agent with its own rules, so it is kept apart:
+
+- A review gets at most one editor. Reviewers run in parallel because they
+  cannot write. The editor is never parallel with another writer.
+- It works from the reviewers' priors: on the person's own change, the triaged
+  threads and the findings.
+- It runs in a sandbox, by default a container with only its worktree
+  mounted, no forge credentials, and network limited to the model endpoint and
+  package registries. A spike decides the sandbox before the editor is built.
+- It commits on a local branch, one commit per finding or thread it addresses.
+  The person reviews those commits as a diff, and then accepts them, which
+  makes vuoro push to the merge request branch, or discards them. The editor
+  never holds a forge credential and never pushes.
 
 ### 6.4 Other actions
 
-Summarising a change, summarising what changed since my last review, and
-drafting a reply use the same drivers and the same lockdown. None of them is
-posted anywhere.
+Summarising a change, summarising what changed since my last review, and the
+author's triage are reviewer-class work: the same drivers and the same
+lockdown. Triage groups the open threads on the person's own change as must
+fix, discuss, or nit, and drafts replies through the drafts server. None of it
+is posted by an agent.
 
 ### 6.5 Prior art
 
@@ -277,8 +303,8 @@ The action is worth reading for:
 - its dispositions: accepted, declined, deferred
 - its `terva rpc` lockdown flags in `src/terva.mjs`
 
-terva's `raati` deliberation panel is prior art for several reviewers on one
-change. That work is filed after v0.1.0.
+terva's `raati` deliberation panel is prior art for the synthesizer, and for
+keeping a minority finding rather than voting it away.
 
 ## 7. git-ticket (optional)
 
@@ -307,6 +333,12 @@ shell out to the CLI.
 
 ## 8. State
 
+Review runs, their transcripts, and their draft history are vuoro's own
+records. They are kept while the change is open, and for 30 days after it
+merges or closes (configurable). Then the transcripts go, and one line per run
+remains: tools, models, cost, and finding counts. Day-job code does not linger
+in local files.
+
 The state directory follows git-ticket-canvas:
 `$XDG_STATE_HOME/vuoro` or `~/.local/state/vuoro` on Linux,
 `~/Library/Application Support/vuoro` on macOS, and `%LOCALAPPDATA%\vuoro` on
@@ -326,3 +358,70 @@ Windows. Configuration lives in the platform config directory.
 - the frontend typecheck and tests, and a check that `web/dist` matches source
 - `design-tokens export -check`
 - `git ticket check --fix --dry-run --strict`
+
+## 10. Roadmap
+
+Scoped with the owner on 2026-10-02. Each line names its epic.
+
+### 10.1 MVP: v0.1.0
+
+TKT-01M3W4FGT1GY0X3TWJF81X3XWK (vuoro v0.1.0 (MVP): orchestrated GitLab
+reviews, then the inbox). For the owner, on macOS, built orchestrator first.
+
+1. **Foundations.** The module and CI gate without cgo, the tuohi window over
+   the loopback server and its protection, the Preact frontend, and the design
+   stylesheet. The repository moves to terva-sh/vuoro on Forgejo once the
+   skeleton lands, with no public mirror yet.
+2. **The orchestrator, the first usable slice.** Open a GitLab merge request by
+   URL. Run a preset's reviewers in parallel on terva, Claude Code, or both.
+   Talk to them, let a synthesizer merge their drafts, edit the drafts, and
+   submit the review. Presets and profiles live in vuoro's own config, and code,
+   security, and documentation profiles are built in. Cost is shown, and runs
+   are pinned to their head SHA and flagged when it moves.
+3. **The author's side.** Triage the threads on my change, and draft replies.
+4. **The inbox, second.** Discover every GitLab change I review or wrote,
+   derive whose turn it is with the reasons, and open any of them in the
+   orchestrator. It refreshes only while the window is open.
+5. **git-ticket, read-only.** Show a change's linked ticket, and give its
+   acceptance criteria to the reviewers.
+6. **History.** Keep runs until the change closes, then 30 days, then one line
+   per run.
+
+### 10.2 v1.0.0
+
+TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0: every forge, the editor agent,
+and a terva-sh release).
+
+- **Every forge.** Forgejo next, then GitHub.
+- **The editor agent** (section 6.3), on the author's side, with its sandbox
+  decided by a spike first.
+- **Reviews before a push.** Review a local branch or range with no forge, and
+  carry the findings into the merge request.
+- **Repositories add instructions.** A checklist and conventions, read at the
+  base commit, layered on the person's preset. A repository never picks the
+  reviewers.
+- **Moving changes.** Re-anchor drafts on unchanged lines, and review only the
+  new commits, with the earlier findings as context.
+- **Cost.** Optional per-run budget caps, and a monthly total.
+- **Nudges.** The tray, background refresh, and quiet, batched notifications
+  when it becomes my turn or a long run finishes.
+- **git-ticket, written.** Finding dispositions as ticket notes, and the
+  linked ticket as context for the editor.
+- **A terva-sh release.** goreleaser archives for macOS, Linux, and Windows,
+  `self-update`, setup in the UI with no hand-edited config, a GitHub mirror,
+  and documentation for somebody new. macOS signing is decided then.
+
+### 10.3 After v1.0.0
+
+- The editor on other people's changes, turning findings into suggested
+  patches.
+
+### 10.4 Decided against
+
+- **A reviewer that runs code.** Reviewers are read-only, always. Running the
+  change's code is the editor's job, in its sandbox.
+- **Automatic re-runs on push.** A run never starts without the person.
+- **Refusing a subscription login.** The employer policy that prompted the
+  idea is about PHI, and a review in vuoro is a person running review sessions
+  by hand. vuoro shows which account each run used, and leaves the choice to
+  the person.

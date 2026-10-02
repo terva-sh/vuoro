@@ -11,8 +11,8 @@ labels:
   - forge
   - github
 assignees: []
-milestone: null
-parent: null
+milestone: v1.0.0
+parent: TKT-01M3YMSTYMFRDFXD4QSVWHMM8P
 origin: null
 dependencies:
   - TKT-01M3W4HWTXC6EM9SS84A4WMEPG
@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T15:47:51Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""

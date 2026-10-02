@@ -10,5 +10,5 @@ tickets. Read the current source and tickets before trusting a snapshot. Never
 put credentials or authentication output in one.
 
 - [2026-10-01: vuoro bootstrap](2026-10-01-vuoro-bootstrap.md):
-  TKT-01M3W4FGT1GY0X3TWJF81X3XWK (vuoro v0.1.0: one inbox for the reviews I
-  give and get).
+  TKT-01M3W4FGT1GY0X3TWJF81X3XWK (vuoro v0.1.0 (MVP): orchestrated GitLab
+  reviews, then the inbox).

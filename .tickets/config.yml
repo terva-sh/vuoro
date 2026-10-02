@@ -17,11 +17,14 @@ labels:
   - github
   - gitlab
   - inbox
+  - release
   - review
+  - sandbox
   - state
   - ui
 milestones:
   - v0.1.0
+  - v1.0.0
 series: []
 defaults:
   type: task

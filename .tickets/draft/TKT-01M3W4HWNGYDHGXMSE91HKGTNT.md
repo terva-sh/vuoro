@@ -1,7 +1,7 @@
 ---
 schema: 3
 id: TKT-01M3W4HWNGYDHGXMSE91HKGTNT
-title: "GitLab adapter: discover my changes and read their threads"
+title: "GitLab adapter: discover the changes I review and wrote"
 type: task
 status: draft
 status_reason: null
@@ -17,12 +17,13 @@ origin: null
 dependencies:
   - TKT-01M3W4HWJZ1013S2MPZ69B72AW
   - TKT-01M3W4HWM6V2F20KNT03BSBNZY
+  - TKT-01M3YMSSPF763ZMG6P9FAWQYXK
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T15:47:51Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""

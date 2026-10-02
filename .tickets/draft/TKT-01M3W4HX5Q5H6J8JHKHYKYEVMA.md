@@ -10,8 +10,8 @@ due_on: null
 labels:
   - inbox
 assignees: []
-milestone: null
-parent: null
+milestone: v1.0.0
+parent: TKT-01M3YMSTYMFRDFXD4QSVWHMM8P
 origin: null
 dependencies:
   - TKT-01M3W4HWNGYDHGXMSE91HKGTNT
@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T15:47:52Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""

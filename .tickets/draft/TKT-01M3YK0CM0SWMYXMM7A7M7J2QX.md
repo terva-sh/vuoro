@@ -17,13 +17,14 @@ origin: null
 dependencies:
   - TKT-01M3YK0CH5RHPJJS7E0DX9SH8X
   - TKT-01M3YK0CJM8AJQH8129KEEF9TM
-  - TKT-01M3W4HWNGYDHGXMSE91HKGTNT
+  - TKT-01M3YMSSPF763ZMG6P9FAWQYXK
+  - TKT-01M3YMSSRC81M0BYHK15TW9VDY
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:16:29Z
-updated_at: 2026-10-02T15:16:29Z
+updated_at: 2026-10-02T15:47:51Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -37,18 +38,19 @@ extensions: {}
 
 vuoro runs reviews itself. For a change, check out the head in a worktree under
 the state directory, compute the diff against the merge base, and start a
-session with the person's chosen driver, a review profile, and the diff. The
-agent reports findings, each with severity, title, body, evidence, and an
-optional anchor (path, side, SHA, line range). vuoro validates every finding,
-and it tells the agent which rule a bad one broke, so that the agent can fix it.
+session with the chosen driver, a review profile, and the diff. The agent
+reports findings as drafts through the drafts MCP server. Each finding has
+severity, title, body, evidence, and an optional anchor (path, side, SHA, line
+range).
 
-Profiles start as code, security, and documentation. A repository can add a
-checklist and conventions. Where those live is part of this ticket.
+The reviewer is read-only, always: the worktree, and nothing else (docs/plan.md
+section 6.3). Profiles start as code, security, and documentation, built in,
+with the person's presets in vuoro's own config. Repository-supplied
+instructions come at v1.0.0.
 
-terva-sh/terva-action-code-review is the prior art: its `templates/`, its
-finding and anchor shapes in `schemas/review-result.v1.schema.json`, and its
-rule that reviewer settings are read at the base commit, so a change cannot
-choose its own reviewer. Borrow ideas, not code or schema.
+terva-sh/terva-action-code-review is prior art: its `templates/`, its finding
+and anchor shapes, and its rule that reviewer settings come from the base
+commit. Borrow ideas, not code or schema.
 
 ## Acceptance criteria
 

@@ -189,11 +189,16 @@ those two are the closest references.
   terva and Claude Code, as subprocesses over their own protocols, and imports
   neither. Only the drivers under `agent/` know a tool's protocol. docs/plan.md
   section 6 explains why.
-- **An agent's lockdown is proven, not assumed.** A driven agent reads its
-  worktree and nothing else. It gets no shell, no web access, no extensions,
-  and none of the person's own MCP servers, because those can include a forge
-  connector that writes. A driver whose lockdown has no recorded refusal is not
-  offered.
+- **Reviewers are read-only, always, and that is proven.** A reviewer reads its
+  worktree and writes only through vuoro's drafts MCP server. It gets no
+  shell, no web access, no extensions, and none of the person's own MCP
+  servers, because those can include a forge connector that writes. A driver
+  whose lockdown has no recorded refusal is not offered. Do not add a "may run
+  commands" option to a reviewer, because that is the editor's job.
+- **The editor is the only agent that writes code.** There is at most one per
+  review, and it runs in its sandbox. It commits locally, never holds a forge
+  credential, and never pushes. vuoro pushes its commits only when the person
+  accepts them (docs/plan.md section 6.3).
 - **Boundaries are tested, not trusted.** Only `tickets` imports git-ticket.
   `forge` and `turn` import neither `agent` nor `tickets`, and they do no
   network I/O in tests. The inbox builds and works with every agent tool

@@ -1,7 +1,7 @@
 ---
 schema: 3
 id: TKT-01M3W4HX1PHPQ98KX0PE5HW60E
-title: Show a change's ticket, and record review dispositions on it
+title: Show a change's ticket, and give it to reviewers as context
 type: task
 status: draft
 status_reason: null
@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T15:47:51Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -34,15 +34,16 @@ extensions: {}
 
 ## Description
 
-When a change links to a ticket in a known local store, show its description,
-acceptance criteria, plan, and newest note beside the change. Let the reviewer
-record each finding's disposition as a ticket note. The note is written to the
-working tree and never committed, as git-ticket-canvas does.
+The MVP half of the git-ticket integration. When a change links to a ticket in
+a known local store, show its description, acceptance criteria, plan, and
+newest note beside the change, and give them to every reviewer session as
+context, so that the review checks the change against what was asked. Writing
+dispositions back is v1.0.0.
 
 Without a store, vuoro behaves exactly as it does without this ticket.
 
 ## Acceptance criteria
 
 - [ ] A linked change shows its ticket's acceptance criteria in the change view
-- [ ] A disposition note is written with an attributed actor, and git status shows it uncommitted
 - [ ] With no store configured, nothing in the UI mentions tickets
+- [ ] A reviewer's prompt includes the linked ticket's acceptance criteria
