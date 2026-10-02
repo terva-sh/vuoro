@@ -515,3 +515,41 @@ func TestAVerifierMarksEveryFindingAfterTheSynthesizerAndIsSentBackOnce(t *testi
 	}
 	m.Close(context.Background(), r.ID)
 }
+
+func TestAskingForASuggestionGoesToTheSessionThatDraftedIt(t *testing.T) {
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
+		if strings.HasPrefix(text, "The person asks for a suggestion on your draft d1") {
+			if !strings.Contains(text, "calc.go lines 3–3") {
+				return "the request named no range"
+			}
+			call("revise_draft", map[string]any{"id": "d1", "severity": "high", "title": "Add subtracts", "description": "d",
+				"anchor": map[string]any{"path": "calc.go", "start_line": 3}, "suggestion": "func Add(a, b int) int { return a + b }"})
+			return "Suggested."
+		}
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		call("propose_draft", map[string]any{"severity": "low", "title": "Old line", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "side": "base", "start_line": 3}})
+		return "done"
+	})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	if err := m.AskSuggestion(r.ID, "d2"); err == nil {
+		t.Fatal("a suggestion was asked of a base-side draft")
+	}
+	if err := m.AskSuggestion(r.ID, "d1"); err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return idle(v) && v.Drafts[0].Suggestion != nil })
+	if *v.Drafts[0].Suggestion != "func Add(a, b int) int { return a + b }" {
+		t.Fatalf("suggestion %q", *v.Drafts[0].Suggestion)
+	}
+	m.Decide(r.ID, "d1", drafts.Kept, "41", false)
+	if err := m.AskSuggestion(r.ID, "d1"); err == nil {
+		t.Fatal("a suggestion was asked of a kept draft")
+	}
+	m.Close(context.Background(), r.ID)
+}

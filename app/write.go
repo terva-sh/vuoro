@@ -210,7 +210,11 @@ func (a *App) approve(w http.ResponseWriter, r *http.Request) {
 func keepBody(d drafts.Draft) string {
 	b := "**" + d.Title + "**\n\n" + strings.TrimSpace(d.Description)
 	if e := strings.TrimSpace(d.Evidence); e != "" {
-		b += "\n\n```\n" + e + "\n```"
+		f := drafts.Fence(e)
+		b += "\n\n" + f + "\n" + e + "\n" + f
+	}
+	if s := drafts.SuggestionBlock(d); s != "" {
+		b += "\n\n" + s
 	}
 	return b
 }

@@ -571,6 +571,42 @@ func (m *Manager) Decide(runID, id, decision, noteID string, edited bool) error 
 	return nil
 }
 
+// AskSuggestion sends the session that drafted a finding the person's
+// request for a suggestion: the lines that replace the finding's range, added
+// with revise_draft. The draft must still be the person's to decide, on
+// head-side lines.
+func (m *Manager) AskSuggestion(runID, id string) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	d, ok := r.store.Get(id)
+	switch {
+	case !ok:
+		return ErrNoRun
+	case d.Status != drafts.Pending || d.Decision != "":
+		return fmt.Errorf("review: %s is no longer pending", id)
+	case d.Anchor == nil || d.Anchor.Side != drafts.Head:
+		return fmt.Errorf("review: %s is not on lines of the change's head, so there is nothing for a suggestion to replace", id)
+	}
+	_, s, err := m.find(runID, d.Session)
+	if err != nil {
+		return err
+	}
+	a := d.Anchor
+	text := fmt.Sprintf(`The person asks for a suggestion on your draft %s, %q, at %s lines %d–%d of the head.
+
+Read those lines, then call revise_draft with id %s, keeping its severity,
+title, description, evidence, and anchor as they are, and adding suggestion:
+the exact text that replaces lines %d–%d, as whole lines with their
+indentation, and no code fence. The author applies it as it stands, so it
+must be correct and complete for those lines. When the fix needs lines
+outside the range, widen the anchor to cover them, keeping to lines the diff
+shows. When no replacement of those lines fixes it, say why, and do not
+revise.`, d.ID, d.Title, a.Path, a.StartLine, a.EndLine, d.ID, a.StartLine, a.EndLine)
+	return m.send(r, s, text, true)
+}
+
 // Override records the person's own confidence mark on one of a run's
 // drafts, or with an empty level takes it back.
 func (m *Manager) Override(runID, id string, level drafts.Level, reason string) error {

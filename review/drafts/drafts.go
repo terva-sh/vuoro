@@ -59,6 +59,10 @@ type Draft struct {
 	Anchor      *Anchor  `json:"anchor,omitempty"`
 	// Sources names the drafts a synthesizer merged into this one.
 	Sources []string `json:"sources,omitempty"`
+	// Suggestion, when set, is the text that replaces the anchor's lines at
+	// the head, which the forge offers the author to apply. Only a head-side
+	// anchor carries one.
+	Suggestion *string `json:"suggestion,omitempty"`
 
 	Status   Status `json:"status"`
 	Revision int    `json:"revision"`
@@ -104,6 +108,7 @@ type Proposal struct {
 	Evidence    string   `json:"evidence,omitempty"`
 	Anchor      *Anchor  `json:"anchor,omitempty"`
 	Sources     []string `json:"sources,omitempty"`
+	Suggestion  *string  `json:"suggestion,omitempty"`
 }
 
 // Role is what a session may do with the run's drafts.
@@ -162,6 +167,14 @@ func Validate(p Proposal, role Role) error {
 	if a := p.Anchor; a != nil {
 		if err := validateAnchor(a); err != nil {
 			return err
+		}
+	}
+	if p.Suggestion != nil {
+		switch {
+		case p.Anchor == nil || p.Anchor.Side == Base:
+			return &RuleError{"suggestion.anchor", "suggestion", "an anchor on head-side lines, which the suggestion replaces"}
+		case len(*p.Suggestion) > maxText:
+			return &RuleError{"suggestion.length", "suggestion", fmt.Sprintf("at most %d bytes", maxText)}
 		}
 	}
 	switch {
@@ -465,7 +478,11 @@ func (st *Store) checkSources(ids []string) error {
 
 func (d *Draft) apply(p Proposal) {
 	d.Severity, d.Title, d.Description, d.Evidence = p.Severity, strings.TrimSpace(p.Title), p.Description, p.Evidence
-	d.Anchor, d.Sources = nil, slices.Clone(p.Sources)
+	d.Anchor, d.Sources, d.Suggestion = nil, slices.Clone(p.Sources), nil
+	if p.Suggestion != nil {
+		s := strings.TrimRight(*p.Suggestion, "\n")
+		d.Suggestion = &s
+	}
 	if p.Anchor != nil {
 		a := *p.Anchor
 		if a.Side == "" {
@@ -476,4 +493,30 @@ func (d *Draft) apply(p Proposal) {
 		}
 		d.Anchor = &a
 	}
+}
+
+// Fence is a code fence longer than any run of backticks in s, so s cannot
+// close it early.
+func Fence(s string) string {
+	n, run := 3, 0
+	for _, r := range s {
+		if r == '`' {
+			run++
+			n = max(n, run+1)
+		} else {
+			run = 0
+		}
+	}
+	return strings.Repeat("`", n)
+}
+
+// SuggestionBlock is d's suggestion as GitLab's suggestion block, for a
+// comment placed on the anchor's last line, as vuoro places one. It replaces
+// every line of the anchor's range. It is empty when d has no suggestion.
+func SuggestionBlock(d Draft) string {
+	if d.Suggestion == nil || d.Anchor == nil || d.Anchor.Side != Head {
+		return ""
+	}
+	f := Fence(*d.Suggestion)
+	return fmt.Sprintf("%ssuggestion:-%d+0\n%s\n%s", f, d.Anchor.EndLine-d.Anchor.StartLine, *d.Suggestion, f)
 }

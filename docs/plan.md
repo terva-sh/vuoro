@@ -418,6 +418,16 @@ which wins, and the verifier's stays beside it. A preset's `verifier` names
 its tool and model, and the default is the synthesizer's, or else the first
 reviewer's.
 
+A reviewer can draft a suggestion (D31). On a finding on head-side lines that
+the person has not yet decided, "Ask for a suggestion" sends the session that
+drafted it a request to revise it with `suggestion`: the exact text that
+replaces the anchor's lines. Validation refuses a suggestion without a
+head-side anchor (`suggestion.anchor`). Keeping the finding puts a GitLab
+```` ```suggestion:-N+0 ```` block in the comment, reaching back from the
+anchor's last line, where the comment lands, over the whole range, so the
+author can apply it. Every fence is longer than any run of backticks inside
+it. This is text a read-only reviewer writes, not the editor's patch (D17).
+
 The kept findings make a hand-off report (D31): Markdown for an agent that
 fixes them, giving the change, the reviewed head, and for each kept finding
 its severity, place, standing confidence mark, description, and evidence. One

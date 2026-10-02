@@ -203,6 +203,7 @@ func Tools(role Role) []map[string]any {
 		"title":       map[string]any{"type": "string", "description": "One line, at most 256 bytes."},
 		"description": map[string]any{"type": "string", "description": "What is wrong and why it matters."},
 		"evidence":    map[string]any{"type": "string", "description": "What in the code shows it."},
+		"suggestion":  map[string]any{"type": "string", "description": "Only when the person asks for one: the exact text that replaces the anchor's lines from start_line to end_line at the head, as whole lines with their indentation, with no code fence. Needs a head-side anchor."},
 		"anchor": map[string]any{
 			"type":     "object",
 			"required": []string{"path", "start_line"},

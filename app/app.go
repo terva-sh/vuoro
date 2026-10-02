@@ -68,6 +68,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
 	mux.HandleFunc("POST /api/runs/{id}/report", a.report)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/suggest", a.askSuggestion)
 	mux.HandleFunc("POST /api/changes", a.openChange)
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
@@ -352,6 +353,17 @@ func (a *App) getRun(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) closeRun(w http.ResponseWriter, r *http.Request) {
 	if err := a.Runs.Close(r.Context(), r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	a.getRun(w, r)
+}
+
+// askSuggestion asks the session that drafted a finding for a suggestion
+// block, at the person's click, and answers with the run.
+func (a *App) askSuggestion(w http.ResponseWriter, r *http.Request) {
+	a.probeTools() // a run reloaded after a restart resumes on a probed tool
+	if err := a.Runs.AskSuggestion(r.PathValue("id"), r.PathValue("did")); err != nil {
 		writeError(w, err)
 		return
 	}

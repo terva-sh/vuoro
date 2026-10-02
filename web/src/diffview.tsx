@@ -3,6 +3,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { parsePatch, patchLines, placeAll, type Place, type Row } from './diff'
 import type { Draft, FileDiff, ForgeDraft, Thread } from './types'
 import { ago, Prose, SeverityBadge } from './ui'
+import { post } from './api'
 import { Composer, useWriter } from './write'
 
 // A file past this many lines starts collapsed, and its rows are built only
@@ -94,10 +95,29 @@ export function MyDraft({ draft, where }: { draft: ForgeDraft; where?: string })
   )
 }
 
-// keepText is what a kept draft says on the forge, as vuoro composes it.
+// fence is a code fence longer than any run of backticks in s, as the
+// server's drafts.Fence makes it.
+export function fence(s: string): string {
+  const longest = Math.max(0, ...(s.match(/`+/g) ?? []).map((r) => r.length))
+  return '`'.repeat(Math.max(3, longest + 1))
+}
+
+// suggestionBlock is GitLab's suggestion block for a comment on the anchor's
+// last line, replacing every line of its range.
+export function suggestionBlock(d: Draft): string {
+  if (d.suggestion === undefined || d.anchor?.side !== 'head') return ''
+  const f = fence(d.suggestion)
+  return `${f}suggestion:-${d.anchor.end_line - d.anchor.start_line}+0\n${d.suggestion}\n${f}`
+}
+
+// keepText is what a kept draft says on the forge, as the server's keepBody
+// composes it. The two must agree, so unedited text is sent as no text.
 export function keepText(d: Draft): string {
   let b = `**${d.title}**\n\n${d.description.trim()}`
-  if (d.evidence?.trim()) b += '\n\n```\n' + d.evidence.trim() + '\n```'
+  const e = d.evidence?.trim()
+  if (e) b += `\n\n${fence(e)}\n${e}\n${fence(e)}`
+  const s = suggestionBlock(d)
+  if (s) b += '\n\n' + s
   return b
 }
 
@@ -109,8 +129,13 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
 }) {
   const w = useWriter()
   const [editing, setEditing] = useState(false)
+  const [asked, setAsked] = useState<string>()
   const a = draft.anchor
   const open = draft.status === 'pending' && !draft.decision
+  const ask = () => {
+    setAsked('asked')
+    post(`/api/runs/${runID}/drafts/${draft.id}/suggest`).catch((e: unknown) => setAsked(`⚠ ${e instanceof Error ? e.message : String(e)}`))
+  }
   return (
     <div class={`draft ${draft.status} ${draft.decision ?? ''} ${compact ? 'compact' : ''}`}>
       {!compact && (
@@ -150,13 +175,26 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
         <>
           <Prose text={draft.description} />
           {draft.evidence && <pre class="evidence">{draft.evidence}</pre>}
+          {draft.suggestion !== undefined && a && (
+            <div class="suggestion">
+              <div class="muted">✎ Suggested change, replacing {a.path}:{a.start_line}{a.end_line !== a.start_line ? `–${a.end_line}` : ''}. Keeping it posts a suggestion the author can apply.</div>
+              <pre class="md-code md-suggestion"><code>{draft.suggestion}</code></pre>
+            </div>
+          )}
           {open && w && runID && (
             <div class="actions">
               <button class="primary" onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, {}).catch(() => undefined)}>Keep</button>
               <button onClick={() => setEditing(true)}>Edit and keep</button>
               <button onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/drop`, {}).catch(() => undefined)}>Drop</button>
+              {a?.side === 'head' && draft.suggestion === undefined && (
+                <button disabled={asked === 'asked'} onClick={ask}
+                  title="The agent that drafted this writes the replacement lines, and keeping it posts a suggestion the author can apply">
+                  {asked === 'asked' ? '⧗ Asked for a suggestion' : 'Ask for a suggestion'}
+                </button>
+              )}
             </div>
           )}
+          {asked?.startsWith('⚠') && <p class="alert" role="alert">{asked}</p>}
         </>
       )}
     </div>

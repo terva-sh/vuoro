@@ -42,6 +42,7 @@ export interface DraftAnchor { path: string; side: 'head' | 'base'; start_line: 
 export interface Draft {
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
+  suggestion?: string // replaces the anchor's head-side lines
   status: 'pending' | 'withdrawn'; revision: number; session: string; drafted_by: string; updated: string
   decision?: 'kept' | 'dropped'; note_id?: string; edited?: boolean
   confidence?: Confidence // the verifier's mark

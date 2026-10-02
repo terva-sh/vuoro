@@ -199,3 +199,38 @@ func TestAPersonsMarkWinsAndTheVerifiersStaysBesideIt(t *testing.T) {
 		t.Fatal("a withdrawn draft was rated")
 	}
 }
+
+func TestASuggestionIsOnlyEverOnHeadSideLines(t *testing.T) {
+	st := NewStore()
+	fix := "\treturn a + b\n"
+	p := Proposal{Severity: "high", Title: "t", Description: "d", Suggestion: &fix}
+	for _, a := range []*Anchor{nil, {Path: "calc.go", Side: Base, StartLine: 3}} {
+		p.Anchor = a
+		_, err := st.Propose(alice, p)
+		var re *RuleError
+		if !errors.As(err, &re) || re.Rule != "suggestion.anchor" {
+			t.Fatalf("anchor %+v: %v", a, err)
+		}
+	}
+	p.Anchor = &Anchor{Path: "calc.go", StartLine: 10, EndLine: 12}
+	d, err := st.Propose(alice, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *d.Suggestion != "\treturn a + b" {
+		t.Fatalf("suggestion %q", *d.Suggestion)
+	}
+	// The comment lands on line 12, so the block reaches back two lines to 10.
+	if got := SuggestionBlock(d); got != "```suggestion:-2+0\n\treturn a + b\n```" {
+		t.Fatalf("block %q", got)
+	}
+	tricky := "s := \"```\""
+	d.Suggestion = &tricky
+	if got := SuggestionBlock(d); got != "````suggestion:-2+0\n"+tricky+"\n````" {
+		t.Fatalf("a suggestion holding a fence: %q", got)
+	}
+	d.Anchor.Side = Base
+	if SuggestionBlock(d) != "" {
+		t.Fatal("a base-side draft made a suggestion block")
+	}
+}

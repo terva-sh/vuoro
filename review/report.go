@@ -68,8 +68,12 @@ func Report(v RunView) string {
 		}
 		b.WriteString("\n" + strings.TrimSpace(d.Description) + "\n")
 		if e := strings.TrimSpace(d.Evidence); e != "" {
-			f := fence(e)
+			f := drafts.Fence(e)
 			fmt.Fprintf(&b, "\nEvidence:\n\n%s\n%s\n%s\n", f, e, f)
+		}
+		if d.Suggestion != nil && d.Anchor != nil {
+			f := drafts.Fence(*d.Suggestion)
+			fmt.Fprintf(&b, "\nSuggested replacement for lines %d–%d:\n\n%s\n%s\n%s\n", d.Anchor.StartLine, d.Anchor.EndLine, f, *d.Suggestion, f)
 		}
 	}
 	return b.String()
@@ -81,21 +85,6 @@ func mark(d drafts.Draft) *drafts.Confidence {
 		return d.Override
 	}
 	return d.Confidence
-}
-
-// fence is a code fence longer than any run of backticks in s, so s cannot
-// close it early.
-func fence(s string) string {
-	n, run := 3, 0
-	for _, r := range s {
-		if r == '`' {
-			run++
-			n = max(n, run+1)
-		} else {
-			run = 0
-		}
-	}
-	return strings.Repeat("`", n)
 }
 
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }

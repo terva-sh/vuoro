@@ -26,3 +26,17 @@ describe('FileView', () => {
     expect(root.querySelectorAll('.diff tr').length).toBe(collapseAt - 9)
   })
 })
+
+describe('keepText', () => {
+  it('matches the server: fenced evidence, then a suggestion block over the range', async () => {
+    const { keepText } = await import('./diffview')
+    const d = {
+      id: 'd1', severity: 'high', title: 'Add subtracts', description: 'It returns a - b.', evidence: 'return a - b',
+      anchor: { path: 'calc.go', side: 'head', start_line: 3, end_line: 4 }, suggestion: '\treturn a + b\n\t// sums',
+      status: 'pending', revision: 1, session: 's1', drafted_by: 'x', updated: '',
+    } as const
+    // The same vector as app/keep_test.go.
+    expect(keepText(d)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n```\nreturn a - b\n```\n\n```suggestion:-1+0\n\treturn a + b\n\t// sums\n```')
+    expect(keepText({ ...d, evidence: 'x := "```"', suggestion: undefined })).toBe('**Add subtracts**\n\nIt returns a - b.\n\n````\nx := "```"\n````')
+  })
+})
