@@ -3,8 +3,8 @@ schema: 3
 id: TKT-01M3W4HWTXC6EM9SS84A4WMEPG
 title: Comment, reply, resolve, approve, and submit on GitLab
 type: task
-status: in-progress
-status_reason: null
+status: blocked
+status_reason: The live round-trip needs the owner's GitLab token in the age store, the config file, and a merge request the owner can write to
 priority: normal
 due_on: null
 labels:
@@ -19,17 +19,10 @@ dependencies:
   - TKT-01M3W4HWDY8XV92MXXQWA0AES7
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/vuoro-mvp-1
-  branch: tickets/write
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 0b46f25b75d00ae6af5b3d67d2379b1577e57c63
-  session: null
-  claimed_at: 2026-10-02T20:04:06Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T20:04:06Z
+updated_at: 2026-10-02T20:04:15Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -75,3 +68,7 @@ but nothing derives the turn yet (TKT-01M3W4HWP).
 
 Writes need a configured forge: an anonymous client refuses every write
 before any request leaves.
+
+**agent:claude/vuoro-mvp-1** at 2026-10-02T20:04:15Z
+
+in-progress to blocked: The live round-trip needs the owner's GitLab token in the age store, the config file, and a merge request the owner can write to
