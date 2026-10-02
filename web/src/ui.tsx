@@ -4,7 +4,7 @@ import type { ComponentChildren } from 'preact'
 import type { Severity, Status } from './types'
 
 const statusMark: Record<Status, string> = {
-  preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■',
+  preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■', waiting: '⧗',
 }
 
 export function StatusBadge({ status }: { status: Status }) {

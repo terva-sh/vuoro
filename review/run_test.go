@@ -190,7 +190,7 @@ func TestAReviewDraftsFindingsAndAnInvalidOneIsSentBack(t *testing.T) {
 		}
 		return "Found one problem."
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestAReviewDraftsFindingsAndAnInvalidOneIsSentBack(t *testing.T) {
 
 func TestAReviewerOnlyEverGetsTheDraftsServer(t *testing.T) {
 	m, d, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "security"}, {Profile: "documentation"}})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "security"}, {Profile: "documentation"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,13 +277,13 @@ func TestAReviewerOnlyEverGetsTheDraftsServer(t *testing.T) {
 
 func TestAnUnknownProfileOrToolIsRefused(t *testing.T) {
 	m, _, ch, src := setup(t, nil)
-	if _, err := m.Start(ch, src, []Reviewer{{Profile: "vibes"}}); err == nil {
+	if _, err := m.Start(ch, src, []Reviewer{{Profile: "vibes"}}, nil); err == nil {
 		t.Fatal("an unknown profile was accepted")
 	}
-	if _, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "terva"}}); err == nil {
+	if _, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "terva"}}, nil); err == nil {
 		t.Fatal("an unavailable tool was accepted")
 	}
-	if _, err := m.Start(ch, src, nil); err == nil {
+	if _, err := m.Start(ch, src, nil, nil); err == nil {
 		t.Fatal("a run with no reviewers was accepted")
 	}
 }
@@ -291,7 +291,7 @@ func TestAnUnknownProfileOrToolIsRefused(t *testing.T) {
 func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 	m, _, ch, src := setup(t, nil)
 	src.Head = strings.Repeat("0", 40)
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +307,7 @@ func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 
 func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	m, _, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
 			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
 		return "done"
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,4 +377,63 @@ func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
 		t.Fatalf("drafts %+v", v.Drafts)
 	}
 	m2.Close(context.Background(), r.ID)
+}
+
+func TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem(t *testing.T) {
+	var mu sync.Mutex
+	inFlight, most, reviewersDone := 0, 0, 0
+	var synthSaw string
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
+		if strings.Contains(text, "Merge their drafts") {
+			mu.Lock()
+			done := reviewersDone
+			mu.Unlock()
+			if done != 2 {
+				return "started early"
+			}
+			synthSaw, _ = call("list_drafts", nil)
+			var list struct{ Drafts []drafts.Draft }
+			json.Unmarshal([]byte(synthSaw), &list)
+			var ids []string
+			for _, d := range list.Drafts {
+				ids = append(ids, d.ID)
+			}
+			call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "Both reviewers.",
+				"anchor": map[string]any{"path": "calc.go", "start_line": 3}, "sources": ids})
+			return "Merged.\nSet aside: none"
+		}
+		mu.Lock()
+		inFlight++
+		most = max(most, inFlight)
+		mu.Unlock()
+		time.Sleep(200 * time.Millisecond) // long enough to overlap
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d"})
+		mu.Lock()
+		inFlight--
+		reviewersDone++
+		mu.Unlock()
+		return "done"
+	})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}, {Profile: "documentation"}}, &Reviewer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return len(v.Sessions) == 3 && v.Sessions[2].Status == Idle })
+	if most != 2 {
+		t.Fatalf("at most %d reviewers ran at once", most)
+	}
+	s := v.Sessions[2]
+	if s.Role != "synthesizer" || s.Log[len(s.Log)-1].Text != "Merged.\nSet aside: none" {
+		t.Fatalf("synthesizer %+v", s)
+	}
+	var merged []drafts.Draft
+	for _, d := range v.Drafts {
+		if d.Session == "s3" {
+			merged = append(merged, d)
+		}
+	}
+	if len(merged) == 0 || len(merged[0].Sources) != 2 {
+		t.Fatalf("merged %+v, synthesizer saw %s", merged, synthSaw)
+	}
+	m.Close(context.Background(), r.ID)
 }

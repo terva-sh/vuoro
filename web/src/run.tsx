@@ -52,7 +52,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       .catch((e: unknown) => setError(String(e)))
   }, [change]) // a refresh reads the change again, and the runs with it
   usePoll(selected, setRun)
-  useEffect(() => onDrafts(run?.drafts ?? []), [run])
+  useEffect(() => onDrafts(run ? shownDrafts(run) : []), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
   const start = async () => {
@@ -120,8 +120,6 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
 
 function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; onClose: () => void; onPick: (path: string) => void }) {
   const moved = run.head !== change.diff.head
-  const pending = run.drafts.filter((d) => d.status === 'pending')
-  const withdrawn = run.drafts.length - pending.length
   return (
     <div class="run">
       <div class="run-head">
@@ -135,14 +133,66 @@ function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; o
       <div class="sessions">
         {run.sessions.map((s) => <SessionPane run={run} session={s} key={s.id} />)}
       </div>
-      <h3>
-        Drafts: {pending.length} pending{withdrawn > 0 && `, ${withdrawn} withdrawn`}
-      </h3>
-      <p class="muted">An agent drafts, and nothing here is posted. Posting is yours, from the pending drafts.</p>
-      {run.drafts.map((d) => (
-        <DraftCard draft={d} key={d.id} onPick={d.anchor ? () => onPick(d.anchor!.path) : undefined} />
-      ))}
+      <Drafts run={run} onPick={onPick} />
     </div>
+  )
+}
+
+// shownDrafts are the drafts the person works from: the synthesizer's once
+// it has proposed any, and otherwise every reviewer's.
+export function shownDrafts(run: Run): Draft[] {
+  const synth = new Set(run.sessions.filter((s) => s.role === 'synthesizer').map((s) => s.id))
+  const pending = run.drafts.filter((d) => d.status === 'pending')
+  const merged = pending.filter((d) => synth.has(d.session))
+  return merged.length > 0 ? merged : pending
+}
+
+// sourceLabel says where a merged draft came from. A finding that only one
+// reviewer raised is kept and says so, rather than being voted away.
+export function sourceLabel(d: Draft, byID: Map<string, Draft>, profile: Map<string, string>): string {
+  const srcs = (d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)
+  const who = [...new Set(srcs.map((x) => profile.get(x.session) ?? x.session))]
+  const list = `from ${(d.sources ?? []).join(', ')}`
+  return who.length === 1 ? `◇ raised by one reviewer, ${who[0]}, ${list}` : `merged ${list} (${who.join(', ')})`
+}
+
+function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
+  const byID = new Map(run.drafts.map((d) => [d.id, d]))
+  const profile = new Map(run.sessions.map((s) => [s.id, s.profile]))
+  const synth = new Set(run.sessions.filter((s) => s.role === 'synthesizer').map((s) => s.id))
+  const merged = run.drafts.filter((d) => synth.has(d.session) && d.status === 'pending')
+  const cited = new Map<string, string>()
+  for (const d of merged) for (const src of d.sources ?? []) cited.set(src, d.id)
+  const reviewers = run.drafts.filter((d) => !synth.has(d.session))
+  const pick = (d: Draft) => (d.anchor ? () => onPick(d.anchor!.path) : undefined)
+
+  const from = (d: Draft) => sourceLabel(d, byID, profile)
+
+  return (
+    <>
+      <p class="muted">An agent drafts, and nothing here is posted. Posting is yours, from the pending drafts.</p>
+      {merged.length > 0 && (
+        <>
+          <h3>Merged: {merged.length}</h3>
+          {merged.map((d) => <DraftCard draft={d} key={d.id} onPick={pick(d)} label={from(d)} />)}
+        </>
+      )}
+      <h3>
+        {merged.length > 0 ? 'From the reviewers' : 'Drafts'}: {reviewers.filter((d) => d.status === 'pending').length} pending
+        {reviewers.some((d) => d.status === 'withdrawn') && `, ${reviewers.filter((d) => d.status === 'withdrawn').length} withdrawn`}
+      </h3>
+      {reviewers.map((d) => (
+        <DraftCard
+          draft={d}
+          key={d.id}
+          onPick={pick(d)}
+          label={
+            `${profile.get(d.session) ?? d.session} reviewer` +
+            (merged.length === 0 ? '' : cited.has(d.id) ? ` · merged into ${cited.get(d.id)}` : ' · not carried forward; the synthesizer says why')
+          }
+        />
+      ))}
+    </>
   )
 }
 
@@ -223,6 +273,7 @@ function Talk({ run, session }: { run: Run; session: Session }) {
   const [error, setError] = useState<string>()
   const [sending, setSending] = useState(false)
   if (run.status === 'closed') return <p class="muted pad">The run is closed.</p>
+  if (session.status === 'waiting') return <p class="muted pad">⧗ Starts when every reviewer has reported.</p>
   const working = session.status === 'working'
   const send = async () => {
     if (!text.trim() || working) return

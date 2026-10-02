@@ -37,7 +37,7 @@ export function ThreadView({ thread }: { thread: Thread }) {
   )
 }
 
-export function DraftCard({ draft, onPick }: { draft: Draft; onPick?: () => void }) {
+export function DraftCard({ draft, onPick, label }: { draft: Draft; onPick?: () => void; label?: string }) {
   const a = draft.anchor
   return (
     <div class={`draft ${draft.status}`}>
@@ -60,6 +60,7 @@ export function DraftCard({ draft, onPick }: { draft: Draft; onPick?: () => void
         {draft.revision > 1 && draft.status === 'pending' && ` · revised ${draft.revision - 1}×`}
         {draft.status === 'withdrawn' && ' · withdrawn'}
       </div>
+      {label && <div class="draft-label">{label}</div>}
       <Prose text={draft.description} />
       {draft.evidence && <pre class="evidence">{draft.evidence}</pre>}
     </div>

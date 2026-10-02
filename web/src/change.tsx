@@ -66,7 +66,7 @@ export function ChangeView({ change, setup }: { change: Change; setup?: Setup })
           [
             ['overview', `Overview${general.length ? ` (${general.length})` : ''}`],
             ['changes', `Changes (${files.length} files, ${open} open threads)`],
-            ['review', `Review${drafts.length ? ` (${drafts.filter((d) => d.status === 'pending').length} drafts)` : ''}`],
+            ['review', `Review${drafts.length ? ` (${drafts.length} drafts)` : ''}`],
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <button role="tab" aria-selected={tab === t} class={tab === t ? 'tab on' : 'tab'} onClick={() => setTab(t)} key={t}>

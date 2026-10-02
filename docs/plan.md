@@ -381,6 +381,15 @@ once. It also makes the boundary structural: an agent's only write tool writes
 to a draft. A proposed draft is validated, and a bad one comes back with the
 rule it broke, so the agent can correct it.
 
+The synthesizer runs when a run has more than one reviewer. It waits until
+every reviewer's first turn has ended, however it ended, then reads the same
+change and every draft. Its drafts name their sources, and its closing reply
+ends with a "Set aside" section giving each draft it did not carry forward
+and why. The person works from the synthesizer's drafts once there are any.
+A merged draft whose sources all come from one reviewer is labelled as
+raised by one reviewer. A preset's `synthesizer` names its tool and model,
+and the default is the first reviewer's tool on its default model.
+
 A run is pinned to the head SHA it reviewed. When the change moves, the run and
 its drafts show "reviewed at abc123, 2 commits behind". Nothing re-runs on its
 own.

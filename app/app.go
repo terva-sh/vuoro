@@ -233,15 +233,16 @@ func (a *App) source(ch *forge.Change) (review.Source, error) {
 
 func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		URL       string            `json:"url"`
-		Preset    string            `json:"preset,omitempty"`
-		Reviewers []review.Reviewer `json:"reviewers,omitempty"`
+		URL         string            `json:"url"`
+		Preset      string            `json:"preset,omitempty"`
+		Reviewers   []review.Reviewer `json:"reviewers,omitempty"`
+		Synthesizer *review.Reviewer  `json:"synthesizer,omitempty"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
 	a.probeTools()
-	reviewers := req.Reviewers
+	reviewers, synth := req.Reviewers, req.Synthesizer
 	if len(reviewers) == 0 {
 		name := req.Preset
 		ps := a.presets()
@@ -252,6 +253,10 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 			if p.Name == name {
 				for _, rv := range p.Reviewers {
 					reviewers = append(reviewers, review.Reviewer(rv))
+				}
+				if p.Synthesizer != nil {
+					s := review.Reviewer(*p.Synthesizer)
+					synth = &s
 				}
 			}
 		}
@@ -271,7 +276,14 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	run, err := a.Runs.Start(ch, src, reviewers)
+	// More than one reviewer means their drafts are merged (D11).
+	if len(reviewers) > 1 && synth == nil {
+		synth = &review.Reviewer{Tool: reviewers[0].Tool}
+	}
+	if len(reviewers) < 2 {
+		synth = nil
+	}
+	run, err := a.Runs.Start(ch, src, reviewers, synth)
 	if err != nil {
 		writeError(w, err)
 		return

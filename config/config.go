@@ -38,6 +38,10 @@ type Config struct {
 type Preset struct {
 	Name      string     `json:"name"`
 	Reviewers []Reviewer `json:"reviewers"`
+	// Synthesizer is the tool and model that merge the reviewers' drafts,
+	// when there is more than one reviewer. Its profile is ignored. Empty
+	// means the first reviewer's tool on its default model.
+	Synthesizer *Reviewer `json:"synthesizer,omitempty"`
 }
 
 // Reviewer is one reviewer in a preset: a profile on a tool and a model.

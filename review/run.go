@@ -56,6 +56,7 @@ const (
 	Ended     Status = "ended"     // the tool's process ended; it can be resumed
 	Failed    Status = "failed"
 	Closed    Status = "closed"
+	Waiting   Status = "waiting" // the synthesizer, until every reviewer has reported
 )
 
 // Run is one review of one change at one head.
@@ -100,6 +101,8 @@ type Session struct {
 	live   agent.Session
 	token  string
 	spec   agent.Spec
+	// reported is set when the session's first turn ends, however it ends.
+	reported bool
 }
 
 // Entry is one line of a session's transcript, as the person reads it.
@@ -118,8 +121,10 @@ type Entry struct {
 const maxToolText = 4 << 10
 
 // Start begins a review of ch. It returns once the run exists, and checks
-// out the worktree and starts the reviewers in the background.
-func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer) (*Run, error) {
+// out the worktree and starts the reviewers in the background. With synth
+// set, a synthesizer on that tool and model merges the reviewers' drafts once
+// every reviewer has reported; its Profile is ignored.
+func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synth *Reviewer) (*Run, error) {
 	if len(reviewers) == 0 {
 		return nil, errors.New("review: a run needs at least one reviewer")
 	}
@@ -137,6 +142,17 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer) (*Ru
 			ID: fmt.Sprintf("s%d", i+1), Profile: p.Name, Tool: name, Model: rv.Model,
 			Role: drafts.Reviewer, Status: Preparing, driver: d,
 			spec: agent.Spec{SystemPrompt: systemPrompt(p), Model: rv.Model},
+		})
+	}
+	if synth != nil {
+		name, d, err := m.driver(synth.Tool)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, &Session{
+			ID: fmt.Sprintf("s%d", len(sessions)+1), Profile: "synthesis", Tool: name, Model: synth.Model,
+			Role: drafts.Synthesizer, Status: Waiting, driver: d,
+			spec: agent.Spec{SystemPrompt: synthesisPrompt(), Model: synth.Model},
 		})
 	}
 
@@ -182,16 +198,51 @@ func (m *Manager) prepare(r *Run, src Source) {
 	r.Status = Working
 	r.mu.Unlock()
 	for _, s := range r.sessions {
-		go m.begin(r, s)
+		if s.Role == drafts.Reviewer {
+			go m.begin(r, s, r.first)
+		}
 	}
 }
 
-// begin starts a session and sends it the change.
-func (m *Manager) begin(r *Run, s *Session) {
+// begin starts a session and sends it its first message.
+func (m *Manager) begin(r *Run, s *Session, first string) {
 	if err := m.launch(r, s, ""); err != nil {
+		r.mu.Lock()
+		s.reported = true
+		synth := r.readyToSynthesize()
+		r.mu.Unlock()
+		m.synthesize(r, synth)
 		return
 	}
-	m.send(r, s, r.first, false)
+	m.send(r, s, first, false)
+}
+
+// readyToSynthesize returns the waiting synthesizer once every reviewer has
+// reported, and marks it started. r.mu is held.
+func (r *Run) readyToSynthesize() *Session {
+	var synth *Session
+	for _, s := range r.sessions {
+		switch {
+		case s.Role == drafts.Synthesizer && s.Status == Waiting:
+			synth = s
+		case s.Role == drafts.Reviewer && !s.reported:
+			return nil
+		}
+	}
+	if synth != nil {
+		synth.Status = Preparing
+	}
+	return synth
+}
+
+func (m *Manager) synthesize(r *Run, synth *Session) {
+	if synth == nil {
+		return
+	}
+	r.mu.Lock()
+	text := synthesisMessage(r)
+	r.mu.Unlock()
+	go m.begin(r, synth, text)
 }
 
 // launch starts s's tool, fresh or resumed from resume.
@@ -242,7 +293,11 @@ func (s *Session) drafted() string {
 	if model == "" {
 		model = "default model"
 	}
-	return s.driver.Name() + " · " + model
+	tool := s.Tool
+	if s.driver != nil {
+		tool = s.driver.Name()
+	}
+	return tool + " · " + model
 }
 
 // send starts a turn on s. A session whose process ended is resumed first.
@@ -290,6 +345,7 @@ func (m *Manager) send(r *Run, s *Session, text string, fromPerson bool) error {
 
 // pump records a session's events until its process ends.
 func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
+	var synth *Session
 	for ev := range live.Events() {
 		save := false
 		r.mu.Lock()
@@ -330,6 +386,8 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 			if ev.Err != nil && !ev.Cancelled {
 				s.Log = append(s.Log, Entry{Kind: "error", Text: ev.Err.Error(), At: at})
 			}
+			s.reported = true
+			synth = r.readyToSynthesize()
 			r.settle()
 			save = true
 		}
@@ -337,6 +395,8 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		if save {
 			r.save()
 		}
+		m.synthesize(r, synth)
+		synth = nil
 	}
 	r.mu.Lock()
 	if s.live == live {
@@ -345,9 +405,12 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 			s.Status = Ended
 		}
 	}
+	s.reported = true
+	synth = r.readyToSynthesize()
 	r.settle()
 	r.mu.Unlock()
 	r.save()
+	m.synthesize(r, synth)
 }
 
 // settle sets the run's status from its sessions'. r.mu is held.
@@ -357,7 +420,7 @@ func (r *Run) settle() {
 	}
 	r.Status = Idle
 	for _, s := range r.sessions {
-		if s.Status == Working {
+		if s.Status == Working || s.Status == Preparing {
 			r.Status = Working
 		}
 	}

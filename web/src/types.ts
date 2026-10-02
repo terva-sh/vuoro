@@ -42,7 +42,7 @@ export interface Draft {
   status: 'pending' | 'withdrawn'; revision: number; session: string; drafted_by: string; updated: string
 }
 
-export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed'
+export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed' | 'waiting'
 
 export interface Entry {
   kind: 'change' | 'user' | 'assistant' | 'tool' | 'denied' | 'error'
