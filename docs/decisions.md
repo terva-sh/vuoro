@@ -266,3 +266,21 @@ subprocesses and embeds none. Two alternatives were rejected:
   skip the person's hooks;
 - shipping the drafts tools as a terva extension through `--ext`, which departs
   from D9 and still leaves the hooks loaded.
+
+### D29. A token comes from a command, and state is JSON files
+
+The owner chose on 2026-10-02 how vuoro gets a forge token. vuoro's config
+names a `token_command`, run without a shell, whose stdout is the token, with a
+`token_env` variable as the fallback. The owner's command is `ritual-secret get
+gitlab-pat`. The token lives in memory only. Two alternatives were rejected:
+
+- an environment variable only, which is visible to whatever launches vuoro;
+- the macOS keychain through `security`, which is macOS-only and adds a setup
+  step, when a token command can already reach a keychain.
+
+The same ticket settled the rest of plan sections 5.1 and 8:
+
+- The config is JSON, in the platform config directory.
+- State is JSON files. The derived cache is kept apart from what the person
+  wrote, so deleting the cache loses nothing of theirs.
+- `modernc.org/sqlite` waits until a query needs it.

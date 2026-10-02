@@ -169,19 +169,45 @@ GitLab notes for the adapter:
 - Inline positions need `base_sha`, `start_sha`, and `head_sha` from the
   change's diff refs.
 
-### 5.1 Credentials
+### 5.1 Credentials and configuration
 
-> Open question: TKT-01M3W4HWM6V2F20KNT03BSBNZY (Decide credential handling and
-> the local state format).
+Decided on 2026-10-02 (D29), and held in `config/`.
 
-- A token never goes in a config file, in `argv`, or in a log.
-- The starting position is a configured `token_command`, run without a shell
-  with its output read from stdout. An environment variable is the fallback.
-  This lets any secret store supply the token without vuoro knowing which one
-  it is.
-- A keychain is attractive. Without cgo, it means calling `security` on macOS
-  and the Secret Service over D-Bus on Linux. The spike decides whether that is
-  worth it for the MVP.
+- **A token never goes in the config file, argv, a log, or an error.** The
+  file names where the token comes from. A `token` field is refused, as is any
+  field the format does not know.
+- **A token command.** `token_command` is a program and its arguments, run
+  without a shell, whose stdout is the token. A leading `~/` in the program is
+  the home directory. Any secret store fits: the owner's is `ritual-secret get
+  gitlab-pat`. `token_env` names an environment variable instead, for a forge
+  with no command.
+- **In memory only.** The token is held as a value that prints as
+  `[redacted]` under every format, JSON, and `slog`. A failed command is
+  reported by its program name and exit status. What it printed, on stdout or
+  stderr, never appears in a message.
+- **No keychain in the MVP.** Without cgo it means `security` on macOS and the
+  Secret Service over D-Bus on Linux, and a token command already reaches
+  either.
+
+The config file is `config.json` in the platform config directory:
+`~/Library/Application Support/vuoro` on macOS, `$XDG_CONFIG_HOME/vuoro` or
+`~/.config/vuoro` on Linux, and `%AppData%\vuoro` on Windows. In the MVP the
+person writes it by hand. Setup in the UI arrives at v1.0. An example, with no
+secret in it:
+
+```json
+{
+  "forges": [
+    {
+      "name": "gitlab.com",
+      "kind": "gitlab",
+      "url": "https://gitlab.com",
+      "username": "drewshort",
+      "token_command": ["~/.claude/scripts/ritual-secret", "get", "gitlab-pat"]
+    }
+  ]
+}
+```
 
 ### 5.2 The loopback server is local attack surface
 
@@ -484,9 +510,21 @@ The state directory follows git-ticket-canvas:
 `~/Library/Application Support/vuoro` on macOS, and `%LOCALAPPDATA%\vuoro` on
 Windows. Configuration lives in the platform config directory.
 
-> Open question: the cache format, in TKT-01M3W4HWM6V2F20KNT03BSBNZY. JSON
-> files are enough for one person's inbox. `modernc.org/sqlite` is the cgo-free
-> option if queries need it.
+The format is JSON files, decided on 2026-10-02 (D29). One person's inbox
+and runs need no queries that justify a database. `modernc.org/sqlite`
+remains the cgo-free option if that changes. The state directory holds:
+
+| Path | Holds | Kind |
+|---|---|---|
+| `cache/` | forge data: changes, threads, diffs | derived. Deleting it loses nothing the person wrote |
+| `annotations/` | the person's snoozes and notes | authored |
+| `runs/<id>/` | a review run: its sessions, transcripts, and drafts | vuoro's own record, under the retention above |
+| `repos/` | a bare clone of each reviewed project, fetched over the person's own git transport | derived |
+| `worktrees/<run>/` | the checkout a run's reviewers read | derived, removed with the run |
+
+Files are written whole, to a temporary name and then renamed, so a crash
+leaves the old file or the new one and never half of either. Directories are
+mode 0700, and files mode 0600.
 
 ## 9. Gates
 
