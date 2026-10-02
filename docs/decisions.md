@@ -284,3 +284,23 @@ The same ticket settled the rest of plan sections 5.1 and 8:
 - State is JSON files. The derived cache is kept apart from what the person
   wrote, so deleting the cache loses nothing of theirs.
 - `modernc.org/sqlite` waits until a query needs it.
+
+### D30. The turn model adds review requests and pushes, and `since` is the earliest unanswered event
+
+Settled on 2026-10-02 by the agent working under the owner's deputy for the
+MVP, from real API responses on all three forges (plan section 4). It is open
+to the owner to overrule. Four choices:
+
+- **Two facts join the model.** A review request is a fact of its own,
+  because every forge records re-requests. A push is one too, because a
+  commit's date is when it was written, not when it arrived.
+- **Bots and system notes count for nothing** in the turn rules.
+- **A thread's turn is its last real note.** The alternative was a recorded
+  "expected responder", which no forge holds and which would be state the
+  forge does not.
+- **`since` is the earliest unanswered event**, so noise does not reset the
+  wait. The alternative was the latest event.
+
+GitLab is read with GraphQL and written with REST. Anonymous REST refuses a
+merge request's discussions, and GraphQL returns reviewer states, positions,
+and diff versions in one request.

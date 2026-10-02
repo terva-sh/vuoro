@@ -115,41 +115,90 @@ read a pin from Forgejo and never from a mirror.
 
 ## 4. The model
 
-> Open question: TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge model and the
-> turn rules). This section is the starting position, not the answer.
+Decided on 2026-10-02 by TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge
+model and the turn rules). The model was checked against real API responses
+from public changes on gitlab.com (gitlab-org/cli !3958 and !3991), GitHub
+(cli/cli #13899, #9083, and home-assistant/core #184070), and Forgejo on
+Codeberg (forgejo/forgejo #4212). The GitLab responses are the fixtures in
+`forge/gitlab/testdata`.
 
 - **Change**: one merge request or pull request. Forge, project, number,
-  title, author, web URL, source and target branch, head SHA, draft flag,
-  state (open, merged, closed), mergeability.
+  title, author, web URL, source and target branch, base and head SHA, draft
+  flag, state (open, merged, closed), and mergeability as the forge reports
+  it.
 - **Role**: what the person is to a change. One or more of author, requested
-  reviewer, assignee, participant.
-- **Review**: one reviewer's verdict at a SHA. approved, changes requested,
-  commented, or dismissed.
-- **Thread**: a discussion, optionally anchored to a file, line, and SHA, with
-  its notes, and resolved or not.
-- **Draft**: a pending comment that the forge has not published yet. GitLab
-  draft notes, a GitHub pending review, a Forgejo pending review. A draft can be
-  authored by the person or drafted by an agent.
-- **Turn**: for each change and the person, `mine` or `theirs`, a `since`
-  time, and the reasons that produced it.
+  reviewer, assignee, and participant.
+- **Review request**: a reviewer was asked, at a time. A re-request is a new
+  one. All three forges record it, and it is the clearest "your turn" signal
+  they give.
+- **Review**: one reviewer's verdict, at a time: approved, changes requested,
+  or commented, and whether it was dismissed. It carries the SHA it was given
+  at when the forge records one. GitHub and Forgejo do. GitLab keeps only each
+  reviewer's current state, so the adapter reads the time from the state's
+  system note.
+- **Push**: new commits on the change, at a time, with the head SHA when the
+  forge gives it. A commit's own date is when it was written, not when it
+  arrived, so the model never uses it.
+- **Thread**: a discussion, optionally anchored to a file, line, side, and
+  SHA, with its notes, and whether it can be resolved and is. A note has an
+  author, a time, and two marks: *system* (the forge wrote it, such as
+  "changed this line in version 3") and *bot* (an automated account wrote it).
+- **Draft**: a pending comment the forge has not published: GitLab draft
+  notes, a GitHub pending review, a Forgejo pending review. The person writes
+  one, or an agent drafts it.
+- **Turn**: for each change and the person, `mine` or `theirs`, a `since` time,
+  the reasons that hold, and the time of the last activity.
 
-### 4.1 Turn rules (starting position)
+**Bots and system notes count for nothing.** A note or review by a bot, or a
+system note, never makes it anyone's turn. Bots are recognised by the forge's
+own marks (GitHub's `[bot]` suffix, GitLab's bot user type) and by a list in
+the config. GitLab Duo, for example, appears both as a reviewer and as a
+thread author.
 
-As a requested reviewer, it is my turn when any of these is true:
+### 4.1 Turn rules
 
-- I have not reviewed the change.
-- Commits were pushed after my last review.
-- A thread I started or replied in has a newer note from somebody else.
+Each rule is a reason. A change is my turn when any reason holds, and
+otherwise it is theirs. The inbox names whose: the reviewers who have not
+answered, or the author.
 
-As the author, it is my turn when any of these is true:
+| Rule | GitLab (GraphQL) | GitHub | Forgejo |
+|---|---|---|---|
+| **R1** I am a requested reviewer and have not reviewed | `reviewers.nodes[].mergeRequestInteraction.reviewState == UNREVIEWED` | I am in `requested_reviewers` and have no review | a `REQUEST_REVIEW` review, or `requested_reviewers`, with no later review of mine |
+| **R2** pushed since my last review | `mergeRequestDiffs.nodes[].createdAt` newer than my verdict's system note | my last review's `commit_id != head.sha` | `stale`, or `commit_id != head.sha`; the push time is the `pull_push` timeline entry |
+| **R2b** re-requested since my last review | system note "requested review from @me" newer than my verdict | timeline `review_requested` naming me | timeline `review_request` naming me |
+| **R3** the author answered in a thread I am in | the last note that is neither system nor bot is the author's, and it is newer than mine | the same, over the `in_reply_to_id` chain of `/pulls/:n/comments` | the same, over a review's comments with one `path` and `position` |
+| **A1** an unresolved thread ends with a reviewer's note | `resolvable && !resolved`, and the last note that is neither system nor bot is not mine | the last comment in the chain is not mine. Resolution needs GraphQL `reviewThreads.isResolved` | `resolver == null` on the first comment, and the last comment is not mine |
+| **A2** changes requested, and nothing pushed since | reviewer state `REQUESTED_CHANGES`, and no diff version newer than its system note | the reviewer's last non-comment review is `CHANGES_REQUESTED` at `head.sha`, and not dismissed | `REQUEST_CHANGES`, not `dismissed`, not `stale` |
+| **A3** approved and mergeable, and I can merge | `detailedMergeStatus == MERGEABLE` and `canMerge` | `mergeable_state == clean` with no open change request, and I can merge | `mergeable`, an approval and no open change request, and I can merge |
 
-- An unresolved thread has a reviewer note newer than my last note in it.
-- A reviewer requested changes, and nothing was pushed since.
-- The change is approved and mergeable. It is my turn to merge.
+R1 to R3 apply when I am a requested reviewer, and A1 to A3 when I am the
+author. R3 counts the author's notes only, so a co-reviewer's "+1" does not
+make it my turn.
 
-Otherwise it is their turn, and the inbox says whose. `since` is the time of
-the event that made it so, which is what lets the inbox sort by "waiting
-longest".
+**A thread's turn is its last real note.** Leaving out system and bot notes,
+when the last note is the author's, it is the reviewers' turn, and when it is
+a reviewer's, it is the author's. That covered every thread in the fixtures,
+so a thread does not record who is expected to answer. An author's deferring
+reply, such as "I'll fix it in a follow-up", hands the turn back, which is
+right: the reviewer resolves the thread or answers.
+
+**`since` is the earliest unanswered event** among the reasons that hold. It
+answers "how long have I owed this", which is what the inbox sorts by. Bot
+nudges, "+1"s, and a second push do not move it, and it moves on only when
+the person acts. The latest event is shown as last activity, and the inbox
+never sorts by it.
+
+### 4.2 What each forge needs
+
+- **GitLab: read with GraphQL, and write with REST.** The GraphQL query reads a
+  change's reviewer states, threads, positions, system notes, and diff
+  versions in one request, as in `forge/gitlab/testdata/mr3958.query.graphql`.
+  REST is for draft notes and publishing. A trap: in REST, `reviewers[].state`
+  is the account's state (`active`), not the review state.
+- **GitHub** needs GraphQL for thread resolution (`reviewThreads.isResolved`),
+  and it puts a dismissed review's original verdict only in its timeline.
+- **Forgejo** records real push events. Replies have no parent ID, and they are
+  grouped by review, `path`, and `position`.
 
 ## 5. Forges
 
