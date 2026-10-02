@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3YK0CFFKAPM2QHZGGZMDHND
 title: Decide the agent driver interface for terva and Claude Code
 type: spike
-status: draft
+status: in-progress
 status_reason: null
 priority: high
 due_on: null
@@ -16,15 +16,22 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:claude/vuoro-mvp-1
+  branch: tickets/agent-driver
+  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
+  commit: 9bb4f92192f40038bbdabc95da7151abb575b157
+  session: null
+  claimed_at: 2026-10-02T16:23:17Z
+  expires_at: null
 archive: null
 created_at: 2026-10-02T15:16:29Z
-updated_at: 2026-10-02T15:16:29Z
+updated_at: 2026-10-02T16:33:49Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/vuoro-mvp-1
   name: ""
 extensions: {}
 ---
@@ -70,3 +77,21 @@ Prior art: terva-sh/terva-action-code-review drives `terva rpc` with
 - [ ] docs/plan.md section 6 records the interface, the lockdown per tool, and the drafts channel, with the open-question marker removed
 - [ ] For each tool, a recorded transcript shows the agent refusing to run a command under the chosen lockdown
 - [ ] A throwaway Go program holds a two-turn conversation with each tool, streamed
+
+## Notes
+
+**agent:claude/vuoro-mvp-1** at 2026-10-02T16:33:49Z
+
+Where the spike stands on 2026-10-02. docs/plan.md section 6.6 has the detail, and spikes/agentdriver/ has the evidence.
+
+Claude Code is settled. The interface and the lockdown flags are in section 6.6, and the recorded transcripts are in spikes/agentdriver/transcripts/. They prove:
+- The session offers only Read, Grep, Glob, and the drafts tools, and none of the person's MCP servers or claude.ai connectors.
+- dontAsk denies a defined but disallowed Bash, as a second layer.
+- --restricted refuses reads outside the worktree.
+- The reviewed worktree's CLAUDE.md, AGENTS.md, and hooks stay out. Without the flags, the change's hook ran.
+- Drafts arrive through a stub stdio MCP server.
+- Resume works across processes with --session-id and --resume.
+
+terva is not settled, and none of the three criteria can be ticked yet, because each one names both tools:
+- The workstation's terva login has expired, and no other provider is configured, so no terva transcript exists. The owner signs in again.
+- terva 0.139.7 cannot give one run a server that vuoro supplies while it keeps the person's login (no --mcp-config; --team-socket is hard-wired; TERVA_HOME moves auth.json). The person's config hooks always load, and no flag turns them off. Under AGENTS.md's rule, a driver without a proven lockdown is not offered. So terva needs an upstream change before it can be a reviewer, or a decision from the owner. Asked on 2026-10-02.

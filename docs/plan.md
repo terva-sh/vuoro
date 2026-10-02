@@ -194,10 +194,12 @@ it, and it must land before any forge write exists.
 
 ## 6. Agents
 
-> Open question: TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver
-> interface for terva and Claude Code) settles the interface and each tool's
-> lockdown flags. The drafts channel, the two agent classes, and the
-> orchestration shape were decided with the owner on 2026-10-02.
+> The drafts channel, the two agent classes, and the orchestration shape were
+> decided with the owner on 2026-10-02. The driver spike,
+> TKT-01M3YK0CFFKAPM2QHZGGZMDHND (Decide the agent driver interface for terva
+> and Claude Code), settled the interface and Claude Code's lockdown in section
+> 6.6. Open question: terva's lockdown, which terva 0.139.7 cannot provide.
+> Section 6.6 says why.
 
 ### 6.1 Drive the tools, do not embed them
 
@@ -206,10 +208,10 @@ vuoro does not contain an agent. It drives agent tools that the person already
 has, each as a subprocess over the tool's own protocol, so the person picks the
 tool, the model, and the account:
 
-| Tool | Protocol | Resume | Lockdown to try |
+| Tool | Protocol | Resume | Lockdown |
 |---|---|---|---|
-| terva | `terva rpc`: NDJSON commands and events on stdin and stdout, `hello` with `TERVACORE_RPC_TOKEN` | `--session PATH` | `--tools`, `--no-mcp`, `--no-ext`, `--approval plan` |
-| Claude Code | `claude -p --input-format stream-json --output-format stream-json`, the protocol its SDKs speak | `--session-id`, `--resume` | `--tools Read,Grep,Glob`, `--strict-mcp-config`, `--restricted`, `--permission-mode` |
+| terva | `terva rpc`: NDJSON commands and events on stdin and stdout, `hello` with `TERVACORE_RPC_TOKEN` | `--session PATH` | Not available in 0.139.7 (section 6.6) |
+| Claude Code | `claude -p --input-format stream-json --output-format stream-json`, the protocol its SDKs speak | `--session-id`, `--resume` | Proven (section 6.6) |
 
 Each tool sits behind one driver interface in `agent`. It covers starting a
 session in a working directory with a system prompt, a tool policy, and a
@@ -309,6 +311,99 @@ The action is worth reading for:
 
 terva's `raati` deliberation panel is prior art for the synthesizer, and for
 keeping a minority finding rather than voting it away.
+
+### 6.6 Drivers
+
+Settled by the driver spike on 2026-10-02, against Claude Code 2.1.285 and
+terva 0.139.7. The evidence and the throwaway program are in
+`spikes/agentdriver/`.
+
+**The interface.** A driver starts a session and the session carries turns.
+
+- `Probe` finds the binary on `PATH` (`exec.LookPath`), reads its version, and
+  says plainly when the tool is missing or older than the pin in section 3.2.
+  It also reports the account kind where the tool exposes it.
+- `Start` takes a working directory, a system prompt, a model, the drafts
+  endpoint for this session, and an optional resume reference. There is one
+  tool policy, the reviewer's. The editor's arrives with the editor.
+- A session has `Send(text)`, which starts a turn, an event stream,
+  `Cancel`, which aborts the turn in flight, `Close`, and `Ref`, the handle
+  that a later `Start` resumes.
+- The events both tools honour: text delta, tool call, tool result, denied
+  (the tool and its input), usage, turn done (with an error when it failed),
+  and session info (tool, version, model, account kind). Usage is per turn.
+  Claude Code reports `total_cost_usd` as a running total for the process, so
+  its driver reports the difference.
+- No approval request reaches the person. A reviewer's policy is fixed, so the
+  driver answers or refuses every request itself and reports a refusal as a
+  denied event.
+
+**Claude Code's lockdown**, proven:
+
+```text
+claude -p --input-format stream-json --output-format stream-json --verbose
+  --include-partial-messages --model M --system-prompt P
+  --tools Read,Grep,Glob --restricted
+  --strict-mcp-config --mcp-config <vuoro's drafts server only>
+  --permission-mode dontAsk --permission-prompts none
+  --allowedTools Read,Grep,Glob,mcp__vuoro__<each drafts tool>
+  --setting-sources "" --disable-slash-commands
+```
+
+- The session's `init` event lists exactly the three read tools and the drafts
+  tools, and vuoro's server as the only MCP server. None of the person's MCP
+  servers or claude.ai connectors loads, and no skills do.
+- A tool that is not defined cannot be called. When `Bash` is defined but not
+  allowed, `dontAsk` denies it, and the `result` event lists the denial. That
+  is a second layer if a later release stops honouring `--tools`.
+- `--restricted` confines the file tools to the working directory. A read of
+  `/etc/hosts` is refused by the harness.
+- A `CLAUDE.md`, an `AGENTS.md`, or a `.claude/settings.json` hook in the
+  reviewed worktree does not reach the session. Without these flags, the
+  change's hook runs. A repository's own instructions reach a reviewer only
+  through vuoro, read at the base commit (D14).
+- `--bare` is not used, because it refuses a subscription login.
+- The driver drops `CLAUDECODE` from the child's environment.
+
+**terva's lockdown is not available in 0.139.7.** terva cannot be offered as a
+reviewer until it is. Two gaps:
+
+- **No server can be supplied for one run.** terva reads MCP servers only from
+  `$TERVA_HOME/config.json` and a trusted project's config. `--mcp` narrows
+  that list and cannot add to it. `--team-socket` replaces it with the
+  hard-wired Talkoot bridge. Pointing `TERVA_HOME` at a directory vuoro owns
+  moves `auth.json` with it, so the person's login goes too. A symlinked
+  `auth.json` is replaced by the first OAuth refresh. `--ext DIR` loads an
+  extension even under `--no-ext`, but it speaks terva's extension protocol,
+  not MCP (D9).
+- **The person's hooks always load.** Hooks in `$TERVA_HOME/config.json` run
+  shell commands, and no flag turns them off. A reviewer would carry them.
+
+The flags that hold today, for when those gaps close: `--tools
+read,grep,glob --no-ext --no-mcp --no-skill --no-lore --no-memory --no-ticket
+--portable=strict --system-prompt P`. `--tools` filters built-in tools only.
+`activate_tools` survives it, but it reveals only tools already registered, so
+it cannot bring back `bash` or `write`. Under `--approval plan`, an MCP tool
+registers only if it declares `readOnlyHint`. Otherwise, use `--approval
+auto-edit --rpc-approvals`, under which the driver allows only the drafts
+tools.
+
+**The drafts channel.** The spike served a stub over stdio, and the agent's
+proposals arrived and were validated. TKT-01M3YMSSRC81M0BYHK15TW9VDY (Serve the drafts MCP
+server to each agent session) decides the transport. The starting position is
+Streamable HTTP on the loopback server, at a per-session path with a
+per-session bearer. The config that names it is written to a file with mode
+0600 and passed by path, so the bearer never appears in `argv`.
+
+**What a run records:** the tool, its version, the model, and the account kind.
+For Claude Code, the account kind is `apiKeySource` from `init`, plus
+`authMethod` and `subscriptionType` from `claude auth status`. vuoro reads only
+those fields, because the same output carries the email address. For terva,
+`hello` gives `version`, `protocol_version`, `provider`, and `model`.
+
+**Retention.** Claude Code keeps its own transcript of every session under
+`~/.claude/projects/`, keyed by the working directory. Section 8's retention
+deletes it with the run's, or day-job code lingers there.
 
 ## 7. git-ticket (optional)
 
