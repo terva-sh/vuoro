@@ -3,7 +3,7 @@ import { api, post } from './api'
 import { DraftCard } from './diffview'
 import type { Change, Draft, Entry, Run, Session, Setup } from './types'
 import { refKey } from './types'
-import { ago, Prose, short, StatusBadge, usd } from './ui'
+import { ago, Prose, SeverityBadge, short, StatusBadge, usd } from './ui'
 
 // usePoll reads a run, quickly while anything works and slowly otherwise.
 function usePoll(id: string | undefined, onRun: (r: Run) => void) {
@@ -120,6 +120,13 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
 
 function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; onClose: () => void; onPick: (path: string) => void }) {
   const moved = run.head !== change.diff.head
+  // A pane opens while its session works, and the person can fold or open
+  // any of them.
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
+  const isOpen = (s: Session) => opened[s.id] ?? (s.status === 'working' || s.status === 'preparing')
+  const shown = shownDrafts(run)
+  const kept = shown.filter((d) => d.decision === 'kept').length
+  const dropped = shown.filter((d) => d.decision === 'dropped').length
   return (
     <div class="run">
       <div class="run-head">
@@ -130,8 +137,26 @@ function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; o
         {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
       </div>
       {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
-      <div class="sessions">
-        {run.sessions.map((s) => <SessionPane run={run} session={s} key={s.id} />)}
+      <div class="session-strip">
+        {run.sessions.map((s) => (
+          <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
+            onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
+            <strong>{s.profile}</strong> <StatusBadge status={s.status} />
+            <span class="muted">{s.info?.model ?? s.model ?? ''} · {usd(s.usage.cost_usd)}</span>
+          </button>
+        ))}
+      </div>
+      {run.sessions.some(isOpen) && (
+        <div class="sessions">
+          {run.sessions.filter(isOpen).map((s) => <SessionPane run={run} session={s} key={s.id} />)}
+        </div>
+      )}
+      <div class="triage">
+        <h3>Findings: {shown.length}</h3>
+        <span>✓ {kept} kept</span>
+        <span>✗ {dropped} dropped</span>
+        <span>○ {shown.length - kept - dropped} to decide</span>
+        <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
       </div>
       <Drafts run={run} onPick={onPick} />
     </div>
@@ -156,44 +181,65 @@ export function sourceLabel(d: Draft, byID: Map<string, Draft>, profile: Map<str
   return who.length === 1 ? `◇ raised by one reviewer, ${who[0]}, ${list}` : `merged ${list} (${who.join(', ')})`
 }
 
+const severityOrder = ['critical', 'high', 'medium', 'low', 'info']
+
 function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
   const profile = new Map(run.sessions.map((s) => [s.id, s.profile]))
-  const synth = new Set(run.sessions.filter((s) => s.role === 'synthesizer').map((s) => s.id))
-  const merged = run.drafts.filter((d) => synth.has(d.session) && d.status === 'pending')
-  const cited = new Map<string, string>()
-  for (const d of merged) for (const src of d.sources ?? []) cited.set(src, d.id)
-  const reviewers = run.drafts.filter((d) => !synth.has(d.session))
+  const shown = [...shownDrafts(run)].sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity))
+  const shownIDs = new Set(shown.map((d) => d.id))
+  const cited = new Set(shown.flatMap((d) => d.sources ?? []))
+  // What the synthesizer did not carry forward, and what agents withdrew.
+  const rest = run.drafts.filter((d) => !shownIDs.has(d.id) && !cited.has(d.id))
   const pick = (d: Draft) => (d.anchor ? () => onPick(d.anchor!.path) : undefined)
-
-  const from = (d: Draft) => sourceLabel(d, byID, profile)
 
   return (
     <>
-      <p class="muted">An agent drafts, and nothing here is posted. Posting is yours, from the pending drafts.</p>
-      {merged.length > 0 && (
-        <>
-          <h3>Merged: {merged.length}</h3>
-          {merged.map((d) => <DraftCard draft={d} key={d.id} onPick={pick(d)} label={from(d)} runID={run.id} />)}
-        </>
+      <div class="findings">
+        {shown.map((d) => (
+          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)}
+            from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
+            sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
+            profile={profile} />
+        ))}
+      </div>
+      {rest.length > 0 && (
+        <details class="not-carried">
+          <summary>Not carried forward or withdrawn: {rest.length}</summary>
+          {rest.map((d) => (
+            <DraftCard draft={d} key={d.id} onPick={pick(d)}
+              label={`${profile.get(d.session) ?? d.session} · ${d.status === 'withdrawn' ? 'withdrawn by its agent' : 'set aside by the synthesizer, whose reply says why'}`} />
+          ))}
+        </details>
       )}
-      <h3>
-        {merged.length > 0 ? 'From the reviewers' : 'Drafts'}: {reviewers.filter((d) => d.status === 'pending').length} pending
-        {reviewers.some((d) => d.status === 'withdrawn') && `, ${reviewers.filter((d) => d.status === 'withdrawn').length} withdrawn`}
-      </h3>
-      {reviewers.map((d) => (
-        <DraftCard
-          draft={d}
-          key={d.id}
-          runID={run.id}
-          onPick={pick(d)}
-          label={
-            `${profile.get(d.session) ?? d.session} reviewer` +
-            (merged.length === 0 ? '' : cited.has(d.id) ? ` · merged into ${cited.get(d.id)}` : ' · not carried forward; the synthesizer says why')
-          }
-        />
-      ))}
     </>
+  )
+}
+
+// Finding is one row of the findings list, opened in place.
+function Finding({ draft: d, runID, onPick, from, sources, profile }: {
+  draft: Draft; runID: string; onPick?: () => void; from: string; sources: Draft[]; profile: Map<string, string>
+}) {
+  const a = d.anchor
+  const decided = d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? '✗ dropped' : ''
+  return (
+    <details class={`finding ${d.decision ?? 'open'}`}>
+      <summary>
+        <SeverityBadge severity={d.severity} />
+        <span class="finding-title">{d.title}</span>
+        {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
+        {decided && <span class="badge">{decided}</span>}
+      </summary>
+      <div class="finding-body">
+        <DraftCard draft={d} runID={runID} onPick={onPick} label={from} compact />
+        {sources.length > 1 && (
+          <details class="sources">
+            <summary>What each reviewer wrote: {sources.length}</summary>
+            {sources.map((s) => <DraftCard draft={s} key={s.id} label={`${profile.get(s.session) ?? s.session} reviewer, ${s.id}`} />)}
+          </details>
+        )}
+      </div>
+    </details>
   )
 }
 

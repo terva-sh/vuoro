@@ -103,17 +103,22 @@ export function keepText(d: Draft): string {
 
 // DraftCard is an agent's draft. With a run, the person can keep it, which
 // makes it their own pending comment on the forge, edit it first, or drop it.
-export function DraftCard({ draft, onPick, label, runID }: { draft: Draft; onPick?: () => void; label?: string; runID?: string }) {
+export function DraftCard({ draft, onPick, label, runID, compact }: {
+  draft: Draft; onPick?: () => void; label?: string; runID?: string
+  compact?: boolean // inside a finding row, which already shows the title
+}) {
   const w = useWriter()
   const [editing, setEditing] = useState(false)
   const a = draft.anchor
   const open = draft.status === 'pending' && !draft.decision
   return (
-    <div class={`draft ${draft.status} ${draft.decision ?? ''}`}>
-      <div class="draft-head">
-        <SeverityBadge severity={draft.severity} />
-        <strong>{draft.title}</strong>
-      </div>
+    <div class={`draft ${draft.status} ${draft.decision ?? ''} ${compact ? 'compact' : ''}`}>
+      {!compact && (
+        <div class="draft-head">
+          <SeverityBadge severity={draft.severity} />
+          <strong>{draft.title}</strong>
+        </div>
+      )}
       <div class="draft-meta muted">
         drafted by {draft.drafted_by}
         {a && (

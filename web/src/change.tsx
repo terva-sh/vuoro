@@ -3,6 +3,7 @@ import { fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { RunPanel } from './run'
 import type { Change, Draft, Reviewer, Setup } from './types'
 import { ago, Prose, Section, short } from './ui'
+import { projectURL, RefsContext } from './markdown'
 import { Composer, makeWriter, WriteContext } from './write'
 
 const reviewMark: Record<Reviewer['state'], string> = {
@@ -48,6 +49,7 @@ export function ChangeView({ change, setup, onChange }: { change: Change; setup?
   const act = (path: string, body: Record<string, unknown>) => void writer.act(path, body).catch(() => undefined)
 
   return (
+    <RefsContext.Provider value={{ base: projectURL(change.web_url) }}>
     <WriteContext.Provider value={me ? writer : undefined}>
     <div class="change">
       <header class="change-head">
@@ -102,7 +104,7 @@ export function ChangeView({ change, setup, onChange }: { change: Change; setup?
         ))}
       </nav>
       {tab === 'overview' && (
-        <>
+        <div class="overview">
           <Section title="Description">
             {change.description.trim() ? <Prose text={change.description} /> : <p class="muted">No description.</p>}
           </Section>
@@ -120,15 +122,18 @@ export function ChangeView({ change, setup, onChange }: { change: Change; setup?
               <button onClick={() => setCommenting(true)}>Comment on the change</button>
             ))}
           </Section>
-        </>
+        </div>
       )}
       {tab === 'changes' && (
         <div class="changes">
           <nav class="file-list">
             {files.map((f) => (
-              <button class="link" key={f.new_path} onClick={() => pick(f.new_path)}>
-                <span class="mono">{f.new_path}</span>
-                {(byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && ' 💬'}
+              <button class="link file-link" key={f.new_path} title={f.new_path} onClick={() => pick(f.new_path)}>
+                <span class="file-name">
+                  {f.new_path.split('/').pop()}
+                  {(byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && ' 💬'}
+                </span>
+                <span class="file-dir">{f.new_path.includes('/') ? f.new_path.slice(0, f.new_path.lastIndexOf('/')) : ''}</span>
               </button>
             ))}
           </nav>
@@ -151,5 +156,6 @@ export function ChangeView({ change, setup, onChange }: { change: Change; setup?
       </div>
     </div>
     </WriteContext.Provider>
+    </RefsContext.Provider>
   )
 }

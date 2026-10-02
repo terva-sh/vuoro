@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -62,5 +64,18 @@ func TestErrorsMapToStatuses(t *testing.T) {
 		if w.Code != want {
 			t.Errorf("%v: %d, want %d", err, w.Code, want)
 		}
+	}
+}
+
+func TestAPrivateChangeReadAnonymouslySaysWhy(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"data":{"project":null}}`))
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	a := &App{Dial: func(string, config.Secret) (*gitlab.Client, error) { return gitlab.New(srv.URL, config.Secret{}) }}
+	_, err := a.open(context.Background(), "https://"+host+"/g/p/-/merge_requests/1")
+	if !errors.Is(err, gitlab.ErrNotFound) || !strings.Contains(err.Error(), "names no forge for "+host) {
+		t.Fatalf("err %v", err)
 	}
 }

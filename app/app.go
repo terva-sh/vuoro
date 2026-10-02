@@ -191,6 +191,9 @@ func (a *App) open(ctx context.Context, raw string) (*forge.Change, error) {
 		return nil, err
 	}
 	ch, err := c.Open(ctx, ref)
+	if errors.Is(err, gitlab.ErrNotFound) && a.forgeFor(ref.Host) == nil {
+		return nil, fmt.Errorf("%w; it was read anonymously, because the config file names no forge for %s, so only public projects open", err, ref.Host)
+	}
 	if err != nil {
 		return nil, err
 	}

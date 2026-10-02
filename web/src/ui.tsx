@@ -1,6 +1,7 @@
 // Small pieces every view shares. Colour never carries meaning alone: each
 // status and severity also has a symbol and a word.
 import type { ComponentChildren } from 'preact'
+import { Markdown } from './markdown'
 import type { Severity, Status } from './types'
 
 const statusMark: Record<Status, string> = {
@@ -32,9 +33,10 @@ export const short = (sha: string) => sha.slice(0, 8)
 
 export const usd = (n: number) => (n < 0.01 && n > 0 ? '<$0.01' : `$${n.toFixed(2)}`)
 
-// Prose is shown as written, wrapped, and never parsed as HTML.
+// Prose is what a person or an agent wrote, rendered as Markdown and never
+// parsed as HTML.
 export function Prose({ text }: { text: string }) {
-  return <div class="prose">{text}</div>
+  return <Markdown text={text} class="prose" />
 }
 
 export function Section({ title, children, aside }: { title: string; children: ComponentChildren; aside?: ComponentChildren }) {
