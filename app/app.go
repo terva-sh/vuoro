@@ -67,6 +67,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /api/setup", a.setup)
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
+	mux.HandleFunc("POST /api/runs/{id}/report", a.report)
 	mux.HandleFunc("POST /api/changes", a.openChange)
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
@@ -355,6 +356,17 @@ func (a *App) closeRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.getRun(w, r)
+}
+
+// report writes the run's hand-off report of kept findings to the run's
+// directory, and answers with its text and where it is.
+func (a *App) report(w http.ResponseWriter, r *http.Request) {
+	text, path, err := a.Runs.WriteReport(r.PathValue("id"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"markdown": text, "path": path})
 }
 
 // overrideConfidence records the person's own mark on a finding, which wins

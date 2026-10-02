@@ -168,6 +168,7 @@ function RunView({ run, change, onClose, onPick, onRun }: {
         )}
         <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
       </div>
+      <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />
       <Drafts run={run} onPick={onPick} onRun={onRun} />
     </div>
   )
@@ -255,6 +256,39 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
         )}
       </div>
     </details>
+  )
+}
+
+// HandOff copies the report of kept findings for an agent that fixes them,
+// which vuoro also writes into the run's directory (D31).
+function HandOff({ run, kept }: { run: Run; kept: number }) {
+  const [done, setDone] = useState<{ path: string; copied: boolean; markdown: string }>()
+  const [error, setError] = useState<string>()
+  const make = async () => {
+    setError(undefined)
+    try {
+      const r = await post<{ markdown: string; path: string }>(`/api/runs/${run.id}/report`)
+      // The clipboard can refuse, so the text is shown to copy by hand.
+      const copied = await navigator.clipboard?.writeText(r.markdown).then(() => true, () => false) ?? false
+      setDone({ ...r, copied })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+  return (
+    <div class="handoff">
+      <button disabled={kept === 0} onClick={() => void make()}
+        title={kept === 0 ? 'Keep a finding first' : 'A Markdown brief of the kept findings, for an agent that fixes them'}>
+        ⧉ Copy the hand-off report ({kept} kept)
+      </button>
+      {done && (
+        <span class="muted">
+          {done.copied ? '✓ Copied, and written' : 'Written'} to <span class="mono">{done.path}</span>
+        </span>
+      )}
+      {done && !done.copied && <textarea class="report-text" readOnly value={done.markdown} onFocus={(e) => (e.target as HTMLTextAreaElement).select()} />}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+    </div>
   )
 }
 

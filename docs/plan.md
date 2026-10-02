@@ -418,6 +418,13 @@ which wins, and the verifier's stays beside it. A preset's `verifier` names
 its tool and model, and the default is the synthesizer's, or else the first
 reviewer's.
 
+The kept findings make a hand-off report (D31): Markdown for an agent that
+fixes them, giving the change, the reviewed head, and for each kept finding
+its severity, place, standing confidence mark, description, and evidence. One
+button writes it to `runs/<id>/report.md` and copies it, and when the
+clipboard refuses, the text is shown to copy by hand. Nothing writes into the
+person's checkout.
+
 A run is pinned to the head SHA it reviewed. When the change moves, the run and
 its drafts show "reviewed at abc123, 2 commits behind". Nothing re-runs on its
 own.

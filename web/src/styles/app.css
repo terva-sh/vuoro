@@ -238,3 +238,7 @@ main { padding: var(--ui-space-4); }
 .mark-buttons button.on { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
 .badge.confidence-doubtful { border-color: var(--ui-line-strong); }
 .finding .badge.muted { color: var(--ui-muted); }
+
+/* The hand-off report. */
+.handoff { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-3); }
+.handoff .report-text { width: 100%; min-height: 12em; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
