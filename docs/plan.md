@@ -5,6 +5,10 @@ in the same pull request as code that moves the design. Open questions are
 marked as such and each one has a ticket. Do not settle one in code without
 closing its ticket.
 
+The owner's decisions behind this design, with the alternatives they rejected,
+are numbered in [decisions.md](decisions.md). What the sibling projects offer is
+in [research.md](research.md).
+
 ## 1. The problem
 
 Review traffic arrives from several forges: merge requests on gitlab.com, and

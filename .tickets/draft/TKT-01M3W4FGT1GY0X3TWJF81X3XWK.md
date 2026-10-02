@@ -17,14 +17,18 @@ origin: null
 dependencies: []
 blocks_on: none
 references:
-  - ref: handoff:bootstrap
-    path: handoffs/2026-10-01-vuoro-bootstrap.md
   - ref: plan:design-of-record
     path: docs/plan.md
+  - ref: handoff:first-session
+    path: handoffs/2026-10-02-vuoro-handoff.md
+  - ref: doc:decisions
+    path: docs/decisions.md
+  - ref: doc:research
+    path: docs/research.md
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-02T15:47:50Z
+updated_at: 2026-10-02T15:57:57Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""

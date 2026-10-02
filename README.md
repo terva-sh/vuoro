@@ -7,8 +7,9 @@ and submit without leaving it.
 
 *Vuoro* is Finnish for "turn", as in "it is your turn".
 
-> **Status: bootstrap.** There is no code yet. [docs/plan.md](docs/plan.md) is
-> the design of record, and the work is tracked as tickets in `.tickets/`.
+> **Status: bootstrap.** There is no code yet, and the scope from here to v1.0
+> is settled. [docs/plan.md](docs/plan.md) is the design of record, and the
+> work is tracked as tickets in `.tickets/`.
 
 ## Why
 
@@ -45,7 +46,9 @@ turn: two replies on your threads, 3 days ago".
 
 ## Working on it
 
-Read [AGENTS.md](AGENTS.md) and [docs/plan.md](docs/plan.md). `git ticket ready`
+Read [AGENTS.md](AGENTS.md), [docs/plan.md](docs/plan.md),
+[docs/decisions.md](docs/decisions.md), and [docs/research.md](docs/research.md).
+`git ticket ready`
 lists startable work, and `git ticket list --status draft` lists the rest of the
 backlog. [handoffs/](handoffs/) has orientation for a session that picks the
 work up.

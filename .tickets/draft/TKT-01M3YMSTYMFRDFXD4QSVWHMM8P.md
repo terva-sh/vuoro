@@ -16,11 +16,17 @@ parent: null
 origin: null
 dependencies: []
 blocks_on: none
-references: []
+references:
+  - ref: doc:decisions
+    path: docs/decisions.md
+  - ref: doc:research
+    path: docs/research.md
+  - ref: plan:design-of-record
+    path: docs/plan.md
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:51Z
-updated_at: 2026-10-02T15:47:51Z
+updated_at: 2026-10-02T15:57:57Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""

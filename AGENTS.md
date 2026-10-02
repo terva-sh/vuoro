@@ -154,11 +154,28 @@ Text that opens with a dash goes after a bare `--`.
 
 ## This repository
 
-vuoro is a desktop application that gives one person one inbox for every code
-review they give and get, across GitLab, GitHub, and Forgejo, ordered by whose
-turn it is. Read [README.md](README.md), then [docs/plan.md](docs/plan.md),
-which is the design of record rather than background reading. A change that
-moves the design updates the plan in the same pull request.
+vuoro is a desktop application and the front door to agentic code review. It
+runs reviews with the agent tools the person already has, terva and Claude
+Code, with reviewers in parallel and a synthesizer, and it lets the person talk
+to the agents while they work. It also gives one person one inbox for every
+review they give and get, across GitLab, Forgejo, and GitHub, ordered by whose
+turn it is.
+
+Read these in order:
+
+1. [README.md](README.md)
+2. [docs/plan.md](docs/plan.md), the design of record. It is not background
+   reading.
+3. [docs/decisions.md](docs/decisions.md), what the owner decided and what was
+   rejected
+4. [docs/research.md](docs/research.md), what the sibling projects offer, with
+   paths
+5. [handoffs/](handoffs/), for orientation
+
+A change that moves the design updates the plan in the same pull request. A
+new owner decision gets the next number in docs/decisions.md. Do not reopen a
+recorded decision without the owner. A decision that turns out to be wrong is
+superseded by a new entry and is never edited away.
 
 It follows the terva-sh pattern for applications. A Go binary serves a loopback
 web interface, [tuohi](https://github.com/terva-sh/tuohi) shows it in a native
