@@ -3,6 +3,7 @@ import { fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { RunPanel } from './run'
 import type { Change, Draft, Reviewer, Setup } from './types'
 import { ago, Prose, Section, short } from './ui'
+import { SubmitBar, waive } from './confirm'
 import { projectURL, RefsContext } from './markdown'
 import { Composer, makeWriter, WriteContext } from './write'
 
@@ -15,7 +16,9 @@ const reviewMark: Record<Reviewer['state'], string> = {
 
 type Tab = 'overview' | 'changes' | 'review'
 
-export function ChangeView({ change, setup, onChange }: { change: Change; setup?: Setup; onChange: (c: Change) => void }) {
+export function ChangeView({ change, setup, onChange, onSetup }: {
+  change: Change; setup?: Setup; onChange: (c: Change) => void; onSetup: (s: Setup) => void
+}) {
   const [tab, setTab] = useState<Tab>('changes')
   const [error, setError] = useState<string>()
   const [runID, setRunID] = useState<string>()
@@ -75,16 +78,8 @@ export function ChangeView({ change, setup, onChange }: { change: Change; setup?
           </ul>
         )}
         {me ? (
-          <div class="submit-bar">
-            <span>✎ {mine.length} pending comment{mine.length === 1 ? '' : 's'} of yours, seen only by you until you submit</span>
-            <button class="primary" disabled={mine.length === 0} onClick={() => act('/api/changes/submit', {})}>Submit</button>
-            <button disabled={approved} onClick={() => act('/api/changes/submit', { approve: true })}>Submit and approve</button>
-            {approved ? (
-              <button onClick={() => act('/api/changes/approve', { approve: false })}>Revoke approval</button>
-            ) : (
-              <button onClick={() => act('/api/changes/approve', { approve: true })}>Approve</button>
-            )}
-          </div>
+          <SubmitBar change={change} me={me.username} pending={mine.length} approved={approved} waived={setup?.waived ?? []} act={act}
+            onWaive={(actions) => void waive(actions, false).then(onSetup).catch(() => undefined)} />
         ) : (
           <p class="muted">Read-only: add this forge with a token_command to the config file to comment and approve.</p>
         )}

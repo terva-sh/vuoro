@@ -362,7 +362,12 @@ with the tool and model that drafted it.
 until the person keeps it, edits and keeps it, or drops it. Keeping it
 creates one of the person's own pending comments on the forge (a GitLab draft
 note), which no one else sees. Submit publishes all of them at once
-(`draft_notes/bulk_publish`), with an approval if the person asks for one. A
+(`draft_notes/bulk_publish`), with an approval if the person asks for one.
+Submitting, approving, and revoking an approval each ask first, saying what
+others will see and as whom, with Cancel focused, because one stray click
+otherwise reaches the forge. The person can waive asking for submitting or for
+approving. The waiver is kept in `prefs.json` in the state directory, not the
+config file, and the home page can take it back. A
 kept or dropped draft can no longer be changed by its agent. An inline
 comment lands on the last line of the draft's range, because GitLab's
 multi-line positions need a line code that vuoro does not build yet. A draft

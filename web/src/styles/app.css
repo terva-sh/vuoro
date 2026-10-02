@@ -222,3 +222,12 @@ main { padding: var(--ui-space-4); }
 .file-name { font-family: var(--ui-font-mono); color: var(--ui-fg); }
 .file-dir { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); color: var(--ui-muted); overflow-wrap: anywhere; }
 .file-link:hover .file-name { color: var(--ui-accent); }
+
+/* Asking first: a dialog over the page, with Cancel focused. */
+.modal-back { position: fixed; inset: 0; background: var(--ui-shadow); display: grid; place-items: center; z-index: 50; }
+.modal { background: var(--ui-surface); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); padding: var(--ui-space-4) var(--ui-space-5); max-width: 560px; width: calc(100% - 2 * var(--ui-space-5)); box-shadow: var(--ui-shadow-pop); }
+.modal h2 { margin: 0 0 var(--ui-space-3); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.modal ul { margin: 0 0 var(--ui-space-3); padding-left: var(--ui-space-5); }
+.modal li + li { margin-top: var(--ui-space-1); }
+.modal .waive { display: block; color: var(--ui-muted); margin-bottom: var(--ui-space-3); }
+.modal .actions { display: flex; justify-content: flex-end; gap: var(--ui-space-2); }

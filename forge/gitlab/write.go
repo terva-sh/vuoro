@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -112,5 +113,10 @@ func (c *Client) Approve(ctx context.Context, ref forge.Ref, approve bool) error
 		verb = "/unapprove"
 	}
 	_, err := c.write(ctx, "POST", mrPath(ref)+verb, nil)
+	// GitLab answers 401, not 403, when this person may not approve this
+	// merge request, which reads as a bad token unless it is said.
+	if ae := (*APIError)(nil); errors.As(err, &ae) && ae.Status == http.StatusUnauthorized {
+		return fmt.Errorf("%w. GitLab refuses an approval this way when you may not approve this merge request, such as your own when the project forbids that, as well as when the token is not accepted", err)
+	}
 	return err
 }

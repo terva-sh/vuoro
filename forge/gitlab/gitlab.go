@@ -67,7 +67,8 @@ type APIError struct {
 
 func (e *APIError) Error() string {
 	msg := fmt.Sprintf("gitlab: %s %s: %d %s", e.Method, e.Path, e.Status, http.StatusText(e.Status))
-	if e.Message != "" {
+	// GitLab's message is often the status again, which says nothing new.
+	if e.Message != "" && e.Message != fmt.Sprintf("%d %s", e.Status, http.StatusText(e.Status)) {
 		msg += ": " + e.Message
 	}
 	return msg

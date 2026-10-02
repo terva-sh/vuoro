@@ -39,7 +39,11 @@ type App struct {
 	// Dial makes the client for a host. Nil means https on that host; a
 	// test points it at a fake forge.
 	Dial func(host string, token config.Secret) (*gitlab.Client, error)
+	// StateDir keeps the person's UI choices, in prefs.json. Empty keeps
+	// none, and every action asks first.
+	StateDir string
 
+	prefsMu   sync.Mutex
 	probeOnce sync.Once
 	probes    map[string]probe
 
@@ -60,6 +64,7 @@ type probe struct {
 func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/setup", a.setup)
+	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
 	mux.HandleFunc("POST /api/changes", a.openChange)
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
@@ -96,7 +101,9 @@ func (a *App) probeTools() {
 			}
 			a.probes[name] = pr
 		}
-		a.Runs.Drivers = offered
+		if a.Runs != nil {
+			a.Runs.Drivers = offered
+		}
 	})
 }
 
@@ -120,7 +127,8 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 		Tools       []probe          `json:"tools"`
 		Presets     []config.Preset  `json:"presets"`
 		Profiles    []review.Profile `json:"profiles"`
-	}{Forges: []forgeView{}, Tools: []probe{}, Presets: a.presets(), Profiles: review.Builtin}
+		Waived      []string         `json:"waived"` // confirmations the person turned off
+	}{Forges: []forgeView{}, Tools: []probe{}, Presets: a.presets(), Profiles: review.Builtin, Waived: a.loadPrefs().Waived}
 	if a.ConfigErr != nil {
 		out.ConfigError = a.ConfigErr.Error()
 	}

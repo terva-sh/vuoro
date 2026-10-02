@@ -115,3 +115,18 @@ func TestAnAnonymousClientWritesNothing(t *testing.T) {
 		t.Fatal("a draft id that is a path was accepted")
 	}
 }
+
+func TestARefusedApprovalSaysWhatA401UsuallyMeans(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"401 Unauthorized"}`, 401)
+	}))
+	defer srv.Close()
+	c, ref := client(t, srv, secret)
+	err := c.Approve(context.Background(), ref, true)
+	if err == nil || !strings.Contains(err.Error(), "your own") {
+		t.Fatalf("err %v", err)
+	}
+	if strings.Count(err.Error(), "401 Unauthorized") != 1 {
+		t.Fatalf("the status is repeated: %v", err)
+	}
+}

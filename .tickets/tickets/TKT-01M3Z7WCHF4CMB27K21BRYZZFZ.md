@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3Z7WCHF4CMB27K21BRYZZFZ
 title: Verify each finding, and mark its confidence
 type: task
-status: draft
+status: in-progress
 status_reason: null
 priority: high
 due_on: null
@@ -17,10 +17,17 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:claude/vuoro-mvp-1
+  branch: tickets/triage
+  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
+  commit: 84de04eee1b88331586ecd130b74ecaa26e971bc
+  session: null
+  claimed_at: 2026-10-02T21:29:38Z
+  expires_at: null
 archive: null
 created_at: 2026-10-02T21:21:18Z
-updated_at: 2026-10-02T21:21:18Z
+updated_at: 2026-10-02T21:29:38Z
 created_by:
   id: agent:claude/vuoro-mvp-1
   name: ""

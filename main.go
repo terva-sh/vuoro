@@ -105,7 +105,7 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	a := &app.App{}
+	a := &app.App{StateDir: stateDir}
 	if path, err := config.Path(); err != nil {
 		a.ConfigErr = err
 	} else if c, err := config.Load(path); err == nil {

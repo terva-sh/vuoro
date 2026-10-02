@@ -71,6 +71,7 @@ export interface Setup {
   tools: { name: string; tool: string; version?: string; account?: string; error?: string }[]
   presets: Preset[]
   profiles: { name: string; title: string; prompt: string }[]
+  waived: string[] // confirmations the person turned off
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`
