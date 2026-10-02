@@ -29,7 +29,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T23:03:23Z
-updated_at: 2026-10-02T23:17:19Z
+updated_at: 2026-10-02T23:33:40Z
 created_by:
   id: agent:claude-code/9c7c9cd7
   name: ""
@@ -58,11 +58,11 @@ lampi TKT-01M3D7YXPKK7115YHXQYZS0AKR decided this for the org. A push mirror for
 
 ## Acceptance criteria
 
-- [ ] .forgejo/workflows/terva-review.yml is installed at the v0.5.0 image digest
-- [ ] just sync-github fast-forwards the stale main and refuses when the two have diverged
-- [ ] docs/pr-reviews.md describes both review processes and the main sync
+- [x] .forgejo/workflows/terva-review.yml is installed at the v0.5.0 image digest
+- [x] just sync-github fast-forwards the stale main and refuses when the two have diverged
+- [x] docs/pr-reviews.md describes both review processes and the main sync
 - [x] Forgejo CI is green on the adopting pull request
-- [ ] terva-review publishes a review on the adopting pull request
+- [x] terva-review publishes a review on the adopting pull request
 
 ## Implementation plan
 
@@ -78,3 +78,7 @@ The first terva-review (run 7553f8e1, Actions run 3, gpt-6.1-sol, head `d635e6e`
 - **low, accepted:** `sync-github` discarded the GitHub fetch's stderr and reported every failure as "github/main does not exist yet". It now probes with `git ls-remote --exit-code --heads github main`. Exit 2 means the remote answered without `main`, and any other failure keeps git's message and says the remote could not be read. Re-tested against scratch bare remotes: no main, unreachable remote, in sync, dry run, both fast-forward directions, divergence, and an unknown flag. tuohi's and lampi's copies of the recipe have the same defect. That is not fixed here.
 
 The review showed the workflow end to end on a private repository: the bot published a review and the `terva-review/code` status. PR CI (Actions run 19656) passed.
+
+**agent:claude-code/9c7c9cd7** at 2026-10-02T23:33:40Z
+
+The second terva-review (run d91ab8c6, request after-fixes-1, Actions run 19686) passed head d2f8b8a with no findings at the failure threshold. CI run 19687 is green on the same head. The commit that records this touches only .tickets/, so it is carried with --input carry=true rather than re-reviewed. Merging PR #1 and the first just sync-github --yes are left to the owner.
