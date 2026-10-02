@@ -548,6 +548,13 @@ For Claude Code, the account kind is `apiKeySource` from `init`, plus
 those fields, because the same output carries the email address. For terva,
 `hello` gives `version`, `protocol_version`, `provider`, and `model`.
 
+**A run outlives vuoro.** Its record, `runs/<id>/run.json`, holds the
+sessions' transcripts, the drafts, each session's resume handle, and the
+diff's anchor index. vuoro reads every record when it starts. A session comes
+back ended, and the person's next message resumes it in the same
+conversation. When vuoro exits, it ends every live session first, so no
+agent outlives it.
+
 **Retention.** Claude Code keeps its own transcript of every session under
 `~/.claude/projects/`, keyed by the working directory. Section 8's retention
 deletes it with the run's, or day-job code lingers there.

@@ -75,6 +75,7 @@ type Run struct {
 
 	dir      string // the worktree
 	repoKey  string
+	anchors  lineIndex
 	store    *drafts.Store
 	sessions []*Session
 	path     string
@@ -150,7 +151,8 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer) (*Ru
 		path:     filepath.Join(m.StateDir, "runs", id, "run.json"),
 		first:    firstMessage(ch),
 	}
-	r.store.CheckAnchor = indexLines(ch.Files).check
+	r.anchors = indexLines(ch.Files)
+	r.store.CheckAnchor = r.anchors.check
 	m.mu.Lock()
 	if m.runs == nil {
 		m.runs = map[string]*Run{}
@@ -195,6 +197,15 @@ func (m *Manager) begin(r *Run, s *Session) {
 // launch starts s's tool, fresh or resumed from resume.
 func (m *Manager) launch(r *Run, s *Session, resume string) error {
 	r.mu.Lock()
+	if s.driver == nil { // a run reloaded from its record
+		_, d, err := m.driver(s.Tool)
+		if err != nil {
+			s.Status, s.Error = Failed, err.Error()
+			r.mu.Unlock()
+			return err
+		}
+		s.driver = d
+	}
 	if s.token == "" {
 		s.token = m.Drafts.Register(r.store, drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted()})
 	}

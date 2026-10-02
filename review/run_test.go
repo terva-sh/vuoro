@@ -319,3 +319,62 @@ func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	}
 	m.Close(context.Background(), r.ID)
 }
+
+func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, _ string) string {
+		call("propose_draft", map[string]any{"severity": "low", "title": "first", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		return "done"
+	})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	m.Shutdown()
+	wait(t, r, func(v RunView) bool { return v.Sessions[0].Status == Ended })
+
+	// A new vuoro, on the same state directory.
+	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: m.Drivers, Drafts: drafts.NewServer(), MCPURL: m.MCPURL}
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	r2 := m2.Get(r.ID)
+	if r2 == nil {
+		t.Fatal("the run did not come back")
+	}
+	if v := r2.View(); v.Sessions[0].Status != Ended || len(v.Drafts) != 1 || len(v.Sessions[0].Log) == 0 {
+		t.Fatalf("reloaded %+v", v)
+	}
+	var refusal string
+	d.mu.Lock()
+	d.act = func(call toolCaller, _ string) string {
+		refusal, _ = call("propose_draft", map[string]any{"severity": "low", "title": "off the diff", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 40}})
+		call("propose_draft", map[string]any{"severity": "low", "title": "second", "description": "d"})
+		return "resumed"
+	}
+	d.mu.Unlock()
+	// The reloaded run serves its drafts from the new server, so point the
+	// fake at it.
+	hs := httptest.NewServer(m2.Drafts)
+	defer hs.Close()
+	m2.MCPURL = hs.URL + "/mcp/"
+	if err := m2.Say(r.ID, "s1", "anything else?"); err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r2, func(v RunView) bool { return v.Sessions[0].Status == Idle })
+	d.mu.Lock()
+	last := d.specs[len(d.specs)-1]
+	d.mu.Unlock()
+	if last.Resume != "ref-1" {
+		t.Fatalf("the session started fresh, resume %q", last.Resume)
+	}
+	if !strings.Contains(refusal, "anchor.notInDiff") {
+		t.Fatalf("the reloaded run stopped checking anchors: %q", refusal)
+	}
+	if len(v.Drafts) != 2 || v.Drafts[1].ID != "d2" {
+		t.Fatalf("drafts %+v", v.Drafts)
+	}
+	m2.Close(context.Background(), r.ID)
+}

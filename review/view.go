@@ -1,6 +1,7 @@
 package review
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/terva-sh/vuoro/agent"
@@ -66,10 +67,88 @@ func (r *Run) View() RunView {
 	return v
 }
 
+// record is what runs/<id>/run.json holds: the view, and what a reloaded run
+// needs to carry on.
+type record struct {
+	RunView
+	Repo    string            `json:"repo"`
+	Anchors lineIndex         `json:"anchors"`
+	Resume  map[string]string `json:"resume"` // each session's resume handle
+}
+
+func (r *Run) record() record {
+	rec := record{RunView: r.View()}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	rec.Repo, rec.Anchors, rec.Resume = r.repoKey, r.anchors, map[string]string{}
+	for _, s := range r.sessions {
+		rec.Resume[s.ID] = s.Ref
+	}
+	return rec
+}
+
 // save writes the run record. A failure to write costs the record, not the
 // run, so it is not reported.
 func (r *Run) save() {
 	r.saveMu.Lock()
 	defer r.saveMu.Unlock()
-	_ = state.WriteJSON(r.path, r.View())
+	_ = state.WriteJSON(r.path, r.record())
+}
+
+// Load reads every run record under the state directory, so the person's
+// runs, drafts, and conversations outlive a restart. A session comes back
+// ended, and talking to it resumes it.
+func (m *Manager) Load() error {
+	paths, err := filepath.Glob(filepath.Join(m.StateDir, "runs", "*", "run.json"))
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.runs == nil {
+		m.runs = map[string]*Run{}
+	}
+	for _, path := range paths {
+		var rec record
+		if err := state.ReadJSON(path, &rec); err != nil || rec.ID == "" || m.runs[rec.ID] != nil {
+			continue
+		}
+		r := &Run{
+			ID: rec.ID, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
+			Created: rec.Created, Status: rec.Status, Error: rec.Error,
+			dir:     filepath.Join(m.StateDir, "worktrees", rec.ID),
+			repoKey: rec.Repo,
+			anchors: rec.Anchors,
+			store:   drafts.Restore(rec.Drafts),
+			path:    path,
+		}
+		if r.anchors != nil {
+			r.store.CheckAnchor = r.anchors.check
+		}
+		for _, sv := range rec.Sessions {
+			s := &Session{
+				ID: sv.ID, Profile: sv.Profile, Tool: sv.Tool, Model: sv.Model, Role: drafts.Reviewer,
+				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, Log: sv.Log,
+				Ref: rec.Resume[sv.ID],
+			}
+			if sv.Role == "synthesizer" {
+				s.Role = drafts.Synthesizer
+			}
+			if s.Status == Working || s.Status == Idle || s.Status == Preparing {
+				s.Status = Ended
+			}
+			if p, ok := m.profile(s.Profile); ok {
+				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
+			}
+			r.sessions = append(r.sessions, s)
+		}
+		switch r.Status {
+		case Preparing:
+			r.Status, r.Error = Failed, "vuoro stopped before the checkout finished"
+		case Working:
+			r.Status = Idle
+		}
+		m.runs[r.ID] = r
+	}
+	return nil
 }

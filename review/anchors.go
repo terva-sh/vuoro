@@ -12,38 +12,44 @@ import (
 // lineIndex holds, for each file in a change, the lines its diff shows on
 // each side. A forge places an inline comment only on such a line, so a
 // draft anchored anywhere else could never be posted where it points.
+// It is kept in the run record, so a run reloaded after a restart checks
+// anchors as it did before.
 type lineIndex map[string]*fileLines
 
 type fileLines struct {
-	omitted    bool
-	head, base []span // sorted, from the hunks
+	Omitted bool   `json:"omitted,omitempty"`
+	Head    []span `json:"head,omitempty"` // sorted, from the hunks
+	Base    []span `json:"base,omitempty"`
 }
 
-type span struct{ from, to int }
+type span struct {
+	From int `json:"from"`
+	To   int `json:"to"`
+}
 
 func (f *fileLines) side(s drafts.Side) []span {
 	if s == drafts.Base {
-		return f.base
+		return f.Base
 	}
-	return f.head
+	return f.Head
 }
 
 func indexLines(files []forge.FileDiff) lineIndex {
 	idx := lineIndex{}
 	for _, fd := range files {
-		fl := &fileLines{omitted: fd.Omitted}
+		fl := &fileLines{Omitted: fd.Omitted}
 		for _, h := range hunks(fd.Patch) {
 			if h.oldLen > 0 {
-				fl.base = append(fl.base, span{h.oldStart, h.oldStart + h.oldLen - 1})
+				fl.Base = append(fl.Base, span{h.oldStart, h.oldStart + h.oldLen - 1})
 			}
 			if h.newLen > 0 {
-				fl.head = append(fl.head, span{h.newStart, h.newStart + h.newLen - 1})
+				fl.Head = append(fl.Head, span{h.newStart, h.newStart + h.newLen - 1})
 			}
 		}
 		idx[fd.NewPath] = fl
 		if fd.OldPath != fd.NewPath && fd.OldPath != "" {
 			// A base-side anchor on a renamed file names its old path.
-			old := &fileLines{omitted: fd.Omitted, base: fl.base}
+			old := &fileLines{Omitted: fd.Omitted, Base: fl.Base}
 			if _, ok := idx[fd.OldPath]; !ok {
 				idx[fd.OldPath] = old
 			}
@@ -96,13 +102,13 @@ func (idx lineIndex) check(a drafts.Anchor) error {
 	case !ok:
 		return &drafts.RuleError{Rule: "anchor.notInChange", Field: "anchor/path",
 			Detail: "a file this change touches; for any other place, drop the anchor and name it in the description"}
-	case fl.omitted:
+	case fl.Omitted:
 		return &drafts.RuleError{Rule: "anchor.notShown", Field: "anchor/path",
 			Detail: "a file whose diff is shown; this one is binary or too large, so drop the anchor and name the place in the description"}
 	}
 	spans := fl.side(a.Side)
 	for _, sp := range spans {
-		if a.StartLine >= sp.from && a.EndLine <= sp.to {
+		if a.StartLine >= sp.From && a.EndLine <= sp.To {
 			return nil
 		}
 	}
@@ -120,7 +126,7 @@ func describe(spans []span) string {
 			parts = append(parts, fmt.Sprintf("and %d more", len(spans)-i))
 			break
 		}
-		parts = append(parts, fmt.Sprintf("%d-%d", sp.from, sp.to))
+		parts = append(parts, fmt.Sprintf("%d-%d", sp.From, sp.To))
 	}
 	return strings.Join(parts, ", ")
 }

@@ -319,6 +319,7 @@ func (a *App) say(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errors.New("say something first"))
 		return
 	}
+	a.probeTools() // a run reloaded after a restart resumes on a probed tool
 	if err := a.Runs.Say(r.PathValue("id"), r.PathValue("sid"), req.Text); err != nil {
 		writeError(w, err)
 		return

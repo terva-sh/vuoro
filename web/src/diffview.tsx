@@ -57,6 +57,7 @@ export function DraftCard({ draft, onPick }: { draft: Draft; onPick?: () => void
             )}
           </>
         )}
+        {draft.revision > 1 && draft.status === 'pending' && ` · revised ${draft.revision - 1}×`}
         {draft.status === 'withdrawn' && ' · withdrawn'}
       </div>
       <Prose text={draft.description} />

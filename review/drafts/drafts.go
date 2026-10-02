@@ -175,6 +175,20 @@ type Store struct {
 // NewStore returns an empty store.
 func NewStore() *Store { return &Store{now: time.Now} }
 
+// Restore returns a store holding drafts, as a run record kept them.
+func Restore(drafts []Draft) *Store {
+	st := NewStore()
+	for i := range drafts {
+		d := drafts[i]
+		st.drafts = append(st.drafts, &d)
+		var n int
+		if _, err := fmt.Sscanf(d.ID, "d%d", &n); err == nil && n > st.next {
+			st.next = n
+		}
+	}
+	return st
+}
+
 // Propose validates p and adds it as a pending draft by s.
 func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 	if err := st.validate(p, s.Role); err != nil {

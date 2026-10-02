@@ -216,8 +216,57 @@ function toolHint(input?: string): string {
   }
 }
 
-// Talk is the person's line to one session, which TKT-01M3YK0CN (Talk to
-// the reviewing agent from the change view) adds.
-function Talk(_: { run: Run; session: Session }) {
-  return null
+// Talk is the person's line to one session. Enter sends, and Shift+Enter
+// starts a new line. A session that ended is resumed by the next message.
+function Talk({ run, session }: { run: Run; session: Session }) {
+  const [text, setText] = useState('')
+  const [error, setError] = useState<string>()
+  const [sending, setSending] = useState(false)
+  if (run.status === 'closed') return <p class="muted pad">The run is closed.</p>
+  const working = session.status === 'working'
+  const send = async () => {
+    if (!text.trim() || working) return
+    setSending(true)
+    setError(undefined)
+    try {
+      await post(`/api/runs/${run.id}/sessions/${session.id}/messages`, { text })
+      setText('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSending(false)
+    }
+  }
+  const stop = async () => {
+    try {
+      await post(`/api/runs/${run.id}/sessions/${session.id}/stop`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+  return (
+    <>
+      {error && <p class="alert">⚠ {error}</p>}
+      <form class="talk" onSubmit={(e) => { e.preventDefault(); void send() }}>
+        <textarea
+          rows={2}
+          value={text}
+          placeholder={session.status === 'ended' ? 'Ask, and the session resumes' : `Ask the ${session.profile} reviewer why, or to look elsewhere, or to reword a draft`}
+          aria-label={`Message the ${session.profile} reviewer`}
+          onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              void send()
+            }
+          }}
+        />
+        {working ? (
+          <button type="button" onClick={stop}>■ Stop</button>
+        ) : (
+          <button class="primary" disabled={sending || !text.trim()}>Send</button>
+        )}
+      </form>
+    </>
+  )
 }

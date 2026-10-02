@@ -130,6 +130,11 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 			a.Runs.Profiles = append(a.Runs.Profiles, review.Profile(p))
 		}
 	}
+	// Runs outlive a restart. A record that will not read is skipped, and the
+	// rest still load.
+	if err := a.Runs.Load(); err != nil {
+		return nil, nil, err
+	}
 	return a, srv, nil
 }
 
