@@ -153,3 +153,14 @@ main { padding: var(--ui-space-4); }
 .entry.denied, .entry.error { color: var(--ui-danger); font-size: var(--ui-fs-detail); }
 .talk { display: flex; gap: var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); border-top: 1px solid var(--ui-line); }
 .talk textarea { flex: 1; font: inherit; color: var(--ui-fg); background: var(--ui-bg); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-control); padding: var(--ui-space-1) var(--ui-space-2); resize: vertical; min-height: 2.4em; }
+
+.actions { display: flex; gap: var(--ui-space-2); margin-top: var(--ui-space-2); }
+.composer { margin: var(--ui-space-2) 0; }
+.composer textarea { width: 100%; font: inherit; color: var(--ui-fg); background: var(--ui-bg); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-control); padding: var(--ui-space-2); resize: vertical; }
+.composer-actions { display: flex; gap: var(--ui-space-2); margin-top: var(--ui-space-1); }
+.mine { border: 1px dashed var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-accent-soft); padding: var(--ui-space-2) var(--ui-space-3); margin: var(--ui-space-2) 0; }
+.draft.kept { border-left-color: var(--ui-ok); }
+.draft.dropped { opacity: 0.6; border-left-color: var(--ui-line-strong); }
+.submit-bar { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-top: var(--ui-space-3); padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); border-radius: var(--ui-radius); }
+.diff button.add-comment { background: none; border: none; padding: 0; border-radius: 0; color: var(--ui-muted); cursor: pointer; width: 1.2em; text-align: left; font: inherit; }
+.diff tr:hover button.add-comment { color: var(--ui-accent); }

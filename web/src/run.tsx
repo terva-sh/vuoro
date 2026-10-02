@@ -18,7 +18,7 @@ function usePoll(id: string | undefined, onRun: (r: Run) => void) {
         if (!live.current) return
         onRun(r)
         const busy = r.status === 'preparing' || r.sessions.some((s) => s.status === 'working' || s.status === 'preparing')
-        timer = setTimeout(tick, busy ? 1000 : 5000)
+        timer = setTimeout(tick, busy ? 1000 : 3000)
       } catch {
         timer = setTimeout(tick, 5000)
       }
@@ -32,7 +32,7 @@ function usePoll(id: string | undefined, onRun: (r: Run) => void) {
 }
 
 export function RunPanel({ change, setup, onPick, onDrafts }: {
-  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[]) => void
+  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string) => void
 }) {
   const [runs, setRuns] = useState<Run[]>([])
   const [selected, setSelected] = useState<string>()
@@ -52,7 +52,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       .catch((e: unknown) => setError(String(e)))
   }, [change]) // a refresh reads the change again, and the runs with it
   usePoll(selected, setRun)
-  useEffect(() => onDrafts(run ? shownDrafts(run) : []), [run])
+  useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
   const start = async () => {
@@ -174,7 +174,7 @@ function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
       {merged.length > 0 && (
         <>
           <h3>Merged: {merged.length}</h3>
-          {merged.map((d) => <DraftCard draft={d} key={d.id} onPick={pick(d)} label={from(d)} />)}
+          {merged.map((d) => <DraftCard draft={d} key={d.id} onPick={pick(d)} label={from(d)} runID={run.id} />)}
         </>
       )}
       <h3>
@@ -185,6 +185,7 @@ function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
         <DraftCard
           draft={d}
           key={d.id}
+          runID={run.id}
           onPick={pick(d)}
           label={
             `${profile.get(d.session) ?? d.session} reviewer` +

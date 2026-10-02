@@ -30,8 +30,11 @@ export interface Change {
   reviewers: Reviewer[] | null; assignees: User[] | null; participants: User[] | null
   requests: ReviewRequest[] | null; reviews: Review[] | null; pushes: Push[] | null
   threads: Thread[] | null; files: FileDiff[] | null
-  drafts: { id: string; body: string; thread_id: string; anchor: Anchor | null }[] | null
+  drafts: ForgeDraft[] | null
 }
+
+// ForgeDraft is one of the person's own pending comments on the forge.
+export interface ForgeDraft { id: string; body: string; thread_id: string; anchor: Anchor | null }
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
@@ -40,6 +43,7 @@ export interface Draft {
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
   status: 'pending' | 'withdrawn'; revision: number; session: string; drafted_by: string; updated: string
+  decision?: 'kept' | 'dropped'; note_id?: string; edited?: boolean
 }
 
 export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed' | 'waiting'

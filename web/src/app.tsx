@@ -69,7 +69,7 @@ export function App() {
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       <main>
         {change ? (
-          <ChangeView change={change} setup={setup} key={`${change.web_url}@${change.diff.head}`} />
+          <ChangeView change={change} setup={setup} onChange={setChange} key={`${change.web_url}@${change.diff.head}`} />
         ) : (
           <Home setup={setup} runs={runs} onOpen={(u) => { setURL(u); void open(u) }} />
         )}
