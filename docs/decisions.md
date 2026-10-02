@@ -304,3 +304,25 @@ to the owner to overrule. Four choices:
 GitLab is read with GraphQL and written with REST. Anonymous REST refuses a
 merge request's discussions, and GraphQL returns reviewer states, positions,
 and diff versions in one request.
+
+### D31. A verifier marks each finding's confidence, kept findings make a hand-off report, and a reviewer can draft a suggestion
+
+Decided by the owner on 2026-10-02, after the first review of a real merge
+request (next-gen-compute!144), and added to the MVP:
+
+- **A verifier rates every finding.** After the synthesizer, or after the
+  reviewers when there is none, a read-only verifier session checks each
+  finding the person works from against the code. It marks it confirmed,
+  plausible, or doubtful (✅, ❔, ⛈), with a one-line reason. The person can
+  override any mark. The alternatives were the verifier's mark standing alone,
+  and the person marking with no agent pass.
+- **Kept findings make a hand-off report** for an agent that fixes them. It is
+  Markdown, copied with one button and written to `runs/<id>/report.md`. The
+  alternative of writing into the person's checkout was not chosen.
+- **A reviewer can draft a suggestion.** When the person asks, the session that
+  drafted a finding adds replacement lines, and keeping it puts a GitLab
+  ```` ```suggestion ```` block in the comment, which the author can apply. This
+  is text that a read-only reviewer writes, so it is not the editor (D17). The
+  editor's multi-file patches on others' changes stay in
+  TKT-01M3YMSVPTE1QGMV63GCF6HPW1. The alternatives were a patch that rides
+  only in the report, and both.
