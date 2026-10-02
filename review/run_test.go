@@ -304,3 +304,18 @@ func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 		t.Fatal("a key outside the repos directory was accepted")
 	}
 }
+
+func TestShutdownEndsEveryLiveSession(t *testing.T) {
+	m, _, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	m.Shutdown()
+	v := wait(t, r, func(v RunView) bool { return v.Sessions[0].Status == Ended })
+	if v.Status == Closed {
+		t.Fatal("shutdown closed the run")
+	}
+	m.Close(context.Background(), r.ID)
+}

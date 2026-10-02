@@ -44,7 +44,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   token ??= tokenFrom(window)
   const headers = new Headers(init.headers)
   headers.set('X-Vuoro-Token', await token)
+  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
   const res = await fetch(path, { ...init, headers })
-  if (!res.ok) throw new Error(`${init.method ?? 'GET'} ${path}: ${res.status}`)
+  if (!res.ok) {
+    // The API explains a failure in {"error": "..."}; say that, not the status.
+    const body = (await res.json().catch(() => undefined)) as { error?: string } | undefined
+    throw new Error(body?.error ?? `${init.method ?? 'GET'} ${path}: ${res.status}`)
+  }
   return res.json() as Promise<T>
+}
+
+// post sends v as JSON to a path under /api/.
+export function post<T>(path: string, v: unknown = {}): Promise<T> {
+  return api<T>(path, { method: 'POST', body: JSON.stringify(v) })
 }

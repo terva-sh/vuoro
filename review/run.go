@@ -454,6 +454,25 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	return err
 }
 
+// Shutdown ends every live session, as vuoro exits, so no agent outlives it.
+// Runs stay open, and their sessions are resumable from their records.
+func (m *Manager) Shutdown() {
+	for _, r := range m.Runs() {
+		r.mu.Lock()
+		var live []agent.Session
+		for _, s := range r.sessions {
+			if s.live != nil {
+				live = append(live, s.live)
+			}
+		}
+		r.mu.Unlock()
+		for _, l := range live {
+			_ = l.Close()
+		}
+		r.save()
+	}
+}
+
 func (m *Manager) profile(name string) (Profile, bool) {
 	for _, p := range slices.Concat(m.Profiles, Builtin) {
 		if p.Name == name {

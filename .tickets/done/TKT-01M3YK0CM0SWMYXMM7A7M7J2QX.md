@@ -23,7 +23,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:16:29Z
-updated_at: 2026-10-02T19:30:11Z
+updated_at: 2026-10-02T19:30:39Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -95,6 +95,10 @@ Not done here: runs do not survive a restart of vuoro (the record is
 written, and nothing reads it back yet), and Claude Code's own transcript
 under ~/.claude/projects is not deleted on close. Both belong to the history
 work in plan section 8.
+
+**agent:claude/vuoro-mvp-1** at 2026-10-02T19:30:39Z
+
+Criterion 3's v1.0 home is TKT-01M3YMSV4 (Layer a repository's review checklist and conventions, read at base).
 
 ## Summary
 

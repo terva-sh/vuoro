@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/terva-sh/tuohi"
@@ -86,6 +87,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}()
 	defer srv.Close()
+	// No agent outlives vuoro, however it ends short of being killed.
+	defer a.Runs.Shutdown()
 	url := "http://" + ln.Addr().String() + "/"
 
 	if *browser {
@@ -136,7 +139,7 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 func serveForBrowser(url, token string, stdout io.Writer) int {
 	fmt.Fprintf(stdout, "%s#token=%s\n", url, token)
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	<-sig
 	return 0
 }
