@@ -1,0 +1,26 @@
+query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
+  project(fullPath: $fullPath) {
+    mergeRequest(iid: $iid) {
+      iid title description state draft detailedMergeStatus
+      sourceBranch targetBranch webUrl createdAt updatedAt
+      author { username bot }
+      diffRefs { baseSha headSha startSha }
+      reviewers { nodes { username bot mergeRequestInteraction { reviewState canMerge } } }
+      assignees { nodes { username bot } }
+      participants { nodes { username bot } }
+      mergeRequestDiffs { nodes { createdAt } }
+      discussions(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id resolvable resolved
+          notes {
+            nodes {
+              id author { username bot } createdAt system body resolvable resolved
+              position { filePath oldPath newLine oldLine diffRefs { baseSha headSha startSha } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

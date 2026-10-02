@@ -231,3 +231,6 @@ func (l *limited) Write(p []byte) (int, error) {
 	_, err := l.w.Write(p)
 	return k, err
 }
+
+// SecretForTest wraps a value as a Secret, for tests in other packages.
+func SecretForTest(v string) Secret { return Secret{v} }

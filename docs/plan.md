@@ -192,7 +192,7 @@ never sorts by it.
 
 - **GitLab: read with GraphQL, and write with REST.** The GraphQL query reads a
   change's reviewer states, threads, positions, system notes, and diff
-  versions in one request, as in `forge/gitlab/testdata/mr3958.query.graphql`.
+  versions in one request: `forge/gitlab/query.graphql`.
   REST is for draft notes and publishing. A trap: in REST, `reviewers[].state`
   is the account's state (`active`), not the review state.
 - **GitHub** needs GraphQL for thread resolution (`reviewThreads.isResolved`),

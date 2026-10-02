@@ -4,58 +4,47 @@
       "mergeRequest": {
         "iid": "3958",
         "title": "fix(mr): warn when publishing --reviewer-state on your own merge request",
+        "description": "<description removed>",
         "state": "merged",
         "draft": false,
         "detailedMergeStatus": "NOT_OPEN",
-        "mergeable": false,
-        "diffHeadSha": "84fb8e77e613bf7365241589f1532ff9cf3351db",
         "sourceBranch": "azubov-8564-draft-comments-state-on-own-MR",
         "targetBranch": "main",
         "webUrl": "https://gitlab.com/gitlab-org/cli/-/merge_requests/3958",
         "createdAt": "2026-09-23T10:31:38Z",
         "updatedAt": "2026-09-29T14:05:05Z",
-        "mergedAt": "2026-09-29T14:05:11Z",
         "author": {
-          "username": "andrei.zubov"
+          "username": "andrei.zubov",
+          "bot": false
         },
-        "approved": true,
-        "approvalsLeft": 0,
-        "approvedBy": {
-          "nodes": [
-            {
-              "username": "uchandran"
-            },
-            {
-              "username": "phikai"
-            }
-          ]
+        "diffRefs": {
+          "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+          "headSha": "84fb8e77e613bf7365241589f1532ff9cf3351db",
+          "startSha": "78790114c4d7196c97b2b1a1263a0d725835640d"
         },
         "reviewers": {
           "nodes": [
             {
               "username": "uchandran",
+              "bot": false,
               "mergeRequestInteraction": {
                 "reviewState": "APPROVED",
-                "approved": true,
-                "reviewed": false,
                 "canMerge": true
               }
             },
             {
               "username": "GitLabDuo",
+              "bot": true,
               "mergeRequestInteraction": {
                 "reviewState": "REVIEWED",
-                "approved": false,
-                "reviewed": true,
                 "canMerge": false
               }
             },
             {
               "username": "phikai",
+              "bot": false,
               "mergeRequestInteraction": {
                 "reviewState": "APPROVED",
-                "approved": true,
-                "reviewed": false,
                 "canMerge": true
               }
             }
@@ -64,36 +53,38 @@
         "assignees": {
           "nodes": [
             {
-              "username": "andrei.zubov"
+              "username": "andrei.zubov",
+              "bot": false
             }
           ]
         },
         "participants": {
           "nodes": [
             {
-              "username": "phikai"
+              "username": "phikai",
+              "bot": false
             },
             {
-              "username": "GitLabDuo"
+              "username": "GitLabDuo",
+              "bot": true
             },
             {
-              "username": "uchandran"
+              "username": "uchandran",
+              "bot": false
             },
             {
-              "username": "andrei.zubov"
+              "username": "andrei.zubov",
+              "bot": false
             },
             {
-              "username": "ashrafkhamis"
+              "username": "ashrafkhamis",
+              "bot": false
             },
             {
-              "username": "gitlab-bot"
+              "username": "gitlab-bot",
+              "bot": false
             }
           ]
-        },
-        "diffRefs": {
-          "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-          "headSha": "84fb8e77e613bf7365241589f1532ff9cf3351db",
-          "startSha": "78790114c4d7196c97b2b1a1263a0d725835640d"
         },
         "mergeRequestDiffs": {
           "nodes": [
@@ -117,34 +108,26 @@
             }
           ]
         },
-        "commits": {
-          "nodes": [
-            {
-              "sha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-              "committedDate": "2026-09-23T12:18:40+02:00",
-              "authoredDate": "2026-09-23T12:18:40+02:00"
-            }
-          ]
-        },
         "discussions": {
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "NDY"
+          },
           "nodes": [
             {
               "id": "gid://gitlab/Discussion/6dbd6c3ccfd0b855677f94bd04b4460ec638a839",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890697825",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:31:39Z",
-                    "updatedAt": "2026-09-23T10:31:39Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "requested review from @GitLabDuo",
                     "resolvable": false,
                     "resolved": false,
@@ -157,19 +140,16 @@
               "id": "gid://gitlab/Discussion/851aff2c3aa1bbc318c5f7308e09ab97d2780fb7",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890698081",
                     "author": {
-                      "username": "duo-recommend-reviewers-gitlab-org"
+                      "username": "duo-recommend-reviewers-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:31:42Z",
-                    "updatedAt": "2026-09-23T10:31:42Z",
                     "system": true,
-                    "systemNoteIconName": null,
                     "body": "started session [8596403](https://gitlab.com/gitlab-org/cli/-/automate/agent-sessions/8596403) triggered by @andrei.zubov",
                     "resolvable": false,
                     "resolved": false,
@@ -182,19 +162,16 @@
               "id": "gid://gitlab/Discussion/3b01afcd5afce225e87a01bf49c6681bb51622c8",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890698196",
                     "author": {
-                      "username": "duo-risk-classification-gitlab-org"
+                      "username": "duo-risk-classification-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:31:43Z",
-                    "updatedAt": "2026-09-23T10:31:45Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -207,19 +184,16 @@
               "id": "gid://gitlab/Discussion/d53b21885de67134a5e15ae0c0050c5e5dab47f1",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890701402",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:32:22Z",
-                    "updatedAt": "2026-09-23T10:32:22Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "assigned to @andrei.zubov",
                     "resolvable": false,
                     "resolved": false,
@@ -232,19 +206,16 @@
               "id": "gid://gitlab/Discussion/a28cfccf7b1e42f1c3e05ae7a3c1853e8652423b",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890703617",
                     "author": {
-                      "username": "duo-recommend-reviewers-gitlab-org"
+                      "username": "duo-recommend-reviewers-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:32:48Z",
-                    "updatedAt": "2026-09-23T10:32:48Z",
                     "system": true,
-                    "systemNoteIconName": null,
                     "body": "completed session [8596403](https://gitlab.com/gitlab-org/cli/-/automate/agent-sessions/8596403)",
                     "resolvable": false,
                     "resolved": false,
@@ -257,19 +228,16 @@
               "id": "gid://gitlab/Discussion/60ce716ca08cf306b0bc7dd4360fb2dcf4bd2f89",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890728546",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:37:21Z",
-                    "updatedAt": "2026-09-23T10:37:21Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -282,82 +250,75 @@
               "id": "gid://gitlab/Discussion/bf6f7fbb9c81043dad3bf252deabfd6e21679786",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-23T10:59:14Z",
-              "resolvedBy": {
-                "username": "andrei.zubov"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3890728591",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:37:22Z",
-                    "updatedAt": "2026-09-23T10:59:14Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 135,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890835989",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:55:04Z",
-                    "updatedAt": "2026-09-23T10:55:04Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 2 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2047341371&start_sha=bf28f1db3515220b5cf46c345cc2dc63108aaa6e#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_135_132)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 135,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890865359",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:58:59Z",
-                    "updatedAt": "2026-09-23T10:59:14Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 135,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -367,82 +328,75 @@
               "id": "gid://gitlab/Discussion/594d27c9220f84d02c57d31973f53c9bc8649722",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-23T10:59:17Z",
-              "resolvedBy": {
-                "username": "andrei.zubov"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3890728643",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:37:22Z",
-                    "updatedAt": "2026-09-23T10:59:17Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 133,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890836015",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:55:04Z",
-                    "updatedAt": "2026-09-23T10:55:04Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 2 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2047341371&start_sha=bf28f1db3515220b5cf46c345cc2dc63108aaa6e#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_133_132)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 133,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890865548",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:59:01Z",
-                    "updatedAt": "2026-09-23T10:59:17Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 133,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -452,82 +406,75 @@
               "id": "gid://gitlab/Discussion/46d355e3bbd2cc7e0e7be5d3bae560219fd88b0b",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-23T10:59:19Z",
-              "resolvedBy": {
-                "username": "andrei.zubov"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3890728702",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:37:23Z",
-                    "updatedAt": "2026-09-23T10:59:19Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 71,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890865708",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:59:03Z",
-                    "updatedAt": "2026-09-23T10:59:19Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 71,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892346813",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:14Z",
-                    "updatedAt": "2026-09-23T14:38:14Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 3 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208#d0c8675a6ebfe13a0c1085bc3b45f4baf0631ba4_71_71)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 71,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -537,82 +484,75 @@
               "id": "gid://gitlab/Discussion/59fe43622cebe5379ff593216d74c01159b42646",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-23T10:59:22Z",
-              "resolvedBy": {
-                "username": "andrei.zubov"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3890728795",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T10:37:24Z",
-                    "updatedAt": "2026-09-23T10:59:22Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 35,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890836054",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:55:04Z",
-                    "updatedAt": "2026-09-23T10:55:04Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 2 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2047341371&start_sha=bf28f1db3515220b5cf46c345cc2dc63108aaa6e#61faa00639247ef098cac371f8119490fa330986_35_27)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 35,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3890865949",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:59:06Z",
-                    "updatedAt": "2026-09-23T10:59:22Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 35,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "bf28f1db3515220b5cf46c345cc2dc63108aaa6e",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -622,19 +562,16 @@
               "id": "gid://gitlab/Discussion/2e01c5042722eb394f99064117041b8284c432d0",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890836127",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:55:05Z",
-                    "updatedAt": "2026-09-23T10:55:05Z",
                     "system": true,
-                    "systemNoteIconName": "commit",
                     "body": "added 1 commit\n\n<ul><li>44a8e890 - refactor(mr): address review feedback on reviewer-state warning</li></ul>\n\n[Compare with previous version](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2047341371&start_sha=bf28f1db3515220b5cf46c345cc2dc63108aaa6e)",
                     "resolvable": false,
                     "resolved": false,
@@ -647,19 +584,16 @@
               "id": "gid://gitlab/Discussion/3c968b45398692f4f75924c6492cf55c841ae173",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890867813",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T10:59:22Z",
-                    "updatedAt": "2026-09-23T10:59:22Z",
                     "system": true,
-                    "systemNoteIconName": "comment",
                     "body": "resolved all threads",
                     "resolvable": false,
                     "resolved": false,
@@ -672,21 +606,16 @@
               "id": "gid://gitlab/Discussion/52ad4576126b742d7d9c63c79dc8003559c9cf64",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-29T13:45:41Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiscussionNote/3890971331",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T11:16:11Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
@@ -695,12 +624,11 @@
                   {
                     "id": "gid://gitlab/DiscussionNote/3891004531",
                     "author": {
-                      "username": "ashrafkhamis"
+                      "username": "ashrafkhamis",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T11:21:18Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
@@ -709,12 +637,11 @@
                   {
                     "id": "gid://gitlab/DiscussionNote/3903657079",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-25T11:30:51Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
@@ -723,12 +650,11 @@
                   {
                     "id": "gid://gitlab/DiscussionNote/3916550342",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-28T12:35:32Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
@@ -737,12 +663,11 @@
                   {
                     "id": "gid://gitlab/DiscussionNote/3922243481",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:52:07Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
@@ -755,19 +680,16 @@
               "id": "gid://gitlab/Discussion/0b9a51e1a9da5e3e3b394cac7b469ffeb9c89c8a",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890971430",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T11:16:12Z",
-                    "updatedAt": "2026-09-23T11:16:12Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "requested review from @phikai and @ashrafkhamis",
                     "resolvable": false,
                     "resolved": false,
@@ -780,19 +702,16 @@
               "id": "gid://gitlab/Discussion/451a78a0eee50345172ddd98f532a035fa34bf95",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3890995502",
                     "author": {
-                      "username": "ashrafkhamis"
+                      "username": "ashrafkhamis",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T11:19:54Z",
-                    "updatedAt": "2026-09-23T11:19:54Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "requested review from @uchandran and removed review request for @ashrafkhamis",
                     "resolvable": false,
                     "resolved": false,
@@ -805,82 +724,75 @@
               "id": "gid://gitlab/Discussion/4bc406fbc759829bb0a303c5ce996facf02b1bd1",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-28T12:34:06Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3891729075",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T13:12:19Z",
-                    "updatedAt": "2026-09-28T12:34:06Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 160,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892346885",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:14Z",
-                    "updatedAt": "2026-09-23T14:38:14Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 3 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_160_155)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 160,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892347425",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:19Z",
-                    "updatedAt": "2026-09-28T12:34:06Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 160,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -890,82 +802,75 @@
               "id": "gid://gitlab/Discussion/4b8ee990f58d81e195b3ab59d241451c7d127eef",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-28T12:34:08Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3891729675",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T13:12:24Z",
-                    "updatedAt": "2026-09-28T12:34:08Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 56,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892346901",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:14Z",
-                    "updatedAt": "2026-09-23T14:38:14Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 3 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_56_57)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 56,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892347823",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:22Z",
-                    "updatedAt": "2026-09-28T12:34:08Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 56,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -975,82 +880,75 @@
               "id": "gid://gitlab/Discussion/91bb0327db4d0b885608d6b580d226b7ce1dea3f",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-28T12:34:10Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3891730300",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T13:12:30Z",
-                    "updatedAt": "2026-09-28T12:34:10Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 156,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892346922",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:15Z",
-                    "updatedAt": "2026-09-23T14:38:15Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 3 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_156_155)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 156,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892348298",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:26Z",
-                    "updatedAt": "2026-09-28T12:34:10Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 156,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -1060,82 +958,75 @@
               "id": "gid://gitlab/Discussion/6b9742c6362321868dabedf529dbc1b6a86eee56",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-28T12:34:13Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3891730892",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T13:12:36Z",
-                    "updatedAt": "2026-09-28T12:34:13Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 111,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892346938",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:15Z",
-                    "updatedAt": "2026-09-23T14:38:15Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 3 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208#d0c8675a6ebfe13a0c1085bc3b45f4baf0631ba4_111_120)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 111,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3892348589",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:29Z",
-                    "updatedAt": "2026-09-28T12:34:13Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish_test.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish_test.go",
                       "newLine": 111,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "44a8e890c97522fb729bc020e3db11d6bb2e9208",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -1145,19 +1036,16 @@
               "id": "gid://gitlab/Discussion/dec94005f054a3b39e0da92c27f708dd81e158b2",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3891744496",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T13:14:50Z",
-                    "updatedAt": "2026-09-23T13:14:50Z",
                     "system": true,
-                    "systemNoteIconName": "error",
                     "body": "requested changes",
                     "resolvable": false,
                     "resolved": false,
@@ -1170,19 +1058,16 @@
               "id": "gid://gitlab/Discussion/82d7158fa1be875f944b1931047aa590ecccd7ed",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3892346997",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:15Z",
-                    "updatedAt": "2026-09-23T14:38:15Z",
                     "system": true,
-                    "systemNoteIconName": "commit",
                     "body": "added 1 commit\n\n<ul><li>96344f44 - fix(mr): only warn about --reviewer-state when the author is not a reviewer</li></ul>\n\n[Compare with previous version](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2048084699&start_sha=44a8e890c97522fb729bc020e3db11d6bb2e9208)",
                     "resolvable": false,
                     "resolved": false,
@@ -1195,19 +1080,16 @@
               "id": "gid://gitlab/Discussion/99d6b282b4572d99eb39290ac2ea502e7f84caae",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3892347024",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T14:38:16Z",
-                    "updatedAt": "2026-09-23T14:38:16Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed the description",
                     "resolvable": false,
                     "resolved": false,
@@ -1220,19 +1102,16 @@
               "id": "gid://gitlab/Discussion/2a5fa763edbd6e06ef20c39fa12e47d8a80b7b59",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3892402961",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-23T14:47:04Z",
-                    "updatedAt": "2026-09-23T14:47:04Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1245,82 +1124,75 @@
               "id": "gid://gitlab/Discussion/bd5013c4eaaa63a1f046f48f9307c642169cef1c",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-24T09:14:20Z",
-              "resolvedBy": {
-                "username": "andrei.zubov"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3892577912",
                     "author": {
-                      "username": "uchandran"
+                      "username": "uchandran",
+                      "bot": false
                     },
                     "createdAt": "2026-09-23T15:11:27Z",
-                    "updatedAt": "2026-09-24T09:13:54Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 57,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3896909984",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:13:55Z",
-                    "updatedAt": "2026-09-24T09:13:55Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 4 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2050221123&start_sha=96344f4422a7ad8fd8dba7e72fbe05ec54487343#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_57_57)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 57,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3896912262",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:14:20Z",
-                    "updatedAt": "2026-09-24T12:58:29Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 57,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "96344f4422a7ad8fd8dba7e72fbe05ec54487343",
+                        "startSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc"
+                      }
                     }
                   }
                 ]
@@ -1330,19 +1202,16 @@
               "id": "gid://gitlab/Discussion/c14d8933ae513cd7c04c49eba739efbb86679ccd",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896910070",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:13:55Z",
-                    "updatedAt": "2026-09-24T09:13:55Z",
                     "system": true,
-                    "systemNoteIconName": "commit",
                     "body": "added 1 commit\n\n<ul><li>9c815ddb - chore: Apply 1 suggestion(s) to 1 file(s)</li></ul>\n\n[Compare with previous version](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2050221123&start_sha=96344f4422a7ad8fd8dba7e72fbe05ec54487343)",
                     "resolvable": false,
                     "resolved": false,
@@ -1355,19 +1224,16 @@
               "id": "gid://gitlab/Discussion/7363341c2a541209e458b7cd0c0702623a1449b0",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896914633",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:14:43Z",
-                    "updatedAt": "2026-09-24T09:14:43Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "requested review from @phikai",
                     "resolvable": false,
                     "resolved": false,
@@ -1380,19 +1246,16 @@
               "id": "gid://gitlab/Discussion/60355b619ff490f02470a4c580a026374a18f2b1",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896928740",
                     "author": {
-                      "username": "duo-fix-ci-cd-pipeline-gitlab-org"
+                      "username": "duo-fix-ci-cd-pipeline-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:17:17Z",
-                    "updatedAt": "2026-09-24T09:17:17Z",
                     "system": true,
-                    "systemNoteIconName": null,
                     "body": "started session [8637287](https://gitlab.com/gitlab-org/cli/-/automate/agent-sessions/8637287) triggered by @andrei.zubov",
                     "resolvable": false,
                     "resolved": false,
@@ -1405,58 +1268,52 @@
               "id": "gid://gitlab/Discussion/e67d80036ecb16323d561189c3cf2dd865b9f6fc",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-24T12:58:11Z",
-              "resolvedBy": {
-                "username": "uchandran"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3896939003",
                     "author": {
-                      "username": "duo-fix-ci-cd-pipeline-gitlab-org"
+                      "username": "duo-fix-ci-cd-pipeline-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:19:13Z",
-                    "updatedAt": "2026-09-24T12:58:11Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "docs/source/mr/note/publish.md",
+                      "oldPath": "docs/source/mr/note/publish.md",
                       "newLine": 21,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3896985036",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:27:40Z",
-                    "updatedAt": "2026-09-24T09:27:40Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 5 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2050265377&start_sha=9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb#51c330366436109245aeca60f22de0f28614b877_21_21)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "docs/source/mr/note/publish.md",
+                      "oldPath": "docs/source/mr/note/publish.md",
                       "newLine": 21,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   }
                 ]
@@ -1466,19 +1323,16 @@
               "id": "gid://gitlab/Discussion/672bdb9ccd3c8e3afb5180a0235ae0ee0f5a6147",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896939788",
                     "author": {
-                      "username": "duo-fix-ci-cd-pipeline-gitlab-org"
+                      "username": "duo-fix-ci-cd-pipeline-gitlab-org",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:19:21Z",
-                    "updatedAt": "2026-09-24T09:19:21Z",
                     "system": true,
-                    "systemNoteIconName": null,
                     "body": "completed session [8637287](https://gitlab.com/gitlab-org/cli/-/automate/agent-sessions/8637287)",
                     "resolvable": false,
                     "resolved": false,
@@ -1491,19 +1345,16 @@
               "id": "gid://gitlab/Discussion/d7790ea476915d71f33a226429986a8c7c45ab91",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896971231",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:25:28Z",
-                    "updatedAt": "2026-09-24T09:25:28Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1516,58 +1367,52 @@
               "id": "gid://gitlab/Discussion/0294f7872104a8e7a0d3b6510fdcdf61fd72d1f6",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-24T12:58:06Z",
-              "resolvedBy": {
-                "username": "uchandran"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3896971269",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:25:29Z",
-                    "updatedAt": "2026-09-24T12:58:06Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "docs/source/mr/note/publish.md",
+                      "oldPath": "docs/source/mr/note/publish.md",
                       "newLine": 21,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3896985044",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:27:40Z",
-                    "updatedAt": "2026-09-24T09:27:40Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 5 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2050265377&start_sha=9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb#51c330366436109245aeca60f22de0f28614b877_21_21)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "docs/source/mr/note/publish.md",
+                      "oldPath": "docs/source/mr/note/publish.md",
                       "newLine": 21,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   }
                 ]
@@ -1577,19 +1422,16 @@
               "id": "gid://gitlab/Discussion/0867b98a8dff942353ad4cf3de19bb2a065bd701",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3896985076",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T09:27:41Z",
-                    "updatedAt": "2026-09-24T09:27:41Z",
                     "system": true,
-                    "systemNoteIconName": "commit",
                     "body": "added 1 commit\n\n<ul><li>7bacf6e5 - docs(mr): regenerate mr note publish docs</li></ul>\n\n[Compare with previous version](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2050265377&start_sha=9c815ddb43c7125d4bcf4254ecbb90ea4980bbeb)",
                     "resolvable": false,
                     "resolved": false,
@@ -1602,19 +1444,16 @@
               "id": "gid://gitlab/Discussion/d95fa6dd8c3345ff72a56a95fe48dee3d2464a49",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3897006907",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-24T09:31:35Z",
-                    "updatedAt": "2026-09-24T09:31:35Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1627,19 +1466,16 @@
               "id": "gid://gitlab/Discussion/48ff81d0f73131ad44e9935972d3236a3a1be86d",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3898201108",
                     "author": {
-                      "username": "uchandran"
+                      "username": "uchandran",
+                      "bot": false
                     },
                     "createdAt": "2026-09-24T12:58:00Z",
-                    "updatedAt": "2026-09-24T12:58:00Z",
                     "system": true,
-                    "systemNoteIconName": "check",
                     "body": "approved this merge request",
                     "resolvable": false,
                     "resolved": false,
@@ -1652,19 +1488,16 @@
               "id": "gid://gitlab/Discussion/3eded154ab0632123a09e872c153d0fb48c2faf0",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3903078515",
                     "author": {
-                      "username": "gitlab-bot"
+                      "username": "gitlab-bot",
+                      "bot": false
                     },
                     "createdAt": "2026-09-25T09:32:38Z",
-                    "updatedAt": "2026-09-25T09:32:38Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1677,19 +1510,16 @@
               "id": "gid://gitlab/Discussion/7200e6b233a1a124732fe07551d1788bb8196880",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3913616708",
                     "author": {
-                      "username": "gitlab-bot"
+                      "username": "gitlab-bot",
+                      "bot": false
                     },
                     "createdAt": "2026-09-28T00:25:45Z",
-                    "updatedAt": "2026-09-28T00:25:45Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1702,82 +1532,75 @@
               "id": "gid://gitlab/Discussion/68aac6f8c244bcbfbffed043ef8d1897a5d389ce",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-29T13:45:34Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3916535249",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-28T12:33:03Z",
-                    "updatedAt": "2026-09-29T13:45:34Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 24,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3922222984",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:49:12Z",
-                    "updatedAt": "2026-09-29T08:49:12Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 6 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2061268016&start_sha=7bacf6e568e5ab8f370c7117a30018c209317d90#61faa00639247ef098cac371f8119490fa330986_24_23)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 24,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3922223143",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:49:14Z",
-                    "updatedAt": "2026-09-29T13:45:34Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/note_test_helpers_test.go",
+                      "oldPath": "internal/commands/mr/note/note_test_helpers_test.go",
                       "newLine": 24,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   }
                 ]
@@ -1787,82 +1610,75 @@
               "id": "gid://gitlab/Discussion/55f69bf0169c933cd15caf66650d050abd6c5514",
               "resolvable": true,
               "resolved": true,
-              "resolvedAt": "2026-09-29T13:45:37Z",
-              "resolvedBy": {
-                "username": "phikai"
-              },
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/DiffNote/3916535988",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-28T12:33:11Z",
-                    "updatedAt": "2026-09-29T13:45:37Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 180,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3922223002",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:49:12Z",
-                    "updatedAt": "2026-09-29T08:49:12Z",
                     "system": true,
-                    "systemNoteIconName": "pencil",
                     "body": "changed this line in [version 6 of the diff](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2061268016&start_sha=7bacf6e568e5ab8f370c7117a30018c209317d90#9a0bc480768361d134f3b2741a65b2c6c31cdaf5_180_180)",
                     "resolvable": false,
                     "resolved": false,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 180,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   },
                   {
                     "id": "gid://gitlab/DiffNote/3922223541",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:49:17Z",
-                    "updatedAt": "2026-09-29T13:45:37Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": true,
                     "resolved": true,
                     "position": {
-                      "diffRefs": {
-                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
-                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
-                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
-                      },
                       "filePath": "internal/commands/mr/note/mr_note_publish.go",
+                      "oldPath": "internal/commands/mr/note/mr_note_publish.go",
                       "newLine": 180,
                       "oldLine": null,
-                      "positionType": "text"
+                      "diffRefs": {
+                        "baseSha": "f5016eda261bb7142627d05d1d85a20d6dd56ddc",
+                        "headSha": "7bacf6e568e5ab8f370c7117a30018c209317d90",
+                        "startSha": "c1c0a9f1f0fd33d96b9aa47c690734e8628c6847"
+                      }
                     }
                   }
                 ]
@@ -1872,19 +1688,16 @@
               "id": "gid://gitlab/Discussion/87f489382419e7548a69cd4f64a4c22639349030",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3916550302",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-28T12:35:31Z",
-                    "updatedAt": "2026-09-28T12:35:31Z",
                     "system": true,
-                    "systemNoteIconName": "error",
                     "body": "requested changes",
                     "resolvable": false,
                     "resolved": false,
@@ -1897,19 +1710,16 @@
               "id": "gid://gitlab/Discussion/56981d6d7222b342cc53b180a8190842ce29128a",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3922223041",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:49:13Z",
-                    "updatedAt": "2026-09-29T08:49:13Z",
                     "system": true,
-                    "systemNoteIconName": "commit",
                     "body": "added 1 commit\n\n<ul><li>84fb8e77 - refactor(mr): rename reviewer-state test helper and drop tracker ref</li></ul>\n\n[Compare with previous version](/gitlab-org/cli/-/merge_requests/3958/diffs?diff_id=2061268016&start_sha=7bacf6e568e5ab8f370c7117a30018c209317d90)",
                     "resolvable": false,
                     "resolved": false,
@@ -1922,19 +1732,16 @@
               "id": "gid://gitlab/Discussion/d3ed16c778c59f36f037fc782eea021320e8c4de",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3922243435",
                     "author": {
-                      "username": "andrei.zubov"
+                      "username": "andrei.zubov",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T08:52:07Z",
-                    "updatedAt": "2026-09-29T08:52:07Z",
                     "system": true,
-                    "systemNoteIconName": "user",
                     "body": "requested review from @phikai",
                     "resolvable": false,
                     "resolved": false,
@@ -1947,19 +1754,16 @@
               "id": "gid://gitlab/Discussion/f0a7dd5dca924662bba5cb3aff33b4ec864b3ca1",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3922255220",
                     "author": {
-                      "username": "GitLabDuo"
+                      "username": "GitLabDuo",
+                      "bot": true
                     },
                     "createdAt": "2026-09-29T08:53:40Z",
-                    "updatedAt": "2026-09-29T08:53:40Z",
                     "system": false,
-                    "systemNoteIconName": null,
                     "body": "<note body removed>",
                     "resolvable": false,
                     "resolved": false,
@@ -1972,19 +1776,16 @@
               "id": "gid://gitlab/Discussion/8ff40d180426455bae68a605649cc0c805a6f56d",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3923961479",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T13:45:41Z",
-                    "updatedAt": "2026-09-29T13:45:41Z",
                     "system": true,
-                    "systemNoteIconName": "comment",
                     "body": "resolved all threads",
                     "resolvable": false,
                     "resolved": false,
@@ -1997,19 +1798,16 @@
               "id": "gid://gitlab/Discussion/67b8ff52c2c7f9c3603767fb92f4cefff23b746b",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3923965938",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T13:46:13Z",
-                    "updatedAt": "2026-09-29T13:46:13Z",
                     "system": true,
-                    "systemNoteIconName": "check",
                     "body": "approved this merge request",
                     "resolvable": false,
                     "resolved": false,
@@ -2022,19 +1820,16 @@
               "id": "gid://gitlab/Discussion/ad6f1f3d0d2410039c8c19fe912b6e8fa9a28c2a",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3923968562",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T13:46:39Z",
-                    "updatedAt": "2026-09-29T13:46:39Z",
                     "system": true,
-                    "systemNoteIconName": "mr-system-note-empty",
                     "body": "started a [merge train](https://gitlab.com/gitlab-org/cli/-/merge_trains)",
                     "resolvable": false,
                     "resolved": false,
@@ -2047,19 +1842,16 @@
               "id": "gid://gitlab/Discussion/3b929823598831196e021f2d5a1d673a3696a6ab",
               "resolvable": false,
               "resolved": false,
-              "resolvedAt": null,
-              "resolvedBy": null,
               "notes": {
                 "nodes": [
                   {
                     "id": "gid://gitlab/Note/3924089334",
                     "author": {
-                      "username": "phikai"
+                      "username": "phikai",
+                      "bot": false
                     },
                     "createdAt": "2026-09-29T14:05:02Z",
-                    "updatedAt": "2026-09-29T14:05:02Z",
                     "system": true,
-                    "systemNoteIconName": "comment-dots",
                     "body": "mentioned in commit a77cf2428e6382b762eba8e466f87f16604794e0",
                     "resolvable": false,
                     "resolved": false,
