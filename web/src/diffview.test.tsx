@@ -15,8 +15,10 @@ describe('FileView', () => {
     const root = document.createElement('div')
     act(() => render(<FileView file={big(5000)} threads={[]} drafts={[]} />, root))
     expect(root.querySelectorAll('.diff tr').length).toBe(0)
-    expect(root.textContent).toContain('Show 5001 lines')
-    act(() => (root.querySelector('.pad button') as HTMLButtonElement).click())
+    // Collapsed, it is the header alone, which carries the line count.
+    expect(root.querySelector('.file')!.children.length).toBe(1)
+    expect(root.querySelector('.file-head')!.textContent).toContain('Show 5001 lines')
+    act(() => (root.querySelector('.file-head .show-lines') as HTMLButtonElement).click())
     expect(root.querySelectorAll('.diff tr').length).toBe(5001)
   })
 

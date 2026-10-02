@@ -214,7 +214,7 @@ export function FileView({ file, threads, drafts, mine = [], runID }: {
   const tag = file.new ? 'added' : file.deleted ? 'deleted' : file.renamed ? 'renamed' : ''
   const notes = threads.length + drafts.length + mine.length
   return (
-    <div class="file" id={fileID(file.new_path)}>
+    <div class={`file ${open && !file.omitted ? '' : 'collapsed'}`} id={fileID(file.new_path)}>
       <header class="file-head">
         <button class="link file-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
           {open ? '▾' : '▸'} <span class="mono">{name}</span>
@@ -222,17 +222,15 @@ export function FileView({ file, threads, drafts, mine = [], runID }: {
         {tag && <span class="badge">{tag}</span>}
         {file.rebuilt && <span class="badge" title="The forge did not send this diff, and vuoro built it from both versions">rebuilt</span>}
         {notes > 0 && <span class="badge">💬 {notes}</span>}
-        <span class="muted">{lines} lines</span>
+        {file.omitted ? (
+          <span class="muted">binary or too large to show</span>
+        ) : open ? (
+          <span class="muted">{lines} lines</span>
+        ) : (
+          <button class="link show-lines" onClick={() => setOpen(true)}>Show {lines} lines</button>
+        )}
       </header>
-      {file.omitted ? (
-        <p class="muted pad">Binary or too large to show.</p>
-      ) : open ? (
-        <Hunks file={file} threads={threads} drafts={drafts} mine={mine} runID={runID} />
-      ) : (
-        <p class="muted pad">
-          Collapsed. <button class="link" onClick={() => setOpen(true)}>Show {lines} lines</button>
-        </p>
-      )}
+      {open && !file.omitted && <Hunks file={file} threads={threads} drafts={drafts} mine={mine} runID={runID} />}
     </div>
   )
 }

@@ -109,6 +109,9 @@ main { padding: var(--ui-space-4); }
 .file { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); margin-bottom: var(--ui-space-3); background: var(--ui-surface); overflow: hidden; }
 .file-head { display: flex; gap: var(--ui-space-2); align-items: center; padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); border-bottom: 1px solid var(--ui-line); }
 .file-toggle { color: var(--ui-heading); }
+/* A collapsed file is its header alone, one line, so a large change scans. */
+.file.collapsed { margin-bottom: var(--ui-space-1); }
+.file.collapsed .file-head { border-bottom: none; padding-top: var(--ui-space-1); padding-bottom: var(--ui-space-1); }
 
 .diff { width: 100%; border-collapse: collapse; font: var(--ui-fs-detail) / 1.5 var(--ui-font-mono); }
 .diff td { padding: 0 var(--ui-space-2); vertical-align: top; }
