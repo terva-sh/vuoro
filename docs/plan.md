@@ -80,7 +80,7 @@ with the `-check` form in CI.
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
 | `server` | The HTTP API and the embedded frontend. |
-| `assist` | The terva integration (section 6). The only package that imports terva. |
+| `assist` | The agent integration (section 6): the review action's local mode, and terva. The only package that knows about either. |
 | `tickets` | The optional git-ticket integration (section 7). The only package that imports git-ticket. |
 | `web` | Frontend source and the committed `web/dist`. |
 
@@ -92,11 +92,15 @@ either of them. A test holds that boundary, in the same way as
 
 | Dependency | Pin at bootstrap | Note |
 |---|---|---|
-| Go | 1.27 | terva's `go.mod` declares 1.27.0, so a module that imports terva must too. |
-| `terva.sh/terva` | v0.139.5 | Pre-1.0. A minor release can break the stable packages, with a note in `docs/migrating.md`. |
-| `github.com/terva-sh/tuohi` | v0.1.0-alpha.1 | Pre-release, and its README says to expect API changes. |
+| Go | 1.27 if vuoro imports terva | terva's `go.mod` declares 1.27.0. Calling `terva rpc` instead (section 6.2) leaves the line at tuohi's 1.26. |
+| `terva.sh/terva` | v0.139.7 | Pre-1.0. A minor release can break the stable packages, with a note in `docs/migrating.md`. |
+| `github.com/terva-sh/tuohi` | v0.1.0 | The first release. Its README still warns that the API can change. |
 | `github.com/terva-sh/design` | v0.1.0 | Has no `vuoro` accent yet. |
-| `github.com/terva-sh/git-ticket` | v0.23.0 | Library and CLI. |
+| `github.com/terva-sh/git-ticket` | v0.24.0 | Library and CLI. This workstation had v0.23.0 installed. |
+
+These were read from the internal Forgejo (`git.local.sothr.com/terva-sh`), which
+is every terva-sh repository's `origin`. The GitHub mirrors trail it by days, so
+read a pin from Forgejo and never from a mirror.
 
 ## 4. The model
 
@@ -180,38 +184,77 @@ it, and it must land before any forge write exists.
 ## 6. Agents (terva)
 
 > Open question: TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva
-> for agent actions).
+> for agent actions). This section is the starting position, rewritten on
+> 2026-10-02 after reading terva-sh/terva-action-code-review.
 
-terva offers two in-process entry points (`terva/docs/embedding.md`):
+### 6.1 The reviewer already exists
 
-- **The SDK**, `packages/agent/sdk`. It reads the person's `$TERVA_HOME`
-  config, credentials, and permission rules. It needs little code, and it
-  shares terva's model setup.
-- **The engine**, `packages/core` plus `packages/provider`. It reads nothing.
-  vuoro passes the client, the model, the tools, and a permission gate. It is
-  more code, and vuoro gets full control.
+terva-sh/terva-action-code-review (on Forgejo) runs terva as a code reviewer.
+vuoro does not build a second one. The action offers what vuoro needs:
 
-Both are in `.api/packages.txt` and count as stable. Import nothing outside that
-list.
+- **A local mode.** Its container image, or `node src/local-main.mjs` with git
+  and terva on `PATH`, reviews a range in a local checkout with
+  `--repo PATH --from BASE --to HEAD --format json`. It writes the result to
+  stdout and needs no forge credentials. The exit code is 0 for clean, 1 for a
+  finding at or above `--fail-severity`, and 2 when the review did not run.
+- **A versioned result.** `schemas/local-review.v1.schema.json`
+  (`local-1.x`) reuses the PR contract's shared definitions: finding,
+  severity, anchor (`path`, `side`, `commitSha`, `startLine`, `endLine`),
+  completion, and coverage. Those shapes are forge-neutral. The `repository`,
+  `publication`, and disposition blocks are Forgejo-shaped, and vuoro does not
+  copy them.
+- **The project's own reviewer settings.** `.terva/review.yml` and its named
+  reviewers are read at the base commit, never the head. A change cannot pick
+  its own reviewer. vuoro passes `--config-file` and `--reviewer` and does not
+  re-implement the format.
+- **Isolation.** terva runs with `--no-tools`, and the child gets only `PATH`,
+  `TERVA_HOME`, and one provider key, read from the environment.
 
-The first actions, in order of value:
+So **drafting a review** means: fetch the change's base and head into a local
+checkout, run the action's local mode, validate the `local-1.x` result, and
+turn each anchored finding into a pending draft comment. A finding with no
+anchor goes into the draft summary. This works for GitLab and GitHub changes,
+not only Forgejo, because local mode reads git refs rather than a forge.
 
-1. **Summarise a change**, including what changed since my last review.
-2. **Draft a review** into pending draft comments. terva's `review-crew`
-   personas, such as Vartija for security, are the starting point.
-3. **Draft a reply** to a thread.
+### 6.2 The other agent actions
 
-Tools an agent gets are read-only over the change: the diff, the threads, and
-files at the head SHA through the forge API or a local checkout. An agent gets
-no tool that writes to a forge. Posting is the person's action (section 2.1).
+Summarising a change and drafting a reply are not reviews, and the action has
+no mode for them. They call terva directly. There are two ways:
 
-`terva-sh/terva-action-code-review` already runs terva as a pull-request
-reviewer in Forgejo CI. Read it before designing the review prompt. It is
-private, so the bootstrap session could not read it.
+- **`terva rpc` as a subprocess,** as the action does. The action's
+  architecture doc gives the reason: RPC keeps a consumer off terva's internal
+  Go packages and still gives streaming, cancellation, and session
+  continuation. vuoro would not import terva, and so it would not need Go 1.27.
+- **In process,** through the SDK (`packages/agent/sdk`) or the engine
+  (`packages/core` with `packages/provider`). Both are in `.api/packages.txt`.
+  It has fewer moving parts at run time, and it makes terva's Go line vuoro's.
 
-The model provider is the person's choice, through terva's configuration.
-vuoro never picks one, and it never sends a change's content anywhere the person
-did not configure.
+The spike picks one. The starting position is RPC, for consistency with the
+action and because it keeps the Go line free.
+
+### 6.3 Reviews the action already published
+
+On a Forgejo pull request where the action has run, its review is already on
+the forge. vuoro shows it as review state, from the forge, and never posts it
+again. Its disposition flow, `/terva disposition REVIEW_ID FINDING_ID ...`, is
+a pull-request comment. vuoro can offer it as a control, but the person posts
+it, like any other comment.
+
+### 6.4 What stays true whichever way the spike goes
+
+- An agent's output is a draft. Posting is the person's action (section 2.1).
+- The provider, the model, and the key are the person's configuration, passed
+  through the environment. vuoro ships no default and never picks one.
+- An agent gets no tool that writes to a forge.
+
+### 6.5 Next to terva-code-review
+
+The action's tickets propose an optional dashboard, terva-sh/terva-code-review,
+that receives results the action reports. Its repository is not readable
+anonymously, and the reporting work is a draft spike there
+(TKT-01M2VQM5TKMZ9761Z69S3KPZ56). That is an organisation-wide record of
+action runs. vuoro is one person's queue across forges. The two could share
+the result contract, and the spike should say whether they meet anywhere else.
 
 ## 7. git-ticket (optional)
 

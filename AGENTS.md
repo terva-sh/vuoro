@@ -193,8 +193,8 @@ those two are the closest references.
   annotations. Never hold review state that the forge does not also hold.
 - **git-ticket integration writes and never commits.** A disposition note
   lands in the working tree of the person's checkout, and they commit it.
-- **Pins are deliberate.** terva and tuohi are both pre-1.0, and tuohi is an
-  alpha. Bump one in its own commit, and read terva's `docs/migrating.md`
+- **Pins are deliberate.** terva and tuohi are both pre-1.0, and tuohi's
+  first release was v0.1.0. Bump one in its own commit, and read terva's `docs/migrating.md`
   first.
 
 ### Commands

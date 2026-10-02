@@ -39,16 +39,26 @@ record, so read them rather than trusting this page.
   as "not required, but a helpful addition for most of my own repos".
   docs/plan.md section 7 describes it, and vuoro must work fully without it.
 
+## Found during bootstrap (a recommendation, not yet a decision)
+
+- **Reuse terva-action-code-review as the reviewer.** Found on 2026-10-02,
+  once the action's repository was readable. vuoro would draft reviews by
+  running the action's local mode and reading its `local-1.x` JSON, and it
+  would show the action's published Forgejo reviews without reposting them.
+  docs/plan.md section 6 has the starting position.
+  TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva for agent
+  actions) confirms or replaces it, with the owner.
+
 ## Verified state at handoff
 
 - No code exists. The repository has a README, AGENTS.md, docs/plan.md, the
   MIT licence, a justfile whose `ci` recipe is only the store check, and this
   handoff.
-- The ticket store has one epic and 21 tickets, all in `draft`.
+- The ticket store has one epic and 22 tickets, all in `draft`.
   `git ticket check --fix --dry-run --strict` and `git ticket doctor` were both
   clean.
-- Pins were read from the sibling checkouts on 2026-10-01: terva v0.139.5,
-  tuohi v0.1.0-alpha.1, design v0.1.0, and git-ticket v0.23.0 (installed).
+- Pins were read from Forgejo on 2026-10-02: terva v0.139.7, tuohi v0.1.0,
+  design v0.1.0, and git-ticket v0.24.0. v0.23.0 is the installed binary.
   docs/plan.md section 3.2 has the table.
 
 ## Where to start
@@ -72,8 +82,8 @@ dependencies:
 
 After the scaffold, TKT-01M3W4HWCNR50KXMCX741QD9XQ (Walking skeleton: a
 loopback server shown in a tuohi window) is the riskiest technical step,
-because tuohi is an alpha and its macOS engine has been tested only on GitHub's
-runners. Do it early.
+because tuohi only reached v0.1.0 on 2026-10-01, and its macOS engine has
+been tested only on GitHub's runners. Do it early.
 
 TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva for agent
 actions) and TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -86,14 +96,21 @@ until the change view exists, so they can wait.
   the module needs 1.27 once it imports terva. tuohi declares 1.26.0 and
   design 1.25.0. The scaffold ticket decides between installing 1.27 and
   relying on `GOTOOLCHAIN=auto`.
-- **Sibling checkouts.** terva, tuohi, design, git-ticket, and
-  git-ticket-canvas are cloned from their public GitHub mirrors under
-  `~/Workspace/github.com/terva-sh/`. The clone of git-ticket is behind the
-  installed binary.
-- **Private repositories.** `terva-sh/terva-action-code-review`, `terva-sh/meta`,
-  and `terva-sh/ketju` are not readable with the credentials on this machine.
-  The terva spike ticket needs the first of them, so ask the owner for access
-  or for a copy.
+- **Forgejo is the source, GitHub is a mirror.** Every terva-sh repository's
+  `origin` is the internal Forgejo at `git.local.sothr.com/terva-sh`, and it
+  reads anonymously over HTTPS from this machine. The GitHub mirrors trailed it
+  by days on 2026-10-02, with tuohi 22 commits behind and git-ticket 224
+  behind. Read code and pins from Forgejo.
+- **Sibling checkouts.** terva, tuohi, git-ticket, and git-ticket-canvas are
+  under `~/Workspace/github.com/terva-sh/`, cloned from the mirrors, each with
+  a `forgejo` remote added. tuohi and terva are checked out at their Forgejo
+  heads. git-ticket and git-ticket-canvas were already there and are fetched
+  only. terva-action-code-review, design, and ketju are under
+  `~/Workspace/git.local.sothr.com/terva-sh/`, cloned from Forgejo. design is
+  identical on both forges at v0.1.0.
+- **Private repositories.** `terva-sh/meta` and `terva-sh/terva-code-review`
+  (the action's proposed dashboard, docs/plan.md section 6.5) refuse anonymous
+  reads.
 - **Forge CLIs.** `glab` is logged in to gitlab.com. `gh` and `tea` are not
   installed.
 - **GitLab token.** The age store (`ritual-secret ls`) has no GitLab token.

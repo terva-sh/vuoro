@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T14:39:34Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -34,10 +34,15 @@ extensions: {}
 
 ## Description
 
-An agent reviews the change, starting from the terva review-crew personas, and
-its findings arrive as pending draft comments at their lines. Each is marked as
-drafted by an agent. The person edits, deletes, or keeps each one, and submits
-through the same control as their own comments. Nothing is posted by the agent.
+Draft a review by running terva-sh/terva-action-code-review's local mode over
+the change's base and head, as the terva spike decided, and turn its findings
+into pending draft comments at their lines. The project's own `.terva/`
+reviewer settings apply, read at the base commit. A finding with no anchor
+goes into the draft summary.
+
+Each draft is marked as drafted by an agent. The person edits, deletes, or
+keeps each one, and submits through the same control as their own comments.
+Nothing is posted by the agent.
 
 ## Acceptance criteria
 

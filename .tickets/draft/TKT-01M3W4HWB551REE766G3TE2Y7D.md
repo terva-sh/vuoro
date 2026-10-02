@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-01T16:25:25Z
+updated_at: 2026-10-02T14:39:34Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -50,3 +50,9 @@ does.
 - [ ] just ci runs gofmt, go vet, go test -race, and git ticket check, all with CGO_ENABLED=0
 - [ ] just cross builds linux, darwin, and windows on amd64 and arm64
 - [ ] Forgejo and GitHub workflows run the same steps as just ci
+
+## Notes
+
+**agent:claude/vuoro-bootstrap** at 2026-10-02T14:39:34Z
+
+The Go line depends on TKT-01M3W4HWW7FHHC6VD5M0S9MV90 (Decide how vuoro embeds terva for agent actions). If agent actions call terva rpc as a subprocess, vuoro never imports terva and can stay on Go 1.26, tuohi's line. Start at 1.26 and raise it only if that spike picks the in-process SDK or engine.
