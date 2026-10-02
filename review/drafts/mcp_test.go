@@ -1,0 +1,172 @@
+package drafts
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// rpc posts one JSON-RPC request as the session holding token, and returns
+// the HTTP status and the decoded response.
+func rpc(t *testing.T, url, token, method string, params any) (int, map[string]any) {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+	req, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var out map[string]any
+	_ = json.NewDecoder(res.Body).Decode(&out)
+	return res.StatusCode, out
+}
+
+// callTool calls a tool and returns its text and whether it was an error.
+func callTool(t *testing.T, url, token, name string, args any) (string, bool) {
+	t.Helper()
+	code, out := rpc(t, url, token, "tools/call", map[string]any{"name": name, "arguments": args})
+	if code != http.StatusOK {
+		t.Fatalf("tools/call %s: HTTP %d", name, code)
+	}
+	res := out["result"].(map[string]any)
+	text := res["content"].([]any)[0].(map[string]any)["text"].(string)
+	return text, res["isError"] == true
+}
+
+func setup(t *testing.T) (*Store, *Server, string) {
+	t.Helper()
+	st := NewStore()
+	srv := NewServer(st)
+	hs := httptest.NewServer(srv)
+	t.Cleanup(hs.Close)
+	return st, srv, hs.URL + "/mcp"
+}
+
+func TestTheServerExposesOnlyDraftTools(t *testing.T) {
+	_, srv, url := setup(t)
+	for _, role := range []Role{Reviewer, Synthesizer} {
+		tok := srv.Register(Session{ID: "s", Role: role})
+		_, out := rpc(t, url, tok, "tools/list", nil)
+		var names []string
+		for _, tool := range out["result"].(map[string]any)["tools"].([]any) {
+			names = append(names, tool.(map[string]any)["name"].(string))
+		}
+		slices.Sort(names)
+		want := []string{"list_drafts", "propose_draft", "revise_draft", "withdraw_draft"}
+		if !slices.Equal(names, want) {
+			t.Fatalf("role %d tools %q, want exactly %q", role, names, want)
+		}
+		for _, n := range names {
+			for _, forge := range []string{"post", "publish", "submit", "approve", "merge", "comment", "push"} {
+				if strings.Contains(n, forge) {
+					t.Fatalf("tool %q reaches a forge", n)
+				}
+			}
+		}
+	}
+}
+
+func TestASessionMustProveWhichOneItIs(t *testing.T) {
+	_, srv, url := setup(t)
+	if code, _ := rpc(t, url, "", "tools/list", nil); code != http.StatusUnauthorized {
+		t.Fatalf("no token: HTTP %d", code)
+	}
+	if code, _ := rpc(t, url, "not-a-token", "tools/list", nil); code != http.StatusUnauthorized {
+		t.Fatalf("wrong token: HTTP %d", code)
+	}
+	tok := srv.Register(alice)
+	srv.Unregister(tok)
+	if code, _ := rpc(t, url, tok, "tools/list", nil); code != http.StatusUnauthorized {
+		t.Fatalf("unregistered token: HTTP %d", code)
+	}
+}
+
+func TestOverMCPAnInvalidDraftNamesTheRule(t *testing.T) {
+	_, srv, url := setup(t)
+	tok := srv.Register(alice)
+	text, isErr := callTool(t, url, tok, "propose_draft", map[string]any{
+		"severity": "high", "title": "x", "description": "y",
+		"anchor": map[string]any{"path": "calc.go", "start_line": 9, "end_line": 2},
+	})
+	if !isErr || !strings.Contains(text, "rule anchor.range at anchor/end_line") {
+		t.Fatalf("got %q, isError %v", text, isErr)
+	}
+	text, isErr = callTool(t, url, tok, "propose_draft", map[string]any{
+		"severity": "high", "title": "x", "description": "y", "line": 3,
+	})
+	if !isErr || !strings.Contains(text, "rule arguments.shape") {
+		t.Fatalf("unknown field: got %q, isError %v", text, isErr)
+	}
+}
+
+func TestOverMCPReviewersDraftAndASynthesizerMerges(t *testing.T) {
+	st, srv, url := setup(t)
+	ta, tb, ts := srv.Register(alice), srv.Register(bob), srv.Register(synth)
+
+	_, out := rpc(t, url, ta, "initialize", map[string]any{"protocolVersion": "2025-03-26"})
+	if v := out["result"].(map[string]any)["protocolVersion"]; v != "2025-03-26" {
+		t.Fatalf("protocol %v", v)
+	}
+
+	propose := map[string]any{"severity": "high", "title": "Mean skips xs[0]", "description": "Loop from 1.",
+		"anchor": map[string]any{"path": "calc.go", "start_line": 6}}
+	if text, isErr := callTool(t, url, ta, "propose_draft", propose); isErr {
+		t.Fatal(text)
+	}
+	if text, isErr := callTool(t, url, tb, "propose_draft", propose); isErr {
+		t.Fatal(text)
+	}
+	if _, isErr := callTool(t, url, ta, "withdraw_draft", map[string]any{"id": "d2"}); !isErr {
+		t.Fatal("alice withdrew bob's draft")
+	}
+
+	text, _ := callTool(t, url, ts, "list_drafts", map[string]any{})
+	var listed struct{ Drafts []Draft }
+	if err := json.Unmarshal([]byte(text), &listed); err != nil || len(listed.Drafts) != 2 {
+		t.Fatalf("synthesizer listed %q", text)
+	}
+	merged := map[string]any{"severity": "high", "title": "Mean skips xs[0]", "description": "Both reviewers.",
+		"sources": []string{"d1", "d2"}}
+	text, isErr := callTool(t, url, ts, "propose_draft", merged)
+	if isErr {
+		t.Fatal(text)
+	}
+	all := st.All()
+	if len(all) != 3 || all[2].Session != "synth" || !slices.Equal(all[2].Sources, []string{"d1", "d2"}) {
+		t.Fatalf("store %+v", all)
+	}
+
+	// A notification gets 202 and no body.
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+	req, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+ta)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusAccepted {
+		t.Fatalf("notification: HTTP %d", res.StatusCode)
+	}
+	// There is no event stream to open.
+	req, _ = http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer "+ta)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("GET: HTTP %d", res.StatusCode)
+	}
+}

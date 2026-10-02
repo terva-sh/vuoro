@@ -414,12 +414,27 @@ registers only if it declares `readOnlyHint`. Otherwise, use `--approval
 auto-edit --rpc-approvals`, under which the driver allows only the drafts
 tools.
 
-**The drafts channel.** The spike served a stub over stdio, and the agent's
-proposals arrived and were validated. TKT-01M3YMSSRC81M0BYHK15TW9VDY (Serve the drafts MCP
-server to each agent session) decides the transport. The starting position is
-Streamable HTTP on the loopback server, at a per-session path with a
-per-session bearer. The config that names it is written to a file with mode
-0600 and passed by path, so the bearer never appears in `argv`.
+**The drafts channel**, settled by TKT-01M3YMSSRC81M0BYHK15TW9VDY (Serve the
+drafts MCP server to each agent session) and held in `review/drafts`:
+
+- It is MCP over Streamable HTTP, at `/mcp/` on the loopback server, behind
+  the same guard as every route. It answers each request with one JSON
+  response and opens no event stream.
+- Each session registers with the run and gets a bearer token of its own,
+  which says which session it is and whether it is a reviewer or the
+  synthesizer. The token reaches Claude Code in the MCP config file of mode
+  0600, never in `argv`.
+- It has four tools, and none reaches a forge: `list_drafts`,
+  `propose_draft`, `revise_draft`, and `withdraw_draft`. A reviewer lists and
+  changes only its own drafts. The synthesizer lists every draft, and each
+  draft it proposes names its sources.
+- A draft has a severity, a title, a description, optional evidence, an
+  optional anchor (path, side, start and end line), and, from the synthesizer,
+  sources. These follow terva-action-code-review's review-result.v1. A
+  proposal that breaks a rule comes back as a tool error that names the rule
+  and the field, such as `rule anchor.range at anchor/end_line`, and never
+  quotes the proposal. A withdrawn draft stays in the store, marked, so the
+  person can see what was set aside.
 
 **What a run records:** the tool, its version, the model, and the account kind.
 For Claude Code, the account kind is `apiKeySource` from `init`, plus

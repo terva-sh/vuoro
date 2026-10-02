@@ -50,7 +50,7 @@ func start(t *testing.T) string {
 	}
 	addr := ln.Addr().String()
 	dist := fstest.MapFS{"index.html": {Data: []byte("<h1>vuoro</h1>")}}
-	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(addr, testToken, dist, "v-test"))}
+	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(Config{Addr: addr, Token: testToken, Dist: dist, Version: "v-test"}))}
 	srv.Start()
 	t.Cleanup(srv.Close)
 	return addr
@@ -165,4 +165,25 @@ func TestTokensAreFreshAndLong(t *testing.T) {
 func portOf(addr string) string {
 	_, port, _ := net.SplitHostPort(addr)
 	return port
+}
+
+func TestTheMCPRouteHasItsOwnCredentialBehindTheGuard(t *testing.T) {
+	ln, err := Listen("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	mcp := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusTeapot) })
+	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(Config{Addr: addr, Token: testToken, Dist: fstest.MapFS{}, MCP: mcp}))}
+	srv.Start()
+	defer srv.Close()
+
+	// The MCP server authenticates its sessions itself, without the API token.
+	if res := get(t, addr, "/mcp/", nil); res.StatusCode != http.StatusTeapot {
+		t.Fatalf("GET /mcp/: %s, want it to reach the MCP handler", res.Status)
+	}
+	// The guard still stands in front of it.
+	if res := get(t, addr, "/mcp/", func(r *http.Request) { r.Host = "evil.example:" + portOf(addr) }); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("GET /mcp/ with a foreign host: %s", res.Status)
+	}
 }

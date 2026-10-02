@@ -34,17 +34,32 @@ func Listen(addr string) (net.Listener, error) {
 // ErrNotLoopback is returned by Listen for an address other than 127.0.0.1.
 var ErrNotLoopback = errors.New("vuoro serves on 127.0.0.1 only")
 
-// New returns the server's handler for a server listening on addr, serving
-// the frontend from dist. Every route goes through the guard, and the API
-// needs token.
-func New(addr, token string, dist fs.FS, version string) http.Handler {
+// Config is what New serves.
+type Config struct {
+	Addr    string // the address the server listens on, 127.0.0.1:PORT
+	Token   string // the per-launch token the API requires
+	Dist    fs.FS  // the frontend
+	Version string
+	// MCP serves the drafts MCP server under /mcp/. It authenticates each
+	// agent session with a bearer token of its own, behind the same guard.
+	MCP http.Handler
+}
+
+// New returns the server's handler. Every route goes through the guard, and
+// the API needs the per-launch token.
+func New(c Config) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServerFS(dist))
+	mux.Handle("GET /", http.FileServerFS(c.Dist))
 	mux.HandleFunc("GET /api/hello", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"version": version})
+		_ = json.NewEncoder(w).Encode(map[string]string{"version": c.Version})
 	})
-	return &guard{host: addr, origin: "http://" + addr, token: []byte(token), next: mux}
+	if c.MCP != nil {
+		for _, m := range []string{"POST", "GET", "DELETE"} {
+			mux.Handle(m+" /mcp/", c.MCP)
+		}
+	}
+	return &guard{host: c.Addr, origin: "http://" + c.Addr, token: []byte(c.Token), next: mux}
 }
 
 // HTTPServer wraps h with the timeouts every vuoro server uses.

@@ -63,7 +63,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	// The per-launch token that the API requires (docs/plan.md section 5.2).
 	token := server.NewToken()
-	srv := server.HTTPServer(server.New(ln.Addr().String(), token, web.Dist(), version))
+	srv := server.HTTPServer(server.New(server.Config{Addr: ln.Addr().String(), Token: token, Dist: web.Dist(), Version: version}))
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Printf("serve: %v", err)
