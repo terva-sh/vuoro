@@ -42,6 +42,10 @@ type Preset struct {
 	// when there is more than one reviewer. Its profile is ignored. Empty
 	// means the first reviewer's tool on its default model.
 	Synthesizer *Reviewer `json:"synthesizer,omitempty"`
+	// Verifier is the tool and model that check each finding against the
+	// code and mark its confidence (D31). Its profile is ignored. Empty
+	// means the synthesizer's tool and model, or the first reviewer's.
+	Verifier *Reviewer `json:"verifier,omitempty"`
 }
 
 // Reviewer is one reviewer in a preset: a profile on a tool and a model.

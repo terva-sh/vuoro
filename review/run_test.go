@@ -190,7 +190,7 @@ func TestAReviewDraftsFindingsAndAnInvalidOneIsSentBack(t *testing.T) {
 		}
 		return "Found one problem."
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestAReviewDraftsFindingsAndAnInvalidOneIsSentBack(t *testing.T) {
 
 func TestAReviewerOnlyEverGetsTheDraftsServer(t *testing.T) {
 	m, d, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "security"}, {Profile: "documentation"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "security"}, {Profile: "documentation"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestAReviewerOnlyEverGetsTheDraftsServer(t *testing.T) {
 		t.Fatalf("%d sessions", len(d.specs))
 	}
 	for _, spec := range d.specs {
-		if spec.Drafts.Name != "vuoro" || strings.Join(spec.Drafts.Tools, ",") != strings.Join(drafts.ToolNames(), ",") {
+		if spec.Drafts.Name != "vuoro" || strings.Join(spec.Drafts.Tools, ",") != strings.Join(drafts.ToolNames(drafts.Reviewer), ",") {
 			t.Fatalf("drafts server %+v", spec.Drafts)
 		}
 		if spec.Drafts.Config["url"] != m.MCPURL {
@@ -277,13 +277,13 @@ func TestAReviewerOnlyEverGetsTheDraftsServer(t *testing.T) {
 
 func TestAnUnknownProfileOrToolIsRefused(t *testing.T) {
 	m, _, ch, src := setup(t, nil)
-	if _, err := m.Start(ch, src, []Reviewer{{Profile: "vibes"}}, nil); err == nil {
+	if _, err := m.Start(ch, src, []Reviewer{{Profile: "vibes"}}, nil, nil); err == nil {
 		t.Fatal("an unknown profile was accepted")
 	}
-	if _, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "terva"}}, nil); err == nil {
+	if _, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "terva"}}, nil, nil); err == nil {
 		t.Fatal("an unavailable tool was accepted")
 	}
-	if _, err := m.Start(ch, src, nil, nil); err == nil {
+	if _, err := m.Start(ch, src, nil, nil, nil); err == nil {
 		t.Fatal("a run with no reviewers was accepted")
 	}
 }
@@ -291,7 +291,7 @@ func TestAnUnknownProfileOrToolIsRefused(t *testing.T) {
 func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 	m, _, ch, src := setup(t, nil)
 	src.Head = strings.Repeat("0", 40)
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +307,7 @@ func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 
 func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	m, _, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
 			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
 		return "done"
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +414,7 @@ func TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem(t *testing.T) {
 		mu.Unlock()
 		return "done"
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}, {Profile: "documentation"}}, &Reviewer{})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}, {Profile: "documentation"}}, &Reviewer{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,6 +434,84 @@ func TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem(t *testing.T) {
 	}
 	if len(merged) == 0 || len(merged[0].Sources) != 2 {
 		t.Fatalf("merged %+v, synthesizer saw %s", merged, synthSaw)
+	}
+	m.Close(context.Background(), r.ID)
+}
+
+func TestAVerifierMarksEveryFindingAfterTheSynthesizerAndIsSentBackOnce(t *testing.T) {
+	var mu sync.Mutex
+	var verifierSaw []string
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		switch {
+		case strings.HasPrefix(text, "Check these"):
+			mu.Lock()
+			verifierSaw = append(verifierSaw, text)
+			mu.Unlock()
+			if _, isErr := call("propose_draft", map[string]any{"severity": "low", "title": "x", "description": "y"}); !isErr {
+				return "a verifier proposed a draft"
+			}
+			// It marks one finding and stops, so vuoro sends it back.
+			call("rate_draft", map[string]any{"id": "d3", "level": "confirmed", "reason": "calc.go:3 returns a - b"})
+			return "Marked one."
+		case strings.HasPrefix(text, "These findings have no mark yet"):
+			call("rate_draft", map[string]any{"id": "d4", "level": "doubtful", "reason": "nothing in calc.go divides"})
+			return "Marked the rest."
+		case strings.HasPrefix(text, "The reviewers have finished"):
+			call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "Both.", "sources": []string{"d1", "d2"}})
+			call("propose_draft", map[string]any{"severity": "low", "title": "Divide by zero", "description": "One.", "sources": []string{"d2"}})
+			return "Merged.\nSet aside: none"
+		}
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d"})
+		return "done"
+	})
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}, {Profile: "documentation"}}, &Reviewer{}, &Reviewer{Model: "opus"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool {
+		return len(v.Sessions) == 4 && v.Sessions[3].Status == Idle && len(v.Sessions[3].Log) >= 4
+	})
+	if s := v.Sessions[3]; s.Role != "verifier" || s.Model != "opus" {
+		t.Fatalf("verifier %+v", s)
+	}
+	marks := map[string]drafts.Level{}
+	for _, d := range v.Drafts {
+		if d.Confidence != nil {
+			marks[d.ID] = d.Confidence.Level
+		}
+	}
+	// It marked the synthesizer's two findings, not the reviewers' drafts.
+	if len(marks) != 2 || marks["d3"] != drafts.Confirmed || marks["d4"] != drafts.Doubtful {
+		t.Fatalf("marks %v", marks)
+	}
+	if len(verifierSaw) != 1 || !strings.Contains(verifierSaw[0], `<finding id="d3"`) || strings.Contains(verifierSaw[0], `<finding id="d1"`) {
+		t.Fatalf("the verifier was sent %q", verifierSaw)
+	}
+	d.mu.Lock()
+	tools := map[string]string{}
+	for i, spec := range d.specs {
+		tools[fmt.Sprint(i)] = strings.Join(spec.Drafts.Tools, ",")
+	}
+	d.mu.Unlock()
+	if tools["3"] != "list_drafts,rate_draft" || tools["2"] != "list_drafts,propose_draft,revise_draft,withdraw_draft" {
+		t.Fatalf("allowlists %v", tools)
+	}
+	// The person's mark wins, and the record keeps both.
+	if err := m.Override(r.ID, "d4", drafts.Confirmed, "seen in staging"); err != nil {
+		t.Fatal(err)
+	}
+	m2 := &Manager{StateDir: m.StateDir, Drafts: m.Drafts}
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	back := m2.Get(r.ID).View()
+	for _, d := range back.Drafts {
+		if d.ID == "d4" && (d.Override == nil || d.Override.Level != drafts.Confirmed || d.Confidence.Level != drafts.Doubtful) {
+			t.Fatalf("after a reload %+v / %+v", d.Override, d.Confidence)
+		}
+	}
+	if back.Sessions[3].Role != "verifier" {
+		t.Fatalf("reloaded role %q", back.Sessions[3].Role)
 	}
 	m.Close(context.Background(), r.ID)
 }

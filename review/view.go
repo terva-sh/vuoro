@@ -50,10 +50,7 @@ func (r *Run) View() RunView {
 		Drafts: r.store.All(),
 	}
 	for _, s := range r.sessions {
-		role := "reviewer"
-		if s.Role == drafts.Synthesizer {
-			role = "synthesizer"
-		}
+		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
 		v.Sessions = append(v.Sessions, SessionView{
 			ID: s.ID, Profile: s.Profile, Tool: s.Tool, Model: s.Model, Role: role,
@@ -66,6 +63,9 @@ func (r *Run) View() RunView {
 	}
 	return v
 }
+
+// roleNames are the roles as the view and the record name them.
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -131,13 +131,20 @@ func (m *Manager) Load() error {
 				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, Log: sv.Log,
 				Ref: rec.Resume[sv.ID],
 			}
-			if sv.Role == "synthesizer" {
-				s.Role = drafts.Synthesizer
+			for role, name := range roleNames {
+				if sv.Role == name {
+					s.Role = role
+				}
 			}
 			if s.Status == Working || s.Status == Idle || s.Status == Preparing {
 				s.Status = Ended
 			}
-			if p, ok := m.profile(s.Profile); ok {
+			switch p, ok := m.profile(s.Profile); {
+			case s.Role == drafts.Synthesizer:
+				s.spec = agent.Spec{SystemPrompt: synthesisPrompt(), Model: s.Model}
+			case s.Role == drafts.Verifier:
+				s.spec = agent.Spec{SystemPrompt: verificationPrompt(), Model: s.Model}
+			case ok:
 				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
 			}
 			r.sessions = append(r.sessions, s)

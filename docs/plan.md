@@ -407,6 +407,17 @@ A merged draft whose sources all come from one reviewer is labelled as
 raised by one reviewer. A preset's `synthesizer` names its tool and model,
 and the default is the first reviewer's tool on its default model.
 
+Every run ends with a verifier (D31). It waits until every reviewer and any
+synthesizer has reported, then gets the findings the person works from, by
+id, with the change. It reads the worktree as a reviewer does, and marks each
+finding confirmed, plausible, or doubtful (✅ ❔ ⛈), with a one-line reason,
+through `rate_draft`. That is the only thing it can write: it cannot propose,
+revise, or withdraw. When its turn ends with findings unmarked, vuoro sends it
+back once with their ids. The person can set their own mark on any finding,
+which wins, and the verifier's stays beside it. A preset's `verifier` names
+its tool and model, and the default is the synthesizer's, or else the first
+reviewer's.
+
 A run is pinned to the head SHA it reviewed. When the change moves, the run and
 its drafts show "reviewed at abc123, 2 commits behind". Nothing re-runs on its
 own.
@@ -553,13 +564,16 @@ drafts MCP server to each agent session) and held in `review/drafts`:
   the same guard as every route. It answers each request with one JSON
   response and opens no event stream.
 - Each session registers with the run and gets a bearer token of its own,
-  which says which session it is and whether it is a reviewer or the
-  synthesizer. The token reaches Claude Code in the MCP config file of mode
+  which says which session it is and whether it is a reviewer, the
+  synthesizer, or the verifier. The token reaches Claude Code in the MCP config file of mode
   0600, never in `argv`.
-- It has four tools, and none reaches a forge: `list_drafts`,
-  `propose_draft`, `revise_draft`, and `withdraw_draft`. A reviewer lists and
-  changes only its own drafts. The synthesizer lists every draft, and each
-  draft it proposes names its sources.
+- Its tools depend on the role, and none reaches a forge. A reviewer and the
+  synthesizer have `list_drafts`, `propose_draft`, `revise_draft`, and
+  `withdraw_draft`. A reviewer lists and changes only its own drafts. The
+  synthesizer lists every draft, and each draft it proposes names its
+  sources. The verifier has only `list_drafts` and `rate_draft`, and the
+  driver's allowlist is built from the same per-role list, which a test
+  holds.
 - A draft has a severity, a title, a description, optional evidence, an
   optional anchor (path, side, start and end line), and, from the synthesizer,
   sources. These follow terva-action-code-review's review-result.v1. A

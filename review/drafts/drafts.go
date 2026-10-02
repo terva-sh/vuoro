@@ -4,7 +4,8 @@
 // It is an agent's only write path, and what it writes is a pending draft,
 // never a forge. Posting is the person's act, elsewhere. A reviewer sees and
 // changes only its own drafts. A synthesizer lists every session's drafts and
-// proposes merged ones, which name the drafts they came from.
+// proposes merged ones, which name the drafts they came from. A verifier
+// lists them too, and marks each one's confidence, which is all it can do.
 //
 // The finding shape and the rule-naming errors follow
 // terva-action-code-review's review-result.v1 (docs/research.md).
@@ -64,12 +65,35 @@ type Draft struct {
 	// Decision is the person's, never an agent's: "kept" made it a pending
 	// comment on the forge, NoteID, and "dropped" set it aside. Once decided,
 	// the agent can no longer change it.
-	Decision string    `json:"decision,omitempty"`
-	NoteID   string    `json:"note_id,omitempty"`
-	Edited   bool      `json:"edited,omitempty"` // the person changed the text before keeping it
-	Session  string    `json:"session"`          // the session that drafted it
-	Drafted  string    `json:"drafted_by"`       // the tool and model, as the person sees them
-	Updated  time.Time `json:"updated"`
+	Decision string `json:"decision,omitempty"`
+	NoteID   string `json:"note_id,omitempty"`
+	Edited   bool   `json:"edited,omitempty"` // the person changed the text before keeping it
+	// Confidence is the verifier's mark, and Override the person's, which
+	// wins. The verifier's stays beside it, so the person can see both.
+	Confidence *Confidence `json:"confidence,omitempty"`
+	Override   *Confidence `json:"override,omitempty"`
+	Session    string      `json:"session"`    // the session that drafted it
+	Drafted    string      `json:"drafted_by"` // the tool and model, as the person sees them
+	Updated    time.Time   `json:"updated"`
+}
+
+// Level is how far a finding held up when it was checked against the code.
+type Level string
+
+const (
+	Confirmed Level = "confirmed" // the code shows it
+	Plausible Level = "plausible" // it may hold, and the code does not settle it
+	Doubtful  Level = "doubtful"  // the code argues against it
+)
+
+var levels = []Level{Confirmed, Plausible, Doubtful}
+
+// Confidence is a mark on a finding, with the one-line reason for it.
+type Confidence struct {
+	Level  Level     `json:"level"`
+	Reason string    `json:"reason,omitempty"`
+	By     string    `json:"by"` // the session that marked it, or "person"
+	At     time.Time `json:"at"`
 }
 
 // Proposal is what an agent sends to propose or revise a draft.
@@ -88,6 +112,7 @@ type Role int
 const (
 	Reviewer    Role = iota + 1 // its own drafts only
 	Synthesizer                 // lists every draft; its proposals name sources
+	Verifier                    // lists every draft, and only marks confidence
 )
 
 // Session is an agent session as the store knows it.
@@ -110,9 +135,10 @@ func (e *RuleError) Error() string {
 }
 
 const (
-	maxTitle = 256
-	maxText  = 20000
-	maxLine  = 1_000_000
+	maxReason = 512
+	maxTitle  = 256
+	maxText   = 20000
+	maxLine   = 1_000_000
 )
 
 // Validate checks a proposal from a session of the given role.
@@ -197,6 +223,9 @@ func Restore(drafts []Draft) *Store {
 
 // Propose validates p and adds it as a pending draft by s.
 func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
+	if s.Role == Verifier {
+		return Draft{}, roleErr
+	}
 	if err := st.validate(p, s.Role); err != nil {
 		return Draft{}, err
 	}
@@ -217,6 +246,9 @@ func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 
 // Revise replaces the content of one of s's own pending drafts.
 func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
+	if s.Role == Verifier {
+		return Draft{}, roleErr
+	}
 	if err := st.validate(p, s.Role); err != nil {
 		return Draft{}, err
 	}
@@ -255,6 +287,9 @@ func (st *Store) validate(p Proposal, role Role) error {
 // Withdraw marks one of s's own pending drafts as withdrawn. It stays in the
 // store, so the person can see what was set aside.
 func (st *Store) Withdraw(s Session, id string) (Draft, error) {
+	if s.Role == Verifier {
+		return Draft{}, roleErr
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	d, err := st.own(s, id)
@@ -265,6 +300,68 @@ func (st *Store) Withdraw(s Session, id string) (Draft, error) {
 	d.Revision++
 	d.Updated = st.now()
 	return *d, nil
+}
+
+// roleErr refuses a verifier anything but marking.
+var roleErr = &RuleError{"role.verifier", "name", "a verifier only lists drafts and rates them"}
+
+// Rate records a verifier's mark on a pending draft. It changes nothing the
+// person reads as the finding, so it does not count as a revision, and a
+// decided draft can still be rated.
+func (st *Store) Rate(s Session, id string, level Level, reason string) (Draft, error) {
+	reason = strings.TrimSpace(reason)
+	switch {
+	case s.Role != Verifier:
+		return Draft{}, &RuleError{"rate.role", "name", "only the verifier rates drafts"}
+	case !slices.Contains(levels, level):
+		return Draft{}, &RuleError{"confidence.level", "level", "one of confirmed, plausible, doubtful"}
+	case reason == "":
+		return Draft{}, &RuleError{"confidence.reason", "reason", "a one-line reason that is not blank"}
+	case strings.ContainsAny(reason, "\r\n"):
+		return Draft{}, &RuleError{"confidence.reason", "reason", "one line"}
+	case len(reason) > maxReason:
+		return Draft{}, &RuleError{"confidence.reason", "reason", fmt.Sprintf("at most %d bytes", maxReason)}
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	d := st.find(id)
+	switch {
+	case d == nil:
+		return Draft{}, &RuleError{"draft.unknown", "id", "the id of a draft in this run"}
+	case d.Status != Pending:
+		return Draft{}, &RuleError{"draft.withdrawn", "id", "a draft that is still pending"}
+	}
+	d.Confidence = &Confidence{Level: level, Reason: reason, By: s.ID, At: st.now()}
+	return *d, nil
+}
+
+// Override records the person's own mark on a draft, which wins over the
+// verifier's. An empty level takes the person's mark away. Like Decide, it
+// is vuoro's call, made from the UI, and no MCP tool reaches it.
+func (st *Store) Override(id string, level Level, reason string) (Draft, error) {
+	if level != "" && !slices.Contains(levels, level) {
+		return Draft{}, fmt.Errorf("drafts: %q is not a confidence level", level)
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	d := st.find(id)
+	if d == nil {
+		return Draft{}, fmt.Errorf("drafts: no draft %s", id)
+	}
+	d.Override = nil
+	if level != "" {
+		d.Override = &Confidence{Level: level, Reason: strings.TrimSpace(reason), By: "person", At: st.now()}
+	}
+	return *d, nil
+}
+
+func (st *Store) find(id string) *Draft {
+	for _, d := range st.drafts {
+		if d.ID == id {
+			return d
+		}
+	}
+	return nil
 }
 
 // Kept and Dropped are the person's decisions on a draft.
@@ -308,13 +405,13 @@ func (st *Store) Get(id string) (Draft, bool) {
 }
 
 // List returns the drafts s may see: a reviewer's own, or every draft for a
-// synthesizer. Withdrawn drafts are left out unless withdrawn is set.
+// synthesizer or a verifier. Withdrawn drafts are left out unless withdrawn is set.
 func (st *Store) List(s Session, withdrawn bool) []Draft {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	var out []Draft
 	for _, d := range st.drafts {
-		if s.Role != Synthesizer && d.Session != s.ID {
+		if s.Role == Reviewer && d.Session != s.ID {
 			continue
 		}
 		if d.Status == Withdrawn && !withdrawn {

@@ -155,3 +155,47 @@ func TestASynthesizerMergesDraftsAndNamesItsSources(t *testing.T) {
 		t.Fatalf("all %+v", got)
 	}
 }
+
+func TestAPersonsMarkWinsAndTheVerifiersStaysBesideIt(t *testing.T) {
+	st := NewStore()
+	v := Session{ID: "v", Role: Verifier}
+	d, _ := st.Propose(alice, Proposal{Severity: "low", Title: "t", Description: "d"})
+	if _, err := st.Rate(alice, d.ID, Confirmed, "r"); err == nil {
+		t.Fatal("a reviewer rated")
+	}
+	for _, bad := range []string{"", "  ", "two\nlines"} {
+		if _, err := st.Rate(v, d.ID, Doubtful, bad); err == nil {
+			t.Fatalf("reason %q was taken", bad)
+		}
+	}
+	if _, err := st.Rate(v, d.ID, Doubtful, "the guard on line 4 already handles it"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Override(d.ID, Confirmed, "I hit it in staging"); err != nil {
+		t.Fatal(err)
+	}
+	// The verifier rating again changes its own mark, never the person's.
+	st.Rate(v, d.ID, Plausible, "on a second look")
+	got, _ := st.Get(d.ID)
+	if got.Override == nil || got.Override.Level != Confirmed || got.Override.By != "person" || got.Confidence.Level != Plausible {
+		t.Fatalf("override %+v, mark %+v", got.Override, got.Confidence)
+	}
+	// It outlives a restart.
+	back, _ := Restore(st.All()).Get(d.ID)
+	if back.Override == nil || back.Override.Level != Confirmed {
+		t.Fatalf("restored %+v", back.Override)
+	}
+	if _, err := st.Override(d.ID, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.Get(d.ID); got.Override != nil {
+		t.Fatal("the override was not taken back")
+	}
+	if _, err := st.Override(d.ID, "certain", ""); err == nil {
+		t.Fatal("a bad level was taken")
+	}
+	st.Withdraw(alice, d.ID)
+	if _, err := st.Rate(v, d.ID, Confirmed, "r"); err == nil {
+		t.Fatal("a withdrawn draft was rated")
+	}
+}

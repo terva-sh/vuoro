@@ -19,8 +19,8 @@ import (
 // cannot act as another session or as the synthesizer.
 //
 // It answers each request with one JSON response and opens no event stream,
-// which the transport allows. Its only tools are the four below. None of them
-// reaches a forge.
+// which the transport allows. Its only tools are the ones Tools lists for a
+// session's role. None of them reaches a forge.
 type Server struct {
 	mu       sync.Mutex
 	sessions map[[32]byte]entry // by the SHA-256 of the bearer token
@@ -165,15 +165,39 @@ func (e entry) dispatch(req rpcRequest) (any, *rpcError) {
 }
 
 func instructions(role Role) string {
+	if role == Verifier {
+		return "You check the findings other agents drafted. list_drafts shows them. Mark each one with rate_draft: confirmed, plausible, or doubtful, with a one-line reason. You cannot propose, change, or withdraw a draft."
+	}
 	if role == Synthesizer {
 		return "You merge the reviewers' drafts. list_drafts shows every session's drafts. Propose each merged draft with the ids of the drafts it merges as sources, and keep a finding only one reviewer raised. Nothing you draft is posted until the person posts it."
 	}
 	return "Record each finding as a pending draft with propose_draft. You can revise or withdraw your own drafts. Nothing you draft is posted until the person posts it."
 }
 
-// Tools lists the server's tools for a session of the given role. There are
-// four, and none reaches a forge.
+// Tools lists the server's tools for a session of the given role. A
+// reviewer and a synthesizer list, propose, revise, and withdraw. A verifier
+// lists and rates, and nothing else. None reaches a forge.
 func Tools(role Role) []map[string]any {
+	list := map[string]any{
+		"name":        "list_drafts",
+		"description": "List the pending drafts this session can see.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"include_withdrawn": map[string]any{"type": "boolean"},
+		}},
+		"annotations": map[string]any{"readOnlyHint": true},
+	}
+	if role == Verifier {
+		return []map[string]any{list, {
+			"name":        "rate_draft",
+			"description": "Mark how far a draft held up against the code: confirmed, plausible, or doubtful, with a one-line reason. Rating again replaces your mark.",
+			"inputSchema": map[string]any{"type": "object", "required": []string{"id", "level", "reason"}, "properties": map[string]any{
+				"id":     map[string]any{"type": "string"},
+				"level":  map[string]any{"type": "string", "enum": levels},
+				"reason": map[string]any{"type": "string", "description": "One line, at most 512 bytes: what in the code settles it."},
+			}},
+			"annotations": map[string]any{"readOnlyHint": false, "destructiveHint": false},
+		}}
+	}
 	proposal := map[string]any{
 		"severity":    map[string]any{"type": "string", "enum": severities},
 		"title":       map[string]any{"type": "string", "description": "One line, at most 256 bytes."},
@@ -204,14 +228,7 @@ func Tools(role Role) []map[string]any {
 		return out
 	}
 	return []map[string]any{
-		{
-			"name":        "list_drafts",
-			"description": "List the pending drafts this session can see.",
-			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
-				"include_withdrawn": map[string]any{"type": "boolean"},
-			}},
-			"annotations": map[string]any{"readOnlyHint": true},
-		},
+		list,
 		{
 			"name":        "propose_draft",
 			"description": "Propose a pending review comment. The person reads it before anything is posted.",
@@ -233,13 +250,20 @@ func Tools(role Role) []map[string]any {
 	}
 }
 
-// ToolNames lists the tool names, for a driver's allowlist.
-func ToolNames() []string {
-	return []string{"list_drafts", "propose_draft", "revise_draft", "withdraw_draft"}
+// ToolNames lists the tool names for a role, for a driver's allowlist.
+func ToolNames(role Role) []string {
+	var out []string
+	for _, t := range Tools(role) {
+		out = append(out, t["name"].(string))
+	}
+	return out
 }
 
 func (e entry) call(name string, args json.RawMessage) map[string]any {
 	sess := e.sess
+	if !slices.Contains(ToolNames(sess.Role), name) {
+		return toolResult((&RuleError{"tool.unknown", "name", "one of " + strings.Join(ToolNames(sess.Role), ", ")}).Error(), true)
+	}
 	if len(args) == 0 {
 		args = json.RawMessage("{}")
 	}
@@ -279,8 +303,15 @@ func (e entry) call(name string, args json.RawMessage) map[string]any {
 		if err = strictUnmarshal(args, &p); err == nil {
 			out, err = e.store.Withdraw(sess, p.ID)
 		}
-	default:
-		err = &RuleError{"tool.unknown", "name", "one of " + strings.Join(ToolNames(), ", ")}
+	case "rate_draft":
+		var p struct {
+			ID     string `json:"id"`
+			Level  Level  `json:"level"`
+			Reason string `json:"reason"`
+		}
+		if err = strictUnmarshal(args, &p); err == nil {
+			out, err = e.store.Rate(sess, p.ID, p.Level, p.Reason)
+		}
 	}
 	if err != nil {
 		var re *RuleError

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
 import { DraftCard } from './diffview'
-import type { Change, Draft, Entry, Run, Session, Setup } from './types'
+import type { Change, Draft, Entry, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
-import { ago, Prose, SeverityBadge, short, StatusBadge, usd } from './ui'
+import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, short, StatusBadge, usd } from './ui'
 
 // usePoll reads a run, quickly while anything works and slowly otherwise.
 function usePoll(id: string | undefined, onRun: (r: Run) => void) {
@@ -113,12 +113,14 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} change={change} onClose={close} onPick={onPick} />}
+      {run && <RunView run={run} change={change} onClose={close} onPick={onPick} onRun={setRun} />}
     </div>
   )
 }
 
-function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; onClose: () => void; onPick: (path: string) => void }) {
+function RunView({ run, change, onClose, onPick, onRun }: {
+  run: Run; change: Change; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
+}) {
   const moved = run.head !== change.diff.head
   // A pane opens while its session works, and the person can fold or open
   // any of them.
@@ -127,6 +129,8 @@ function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; o
   const shown = shownDrafts(run)
   const kept = shown.filter((d) => d.decision === 'kept').length
   const dropped = shown.filter((d) => d.decision === 'dropped').length
+  const marked = (l: Level) => shown.filter((d) => (d.override ?? d.confidence)?.level === l).length
+  const unchecked = shown.filter((d) => !(d.override ?? d.confidence)).length
   return (
     <div class="run">
       <div class="run-head">
@@ -156,9 +160,15 @@ function RunView({ run, change, onClose, onPick }: { run: Run; change: Change; o
         <span>✓ {kept} kept</span>
         <span>✗ {dropped} dropped</span>
         <span>○ {shown.length - kept - dropped} to decide</span>
+        {run.sessions.some((s) => s.role === 'verifier') && (
+          <span class="muted">
+            {(['confirmed', 'plausible', 'doubtful'] as Level[]).map((l) => `${levelMark[l]} ${marked(l)} ${l}`).join(' · ')}
+            {unchecked > 0 && ` · ${unchecked} not checked yet`}
+          </span>
+        )}
         <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
       </div>
-      <Drafts run={run} onPick={onPick} />
+      <Drafts run={run} onPick={onPick} onRun={onRun} />
     </div>
   )
 }
@@ -183,7 +193,7 @@ export function sourceLabel(d: Draft, byID: Map<string, Draft>, profile: Map<str
 
 const severityOrder = ['critical', 'high', 'medium', 'low', 'info']
 
-function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
+function Drafts({ run, onPick, onRun }: { run: Run; onPick: (path: string) => void; onRun: (r: Run) => void }) {
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
   const profile = new Map(run.sessions.map((s) => [s.id, s.profile]))
   const shown = [...shownDrafts(run)].sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity))
@@ -197,7 +207,8 @@ function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
     <>
       <div class="findings">
         {shown.map((d) => (
-          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)}
+          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)} onRun={onRun}
+            checking={run.sessions.some((s) => s.role === 'verifier' && (s.status === 'waiting' || s.status === 'working' || s.status === 'preparing'))}
             from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
             sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
             profile={profile} />
@@ -217,20 +228,24 @@ function Drafts({ run, onPick }: { run: Run; onPick: (path: string) => void }) {
 }
 
 // Finding is one row of the findings list, opened in place.
-function Finding({ draft: d, runID, onPick, from, sources, profile }: {
-  draft: Draft; runID: string; onPick?: () => void; from: string; sources: Draft[]; profile: Map<string, string>
+function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, profile }: {
+  draft: Draft; runID: string; onPick?: () => void; onRun: (r: Run) => void; checking: boolean
+  from: string; sources: Draft[]; profile: Map<string, string>
 }) {
+  const mark = d.override ?? d.confidence
   const a = d.anchor
   const decided = d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? '✗ dropped' : ''
   return (
     <details class={`finding ${d.decision ?? 'open'}`}>
       <summary>
         <SeverityBadge severity={d.severity} />
+        {mark ? <ConfidenceBadge c={mark} mine={!!d.override} /> : <span class="badge muted">{checking ? '⧗ checking' : '· not checked'}</span>}
         <span class="finding-title">{d.title}</span>
         {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
         {decided && <span class="badge">{decided}</span>}
       </summary>
       <div class="finding-body">
+        <Marks draft={d} runID={runID} onRun={onRun} checking={checking} />
         <DraftCard draft={d} runID={runID} onPick={onPick} label={from} compact />
         {sources.length > 1 && (
           <details class="sources">
@@ -240,6 +255,35 @@ function Finding({ draft: d, runID, onPick, from, sources, profile }: {
         )}
       </div>
     </details>
+  )
+}
+
+// Marks shows the verifier's mark and its reason, and lets the person set
+// their own, which wins and stays beside the verifier's.
+function Marks({ draft: d, runID, onRun, checking }: { draft: Draft; runID: string; onRun: (r: Run) => void; checking: boolean }) {
+  const [error, setError] = useState<string>()
+  const set = (level: Level | '') =>
+    post<Run>(`/api/runs/${runID}/drafts/${d.id}/confidence`, { level }).then(onRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  return (
+    <div class="marks">
+      <div>
+        <span class="muted">Verifier: </span>
+        {d.confidence ? (
+          <><ConfidenceBadge c={d.confidence} /> {d.confidence.reason}</>
+        ) : (
+          <span class="muted">{checking ? 'not reached yet' : 'no mark'}</span>
+        )}
+      </div>
+      <div class="mark-buttons">
+        <span class="muted">Your mark: </span>
+        {(['confirmed', 'plausible', 'doubtful'] as Level[]).map((l) => (
+          <button key={l} aria-pressed={d.override?.level === l} class={d.override?.level === l ? 'on' : ''}
+            onClick={() => void set(d.override?.level === l ? '' : l)}>{levelMark[l]} {l}</button>
+        ))}
+        {d.override && <button class="link" onClick={() => void set('')}>use the verifier's</button>}
+      </div>
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+    </div>
   )
 }
 

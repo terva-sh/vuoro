@@ -47,7 +47,7 @@ func TestLive(t *testing.T) {
 		Refspecs: []string{"+refs/merge-requests/3991/head:refs/vuoro/mr/3991", "+refs/heads/main:refs/vuoro/target/main"},
 		Head:     ch.Diff.Head, Base: ch.Diff.Base,
 	}
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Model: "haiku"}}, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Model: "haiku"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

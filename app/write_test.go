@@ -166,7 +166,7 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	}
 	remote, sha := localRemote(t)
 	run, err := a.Runs.Start(ch, review.Source{Remote: remote, Key: "fake/cli", Head: sha,
-		Refspecs: []string{"+refs/heads/main:refs/vuoro/head"}}, []review.Reviewer{{Profile: "code"}}, nil)
+		Refspecs: []string{"+refs/heads/main:refs/vuoro/head"}}, []review.Reviewer{{Profile: "code"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

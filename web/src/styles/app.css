@@ -231,3 +231,10 @@ main { padding: var(--ui-space-4); }
 .modal li + li { margin-top: var(--ui-space-1); }
 .modal .waive { display: block; color: var(--ui-muted); margin-bottom: var(--ui-space-3); }
 .modal .actions { display: flex; justify-content: flex-end; gap: var(--ui-space-2); }
+
+/* Confidence marks: an emoji and a word, never colour alone. */
+.marks { display: flex; flex-direction: column; gap: var(--ui-space-1); padding: var(--ui-space-2) 0; border-bottom: 1px solid var(--ui-line); }
+.mark-buttons { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); align-items: center; }
+.mark-buttons button.on { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
+.badge.confidence-doubtful { border-color: var(--ui-line-strong); }
+.finding .badge.muted { color: var(--ui-muted); }

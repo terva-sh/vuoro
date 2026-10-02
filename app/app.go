@@ -23,6 +23,7 @@ import (
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/gitlab"
 	"github.com/terva-sh/vuoro/review"
+	"github.com/terva-sh/vuoro/review/drafts"
 )
 
 // App holds what the API serves.
@@ -65,6 +66,7 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/setup", a.setup)
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
 	mux.HandleFunc("POST /api/changes", a.openChange)
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
@@ -258,12 +260,13 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Preset      string            `json:"preset,omitempty"`
 		Reviewers   []review.Reviewer `json:"reviewers,omitempty"`
 		Synthesizer *review.Reviewer  `json:"synthesizer,omitempty"`
+		Verifier    *review.Reviewer  `json:"verifier,omitempty"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
 	a.probeTools()
-	reviewers, synth := req.Reviewers, req.Synthesizer
+	reviewers, synth, verifier := req.Reviewers, req.Synthesizer, req.Verifier
 	if len(reviewers) == 0 {
 		name := req.Preset
 		ps := a.presets()
@@ -278,6 +281,10 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 				if p.Synthesizer != nil {
 					s := review.Reviewer(*p.Synthesizer)
 					synth = &s
+				}
+				if p.Verifier != nil {
+					v := review.Reviewer(*p.Verifier)
+					verifier = &v
 				}
 			}
 		}
@@ -304,7 +311,16 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	if len(reviewers) < 2 {
 		synth = nil
 	}
-	run, err := a.Runs.Start(ch, src, reviewers, synth)
+	// Every run checks its findings (D31), by default on the model that
+	// merged them, or else the one that drafted them.
+	if verifier == nil {
+		from := reviewers[0]
+		if synth != nil {
+			from = *synth
+		}
+		verifier = &review.Reviewer{Tool: from.Tool, Model: from.Model}
+	}
+	run, err := a.Runs.Start(ch, src, reviewers, synth, verifier)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -335,6 +351,24 @@ func (a *App) getRun(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) closeRun(w http.ResponseWriter, r *http.Request) {
 	if err := a.Runs.Close(r.Context(), r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	a.getRun(w, r)
+}
+
+// overrideConfidence records the person's own mark on a finding, which wins
+// over the verifier's, or takes it back with an empty level. It changes
+// vuoro's state only, never the forge.
+func (a *App) overrideConfidence(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Level  drafts.Level `json:"level"`
+		Reason string       `json:"reason,omitempty"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if err := a.Runs.Override(r.PathValue("id"), r.PathValue("did"), req.Level, req.Reason); err != nil {
 		writeError(w, err)
 		return
 	}

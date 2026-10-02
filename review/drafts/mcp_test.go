@@ -52,9 +52,14 @@ func setup(t *testing.T) (*Store, *Server, string) {
 	return st, srv, hs.URL + "/mcp"
 }
 
-func TestTheServerExposesOnlyDraftTools(t *testing.T) {
+func TestEachRoleListsOnlyItsOwnTools(t *testing.T) {
 	st, srv, url := setup(t)
-	for _, role := range []Role{Reviewer, Synthesizer} {
+	edit := []string{"list_drafts", "propose_draft", "revise_draft", "withdraw_draft"}
+	for role, want := range map[Role][]string{
+		Reviewer:    edit,
+		Synthesizer: edit,
+		Verifier:    {"list_drafts", "rate_draft"},
+	} {
 		tok := srv.Register(st, Session{ID: "s", Role: role})
 		_, out := rpc(t, url, tok, "tools/list", nil)
 		var names []string
@@ -62,9 +67,11 @@ func TestTheServerExposesOnlyDraftTools(t *testing.T) {
 			names = append(names, tool.(map[string]any)["name"].(string))
 		}
 		slices.Sort(names)
-		want := []string{"list_drafts", "propose_draft", "revise_draft", "withdraw_draft"}
 		if !slices.Equal(names, want) {
 			t.Fatalf("role %d tools %q, want exactly %q", role, names, want)
+		}
+		if got := slices.Sorted(slices.Values(ToolNames(role))); !slices.Equal(got, want) {
+			t.Fatalf("role %d allowlist %q, want %q", role, got, want)
 		}
 		for _, n := range names {
 			for _, forge := range []string{"post", "publish", "submit", "approve", "merge", "comment", "push"} {
@@ -73,6 +80,31 @@ func TestTheServerExposesOnlyDraftTools(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestOverMCPOnlyAVerifierRatesAndAVerifierOnlyRates(t *testing.T) {
+	st, srv, url := setup(t)
+	ta, tv := srv.Register(st, alice), srv.Register(st, Session{ID: "v", Role: Verifier, Drafted: "Claude Code · opus"})
+	text, isErr := callTool(t, url, ta, "propose_draft", map[string]any{"severity": "high", "title": "x", "description": "y"})
+	if isErr {
+		t.Fatal(text)
+	}
+	if text, isErr := callTool(t, url, ta, "rate_draft", map[string]any{"id": "d1", "level": "confirmed", "reason": "mine"}); !isErr || !strings.Contains(text, "tool.unknown") {
+		t.Fatalf("a reviewer rated: %q", text)
+	}
+	if text, isErr := callTool(t, url, tv, "propose_draft", map[string]any{"severity": "high", "title": "x", "description": "y"}); !isErr || !strings.Contains(text, "tool.unknown") {
+		t.Fatalf("a verifier proposed: %q", text)
+	}
+	if text, isErr := callTool(t, url, tv, "rate_draft", map[string]any{"id": "d1", "level": "sure", "reason": "r"}); !isErr || !strings.Contains(text, "confidence.level") {
+		t.Fatalf("a bad level: %q", text)
+	}
+	if text, isErr := callTool(t, url, tv, "rate_draft", map[string]any{"id": "d1", "level": "confirmed", "reason": "calc.go:9 divides by n unchecked"}); isErr {
+		t.Fatal(text)
+	}
+	d, _ := st.Get("d1")
+	if d.Confidence == nil || d.Confidence.Level != Confirmed || d.Confidence.By != "v" || d.Revision != 1 {
+		t.Fatalf("mark %+v, revision %d", d.Confidence, d.Revision)
 	}
 }
 

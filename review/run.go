@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,7 +57,7 @@ const (
 	Ended     Status = "ended"     // the tool's process ended; it can be resumed
 	Failed    Status = "failed"
 	Closed    Status = "closed"
-	Waiting   Status = "waiting" // the synthesizer, until every reviewer has reported
+	Waiting   Status = "waiting" // a later stage, until the one before it has reported
 )
 
 // Run is one review of one change at one head.
@@ -103,6 +104,9 @@ type Session struct {
 	spec   agent.Spec
 	// reported is set when the session's first turn ends, however it ends.
 	reported bool
+	// nudged is set once a verifier has been sent back for findings it
+	// left unmarked, so it is sent back once at most.
+	nudged bool
 }
 
 // Entry is one line of a session's transcript, as the person reads it.
@@ -123,8 +127,10 @@ const maxToolText = 4 << 10
 // Start begins a review of ch. It returns once the run exists, and checks
 // out the worktree and starts the reviewers in the background. With synth
 // set, a synthesizer on that tool and model merges the reviewers' drafts once
-// every reviewer has reported; its Profile is ignored.
-func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synth *Reviewer) (*Run, error) {
+// every reviewer has reported. With verifier set, a verifier marks each
+// finding the person works from once the reviewers and any synthesizer have
+// reported (D31). The Profile of either is ignored.
+func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synth, verifier *Reviewer) (*Run, error) {
 	if len(reviewers) == 0 {
 		return nil, errors.New("review: a run needs at least one reviewer")
 	}
@@ -153,6 +159,17 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 			ID: fmt.Sprintf("s%d", len(sessions)+1), Profile: "synthesis", Tool: name, Model: synth.Model,
 			Role: drafts.Synthesizer, Status: Waiting, driver: d,
 			spec: agent.Spec{SystemPrompt: synthesisPrompt(), Model: synth.Model},
+		})
+	}
+	if verifier != nil {
+		name, d, err := m.driver(verifier.Tool)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, &Session{
+			ID: fmt.Sprintf("s%d", len(sessions)+1), Profile: "verification", Tool: name, Model: verifier.Model,
+			Role: drafts.Verifier, Status: Waiting, driver: d,
+			spec: agent.Spec{SystemPrompt: verificationPrompt(), Model: verifier.Model},
 		})
 	}
 
@@ -209,40 +226,86 @@ func (m *Manager) begin(r *Run, s *Session, first string) {
 	if err := m.launch(r, s, ""); err != nil {
 		r.mu.Lock()
 		s.reported = true
-		synth := r.readyToSynthesize()
+		next := r.ready()
 		r.mu.Unlock()
-		m.synthesize(r, synth)
+		m.advance(r, next)
 		return
 	}
 	m.send(r, s, first, false)
 }
 
-// readyToSynthesize returns the waiting synthesizer once every reviewer has
-// reported, and marks it started. r.mu is held.
-func (r *Run) readyToSynthesize() *Session {
-	var synth *Session
+// ready returns the waiting sessions whose stage has come, and marks them
+// started. A synthesizer waits for every reviewer to report, and a verifier
+// for every reviewer and synthesizer. r.mu is held.
+func (r *Run) ready() []*Session {
+	reviewing, synthesizing := false, false
 	for _, s := range r.sessions {
-		switch {
-		case s.Role == drafts.Synthesizer && s.Status == Waiting:
-			synth = s
-		case s.Role == drafts.Reviewer && !s.reported:
-			return nil
+		if !s.reported {
+			reviewing = reviewing || s.Role == drafts.Reviewer
+			synthesizing = synthesizing || s.Role == drafts.Synthesizer
 		}
 	}
-	if synth != nil {
-		synth.Status = Preparing
+	var out []*Session
+	for _, s := range r.sessions {
+		if s.Status != Waiting {
+			continue
+		}
+		if s.Role == drafts.Synthesizer && !reviewing || s.Role == drafts.Verifier && !reviewing && !synthesizing {
+			s.Status = Preparing
+			out = append(out, s)
+		}
 	}
-	return synth
+	return out
 }
 
-func (m *Manager) synthesize(r *Run, synth *Session) {
-	if synth == nil {
-		return
+// advance starts the sessions whose stage has come.
+func (m *Manager) advance(r *Run, next []*Session) {
+	for _, s := range next {
+		r.mu.Lock()
+		text := synthesisMessage(r)
+		if s.Role == drafts.Verifier {
+			text = verificationMessage(r)
+		}
+		r.mu.Unlock()
+		go m.begin(r, s, text)
 	}
-	r.mu.Lock()
-	text := synthesisMessage(r)
-	r.mu.Unlock()
-	go m.begin(r, synth, text)
+}
+
+// shown are the findings the person works from: the synthesizer's drafts when
+// it drafted any, and otherwise every pending draft. The UI picks the same.
+// r.mu is held.
+func (r *Run) shown() []drafts.Draft {
+	synth := map[string]bool{}
+	for _, s := range r.sessions {
+		if s.Role == drafts.Synthesizer {
+			synth[s.ID] = true
+		}
+	}
+	var pending, merged []drafts.Draft
+	for _, d := range r.store.All() {
+		if d.Status != drafts.Pending {
+			continue
+		}
+		pending = append(pending, d)
+		if synth[d.Session] {
+			merged = append(merged, d)
+		}
+	}
+	if len(merged) > 0 {
+		return merged
+	}
+	return pending
+}
+
+// unmarked are the shown findings no verifier has marked. r.mu is held.
+func (r *Run) unmarked() []string {
+	var ids []string
+	for _, d := range r.shown() {
+		if d.Confidence == nil {
+			ids = append(ids, d.ID)
+		}
+	}
+	return ids
 }
 
 // launch starts s's tool, fresh or resumed from resume.
@@ -270,7 +333,7 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 			"url":     m.MCPURL,
 			"headers": map[string]string{"Authorization": "Bearer " + s.token},
 		},
-		Tools: drafts.ToolNames(),
+		Tools: drafts.ToolNames(s.Role),
 	}
 	r.mu.Unlock()
 
@@ -345,9 +408,10 @@ func (m *Manager) send(r *Run, s *Session, text string, fromPerson bool) error {
 
 // pump records a session's events until its process ends.
 func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
-	var synth *Session
+	var next []*Session
 	for ev := range live.Events() {
 		save := false
+		nudge := ""
 		r.mu.Lock()
 		at := ev.At
 		if at.IsZero() {
@@ -387,7 +451,12 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 				s.Log = append(s.Log, Entry{Kind: "error", Text: ev.Err.Error(), At: at})
 			}
 			s.reported = true
-			synth = r.readyToSynthesize()
+			next = r.ready()
+			// A verifier that stopped short is sent back once for the rest.
+			if missing := r.unmarked(); s.Role == drafts.Verifier && !s.nudged && !ev.Cancelled && len(missing) > 0 {
+				s.nudged = true
+				nudge = "These findings have no mark yet. Check each against the code and mark it with rate_draft: " + strings.Join(missing, ", ")
+			}
 			r.settle()
 			save = true
 		}
@@ -395,8 +464,11 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		if save {
 			r.save()
 		}
-		m.synthesize(r, synth)
-		synth = nil
+		m.advance(r, next)
+		next = nil
+		if nudge != "" {
+			go m.send(r, s, nudge, false)
+		}
 	}
 	r.mu.Lock()
 	if s.live == live {
@@ -406,11 +478,11 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		}
 	}
 	s.reported = true
-	synth = r.readyToSynthesize()
+	next = r.ready()
 	r.settle()
 	r.mu.Unlock()
 	r.save()
-	m.synthesize(r, synth)
+	m.advance(r, next)
 }
 
 // settle sets the run's status from its sessions'. r.mu is held.
@@ -493,6 +565,20 @@ func (m *Manager) Decide(runID, id, decision, noteID string, edited bool) error 
 		return ErrNoRun
 	}
 	if _, err := r.store.Decide(id, decision, noteID, edited); err != nil {
+		return err
+	}
+	r.save()
+	return nil
+}
+
+// Override records the person's own confidence mark on one of a run's
+// drafts, or with an empty level takes it back.
+func (m *Manager) Override(runID, id string, level drafts.Level, reason string) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	if _, err := r.store.Override(id, level, reason); err != nil {
 		return err
 	}
 	r.save()

@@ -49,7 +49,7 @@ func TestLiveClaude(t *testing.T) {
 		Drafts: &agent.MCPServer{
 			Name:   "vuoro",
 			Config: map[string]any{"type": "http", "url": "http://" + addr + "/mcp/", "headers": map[string]string{"Authorization": "Bearer " + bearer}},
-			Tools:  ToolNames(),
+			Tools:  ToolNames(Reviewer),
 		},
 	})
 	if err != nil {

@@ -44,7 +44,12 @@ export interface Draft {
   anchor?: DraftAnchor; sources?: string[]
   status: 'pending' | 'withdrawn'; revision: number; session: string; drafted_by: string; updated: string
   decision?: 'kept' | 'dropped'; note_id?: string; edited?: boolean
+  confidence?: Confidence // the verifier's mark
+  override?: Confidence // the person's, which wins
 }
+
+export type Level = 'confirmed' | 'plausible' | 'doubtful'
+export interface Confidence { level: Level; reason?: string; by: string; at: string }
 
 export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed' | 'waiting'
 
@@ -55,7 +60,7 @@ export interface Entry {
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; cost_usd: number }
 export interface SessionInfo { tool: string; version: string; model: string; account: string; tools: string[] }
 export interface Session {
-  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer'
+  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier'
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {

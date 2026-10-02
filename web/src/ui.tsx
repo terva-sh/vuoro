@@ -2,7 +2,7 @@
 // status and severity also has a symbol and a word.
 import type { ComponentChildren } from 'preact'
 import { Markdown } from './markdown'
-import type { Severity, Status } from './types'
+import type { Confidence, Level, Severity, Status } from './types'
 
 const statusMark: Record<Status, string> = {
   preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■', waiting: '⧗',
@@ -14,6 +14,17 @@ export function StatusBadge({ status }: { status: Status }) {
 
 const severityMark: Record<Severity, string> = {
   critical: '▲▲', high: '▲', medium: '◆', low: '▽', info: 'ⓘ',
+}
+
+// The confidence marks of D31, each with its word.
+export const levelMark: Record<Level, string> = { confirmed: '✅', plausible: '❔', doubtful: '⛈' }
+
+export function ConfidenceBadge({ c, mine }: { c: Confidence; mine?: boolean }) {
+  return (
+    <span class={`badge confidence-${c.level}`} title={c.reason}>
+      {levelMark[c.level]} {c.level}{mine ? ' (yours)' : ''}
+    </span>
+  )
 }
 
 export function SeverityBadge({ severity }: { severity: Severity }) {
