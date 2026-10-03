@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-03T06:53:34Z
+updated_at: 2026-10-03T06:54:54Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -59,3 +59,7 @@ Finish D15's moving-head behavior before the selected summary ticket. Keep immut
 **agent:codex/head-summary-20261003** at 2026-10-03T06:53:34Z
 
 Implemented protected exact-pair head comparison with cancellable repository fetch, verified ancestry and reachable commit counts. Rewrites/unavailable history have no invented count. Old anchored drafts keep their wording/locations and appear separately from today's diff; fresh server identity/head checks refuse acceptance. No review reruns or draft mutation from status reads. Full just ci passed with CGO_ENABLED=0: Go tests/vet/cross-builds, 44 frontend tests, bundle/design matching and strict tickets. Browser synthetic fixture confirmed the run/finding badges and separate old-draft section; no live forge writes or model involved. Native and model review gates follow on the PR.
+
+**agent:codex/head-summary-20261003** at 2026-10-03T06:54:54Z
+
+PR #13 review found a valid frontend race: the fresh comparison may return a current head beyond the displayed workspace snapshot. Fixed completed mismatched responses to show an explicit refresh-to-compare state instead of indefinite checking, without using the count against a different diff. Added a regression test and posted the disposition while the PR is open. Full gate and fresh model review follow.

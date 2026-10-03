@@ -33,3 +33,13 @@ it('shows an unavailable count on read failure and preserves the reviewed SHA', 
   expect(root.textContent).toContain('reviewed at old, head changed · commit distance unavailable')
   expect(post).not.toHaveBeenCalled()
 })
+
+it('finishes a comparison when the forge has advanced past the workspace snapshot', async () => {
+  vi.mocked(api).mockResolvedValue({ reviewed_head: 'old', current_head: 'newest', relation: 'ahead', commits_behind: 3 })
+  root = document.createElement('div')
+  await act(async () => render(<Harness head="new" />, root)); await act(async () => {})
+  expect(root.textContent).toContain('refresh to compare')
+  expect(root.textContent).not.toContain('checking')
+  expect(root.textContent).not.toContain('3 commits behind')
+  expect(post).not.toHaveBeenCalled()
+})
