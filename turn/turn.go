@@ -311,7 +311,7 @@ func verdicts(ch forge.Change) []forge.Review {
 			verdict := map[forge.ReviewState]forge.Verdict{forge.Approved: forge.VerdictApproved, forge.RequestedChanges: forge.VerdictChangesRequested}[r.State]
 			if verdict == "" {
 				delete(latest, r.Username)
-			} else if old, ok := latest[r.Username]; !ok || old.Verdict != verdict {
+			} else if old, ok := latest[r.Username]; !ok || old.Verdict != verdict || old.Dismissed || old.Stale || (old.SHA != "" && ch.Diff.Head != "" && old.SHA != ch.Diff.Head) {
 				latest[r.Username] = forge.Review{Reviewer: r.Username, Verdict: verdict}
 			}
 		}

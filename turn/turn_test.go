@@ -332,3 +332,25 @@ func TestUndatedPushHistoryKeepsUnknownReviewAge(t *testing.T) {
 		})
 	}
 }
+
+func TestCurrentGitLabVerdictSupersedesInvalidMatchingHistory(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		invalidate func(*forge.Review)
+	}{
+		{"dismissed", func(r *forge.Review) { r.Dismissed = true }},
+		{"stale", func(r *forge.Review) { r.Stale = true }},
+		{"old head", func(r *forge.Review) { r.SHA = "old" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := base(t)
+			ch.Reviewers = []forge.Reviewer{{User: forge.User{Username: "r"}, State: forge.RequestedChanges}}
+			ch.Reviews = []forge.Review{{Reviewer: "r", Verdict: forge.VerdictChangesRequested, At: moment(2), SHA: "head"}}
+			tc.invalidate(&ch.Reviews[0])
+			got := Derive(ch, "author", []forge.Role{forge.AuthorRole})
+			if got.Owner != Mine || got.Reasons[0].Rule != "A2" || got.Since != nil {
+				t.Fatalf("current request lost to invalid history: %+v", got)
+			}
+		})
+	}
+}

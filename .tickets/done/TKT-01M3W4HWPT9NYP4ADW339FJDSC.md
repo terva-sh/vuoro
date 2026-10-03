@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:15:21Z
+updated_at: 2026-10-03T03:18:48Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -69,6 +69,10 @@ PR #7 second review at e56cd67ff28c1f689bbb77363684f618e9f50eb4 confirms the fir
 **agent:codex/inbox-20261002** at 2026-10-03T03:15:21Z
 
 PR #7 third review at 7a36cb7ece8f10207ff568f921f9a9f502ab5145 confirms the repeated-undated-verdict finding resolved. New finding (R2 age with incomplete push metadata): accepted. R2 now separates proof of a dated post-review push from uncertainty about earliest age. Any undated push in history keeps age unknown once a new-push action is proven by dates or stale/head evidence; review SHA and push Head are not required to preserve that uncertainty. The regression table covers complete metadata, missing review SHA and missing push Head. No action is invented from an undated push alone.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:18:48Z
+
+PR #7 review at f49a8aa20ee2257774882088c1a0508bd9ca4d2e confirms the incomplete-push age finding resolved. New finding (current GitLab verdict with invalid matching history): accepted. Current state now replaces matching dated history when it is dismissed, stale, or explicitly attached to an old head, leaving the current verdict actionable with unknown age. A three-case regression proves Mine/A2/nil age for those invalid historical facts. Known valid GitLab change-request timestamps still compare against recorded pushes, so the recorded author-push handover remains intact.
 
 ## Summary
 
