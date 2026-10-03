@@ -60,6 +60,9 @@ func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, er
 	}
 	res, err := c.http.Do(req)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		var ue *url.Error
 		if errors.As(err, &ue) {
 			err = ue.Err
@@ -108,7 +111,9 @@ func pages[T any](ctx context.Context, c *Client, path string) ([]T, error) {
 			return nil, err
 		}
 		var got []T
-		if json.Unmarshal(b, &got) != nil {
+		// Forgejo serializes an empty timeline as null (verified live). Other
+		// paginated endpoints must return arrays, including when empty.
+		if json.Unmarshal(b, &got) != nil || (got == nil && !strings.HasSuffix(path, "/timeline")) {
 			return nil, fmt.Errorf("forgejo: invalid page for %s", path)
 		}
 		if len(got) == 0 {
@@ -177,12 +182,13 @@ type apiComment struct {
 	Created        time.Time `json:"created_at"`
 }
 type apiEvent struct {
-	ID       int64     `json:"id"`
-	Type     string    `json:"type"`
-	Body     string    `json:"body"`
-	User     apiUser   `json:"user"`
-	Assignee *apiUser  `json:"assignee"`
-	Created  time.Time `json:"created_at"`
+	ID              int64     `json:"id"`
+	Type            string    `json:"type"`
+	Body            string    `json:"body"`
+	User            apiUser   `json:"user"`
+	Assignee        *apiUser  `json:"assignee"`
+	RemovedAssignee bool      `json:"removed_assignee"`
+	Created         time.Time `json:"created_at"`
 }
 
 func repoPath(ref forge.Ref) string {
@@ -190,6 +196,15 @@ func repoPath(ref forge.Ref) string {
 	return "/repos/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1])
 }
 func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error) {
+	return c.readChange(ctx, ref, true)
+}
+
+// ReadFacts reads current review facts without patches or private drafts.
+func (c *Client) ReadFacts(ctx context.Context, ref forge.Ref) (*forge.Change, error) {
+	return c.readChange(ctx, ref, false)
+}
+
+func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) (*forge.Change, error) {
 	if !strings.EqualFold(ref.Host, c.base.Host) || len(strings.Split(ref.Project, "/")) != 2 || ref.Number < 1 {
 		return nil, errors.New("forgejo: change does not belong to this client")
 	}
@@ -223,24 +238,39 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 	for _, u := range p.Requested {
 		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(u), State: forge.Unreviewed})
 	}
-	fs, err := pages[apiFile](ctx, c, prPath+"/files")
-	if err != nil {
-		return nil, err
+	if workspace {
+		fs, err := pages[apiFile](ctx, c, prPath+"/files")
+		if err != nil {
+			return nil, err
+		}
+		diff, err := c.get(ctx, prPath+".diff", nil)
+		if err != nil {
+			return nil, err
+		}
+		ch.Files = fileDiffs(fs, string(diff))
 	}
-	diff, err := c.get(ctx, prPath+".diff", nil)
-	if err != nil {
-		return nil, err
-	}
-	ch.Files = fileDiffs(fs, string(diff))
 	reviews, err := pages[apiReview](ctx, c, prPath+"/reviews")
 	if err != nil {
 		return nil, err
 	}
-	slices.SortFunc(reviews, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
+	published := map[string][]apiReview{}
+	type relationshipEvent struct {
+		username  string
+		requested bool
+		at        time.Time
+	}
+	var relationshipEvents []relationshipEvent
 	for _, r := range reviews {
 		pending := r.State == "PENDING"
-		if !pending {
-			addReview(ch, r)
+		if pending && !workspace {
+			continue
+		}
+		if r.State == "REQUEST_REVIEW" && !r.Dismissed {
+			ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: r.User.Login, At: r.Submitted})
+			relationshipEvents = append(relationshipEvents, relationshipEvent{r.User.Login, true, r.Submitted})
+		}
+		if r.State == "APPROVED" || r.State == "REQUEST_CHANGES" || r.State == "COMMENT" {
+			published[r.User.Login] = append(published[r.User.Login], r)
 		}
 		if r.Body != "" {
 			if pending {
@@ -252,15 +282,39 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 		if r.Comments == 0 {
 			continue
 		}
-		cs, err := pages[apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
+		// This endpoint returns the complete list and has no page/limit API.
+		// Page parameters are ignored, so paging would repeat the same comments.
+		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
 		if err != nil {
 			return nil, err
 		}
+		if len(cs) != r.Comments {
+			return nil, errors.New("forgejo: review comments changed while reading; refresh again")
+		}
 		addComments(ch, cs, pending)
+	}
+	// Pending drafts and request records have no verdict timestamp. They must
+	// not prevent a person's dated published reviews from being chronological.
+	names := make([]string, 0, len(published))
+	for name := range published {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		history := published[name]
+		if !slices.ContainsFunc(history, func(r apiReview) bool { return r.Submitted.IsZero() }) {
+			slices.SortStableFunc(history, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
+		}
+		for _, r := range history {
+			addReview(ch, r)
+		}
 	}
 	timeline, err := pages[apiEvent](ctx, c, fmt.Sprintf("%s/issues/%d/timeline", root, ref.Number))
 	if err != nil {
 		return nil, err
+	}
+	if !slices.ContainsFunc(timeline, func(e apiEvent) bool { return e.Created.IsZero() }) {
+		slices.SortStableFunc(timeline, func(a, b apiEvent) int { return a.Created.Compare(b.Created) })
 	}
 	for _, e := range timeline {
 		switch e.Type {
@@ -268,7 +322,10 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 			ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprintf("comment-%d", e.ID), Notes: []forge.Note{{ID: fmt.Sprint(e.ID), Author: user(e.User), Body: e.Body, At: e.Created}}})
 		case "review_request":
 			if e.Assignee != nil {
-				ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: e.Assignee.Login, By: e.User.Login, At: e.Created})
+				relationshipEvents = append(relationshipEvents, relationshipEvent{e.Assignee.Login, !e.RemovedAssignee, e.Created})
+				if !e.RemovedAssignee {
+					ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: e.Assignee.Login, By: e.User.Login, At: e.Created})
+				}
 			}
 		case "pull_push":
 			var push struct {
@@ -282,6 +339,35 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 			ch.Pushes = append(ch.Pushes, forge.Push{At: e.Created, Head: head, By: e.User.Login})
 		}
 	}
+	// A historical voluntary review is a verdict, not a requested relationship.
+	// Current PR requests win; otherwise the latest timeline request/removal wins.
+	relationships := map[string]bool{}
+	byPerson := map[string][]relationshipEvent{}
+	for _, e := range relationshipEvents {
+		byPerson[e.username] = append(byPerson[e.username], e)
+	}
+	for username, events := range byPerson {
+		// An undated request/removal cannot be placed across the two sources.
+		// Retain an uncertain relationship instead of silently dropping work;
+		// its unanswered age stays unknown in the neutral request history.
+		if slices.ContainsFunc(events, func(e relationshipEvent) bool { return e.at.IsZero() }) {
+			for _, e := range events {
+				relationships[username] = relationships[username] || e.requested
+			}
+		} else {
+			slices.SortStableFunc(events, func(a, b relationshipEvent) int { return a.at.Compare(b.at) })
+			relationships[username] = events[len(events)-1].requested
+		}
+	}
+	for _, u := range p.Requested {
+		relationships[u.Login] = true
+	}
+	ch.Reviewers = slices.DeleteFunc(ch.Reviewers, func(r forge.Reviewer) bool { return !relationships[r.Username] })
+	for _, req := range ch.Requests {
+		if relationships[req.Reviewer] && !slices.ContainsFunc(ch.Reviewers, func(r forge.Reviewer) bool { return r.Username == req.Reviewer }) {
+			ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: forge.User{Username: req.Reviewer}, State: forge.Unreviewed})
+		}
+	}
 	reconcileRequests(ch, p.Requested)
 	// The diff endpoint reads the current PR, not a requested commit. Refuse a
 	// mixed snapshot if a push or target update raced these paginated reads.
@@ -289,7 +375,7 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 	if err != nil {
 		return nil, err
 	}
-	if current.Head.SHA != p.Head.SHA || current.Base.SHA != p.Base.SHA || current.MergeBase != p.MergeBase {
+	if current.Head.SHA != p.Head.SHA || current.Base.SHA != p.Base.SHA || current.MergeBase != p.MergeBase || !current.Updated.Equal(p.Updated) || current.State != p.State || current.Merged != p.Merged {
 		return nil, errors.New("forgejo: pull request moved while reading; refresh it and try again")
 	}
 	slices.SortFunc(ch.Threads, func(a, b forge.Thread) int { return a.Notes[0].At.Compare(b.Notes[0].At) })
@@ -344,8 +430,10 @@ func addReview(ch *forge.Change, r apiReview) {
 		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(r.User), State: forge.Reviewed})
 	}
 	if r.Dismissed || r.Stale || r.Commit != ch.Diff.Head {
-		// Keep excluded reviews as history without changing a qualifying
-		// verdict or answering an outstanding request.
+		// A later excluded verdict supersedes older verdicts; comments do not.
+		if verdict != forge.VerdictCommented {
+			ch.Reviewers[i].State = forge.Reviewed
+		}
 		return
 	}
 	state := map[forge.Verdict]forge.ReviewState{forge.VerdictApproved: forge.Approved, forge.VerdictChangesRequested: forge.RequestedChanges, forge.VerdictCommented: forge.Reviewed}[verdict]

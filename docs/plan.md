@@ -259,8 +259,9 @@ validates hosts, credentials in URLs, refs and branch names before fetching,
 and git uses the person's own transport credentials. Run records retain forge
 kind for display; existing GitLab records and Ref identity keys stay compatible.
 
-Forgejo reads the PR, paginated file inventory, reviews, review comments and
-issue timeline. The separate `.diff` response supplies patches. Binary,
+Forgejo reads the PR, paginated file inventory, reviews and issue timeline.
+Review comments use a single complete-list endpoint: Forgejo ignores page
+parameters there. The returned count must match the review’s count. The separate `.diff` response supplies patches. Binary,
 missing or incomplete patches are marked omitted, including incomplete hunk
 counts or a mismatch with the inventory's addition/deletion totals. Pages run
 to an empty response, respecting server-clamped limits, with bounded response
@@ -271,6 +272,24 @@ and `original_position` for the old-side line. Comments group by review, path
 and those line coordinates; the first comment supplies thread resolution.
 Pending reviews are drafts rather than published threads. Push times come from
 `pull_push` timeline entries, never commit authorship dates.
+
+Forgejo discovery verifies `/user` against the configured account and pages
+`/repos/issues/search?state=open&type=pulls` with `created`, `review_requested`
+and `assigned` filters. It also examines `reviewed` candidates to retain a
+requested-reviewer relationship after a verdict, when a later push may need
+another review. Recorded request/removal timeline entries and `REQUEST_REVIEW`
+records establish the relationship; voluntary reviews alone do not. Request and
+removal events are ordered across both sources per reviewer. Undated events
+retain an uncertain relationship rather than silently hiding work. Current PR
+requests take precedence. All roles deduplicate by the existing change key.
+Patch-free fact reads omit pending private reviews. Published review histories
+are ordered per reviewer independently of drafts and request records; an
+undated published verdict preserves that reviewer’s adapter order. A later dismissed or stale
+non-comment verdict supersedes an earlier verdict without reviving its effect.
+Signed-in merge permission remains unknown: repository write/admin permission
+alone does not prove permission to merge this PR. Paging rejects malformed responses (including null search/review lists)
+and moving head, target, state or update stamps. Forgejo’s verified empty
+timeline representation, JSON null, is accepted only for timeline pages.
 
 The current Forgejo API supplies no bot-user marker. Vuoro does not infer bot
 status from account names. Each configured forge may name automated accounts

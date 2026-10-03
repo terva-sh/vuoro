@@ -76,7 +76,7 @@ func fixtureClient(t *testing.T, extra bool) (*Client, forge.Ref) {
     {"id":12,"user":{"login":"me"},"state":"PENDING","body":"Private summary.","comments_count":1}
    ]`))
 		case root + "/reviews/11/comments":
-			if r.URL.Query().Get("page") != "1" {
+			if r.URL.Query().Get("page") != "" && r.URL.Query().Get("page") != "1" {
 				w.Write([]byte("[]"))
 				return
 			}
@@ -86,7 +86,7 @@ func fixtureClient(t *testing.T, extra bool) (*Client, forge.Ref) {
     {"id":23,"pull_request_review_id":11,"user":{"login":"reviewer"},"path":"README.md","position":0,"original_position":7,"commit_id":"head","original_commit_id":"base","body":"Removed line.","created_at":"2026-10-02T11:01:00Z"}
    ]`))
 		case root + "/reviews/12/comments":
-			if r.URL.Query().Get("page") != "1" {
+			if r.URL.Query().Get("page") != "" && r.URL.Query().Get("page") != "1" {
 				w.Write([]byte("[]"))
 				return
 			}
