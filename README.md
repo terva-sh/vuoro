@@ -12,7 +12,9 @@ and submit without leaving it.
 > with Claude Code. GitLab posting is implemented and awaits live validation;
 > Forgejo currently supports reading and agent reviews. Discovery and the unified
 > inbox are still planned. [docs/plan.md](docs/plan.md) is the design of record,
-> and work is tracked in `.tickets/`.
+> and work is tracked in `.tickets/`. The next milestone is one GitLab-and-Forgejo
+> inbox ordered by whose turn it is; [docs/roadmap.md](docs/roadmap.md) maps its slices
+> and the remaining MVP/v1.0 work.
 
 ## Why
 

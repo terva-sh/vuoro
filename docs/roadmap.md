@@ -9,7 +9,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 
 | Area | Evidence and remaining work |
 |---|---|
-| Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. Windows test portability is being validated in PR #4. |
+| Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. The complete Windows/Linux/macOS gate passes for PR #4, including the macOS window check. |
 | Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
 | GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
