@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3ZQXC5CPRDM3CD937C6PC3Q
 title: Share forge discovery, caching, and refresh for the inbox
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -20,17 +20,10 @@ dependencies:
   - TKT-01M3W4HWM6V2F20KNT03BSBNZY
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/inbox-20261002
-  branch: tickets/inbox-discovery
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: bd81a4eea8df78cd7d7a9bbe31a3dfa18dc0170d
-  session: null
-  claimed_at: 2026-10-03T02:39:51Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-03T02:01:27Z
-updated_at: 2026-10-03T02:46:29Z
+updated_at: 2026-10-03T02:50:04Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -78,3 +71,7 @@ PR #6 review dispositions, reviewed head d8b222344c7f4c24fb5c806fefeda0e88b918fc
 - Copy provider-owned changes: accepted. Deep-copy all returned facts before caching; regression mutates nested provider notes/reviews/reviewers after refresh and proves the cache and failed-refresh snapshot remain unchanged.
 - Include native review bot markers: accepted. Seed bot identities from Review.Bot as well as User.Bot; regression uses a marker present only on a review and proves its note author is classified.
 Both findings are fixed; running the full gate and requesting a new model review on the corrected head.
+
+## Summary
+
+Landed in PR #6: optional complete-membership discovery, deduplicated roles, bounded cancellable account refresh, incremental fact reuse, preserved snapshots with scrubbed errors, raw derived-cache persistence, configured/native bot classification and independent authored snoozes. just ci passed. Linux/macOS/Windows native CI passed on source head 1690b4bcf794221df889fd66cfcc85e4eded00e9, including macOS race/window checks. Terva's fresh review is clean and confirms both prior findings resolved. Adapters, turn derivation and UI follow in their own slices.
