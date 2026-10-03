@@ -98,12 +98,19 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return nil, nil, fmt.Errorf("gitlab: %s %s: %w", method, path, unwrapURLError(err))
 	}
 	defer res.Body.Close()
-	b, err := io.ReadAll(io.LimitReader(res.Body, maxBody))
+	b, err := io.ReadAll(io.LimitReader(res.Body, maxBody+1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("gitlab: %s %s: %w", method, path, err)
 	}
+	if len(b) > maxBody {
+		return nil, nil, errors.New("gitlab: response exceeds size limit")
+	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, nil, &APIError{Forge: forge.GitLab, Method: method, Path: path, Status: res.StatusCode, Message: c.scrub(apiMessage(b))}
+		message := c.scrub(apiMessage(b))
+		if len(message) > 200 {
+			message = message[:200]
+		}
+		return nil, nil, &APIError{Forge: forge.GitLab, Method: method, Path: path, Status: res.StatusCode, Message: message}
 	}
 	return b, res.Header, nil
 }
@@ -128,9 +135,6 @@ func apiMessage(b []byte) string {
 	s := m.Error
 	if m.Message != nil {
 		s = fmt.Sprint(m.Message)
-	}
-	if len(s) > 200 {
-		s = s[:200]
 	}
 	return s
 }
@@ -194,13 +198,17 @@ type gqlMR struct {
 	CreatedAt           time.Time `json:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
 	Author              gqlUser   `json:"author"`
-	DiffRefs            *struct {
+	UserPermissions     *struct {
+		CanMerge *bool `json:"canMerge"`
+	} `json:"userPermissions"`
+	DiffRefs *struct {
 		BaseSha  string `json:"baseSha"`
 		HeadSha  string `json:"headSha"`
 		StartSha string `json:"startSha"`
 	} `json:"diffRefs"`
 	Reviewers struct {
-		Nodes []struct {
+		PageInfo pageInfo `json:"pageInfo"`
+		Nodes    []struct {
 			gqlUser
 			Interaction struct {
 				ReviewState string `json:"reviewState"`
@@ -209,13 +217,16 @@ type gqlMR struct {
 		} `json:"nodes"`
 	} `json:"reviewers"`
 	Assignees struct {
-		Nodes []gqlUser `json:"nodes"`
+		PageInfo pageInfo  `json:"pageInfo"`
+		Nodes    []gqlUser `json:"nodes"`
 	} `json:"assignees"`
 	Participants struct {
-		Nodes []gqlUser `json:"nodes"`
+		PageInfo pageInfo  `json:"pageInfo"`
+		Nodes    []gqlUser `json:"nodes"`
 	} `json:"participants"`
 	Diffs struct {
-		Nodes []struct {
+		PageInfo pageInfo `json:"pageInfo"`
+		Nodes    []struct {
 			CreatedAt time.Time `json:"createdAt"`
 		} `json:"nodes"`
 	} `json:"mergeRequestDiffs"`
@@ -229,10 +240,16 @@ type gqlMR struct {
 			Resolvable bool   `json:"resolvable"`
 			Resolved   bool   `json:"resolved"`
 			Notes      struct {
-				Nodes []gqlNote `json:"nodes"`
+				PageInfo pageInfo  `json:"pageInfo"`
+				Nodes    []gqlNote `json:"nodes"`
 			} `json:"notes"`
 		} `json:"nodes"`
 	} `json:"discussions"`
+}
+
+type pageInfo struct {
+	HasNextPage bool   `json:"hasNextPage"`
+	EndCursor   string `json:"endCursor"`
 }
 
 type gqlResponse struct {
@@ -253,6 +270,24 @@ var ErrNotFound = forge.ErrNotFound
 // Open reads a merge request with its diff, threads, review state, and the
 // person's own draft notes.
 func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error) {
+	ch, err := c.ReadFacts(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	if ch.Files, err = c.diffs(ctx, ref, ch.Diff); err != nil {
+		return nil, err
+	}
+	if c.token.Empty() {
+		return ch, nil
+	}
+	if ch.Drafts, err = c.drafts(ctx, ref); err != nil {
+		return nil, err
+	}
+	return ch, nil
+}
+
+// ReadFacts reads fresh turn facts, without downloading patches or drafts.
+func (c *Client) ReadFacts(ctx context.Context, ref forge.Ref) (*forge.Change, error) {
 	if ref.Host != c.base.Host {
 		return nil, fmt.Errorf("gitlab: %s is on %s, and this client talks to %s", ref, ref.Host, c.base.Host)
 	}
@@ -264,15 +299,6 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 	ch.Kind = forge.GitLab
 	ch.Checkout = c.checkout(ref)
 	ch.Capabilities = c.Capabilities()
-	if ch.Files, err = c.diffs(ctx, ref, ch.Diff); err != nil {
-		return nil, err
-	}
-	if c.token.Empty() { // an anonymous reader has no drafts
-		return ch, nil
-	}
-	if ch.Drafts, err = c.drafts(ctx, ref); err != nil {
-		return nil, err
-	}
 	return ch, nil
 }
 
@@ -280,6 +306,7 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 	var mr *gqlMR
 	after := ""
+	seen := map[string]bool{}
 	for page := 0; ; page++ {
 		vars := map[string]any{"fullPath": ref.Project, "iid": strconv.Itoa(ref.Number)}
 		if after != "" {
@@ -300,17 +327,39 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 			return nil, fmt.Errorf("%s: %w", ref, ErrNotFound)
 		}
 		got := r.Data.Project.MergeRequest
+		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage || got.Diffs.PageInfo.HasNextPage {
+			return nil, errors.New("gitlab: review facts exceed connection limit")
+		}
+		for _, d := range got.Discussions.Nodes {
+			if d.Notes.PageInfo.HasNextPage {
+				return nil, errors.New("gitlab: discussion notes exceed connection limit")
+			}
+		}
 		if mr == nil {
 			mr = got
 		} else {
+			if !mr.UpdatedAt.Equal(got.UpdatedAt) || mr.State != got.State || !sameDiff(mr, got) {
+				return nil, errors.New("gitlab: merge request changed while reading pages; refresh again")
+			}
 			mr.Discussions.Nodes = append(mr.Discussions.Nodes, got.Discussions.Nodes...)
 		}
 		pi := got.Discussions.PageInfo
-		if !pi.HasNextPage || pi.EndCursor == "" || page > 50 {
+		if !pi.HasNextPage {
 			return mr, nil
 		}
+		if pi.EndCursor == "" || seen[pi.EndCursor] || page >= 49 {
+			return nil, errors.New("gitlab: incomplete discussion pagination")
+		}
+		seen[pi.EndCursor] = true
 		after = pi.EndCursor
 	}
+}
+
+func sameDiff(a, b *gqlMR) bool {
+	if a.DiffRefs == nil || b.DiffRefs == nil {
+		return a.DiffRefs == nil && b.DiffRefs == nil
+	}
+	return *a.DiffRefs == *b.DiffRefs
 }
 
 var reviewStates = map[string]forge.ReviewState{
@@ -342,6 +391,9 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 		Created: mr.CreatedAt, Updated: mr.UpdatedAt,
 		Assignees: users(mr.Assignees.Nodes), Participants: users(mr.Participants.Nodes),
 	}
+	if mr.UserPermissions != nil {
+		ch.CanMerge = mr.UserPermissions.CanMerge
+	}
 	if mr.DiffRefs != nil {
 		ch.Diff = forge.DiffRefs{Base: mr.DiffRefs.BaseSha, Start: mr.DiffRefs.StartSha, Head: mr.DiffRefs.HeadSha}
 	}
@@ -358,16 +410,19 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 		ch.Pushes[n-1].Head = ch.Diff.Head // the newest version is the head
 	}
 
+	var system []gqlNote
 	for _, d := range mr.Discussions.Nodes {
 		notes := d.Notes.Nodes
+		for _, n := range notes {
+			if n.System {
+				system = append(system, n)
+			}
+		}
 		if len(notes) == 0 {
 			continue
 		}
 		// A discussion of system notes only is an event, not a thread.
 		if !slices.ContainsFunc(notes, func(n gqlNote) bool { return !n.System }) {
-			for _, n := range notes {
-				events(ch, n)
-			}
 			continue
 		}
 		// REST and draft notes name a discussion by its bare id, so the model
@@ -383,6 +438,14 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 			t.Notes = append(t.Notes, forge.Note{ID: strings.TrimPrefix(n.ID, "gid://gitlab/Note/"), Author: user(n.Author), Body: n.Body, At: n.CreatedAt, System: n.System})
 		}
 		ch.Threads = append(ch.Threads, t)
+	}
+	// Discussions may arrive newest-first, and system events also occur inside
+	// human threads. Process all dated events chronologically before dismissals.
+	if !slices.ContainsFunc(system, func(n gqlNote) bool { return n.CreatedAt.IsZero() }) {
+		slices.SortStableFunc(system, func(a, b gqlNote) int { return a.CreatedAt.Compare(b.CreatedAt) })
+	}
+	for _, n := range system {
+		events(ch, n)
 	}
 	return ch
 }
@@ -408,9 +471,9 @@ func events(ch *forge.Change, n gqlNote) {
 			ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: m[1], By: by, At: n.CreatedAt})
 		}
 	case body == "approved this merge request":
-		ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: by, Verdict: forge.VerdictApproved, At: n.CreatedAt})
+		ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: by, Bot: n.Author.Bot, Verdict: forge.VerdictApproved, At: n.CreatedAt})
 	case body == "requested changes":
-		ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: by, Verdict: forge.VerdictChangesRequested, At: n.CreatedAt})
+		ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: by, Bot: n.Author.Bot, Verdict: forge.VerdictChangesRequested, At: n.CreatedAt})
 	case body == "unapproved this merge request":
 		for i := len(ch.Reviews) - 1; i >= 0; i-- {
 			if ch.Reviews[i].Reviewer == by && ch.Reviews[i].Verdict == forge.VerdictApproved {

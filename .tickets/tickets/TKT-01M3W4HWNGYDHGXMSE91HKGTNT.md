@@ -31,7 +31,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:37:23Z
+updated_at: 2026-10-03T03:40:34Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -53,10 +53,16 @@ The adapter must work against any GitLab host, not only gitlab.com.
 
 ## Acceptance criteria
 
-- [ ] Adapter tests run from recorded fixtures with no network
+- [x] Adapter tests run from recorded fixtures with no network
 - [ ] A live run lists the same open changes the GitLab review-requested page shows
-- [ ] No token appears in any log line or error message, and a test proves it
+- [x] No token appears in any log line or error message, and a test proves it
 
 ## Implementation plan
 
 Discover complete open membership through authenticated REST author/reviewer/assignee queries, paginated within the configured host; verify the signed-in username, deduplicate refs/roles, and reject partial pages. Delta-only updated_after discovery was rejected because it cannot safely remove closed changes or removed relationships. Add an optional neutral FactsReader for patch-free inbox reads on each refresh: permissions and mergeability can change without a membership update stamp. Keep Open for diffs and personal drafts when entering a workspace. Harden GraphQL discussion pagination and reject truncated nested factual connections; normalize system review events across mixed threads in chronological order with bot marks and explicit signed-in merge permission. Cover pagination, failures, redirects, cross-host identities, credentials and refresh with offline fixtures. Compare read-only discovery with the owner's GitLab requested-review list once local glab authentication is ready. Record unavailable live evidence honestly.
+
+## Notes
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:40:34Z
+
+Implemented complete role discovery and fresh patch-free facts. Full just ci passes with CGO_ENABLED=0, as does an opt-in anonymous live read of gitlab-org/cli !3991 confirming GraphQL schema compatibility. Offline regressions cover server-clamped/missing-header pagination, late failures, account/host isolation, rate limits, malformed cursors, nested truncation, moving snapshots, mixed system events and token truncation-prefix redaction. Personal-account live comparison remains unverified because glab's /user read cannot authenticate; acceptance criterion 2 remains unchecked. Added an opt-in comparison using glab's authenticated HTTP responses rather than extracting credentials: VUORO_LIVE_GITLAB_DISCOVERY=1 plus username/optional host. No auth file was read. Nested factual connections above 100 entries fail visibly pending separate exhaustive nested pagination support; partial facts never replace the cache.

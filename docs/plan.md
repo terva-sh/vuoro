@@ -285,7 +285,10 @@ own contracts (D33).
 membership for a username, with all roles and forge update stamps; pagination
 and API details stay in adapters. Complete membership makes removals safe.
 The `inbox` service deduplicates stable `Ref.String()` identities, merges roles,
-and reuses a cached change only when its update stamp matches a nonzero
+and uses optional `forge.FactsReader` for fresh turn facts on each refresh,
+without downloading patches or personal drafts. Permissions and merge readiness
+can change without a membership update stamp. For providers without that
+contract, it reuses a cached change only when its update stamp matches a nonzero
 membership stamp. Missing stamps always cause a new read. Discovery and all
 reads must succeed before replacing an account snapshot. A change that closes
 between discovery and reading drops out of that successful snapshot.
@@ -298,9 +301,20 @@ their own snapshots independently. The service launches no background poller.
 
 GitLab notes for the adapter:
 
-- Discover changes with `GET /merge_requests?scope=all&reviewer_username=` and
-  `author_username=`, and read each one's discussions, approvals, and draft
-  notes.
+- Discover complete open membership with `GET /merge_requests?scope=all&state=opened`
+  using `reviewer_username=`, `author_username=` and `assignee_username[]=`.
+  Verify the authenticated username, deduplicate roles and paginate within the
+  configured host. Delta-only `updated_after` queries cannot safely remove closed
+  changes or removed relationships, so membership is read completely. Missing
+  paging headers require reading through an empty page; malformed or partial
+  paging fails the account refresh.
+- Inbox fact reads use GraphQL, including the signed-in person’s
+  `userPermissions.canMerge`, without patches or private draft notes. Opening a
+  workspace still reads both. Discussion cursors are bounded and checked for
+  progress and consistent head/update stamps. Nested notes, reviewers, assignees,
+  participants and diff versions request 100 entries and reject `hasNextPage`
+  instead of deriving turns from truncated facts. System review events are read
+  from mixed as well as system-only threads, chronologically and with bot marks.
 - Comments go out as draft notes and publish together with
   `POST .../draft_notes/bulk_publish`. That matches what a reviewer expects
   from "start a review".
