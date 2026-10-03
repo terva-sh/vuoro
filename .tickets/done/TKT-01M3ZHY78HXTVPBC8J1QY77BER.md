@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3ZHY78HXTVPBC8J1QY77BER
 title: Make the Windows CI tests portable across modes and newlines
 type: bug
-status: review
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-03T00:17:04Z
-updated_at: 2026-10-03T01:59:58Z
+updated_at: 2026-10-03T02:06:38Z
 created_by:
   id: agent:codex/vuoro-design-20261002
   name: ""
@@ -47,8 +47,8 @@ This is separate portability work discovered by the required hosted checks. The 
 
 ## Acceptance criteria
 
-- [ ] The four named tests pass on Windows with CGO_ENABLED=0 and preserve their original behavioral assertions.
-- [ ] Linux and macOS CI still pass, including the native-window check on macOS.
+- [x] The four named tests pass on Windows with CGO_ENABLED=0 and preserve their original behavioral assertions.
+- [x] Linux and macOS CI still pass, including the native-window check on macOS.
 - [x] Fixtures and documentation checks do not depend on inherited Git newline settings or Unix-only path conventions.
 
 ## Implementation plan
@@ -74,3 +74,13 @@ The first model review is clean (run 31, 4af834c1-4ab4-4185-b1db-4c5e2bc84d26). 
 **agent:codex/windows-roadmap-20261002** at 2026-10-03T01:59:58Z
 
 A scratch core.autocrlf=true checkout reproduced a second generated-asset mismatch: Vite preserves the HTML entry point’s CRLF in generated index.html. Added a targeted LF attribute for web/index.html as a build input, alongside the exported CSS and exact-byte web/dist rules. Rechecked a freshly materialized HTML entry point with the new attributes: both verify:dist and design-check pass in that checkout. The original ticket, Go and recorded-diff rules remain intact. The full local gate also passes after the portable Node/Vite invocation. No generated asset content or production application code changed.
+
+**agent:codex/windows-roadmap-20261002** at 2026-10-03T02:06:37Z
+
+Native GitHub run 37088207840 passes Windows, Linux and macOS completely on d5d3471, including the macOS GUI check and Windows vet, formatting, all Go tests, six cross-builds, design export, frontend typecheck/27 unit tests/bundle comparison and strict tickets. All three acceptance criteria are now earned. The additional generated-byte and Node/Vite fixes removed downstream gate failures exposed once the original four tests passed. No production application behavior changed and no validation was disabled.
+
+Close the implementation record before the final review/CI merge gate. The fresh full review request windows-portability-complete-1 is queued and will read the current PR head; if it has already read the earlier source head, carry its passing verdict over these ticket-only changes. Merge remains contingent on final-head internal CI and clean review.
+
+## Summary
+
+Fixed in Forgejo PR #4: https://git.local.sothr.com/terva-sh/vuoro/pulls/4. Portable tests retain MCP token isolation/cleanup and Unix permission assertions, compare docs independent of CRLF, set exact fixture Git newline behavior and check report paths with filepath.Join. Generated assets retain their bytes, and the bundle verifier launches locked Vite through Node without a platform-specific shim. Full local CI and the complete native Windows/Linux/macOS gate pass; review and internal CI gate the authorized merge.
