@@ -28,7 +28,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T00:00:46Z
+updated_at: 2026-10-03T00:06:52Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -75,6 +75,10 @@ ready to blocked: The stylesheet is exported and validated; the pinned CI export
 **agent:codex/vuoro-design-20261002** at 2026-10-03T00:00:46Z
 
 The owner authorized committing and pushing both repositories and publishing design v0.3.0. Design PR #2 (Add the vuoro violet accent), https://git.local.sothr.com/terva-sh/design/pulls/2, contains commit 8ae5a07 and passes the local full just ci gate, including race tests. Forgejo CI is queued. The prepared adoption patch will be applied once the release is published on the GitHub module source.
+
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:06:52Z
+
+The published design v0.3.0 is now pinned as the design-tokens Go tool in go.mod, with real module checksums in go.sum. Go mod tidy retains the tool dependency, with the Go 1.26 line and tuohi pin unchanged. The export and export -check commands succeed from the downloaded module, without a replace or workspace override. Added design-export/design-check recipes and put design-check in just ci; both Forgejo and GitHub workflows run the same pinned export -check. Updated the README refresh instructions and the design-of-record plan to reflect completed pinned adoption.
 
 ## Summary
 

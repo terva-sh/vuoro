@@ -77,6 +77,9 @@ jobs:
             GOOS=${t%/*} GOARCH=${t#*/} go build ./...
           done
 
+      - name: Design stylesheet matches its pin
+        run: go run github.com/terva-sh/design/cmd/design-tokens export -app vuoro -out web/src/styles/design.css -check
+
       - name: Frontend
         run: |
           npm ci

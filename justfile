@@ -85,12 +85,20 @@ web-test *args:
 dist-verify:
     npm run verify:dist
 
+# Export the vuoro stylesheet from the pinned shared design module.
+design-export:
+    go run github.com/terva-sh/design/cmd/design-tokens export -app vuoro -out web/src/styles/design.css
+
+# Fail if the stylesheet differs from the pinned shared design module.
+design-check:
+    go run github.com/terva-sh/design/cmd/design-tokens export -app vuoro -out web/src/styles/design.css -check
+
 # Validate the ticket store and detect pending repairs without writing.
 tickets-check:
     git ticket check --fix --dry-run --strict
 
 # The full gate. CI runs the same steps.
-ci: vet fmt-check test cross web-typecheck web-test dist-verify tickets-check
+ci: vet fmt-check test cross web-typecheck web-test dist-verify design-check tickets-check
 
 # Internal work merges on Forgejo (origin) and outside pull requests merge on
 # GitHub (github), so either main can move ahead of the other. This

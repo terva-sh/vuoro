@@ -54,6 +54,22 @@ lists startable work, and `git ticket list --status draft` lists the rest of the
 backlog. [handoffs/](handoffs/) has orientation for a session that picks the
 work up.
 
+## Shared styling
+
+Vuoro's violet accent and the Birch/Tar foundation come from
+`terva-sh/design`, pinned as a Go tool in `go.mod`. To refresh the committed
+stylesheet after updating that pin:
+
+```sh
+just design-export
+just web-build
+```
+
+Commit the exported stylesheet and `web/dist` together. `just design-check`
+compares the stylesheet with the pinned design version; `just ci` and both
+forge workflows run the same check. Components use `--ui-*` roles, and
+`data-scheme` on `<html>` overrides the system's light/dark choice.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
