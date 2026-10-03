@@ -47,7 +47,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   useEffect(() => {
     api<Run[]>('/api/runs')
       .then((all) => {
-        const mine = all.filter((r) => r.mode !== "triage" && refKey(r.ref) === key)
+        const mine = all.filter((r) => !r.mode && refKey(r.ref) === key)
         setRuns(mine)
         if (mine.length > 0) setSelected((s) => s ?? mine[0].id)
       })

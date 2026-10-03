@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/terva-sh/vuoro/agent"
@@ -58,6 +59,7 @@ const (
 	Failed    Status = "failed"
 	Closed    Status = "closed"
 	Waiting   Status = "waiting" // a later stage, until the one before it has reported
+	Cancelled Status = "cancelled"
 )
 
 // Run is one review of one change at one head.
@@ -77,29 +79,34 @@ type Run struct {
 	Created time.Time
 	Status  Status
 	Error   string
+	Summary *SummaryRange
 
-	dir      string // the worktree
-	repoKey  string
-	anchors  lineIndex
-	store    *drafts.Store
-	sessions []*Session
-	path     string
-	first    string // the first message, for a session that restarts
+	dir            string // the worktree
+	repoKey        string
+	anchors        lineIndex
+	store          *drafts.Store
+	sessions       []*Session
+	path           string
+	first          string // the first message, for a session that restarts
+	summaryCancel  context.CancelFunc
+	summaryDone    chan struct{}
+	summaryStopped atomic.Bool
 }
 
 // Session is one agent session in a run.
 type Session struct {
-	ID      string
-	Profile string
-	Tool    string
-	Model   string
-	Role    drafts.Role
-	Status  Status
-	Error   string
-	Info    *agent.SessionInfo
-	Ref     string // what resumes it
-	Usage   agent.TurnUsage
-	Log     []Entry
+	ID            string
+	Profile       string
+	Tool          string
+	Model         string
+	Role          drafts.Role
+	Status        Status
+	Error         string
+	Info          *agent.SessionInfo
+	Ref           string // what resumes it
+	Usage         agent.TurnUsage
+	Log           []Entry
+	FirstComplete bool // successful initial turn, not inferred from process status
 
 	driver agent.Driver
 	live   agent.Session
@@ -320,6 +327,9 @@ func (r *Run) unmarked() []string {
 
 // launch starts s's tool, fresh or resumed from resume.
 func (m *Manager) launch(r *Run, s *Session, resume string) error {
+	if r.Mode == "summary" {
+		return errors.New("review: summaries cannot resume or receive drafts tools")
+	}
 	r.mu.Lock()
 	if s.driver == nil { // a run reloaded from its record
 		_, d, err := m.driver(s.Tool)
@@ -460,6 +470,9 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 			if ev.Err != nil && !ev.Cancelled {
 				s.Log = append(s.Log, Entry{Kind: "error", Text: ev.Err.Error(), At: at})
 			}
+			if !s.reported {
+				s.FirstComplete = ev.Err == nil && !ev.Cancelled
+			}
 			s.reported = true
 			next = r.ready()
 			// A verifier that stopped short is sent back once for the rest.
@@ -521,6 +534,9 @@ func (m *Manager) Say(runID, sessionID, text string) error {
 	if err != nil {
 		return err
 	}
+	if r.Mode == "summary" {
+		return errors.New("review: start a new summary to select a new range")
+	}
 	return m.send(r, s, text, true)
 }
 
@@ -530,6 +546,9 @@ func (m *Manager) Stop(runID, sessionID string) error {
 	r, s, err := m.find(runID, sessionID)
 	if err != nil {
 		return err
+	}
+	if r.Mode == "summary" {
+		return m.stopSummary(r)
 	}
 	r.mu.Lock()
 	live := s.live
@@ -660,6 +679,18 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	if r == nil {
 		return ErrNoRun
 	}
+	if r.Mode == "summary" {
+		if err := m.stopSummary(r); err != nil {
+			return err
+		}
+		if r.summaryDone != nil {
+			select {
+			case <-r.summaryDone:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
 	r.mu.Lock()
 	r.Status = Closed
 	var live []agent.Session
@@ -690,6 +721,13 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 // Runs stay open, and their sessions are resumable from their records.
 func (m *Manager) Shutdown() {
 	for _, r := range m.Runs() {
+		if r.Mode == "summary" {
+			_ = m.stopSummary(r)
+			if r.summaryDone != nil {
+				<-r.summaryDone
+			}
+			continue
+		}
 		r.mu.Lock()
 		var live []agent.Session
 		for _, s := range r.sessions {

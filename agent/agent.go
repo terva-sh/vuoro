@@ -41,6 +41,9 @@ var ErrMissing = errors.New("not found")
 // ErrTooOld means the tool is older than the driver supports.
 var ErrTooOld = errors.New("too old")
 
+// ErrUnauthenticated means the tool's own login is unavailable to its session.
+var ErrUnauthenticated = errors.New("review tool could not authenticate")
+
 // Spec is a reviewer session to start.
 type Spec struct {
 	Dir          string // the worktree the reviewer reads, and nothing else

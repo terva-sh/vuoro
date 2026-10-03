@@ -20,10 +20,11 @@ import (
 // TestMain sees fakeEnv and replays a recorded stream-json transcript, one
 // turn for each message it reads, as claude does.
 const (
-	fakeEnv     = "VUORO_FAKE_CLAUDE"         // the recording to replay
-	fakeArgsEnv = "VUORO_FAKE_CLAUDE_ARGS"    // where to write the argv it got
-	fakeVerEnv  = "VUORO_FAKE_CLAUDE_VERSION" // what --version prints
-	fakeHangEnv = "VUORO_FAKE_CLAUDE_HANG"    // stop mid-turn and wait
+	fakeEnv       = "VUORO_FAKE_CLAUDE"         // the recording to replay
+	fakeArgsEnv   = "VUORO_FAKE_CLAUDE_ARGS"    // where to write the argv it got
+	fakeVerEnv    = "VUORO_FAKE_CLAUDE_VERSION" // what --version prints
+	fakeHangEnv   = "VUORO_FAKE_CLAUDE_HANG"    // stop mid-turn and wait
+	fakeNoReadEnv = "VUORO_FAKE_CLAUDE_NO_READ" // block before reading stdin
 )
 
 func TestMain(m *testing.M) {
@@ -51,6 +52,10 @@ func fakeClaude(rec string) {
 	if p := os.Getenv(fakeArgsEnv); p != "" {
 		b, _ := json.Marshal(args)
 		_ = os.WriteFile(p, b, 0o600)
+	}
+	if os.Getenv(fakeNoReadEnv) == "1" {
+		time.Sleep(time.Hour)
+		return
 	}
 	turns := recordedTurns(rec)
 	in := bufio.NewScanner(os.Stdin)
@@ -383,5 +388,55 @@ func TestTheChildIsNotToldItIsNested(t *testing.T) {
 	env := childEnv([]string{"HOME=/h", "CLAUDECODE=1", "CLAUDE_CODE_ENTRYPOINT=cli", "PATH=/bin"})
 	if !slices.Equal(env, []string{"HOME=/h", "PATH=/bin"}) {
 		t.Fatalf("env %q", env)
+	}
+}
+
+func TestLoginFailureIsReportedWithoutProviderText(t *testing.T) {
+	s := &session{events: make(chan agent.Event, 4)}
+	s.handle(streamEvent{Type: "result", Subtype: "error_during_execution", IsError: true, Result: "Not logged in · Please run /login"})
+	<-s.events // usage
+	done := <-s.events
+	if !errors.Is(done.Err, agent.ErrUnauthenticated) {
+		t.Fatalf("login error: %v", done.Err)
+	}
+}
+
+func TestCancelInterruptsABlockedInputWrite(t *testing.T) {
+	d, _ := fake(t, "review.jsonl")
+	t.Setenv(fakeNoReadEnv, "1")
+	s, err := d.Start(context.Background(), agent.Spec{Dir: t.TempDir(), SystemPrompt: "review", Drafts: drafts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sent := make(chan error, 1)
+	go func() { sent <- s.Send(context.Background(), strings.Repeat("large input ", 1<<20)) }()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		ss := s.(*session)
+		ss.mu.Lock()
+		busy := ss.busy
+		ss.mu.Unlock()
+		if busy {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancelled := make(chan error, 1)
+	go func() { cancelled <- s.Cancel() }()
+	select {
+	case err := <-cancelled:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Cancel blocked behind stdin Write")
+	}
+	select {
+	case <-sent:
+	case <-time.After(time.Second):
+		t.Fatal("stdin write survived process cancellation")
+	}
+	if s.(*session).cmd.ProcessState == nil {
+		t.Fatal("cancelled process was not reaped")
 	}
 }

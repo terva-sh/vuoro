@@ -271,12 +271,16 @@ func (s *session) Ref() string                { return s.ref }
 func (s *session) Events() <-chan agent.Event { return s.events }
 
 func (s *session) Send(ctx context.Context, text string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	switch {
 	case s.closed || s.cancelled:
+		s.mu.Unlock()
 		return errors.New("claude: the session has ended")
 	case s.busy:
+		s.mu.Unlock()
 		return errors.New("claude: a turn is already running")
 	}
 	msg, err := json.Marshal(map[string]any{
@@ -284,12 +288,19 @@ func (s *session) Send(ctx context.Context, text string) error {
 		"message": map[string]any{"role": "user", "content": text},
 	})
 	if err != nil {
+		s.mu.Unlock()
 		return err
 	}
+	s.busy = true
+	s.mu.Unlock()
+	// Pipe writes may block while the tool starts. Cancel must be able to
+	// take mu and stop the process, which releases that write.
 	if _, err := s.stdin.Write(append(msg, '\n')); err != nil {
+		s.mu.Lock()
+		s.busy = false
+		s.mu.Unlock()
 		return fmt.Errorf("claude: send: %w", err)
 	}
-	s.busy = true
 	return nil
 }
 
@@ -476,6 +487,9 @@ func (s *session) handle(ev streamEvent) (locked bool) {
 		var err error
 		if ev.IsError || ev.Subtype != "success" {
 			err = fmt.Errorf("claude: turn ended %s: %s", ev.Subtype, ev.Result)
+			if strings.Contains(strings.ToLower(ev.Result), "not logged in") {
+				err = agent.ErrUnauthenticated
+			}
 		}
 		s.emit(agent.Event{Kind: agent.TurnDone, Err: err})
 	}

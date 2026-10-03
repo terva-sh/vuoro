@@ -3,6 +3,7 @@ import { DraftCard, fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
+import { SummaryPanel } from './summary'
 import { changeNumber, type Change, type Draft, type Reviewer, type Setup } from './types'
 import { ago, CommentBubble, Prose, Section, short, worstSeverity } from './ui'
 import { SubmitBar, waive } from './confirm'
@@ -16,7 +17,7 @@ const reviewMark: Record<Reviewer['state'], string> = {
   approved: '✓ approved',
 }
 
-type Tab = 'overview' | 'changes' | 'review' | 'threads'
+type Tab = 'overview' | 'changes' | 'review' | 'threads' | 'summary'
 
 export function ChangeView({ change, setup, onChange, onSetup }: {
   change: Change; setup?: Setup; onChange: (c: Change) => void; onSetup: (s: Setup) => void
@@ -101,6 +102,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
             ['overview', `Overview${general.length + mine.length ? ` (${general.length + mine.length})` : ''}`],
             ['changes', `Changes (${files.length} files, ${open} open threads)`],
             ['review', `Review${drafts.length ? ` (${drafts.length} drafts)` : ''}`],
+            ['summary', 'Summary'],
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <button role="tab" aria-selected={tab === t} class={tab === t ? 'tab on' : 'tab'} onClick={() => setTab(t)} key={t}>
@@ -108,6 +110,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           </button>
         ))}
       </nav>
+      {tab === 'summary' && <SummaryPanel change={change} setup={setup} />}
       {tab === 'threads' && isAuthor && <TriagePanel change={change} setup={setup} onPick={pick} />}
       {tab === 'overview' && (
         <div class="overview">
