@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3YMSSYSBT0X4SMB712EA0PQ
 title: Triage the threads on my change, and draft replies
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -20,17 +20,10 @@ dependencies:
   - TKT-01M3W4HWSGA04D4VQ8WHBEJC2D
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/gitlab-live-20261003
-  branch: tickets/author-triage
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: 74b3e38ca7400c2f316657cca0f9d3fd011387ef
-  session: null
-  claimed_at: 2026-10-03T06:16:28Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-03T06:34:14Z
+updated_at: 2026-10-03T06:35:59Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -75,3 +68,13 @@ PR #12 (Triage author threads and draft local replies) is open at https://git.lo
 2. Acceptance-time body overrides could leave persisted/copied wording different from the accepted reply. Removed that triage override behavior: different text is refused before any forge I/O and must be saved through EditReply first. Identical saved text is allowed; acceptance preserves existing edited provenance. Regression refuses unsaved wording, then saves/accepts and reloads to prove the actual forge body matches the persisted local text. Ordinary finding keep behavior is unchanged.
 
 Full CGO_ENABLED=0 just ci passes after these fixes, now including 41 frontend tests. Rebuilt embedded assets. Source changes require a fresh full model review; native checks will run on the new head.
+
+**agent:codex/gitlab-live-20261003** at 2026-10-03T06:35:59Z
+
+Fresh full model review on 36aeb03 is clean: terva-review/code success, run ec55b5e4-7134-4260-ab70-425226687824 (Forgejo Actions #115, id 20335). The reviewer explicitly marks finding-1 (change-scoped state) and finding-2 (saved acceptance wording) resolved, with no new concrete bugs. Both dispositions are posted on PR #12 while open. Native Linux/macOS checks already pass this source head; Windows and Forgejo CI are finishing and remain merge prerequisites. Closing the implementation record with both earned criteria checked; the next commit changes only the ticket store and will carry this clean review. Merge remains guarded by both forges' exact-final-head gates, followed by main mirror synchronization.
+
+## Summary
+
+Delivered the author Threads workspace and interaction sketch in PR #12, https://git.local.sothr.com/terva-sh/vuoro/pulls/12. Authored changes default to Threads. One reviewer-class run groups full human discussions into Must fix/Discuss/Nit with rationale and optional reply drafts. Local edits preserve personal wording and freeze agent overwrites; explicit acceptance validates a fresh exact change/head/thread before creating a private pending reply, and the existing Submit confirmation publishes. Forgejo remains local draft/edit/copy. Changed/resolved/missing discussions retain saved replies without allowing acceptance. Run context, bindings, classification and personal edits survive restart.
+
+Full CGO_ENABLED=0 just ci passes, including 41 frontend tests and six cross builds; synthetic browser flow verified local edits, private acceptance, explicit Submit, history and light/dark/narrow styling. Two initial model-review findings were fixed with regressions and posted dispositions; fresh full review of source head 36aeb03 is clean. Ticket-only closure carries that review; merge and mirror synchronization require final-head gates. Real GitLab posting remains separately unvalidated; no real forge writes or agent quota were needed for this slice. Exact thread focus and a persistent conversation split remain documented future refinements.
