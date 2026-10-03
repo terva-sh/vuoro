@@ -306,6 +306,41 @@ func TestOutstandingReviewRequests(t *testing.T) {
 	}
 }
 
+func TestExcludedReviewsRetainCurrentVerdicts(t *testing.T) {
+	for _, verdict := range []struct {
+		state string
+		want  forge.ReviewState
+	}{{"APPROVED", forge.Approved}, {"REQUEST_CHANGES", forge.RequestedChanges}} {
+		for _, excluded := range []string{"dismissed", "stale", "different-head"} {
+			t.Run(verdict.state+"/"+excluded, func(t *testing.T) {
+				c, ref := fixtureClient(t, true)
+				c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+					if !strings.HasSuffix(r.URL.Path, "/reviews") {
+						return http.DefaultTransport.RoundTrip(r)
+					}
+					body := []byte("[]")
+					if r.URL.Query().Get("page") == "1" {
+						valid := apiReview{ID: 10, User: apiUser{Login: "reviewer"}, State: verdict.state, Commit: "68ff96c709bfbd9d96709b4b976bf4c77f131148", Submitted: time.Date(2026, 10, 2, 11, 0, 0, 0, time.UTC)}
+						ignored := apiReview{ID: 11, User: valid.User, State: "COMMENT", Commit: valid.Commit, Dismissed: excluded == "dismissed", Stale: excluded == "stale", Submitted: valid.Submitted.Add(time.Hour)}
+						if excluded == "different-head" {
+							ignored.Commit = "old"
+						}
+						body, _ = json.Marshal([]apiReview{valid, ignored})
+					}
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body))), Header: http.Header{}}, nil
+				})
+				ch, err := c.Open(context.Background(), ref)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(ch.Reviewers) != 1 || ch.Reviewers[0].State != verdict.want || len(ch.Reviews) != 2 {
+					t.Fatalf("reviewers = %+v; want %s with both reviews retained: %+v", ch.Reviewers, verdict.want, ch.Reviews)
+				}
+			})
+		}
+	}
+}
+
 func TestAPushDuringTheReadCannotMixHeadsAndPatches(t *testing.T) {
 	c, ref := fixtureClient(t, false)
 	reads := 0

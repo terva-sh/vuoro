@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-03T00:44:40Z
-updated_at: 2026-10-03T01:18:39Z
+updated_at: 2026-10-03T01:27:21Z
 created_by:
   id: agent:codex/forgejo-20261002
   name: ""
@@ -75,6 +75,12 @@ Addressed both medium findings from terva-review run 17 (review 2017):
 - Retain existing attributes: restored both ticket Markdown rules (LF and merge=gitticket) and the Go LF rule, then appended only the targeted -text diff fixture exception. The earlier attribute overwrite was an implementation mistake.
 
 Targeted Forgejo tests pass with CGO_ENABLED=0. Full local CI and fresh hosted CI/review are next. The four baseline Windows portability failures remain under TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines); this change addresses the fixture and formatting regressions introduced here.
+
+**agent:codex/forgejo-20261002** at 2026-10-03T01:27:21Z
+
+Fresh terva-review run 21 (review 2019) confirms both original findings resolved, and identifies a further medium issue: excluded reviews could erase a prior qualifying verdict. Addressed by leaving accumulated state unchanged for dismissed, stale or different-head reviews; they remain in historical Reviews. A reviewer without a valid review is already initialized as Reviewed or Unreviewed, so no extra state assignment is necessary. Six full adapter regression cases cover valid approvals and change requests followed by each kind of excluded comment. Targeted Forgejo tests pass.
+
+Hosted checks on 81ef9b3: internal Forgejo CI run 19 passed; GitHub Linux/macOS (including native window) passed. Windows run 37085635496 reports exactly the four baseline portability failures under TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines). Both PR-introduced Windows regressions are resolved. A fresh core.autocrlf=true checkout independently verifies LF Go/tickets and unchanged recorded diff bytes. This fix will receive another full gate and model review before merge.
 
 ## Summary
 

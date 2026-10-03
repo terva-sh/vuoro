@@ -344,10 +344,8 @@ func addReview(ch *forge.Change, r apiReview) {
 		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(r.User), State: forge.Reviewed})
 	}
 	if r.Dismissed || r.Stale || r.Commit != ch.Diff.Head {
-		// An older review must not answer a new request, or keep a stale approval.
-		if ch.Reviewers[i].State != forge.Unreviewed {
-			ch.Reviewers[i].State = forge.Reviewed
-		}
+		// Keep excluded reviews as history without changing a qualifying
+		// verdict or answering an outstanding request.
 		return
 	}
 	state := map[forge.Verdict]forge.ReviewState{forge.VerdictApproved: forge.Approved, forge.VerdictChangesRequested: forge.RequestedChanges, forge.VerdictCommented: forge.Reviewed}[verdict]
