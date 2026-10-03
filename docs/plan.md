@@ -272,6 +272,20 @@ and those line coordinates; the first comment supplies thread resolution.
 Pending reviews are drafts rather than published threads. Push times come from
 `pull_push` timeline entries, never commit authorship dates.
 
+Forgejo discovery verifies `/user` against the configured account and pages
+`/repos/issues/search?state=open&type=pulls` with `created`, `review_requested`
+and `assigned` filters. It also examines `reviewed` candidates to retain a
+requested-reviewer relationship after a verdict, when a later push may need
+another review. Recorded request/removal timeline entries and `REQUEST_REVIEW`
+records establish the relationship; voluntary reviews alone do not. Current PR
+requests take precedence. All roles deduplicate by the existing change key.
+Patch-free fact reads omit pending private reviews. A later dismissed or stale
+non-comment verdict supersedes an earlier verdict without reviving its effect.
+Signed-in merge permission remains unknown: repository write/admin permission
+alone does not prove permission to merge this PR. Paging rejects malformed responses (including null search/review lists)
+and moving head, target, state or update stamps. Forgejo’s verified empty
+timeline representation, JSON null, is accepted only for timeline pages.
+
 The current Forgejo API supplies no bot-user marker. Vuoro does not infer bot
 status from account names. Each configured forge may name automated accounts
 in `bots`; the inbox applies those names and native bot markers to users and

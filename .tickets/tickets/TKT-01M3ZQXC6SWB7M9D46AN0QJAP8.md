@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:28Z
-updated_at: 2026-10-03T03:48:39Z
+updated_at: 2026-10-03T03:53:34Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -50,11 +50,17 @@ Compare one configured account’s results to the Forgejo web/API view in a read
 
 ## Acceptance criteria
 
-- [ ] Open authored, requested-reviewer and assigned PRs are discovered and deduplicated with all account roles retained.
-- [ ] Offline fixtures cover pagination, review re-requests, stale/dismissed reviews, real push times, threads and bot classification.
+- [x] Open authored, requested-reviewer and assigned PRs are discovered and deduplicated with all account roles retained.
+- [x] Offline fixtures cover pagination, review re-requests, stale/dismissed reviews, real push times, threads and bot classification.
 - [ ] A read-only live account comparison matches the Forgejo view; checkout retains PR refs and SSH ports.
-- [ ] Discovery uses the shared refresh contract, has no Writer requirement and does not depend on GitLab live-write validation.
+- [x] Discovery uses the shared refresh contract, has no Writer requirement and does not depend on GitLab live-write validation.
 
 ## Implementation plan
 
 Use authenticated global issue search with state=open and type=pulls for created, review_requested and assigned relationships, verifying /user matches the configured person. Page through empty responses with bounds and cancellation, validate same-host PR/repository identities, and deduplicate all roles. Also inspect reviewed candidates: retain requested-reviewer membership only with a surviving recorded request relationship, never because someone volunteered a review. Normalize REQUEST_REVIEW records and removed-assignee request timeline entries; keep historical verdicts, but a later stale/dismissed non-comment verdict must not resurrect an old current verdict. Add the optional patch-free FactsReader, excluding pending private drafts and retaining checkout PR refs/SSH ports. Unknown signed-in merge permission stays nil because repository push/admin access is insufficient evidence. Offline fixtures cover full role membership, pagination/failure/isolation, historical requested vs voluntary/removed reviewers, turn rules and bot classification. Compare the already authenticated Forgejo account read-only through tea's transport without extracting credentials, then run full local and platform CI plus PR review before merging.
+
+## Notes
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:53:34Z
+
+Implemented shared discovery and patch-free facts. Full local just ci passes with cgo disabled. Offline fixtures prove role deduplication, clamped pagination, failures/account/host isolation, retained historical requests and R2 push obligations, excluded voluntary/removed reviewers, REQUEST_REVIEW normalization, pending-draft omission, stale/dismissed verdicts, PR refs and SSH ports. Shared inbox regressions hold bot classification before turns. Live account comparison found Forgejo's empty timeline pages serialize as null; narrowed the empty-page exception to timelines and added a regression, keeping null search/review pages invalid. Live comparison is still running through tea's authenticated GET transport; no credential was extracted or auth file read. Merge permission stays unknown because repository push/admin access is insufficient evidence.
