@@ -127,6 +127,7 @@ const (
 	Synthesizer                 // lists every draft; its proposals name sources
 	Verifier                    // lists every draft, and only marks confidence
 	Triage                      // groups existing threads and drafts replies
+	Summary                     // no draft access; receives no MCP server
 )
 
 // Session is an agent session as the store knows it.
@@ -157,6 +158,9 @@ const (
 
 // Validate checks a proposal from a session of the given role.
 func Validate(p Proposal, role Role) error {
+	if role == Summary {
+		return &RuleError{"role.summary", "name", "a summary cannot draft"}
+	}
 	if role == Triage {
 		return validateTriage(p)
 	}
@@ -333,6 +337,9 @@ func (st *Store) validate(p Proposal, role Role) error {
 // Withdraw marks one of s's own pending drafts as withdrawn. It stays in the
 // store, so the person can see what was set aside.
 func (st *Store) Withdraw(s Session, id string) (Draft, error) {
+	if s.Role == Summary {
+		return Draft{}, &RuleError{"role.summary", "name", "a summary cannot draft"}
+	}
 	if s.Role == Verifier {
 		return Draft{}, roleErr
 	}
@@ -453,6 +460,9 @@ func (st *Store) Get(id string) (Draft, bool) {
 // List returns the drafts s may see: a reviewer's own, or every draft for a
 // synthesizer or a verifier. Withdrawn drafts are left out unless withdrawn is set.
 func (st *Store) List(s Session, withdrawn bool) []Draft {
+	if s.Role == Summary {
+		return nil
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	var out []Draft

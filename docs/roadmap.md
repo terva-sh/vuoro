@@ -10,7 +10,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 | Area | Evidence and remaining work |
 |---|---|
 | Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. Merged PR #4 passes the complete Windows/Linux/macOS gate, including the macOS window check. |
-| Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. |
+| Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. Local summaries stream for the whole change or an exact range since a completed Vuoro review, with history and cancellation. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
 | GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
 | Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9; the home inbox landed in PR #10 with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed for 24 open PRs. GitLab personal-account comparison passed on 2026-10-03 for an empty inbox (zero requested reviews and zero open memberships); authenticated nonempty GitLab turn facts and pagination remain unexercised live. |
@@ -103,8 +103,8 @@ read-only credential.
 | Work | Ticket | What remains |
 |---|---|---|
 | Live GitLab posting | TKT-01M3W4HWTXC6EM9SS84A4WMEPG — Comment, reply, resolve, approve, and submit on GitLab | Owner-writable MR and configured token source; validate writes, then turn refresh when the inbox exists. Never request the token's value. |
+| Summary live check | TKT-01M3W4HWXJYKCNXM4G7E86YX1M — Agent: summarise a change, and what changed since my review | Implementation and offline streaming/range/cancellation checks pass. Public GitLab read/checkout passed; real text generation awaits a Claude login available to the locked reviewer invocation. |
 | Usage display | TKT-01M3YMSST3CNA34862NNERKMN2 — Show tokens and cost per session and per review run | Audit existing displays and totals, especially tools with no reported cost. |
-| Summaries | TKT-01M3W4HWXJYKCNXM4G7E86YX1M — Agent: summarise a change, and what changed since my review | Streaming summaries, review-relative range selection and cancellation. |
 | Ticket context | TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM — Decide how a change finds its git-ticket store and ticket; then TKT-01M3W4HX1PHPQ98KX0PE5HW60E — Show a change's ticket, and give it to reviewers as context | Settle linking and store discovery before implementation; no ticket UI or dependency when absent. |
 | Retention | TKT-01M3YMSSX3WH3Q6TW6BCGK7XV7 — Keep review runs until the change closes, then 30 days | Configurable deletion of expired transcripts and preservation of one-line run records. |
 

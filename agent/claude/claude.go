@@ -476,6 +476,9 @@ func (s *session) handle(ev streamEvent) (locked bool) {
 		var err error
 		if ev.IsError || ev.Subtype != "success" {
 			err = fmt.Errorf("claude: turn ended %s: %s", ev.Subtype, ev.Result)
+			if strings.Contains(strings.ToLower(ev.Result), "not logged in") {
+				err = agent.ErrUnauthenticated
+			}
 		}
 		s.emit(agent.Event{Kind: agent.TurnDone, Err: err})
 	}

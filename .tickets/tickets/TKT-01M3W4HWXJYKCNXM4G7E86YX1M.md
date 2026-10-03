@@ -28,7 +28,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T07:00:01Z
+updated_at: 2026-10-03T07:11:08Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -48,9 +48,17 @@ streams into a panel and is never posted anywhere.
 ## Acceptance criteria
 
 - [ ] A summary streams into the change view for a real GitLab change
-- [ ] The since-my-review summary covers only commits after my last review
-- [ ] Cancelling stops the stream and the provider call
+- [x] The since-my-review summary covers only commits after my last review
+- [x] Cancelling stops the stream and the provider call
 
 ## Implementation plan
 
 Add a separate summary run mode with one locked driver session, no drafts MCP capability and no forge writes. From a Summary panel choose the whole change or an explicit recorded completed Vuoro review head; fresh-read identity/head and verify the selected baseline server-side. GitLab's normalized published reviews lack reliable commit SHAs, so never infer a baseline from review timestamps: label the action since a Vuoro review, expose the exact range and explain when no verified completed baseline exists. Persist successful first-turn completion for new review sessions; legacy records lacking proof remain unqualified. Build a bounded complete git patch/commit list over immutable SHAs, verify ancestry, refuse missing/rewritten/shallow/oversized ranges without fallback or truncation. Stream through existing driver events/transcripts, persist range/source/partial output, keep summaries out of ordinary review/triage selectors, and offer history and explicit cancellation. Cancellation covers repository locking/checkout, late driver startup and provider generation; no process may launch/send after cancellation or outlive shutdown. Tests prove read-only capabilities, exact incremental ranges, persistence, cancellation and route protection/UI interactions. Update plan/roadmap and embedded dist. Validate a bounded read-only Haiku summary of a real public GitLab MR, full CGO_ENABLED=0 CI and native gates, then commit/push/PR/review/fix/merge/sync. Live GitLab posting remains deferred.
+
+## Notes
+
+**agent:codex/head-summary-20261003** at 2026-10-03T07:11:08Z
+
+Implemented separate one-turn summary runs with no MCP/draft access, bounded full exact git ranges, explicit completed-local-review baselines, protected fresh-read routes, streaming/history UI and cancellation across repository waiting/startup/generation/shutdown. Successful initial review completion is persisted; legacy/cancelled/failed records cannot be inferred as completed. Rationale: normalized GitLab published review facts lack commit SHAs, so timestamps cannot safely define the since-review range; labels identify Vuoro review runs instead. Rewrites/missing/shallow/oversized ranges refuse before provider work, and no partial patch is sent. A regression exposed bytes.Buffer's promoted ReadFrom bypassing a bounded Write; replaced it with a named buffer and confirmed oversized input refusal. Offline tests prove incremental input excludes earlier changes, partial-stream cancellation, late-start suppression, reload state, shutdown/close, no draft access, route protection and frontend response races. Full CI passed before the final small history-label/UI copy adjustment; latest gate is running.
+
+Live read-only browser validation opened public gitlab-org/cli!3991 anonymously and prepared exact range 59ae78ca..8526e3d7. Claude's session offered only Glob/Grep/Read but returned a login failure before text. Normal auth status reports loggedIn=true (oauth_token); the actual locked invocation, --restricted --setting-sources '', reports loggedIn=false. No auth files or tokens were read, and no GitLab writes were attempted. Asked the owner to expose the tool login independently of skipped settings while PR work continues. Added a typed login failure with a controlled actionable summary error. The real-change streaming criterion remains unchecked pending successful live text.

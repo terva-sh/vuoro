@@ -12,35 +12,38 @@ import (
 
 // RunView is a run as the person sees it, and as runs/<id>/run.json keeps it.
 type RunView struct {
-	ID       string         `json:"id"`
-	Kind     string         `json:"kind"`
-	Mode     string         `json:"mode,omitempty"`
-	Threads  []forge.Thread `json:"triage_threads,omitempty"`
-	Ref      forge.Ref      `json:"ref"`
-	Title    string         `json:"title"`
-	WebURL   string         `json:"web_url"`
-	Head     string         `json:"head"`
-	Base     string         `json:"base"`
-	Created  time.Time      `json:"created"`
-	Status   Status         `json:"status"`
-	Error    string         `json:"error,omitempty"`
-	CostUSD  float64        `json:"cost_usd"`
-	Sessions []SessionView  `json:"sessions"`
-	Drafts   []drafts.Draft `json:"drafts"`
+	ID             string         `json:"id"`
+	Kind           string         `json:"kind"`
+	Mode           string         `json:"mode,omitempty"`
+	Summary        *SummaryRange  `json:"summary,omitempty"`
+	ReviewComplete bool           `json:"review_complete,omitempty"`
+	Threads        []forge.Thread `json:"triage_threads,omitempty"`
+	Ref            forge.Ref      `json:"ref"`
+	Title          string         `json:"title"`
+	WebURL         string         `json:"web_url"`
+	Head           string         `json:"head"`
+	Base           string         `json:"base"`
+	Created        time.Time      `json:"created"`
+	Status         Status         `json:"status"`
+	Error          string         `json:"error,omitempty"`
+	CostUSD        float64        `json:"cost_usd"`
+	Sessions       []SessionView  `json:"sessions"`
+	Drafts         []drafts.Draft `json:"drafts"`
 }
 
 // SessionView is one session as the person sees it.
 type SessionView struct {
-	ID      string             `json:"id"`
-	Profile string             `json:"profile"`
-	Tool    string             `json:"tool"`
-	Model   string             `json:"model,omitempty"`
-	Role    string             `json:"role"`
-	Status  Status             `json:"status"`
-	Error   string             `json:"error,omitempty"`
-	Info    *agent.SessionInfo `json:"info,omitempty"`
-	Usage   agent.TurnUsage    `json:"usage"`
-	Log     []Entry            `json:"log"`
+	ID            string             `json:"id"`
+	Profile       string             `json:"profile"`
+	Tool          string             `json:"tool"`
+	Model         string             `json:"model,omitempty"`
+	Role          string             `json:"role"`
+	Status        Status             `json:"status"`
+	Error         string             `json:"error,omitempty"`
+	Info          *agent.SessionInfo `json:"info,omitempty"`
+	Usage         agent.TurnUsage    `json:"usage"`
+	Log           []Entry            `json:"log"`
+	FirstComplete bool               `json:"first_turn_complete,omitempty"`
 }
 
 // View returns a copy of the run's state.
@@ -52,15 +55,21 @@ func (r *Run) View() RunView {
 		Created: r.Created, Status: r.Status, Error: r.Error,
 		Drafts: r.store.All(),
 	}
+	if r.Summary != nil {
+		sr := *r.Summary
+		v.Summary = &sr
+	}
+	v.ReviewComplete = r.Mode == "" && len(r.sessions) > 0
 	for _, t := range r.Threads {
 		v.Threads = append(v.Threads, cleanThread(t))
 	}
 	for _, s := range r.sessions {
+		v.ReviewComplete = v.ReviewComplete && s.FirstComplete
 		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
 		v.Sessions = append(v.Sessions, SessionView{
 			ID: s.ID, Profile: s.Profile, Tool: s.Tool, Model: s.Model, Role: role,
-			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage,
+			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, FirstComplete: s.FirstComplete,
 			Log: append([]Entry(nil), s.Log...),
 		})
 	}
@@ -71,7 +80,7 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -123,7 +132,7 @@ func (m *Manager) Load() error {
 		}
 		r := &Run{
 			ID: rec.ID, Kind: rec.Kind, Mode: rec.Mode, Threads: rec.Threads, first: rec.First, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
-			Created: rec.Created, Status: rec.Status, Error: rec.Error,
+			Created: rec.Created, Status: rec.Status, Error: rec.Error, Summary: rec.Summary,
 			dir:     filepath.Join(m.StateDir, "worktrees", rec.ID),
 			repoKey: rec.Repo,
 			anchors: rec.Anchors,
@@ -140,7 +149,7 @@ func (m *Manager) Load() error {
 			s := &Session{
 				ID: sv.ID, Profile: sv.Profile, Tool: sv.Tool, Model: sv.Model, Role: drafts.Reviewer,
 				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, Log: sv.Log,
-				Ref: rec.Resume[sv.ID],
+				Ref: rec.Resume[sv.ID], FirstComplete: sv.FirstComplete, reported: sv.FirstComplete,
 			}
 			for role, name := range roleNames {
 				if sv.Role == name {
@@ -167,6 +176,12 @@ func (m *Manager) Load() error {
 			r.Status, r.Error = Failed, "vuoro stopped before the checkout finished"
 		case Working:
 			r.Status = Idle
+		}
+		if r.Mode == "summary" && (rec.Status == Preparing || rec.Status == Working) {
+			r.Status, r.Error = Failed, "vuoro stopped before the summary completed"
+			for _, s := range r.sessions {
+				s.Status, s.Error = Failed, r.Error
+			}
 		}
 		m.runs[r.ID] = r
 	}

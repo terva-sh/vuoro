@@ -57,7 +57,7 @@ export interface Draft {
 export type Level = 'confirmed' | 'plausible' | 'doubtful'
 export interface Confidence { level: Level; reason?: string; by: string; at: string }
 
-export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed' | 'waiting'
+export type Status = 'preparing' | 'working' | 'idle' | 'ended' | 'failed' | 'closed' | 'waiting' | 'cancelled'
 
 export interface Entry {
   kind: 'change' | 'user' | 'assistant' | 'tool' | 'denied' | 'error'
@@ -66,11 +66,12 @@ export interface Entry {
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; cost_usd: number }
 export interface SessionInfo { tool: string; version: string; model: string; account: string; tools: string[] }
 export interface Session {
-  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage'
+  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage' | 'summary'
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {
-  mode?: "triage"; triage_threads?: Thread[]
+  mode?: "triage" | "summary"; triage_threads?: Thread[]
+  review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number
   sessions: Session[]; drafts: Draft[]

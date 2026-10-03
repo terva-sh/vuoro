@@ -385,3 +385,13 @@ func TestTheChildIsNotToldItIsNested(t *testing.T) {
 		t.Fatalf("env %q", env)
 	}
 }
+
+func TestLoginFailureIsReportedWithoutProviderText(t *testing.T) {
+	s := &session{events: make(chan agent.Event, 4)}
+	s.handle(streamEvent{Type: "result", Subtype: "error_during_execution", IsError: true, Result: "Not logged in · Please run /login"})
+	<-s.events // usage
+	done := <-s.events
+	if !errors.Is(done.Err, agent.ErrUnauthenticated) {
+		t.Fatalf("login error: %v", done.Err)
+	}
+}

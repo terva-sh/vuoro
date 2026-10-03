@@ -5,7 +5,7 @@ import { Markdown } from './markdown'
 import type { Confidence, Level, Severity, Status } from './types'
 
 const statusMark: Record<Status, string> = {
-  preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■', waiting: '⧗',
+  preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■', waiting: '⧗', cancelled: '⊘',
 }
 
 export function StatusBadge({ status }: { status: Status }) {

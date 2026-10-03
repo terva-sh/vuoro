@@ -638,6 +638,32 @@ lockdown. Triage groups the open threads on the person's own change as must
 fix, discuss, or nit, and drafts replies through the drafts server. None of it
 is posted by an agent.
 
+The change's Summary tab starts a separate, single-turn summary session with
+Read/Grep/Glob and no drafts MCP server. Its text streams locally, with saved
+history, exact range, head status and Stop. The whole-change range is the forge's
+base to its freshly read head. “Since a Vuoro review” selects a completed local
+review run and uses that immutable reviewed head to the freshly read head.
+The latest eligible run is selected by default; the person can choose another.
+This is not a claim about the last published forge review: GitLab's normalized
+review facts have no reliable reviewed SHA, and timestamps cannot identify one.
+Successful initial turns are recorded explicitly; legacy, failed or cancelled
+records without completion evidence cannot supply a baseline.
+
+Git verifies full commit IDs, complete history and ancestry before supplying a
+commit list and exact net patch. A rewritten or missing baseline is refused;
+it never silently substitutes a whole-change range. The patch is capped at
+256 KiB and the commit list at 32 KiB; oversized input is refused before a
+provider call, never truncated. Diff programs and textconv are disabled.
+Descriptions/commit messages/repository text are untrusted data. The current
+checkout supplies reading context only; a since-review summary describes just
+its selected range. An empty net patch can still describe commits in that range.
+
+Cancellation covers repository waiting, checkout, startup and generation. A late
+agent start is stopped without receiving the request. Partial text survives Stop,
+and the provider process ends; summaries cannot resume as reviewers or acquire
+draft tools. Shutdown stops preparation as well as live calls. Summary runs stay
+out of review/triage selectors, and the inbox still needs no agent tool.
+
 The author's Threads tab and its interaction sketch are specified in
 [author-triage.md](author-triage.md). One reviewer-class triage session captures
 complete unresolved human discussions and writes category/reason/optional reply
