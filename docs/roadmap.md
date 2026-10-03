@@ -13,7 +13,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 | Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
 | GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
-| Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9. The home inbox integrates both forges with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed; GitLab personal-account parity awaits local authentication, so stage 1’s live gate remains open. |
+| Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9; the home inbox landed in PR #10 with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed for 24 open PRs. GitLab personal-account comparison passed on 2026-10-03 for an empty inbox (zero requested reviews and zero open memberships); authenticated nonempty GitLab turn facts and pagination remain unexercised live. |
 | Review lifecycle | Token/cost displays and head-SHA flags already exist. Unknown-cost labeling, commit-distance/draft staleness coverage, and retention still need their ticket criteria checked or completed. |
 | External blockers | Terva reviewers wait for a release whose per-run MCP configuration and lockdown are proven. The editor waits for a sandbox spike. Neither blocks the inbox. |
 
@@ -86,9 +86,16 @@ The critical path is `shared discovery → GitLab + Forgejo adapters`, alongside
 `turn`, then `mixed-forge inbox`. The owner selected all five slices for
 autonomous implementation. The shared
 service, turn engine and both adapters are merged; the home inbox completes
-the implementation path. GitLab’s personal-account discovery comparison remains
-an explicit unfinished criterion, alongside the separate blocked GitLab write
-validation. These live gates do not stall the read-only implementation path.
+the implementation path. GitLab’s personal-account discovery comparison passed
+for `WarrickSothr` on 2026-10-03: both discovery and the independent paginated
+requested-review query returned zero reviews, and all role queries found zero
+open memberships. This clears the discovery authentication blocker and completes
+the five selected implementation tickets. It proves empty-inbox parity;
+offline fixtures cover nonempty facts and pagination, with an additional
+anonymous live facts check. Authenticated nonempty GitLab coverage is still
+to obtain. The separate
+GitLab write validation remains blocked and was not attempted with this
+read-only credential.
 
 ## Remaining MVP work
 

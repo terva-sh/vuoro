@@ -3,8 +3,8 @@ schema: 3
 id: TKT-01M3W4HWNGYDHGXMSE91HKGTNT
 title: "GitLab adapter: discover the changes I review and wrote"
 type: task
-status: blocked
-status_reason: "Personal-account requested-review comparison needs working local glab authentication. Read-only implementation is merged in PR #8 and all offline/platform gates pass."
+status: done
+status_reason: null
 priority: high
 due_on: null
 labels:
@@ -24,12 +24,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:47:45Z
+updated_at: 2026-10-03T05:21:46Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:codex/inbox-20261002
+  id: agent:codex/gitlab-live-20261003
   name: ""
 extensions: {}
 ---
@@ -47,7 +47,7 @@ The adapter must work against any GitLab host, not only gitlab.com.
 ## Acceptance criteria
 
 - [x] Adapter tests run from recorded fixtures with no network
-- [ ] A live run lists the same open changes the GitLab review-requested page shows
+- [x] A live run lists the same open changes the GitLab review-requested page shows
 - [x] No token appears in any log line or error message, and a test proves it
 
 ## Implementation plan
@@ -68,6 +68,14 @@ PR #8's first terva-review was clean on fe6ea043ddfba1fd86338807a0c79ce59226af85
 
 in-progress to blocked: Personal-account requested-review comparison needs working local glab authentication. Read-only implementation is merged in PR #8 and all offline/platform gates pass.
 
+**agent:codex/gitlab-live-20261003** at 2026-10-03T05:21:45Z
+
+Completed the remaining personal-account comparison on 2026-10-03 at source main d5b43828be7c0e7de4f6c94bf087a931b88193a9. Diagnosed the owner's glab login HTTP 429 temporary-service response separately from missing Secret Service. The current default glab /user request returned 401 while an anonymous public-project API request returned 200. A read-only token supplied by the owner authenticated as WarrickSothr when passed through a non-echoing stdin prompt into process memory and the subprocess environment. No auth file was read and no credential was written to a file, config, argv, fixture, ticket or command output.
+
+CGO_ENABLED=0 GOTOOLCHAIN=local mise exec -- go test -v ./forge/gitlab -run '^TestLiveDiscovery$' -count=1 passed in 2.01s. Vuoro's discovery and an independent paginated GitLab requested-review list both returned zero requested reviews; authored/reviewer/assigned discovery found zero open memberships. This proves authenticated empty-inbox parity for this account, not authenticated nonempty facts, pagination or turn transitions. Positive facts/pagination/turn coverage remains the existing offline fixtures, anonymous live GitLab read and separate nonempty Forgejo live comparison. Mark criterion 2 earned for the observed empty list, clear only this ticket's authentication blocker, and keep the separate GitLab posting validation blocked.
+
 ## Summary
 
-Read-only GitLab discovery and fresh patch-free facts landed in PR #8 after two clean full reviews and passing exact-head internal CI plus Linux/macOS/Windows native checks, including the macOS window and race checks. Final reviewed head: 0abfba143744674a4a7efc3533a3bdabd8850a07. Full local just ci and anonymous live schema/read validation passed. Personal-account discovery parity remains the sole unfinished acceptance criterion and needs the owner's local glab authentication. No credential was extracted or auth file read.
+Read-only GitLab discovery and fresh patch-free facts landed in PR #8 after two clean full reviews and passing exact-head internal CI plus Linux/macOS/Windows native checks, including macOS window and race checks. Final reviewed implementation head: 0abfba143744674a4a7efc3533a3bdabd8850a07. Full local CI and anonymous live schema/read validation passed.
+
+Remaining personal-account parity criterion passed on 2026-10-03 at main d5b43828be7c0e7de4f6c94bf087a931b88193a9: authenticated as WarrickSothr, both discovery and the independent requested-review query found zero requested reviews; all three role queries found zero open memberships. The live test passed in 2.01s. This is empty-inbox evidence only; authenticated nonempty turn facts and live pagination were not exercised. The supplied token was used only in memory/environment via non-echoing stdin; no auth file was read or credential persisted. GitLab posting remains a separate blocked validation ticket.
