@@ -282,6 +282,7 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 			ch.Pushes = append(ch.Pushes, forge.Push{At: e.Created, Head: head, By: e.User.Login})
 		}
 	}
+	reconcileRequests(ch, p.Requested)
 	// The diff endpoint reads the current PR, not a requested commit. Refuse a
 	// mixed snapshot if a push or target update raced these paginated reads.
 	current, err := read[apiPR](ctx, c, prPath)
@@ -306,6 +307,29 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 		}
 	}
 	return ch, nil
+}
+func reconcileRequests(ch *forge.Change, requested []apiUser) {
+	for _, u := range requested {
+		var latest time.Time
+		for _, request := range ch.Requests {
+			if request.Reviewer == u.Login && request.At.After(latest) {
+				latest = request.At
+			}
+		}
+		answered := false
+		for _, review := range ch.Reviews {
+			if !latest.IsZero() && review.Reviewer == u.Login && !review.At.Before(latest) &&
+				!review.Dismissed && !review.Stale && review.SHA == ch.Diff.Head {
+				answered = true
+			}
+		}
+		if !answered {
+			// A same-head re-request takes precedence over an earlier verdict.
+			// Without a timestamp, retain the PR's explicit pending request.
+			i := slices.IndexFunc(ch.Reviewers, func(r forge.Reviewer) bool { return r.Username == u.Login })
+			ch.Reviewers[i].State = forge.Unreviewed
+		}
+	}
 }
 func addReview(ch *forge.Change, r apiReview) {
 	verdict := map[string]forge.Verdict{"APPROVED": forge.VerdictApproved, "REQUEST_CHANGES": forge.VerdictChangesRequested, "COMMENT": forge.VerdictCommented}[r.State]

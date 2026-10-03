@@ -30,6 +30,14 @@ func fixtureClient(t *testing.T, extra bool) (*Client, forge.Ref) {
 	fs := fixture(t, "files.json")
 	diff := fixture(t, "pr.diff")
 	timeline := fixture(t, "timeline.json")
+	if extra {
+		var events []apiEvent
+		if err := json.Unmarshal(timeline, &events); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, apiEvent{Type: "review_request", User: apiUser{Login: "author"}, Assignee: &apiUser{Login: "reviewer"}, Created: time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)})
+		timeline, _ = json.Marshal(events)
+	}
 	var host string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -235,6 +243,68 @@ func TestTimelineFacts(t *testing.T) {
 type roundTrip func(*http.Request) (*http.Response, error)
 
 func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestOutstandingReviewRequests(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		requestAt []int
+		removed   bool
+		stale     bool
+		want      forge.ReviewState
+	}{
+		{name: "same-head re-request after approval", requestAt: []int{13, 9}, want: forge.Unreviewed},
+		{name: "approval after request", requestAt: []int{9}, want: forge.Approved},
+		{name: "request without timeline timestamp", want: forge.Unreviewed},
+		{name: "removed request is only history", requestAt: []int{13}, removed: true, want: forge.Approved},
+		{name: "stale review cannot answer request", requestAt: []int{9}, stale: true, want: forge.Unreviewed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, ref := fixtureClient(t, false)
+			c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+				var body []byte
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/reviews"):
+					body = []byte("[]")
+					if r.URL.Query().Get("page") == "1" {
+						body, _ = json.Marshal([]apiReview{{ID: 10, User: apiUser{Login: "reviewer"}, State: "APPROVED", Commit: "68ff96c709bfbd9d96709b4b976bf4c77f131148", Stale: tc.stale, Submitted: time.Date(2026, 10, 2, 11, 0, 0, 0, time.UTC)}})
+					}
+				case strings.HasSuffix(r.URL.Path, "/timeline"):
+					body = []byte("[]")
+					if r.URL.Query().Get("page") == "1" && len(tc.requestAt) > 0 {
+						var events []apiEvent
+						for _, hour := range tc.requestAt {
+							events = append(events, apiEvent{Type: "review_request", User: apiUser{Login: "author"}, Assignee: &apiUser{Login: "reviewer"}, Created: time.Date(2026, 10, 2, hour, 0, 0, 0, time.UTC)})
+						}
+						body, _ = json.Marshal(events)
+					}
+				default:
+					res, err := http.DefaultTransport.RoundTrip(r)
+					if err != nil || !tc.removed || r.URL.Path != "/api/v1/repos/terva-sh/vuoro/pulls/2" {
+						return res, err
+					}
+					defer res.Body.Close()
+					var pr apiPR
+					if err := json.NewDecoder(res.Body).Decode(&pr); err != nil {
+						return nil, err
+					}
+					pr.Requested = nil
+					body, _ = json.Marshal(pr)
+				}
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body))), Header: http.Header{}}, nil
+			})
+			ch, err := c.Open(context.Background(), ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(ch.Reviewers) != 1 || ch.Reviewers[0].State != tc.want {
+				t.Fatalf("reviewers = %+v; want %s", ch.Reviewers, tc.want)
+			}
+			if len(ch.Reviews) != 1 || ch.Reviews[0].Verdict != forge.VerdictApproved {
+				t.Fatalf("historical approval lost: %+v", ch.Reviews)
+			}
+		})
+	}
+}
 
 func TestAPushDuringTheReadCannotMixHeadsAndPatches(t *testing.T) {
 	c, ref := fixtureClient(t, false)

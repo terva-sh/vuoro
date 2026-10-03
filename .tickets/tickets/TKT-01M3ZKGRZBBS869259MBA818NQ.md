@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-03T00:44:40Z
-updated_at: 2026-10-03T01:11:42Z
+updated_at: 2026-10-03T01:18:39Z
 created_by:
   id: agent:codex/forgejo-20261002
   name: ""
@@ -66,6 +66,15 @@ The owner authorized committing, pushing, opening the internal PR, obtaining and
 **agent:codex/forgejo-20261002** at 2026-10-03T01:11:42Z
 
 PR #3 is open at 4114fbd, linked to this thread, and pushed to both remotes for hosted checks. Linux and macOS passed (including the native window test). Windows run 37084894940 found one new fixture failure: core.autocrlf rewrote the recorded Forgejo HTTP diff to CRLF. Add a targeted -text attribute for recorded .diff fixtures, preserving API response bytes rather than normalizing production diffs (which could erase meaningful carriage returns in source content). The other four failures match the existing Windows portability ticket TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines). Forgejo CI run 16 and terva-review run 17 remain queued; the dispatch did create the run despite tea reporting an empty JSON response.
+
+**agent:codex/forgejo-20261002** at 2026-10-03T01:18:39Z
+
+Addressed both medium findings from terva-review run 17 (review 2017):
+
+- Preserve outstanding review requests: reconcile currently requested reviewers against the latest timeline request and qualifying current-head review. A same-SHA re-request stays Unreviewed while the historical approval remains in Reviews; a review after the request answers it. Missing timestamps conservatively preserve the explicit request, removed requests do not resurrect, and stale reviews do not answer requests. Five full adapter regression cases cover these paths, including unordered request events. The synthetic thread fixture now supplies its earlier request timestamp.
+- Retain existing attributes: restored both ticket Markdown rules (LF and merge=gitticket) and the Go LF rule, then appended only the targeted -text diff fixture exception. The earlier attribute overwrite was an implementation mistake.
+
+Targeted Forgejo tests pass with CGO_ENABLED=0. Full local CI and fresh hosted CI/review are next. The four baseline Windows portability failures remain under TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines); this change addresses the fixture and formatting regressions introduced here.
 
 ## Summary
 
