@@ -54,6 +54,7 @@ button.link:hover:not(:disabled) { background: none; text-decoration: underline;
   white-space: nowrap;
 }
 .badge.warn, .status-preparing { background: var(--ui-warn-soft); color: var(--ui-warn); border-color: var(--ui-warn); }
+.head-badge { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .status-working { background: var(--ui-accent-soft); color: var(--ui-accent); border-color: var(--ui-accent); }
 .status-failed { background: var(--ui-danger-soft); color: var(--ui-danger); border-color: var(--ui-danger); }
 .status-idle, .status-ended, .status-closed, .status-waiting { color: var(--ui-muted); }

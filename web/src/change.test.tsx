@@ -3,7 +3,8 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { ChangeView } from './change'
-import type { Change, Setup } from './types'
+import { api, post } from './api'
+import type { Change, Run, Setup } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(async () => []), post: vi.fn() }))
 
@@ -24,6 +25,20 @@ const setup: Setup = {
 }
 
 describe('forge capabilities', () => {
+  it('shows old findings separately from today\'s diff with their verified distance', async () => {
+    const root = document.createElement('div')
+    const r: Run = { id:'r1',kind:'gitlab',ref:change.ref,title:'A PR',web_url:change.web_url,head:'old',base:'base',created:'',status:'idle',cost_usd:0,sessions:[],drafts:[{id:'d1',severity:'low',title:'Old finding',description:'Saved wording',anchor:{path:'a.go',side:'head',start_line:1,end_line:1},status:'pending',revision:1,session:'s1',drafted_by:'Fake',updated:''}] }
+    vi.mocked(api).mockImplementation(async (path) => path === '/api/runs' ? [r] : path.endsWith('/head') ? {reviewed_head:'old',current_head:'head',relation:'ahead',commits_behind:2} : r)
+    await act(async () => render(<ChangeView change={{...change,kind:'gitlab',capabilities:{drafts:true,resolve:true,approve:true}}} setup={setup} onChange={() => {}} onSetup={() => {}} />,root))
+    for (let i=0;i<5;i++) await act(async () => {})
+    expect(root.textContent).toContain('reviewed at old, 2 commits behind')
+    expect(root.querySelector('.files .draft')).toBeNull()
+    expect(root.querySelector('section .draft')?.textContent).toContain('Saved wording')
+    expect([...root.querySelectorAll('section .draft button')].find((b)=>b.textContent==='Keep')?.hasAttribute('disabled')).toBe(true)
+    expect(post).not.toHaveBeenCalled()
+    act(() => render(null,root))
+    vi.mocked(api).mockResolvedValue([])
+  })
   it('a configured Forgejo account can review but cannot post', async () => {
     const root = document.createElement('div')
     await act(async () => render(<ChangeView change={change} setup={setup} onChange={() => {}} onSetup={() => {}} />, root))

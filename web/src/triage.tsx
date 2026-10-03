@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
 import { MyDraft, ThreadView } from './diffview'
 import { SessionPane } from './run'
+import { HeadBadge, useRunHead, type HeadState } from './head'
 import { ago, Prose, short, StatusBadge } from './ui'
 import { useWriter, WriteContext } from './write'
 import { refKey, type Change, type Draft, type Run, type Setup, type Thread, type TriageCategory } from './types'
@@ -88,6 +89,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
   }
   const start = () => mutate(() => post<Run>('/api/triage', { url: change.web_url, tool: tool ?? tools[0]?.name }))
   const current = run && run.id === selected && refKey(run.ref) === key ? run : undefined
+  const headState = useRunHead(current?.id, current?.head, change)
   const moved = !!current && current.head !== change.diff.head
   const drafts = new Map((current?.drafts ?? []).filter((d) => d.status === 'pending').map((d) => [d.thread_id, d]))
   const snapshots = new Map((current?.triage_threads ?? []).map((t) => [t.id, t]))
@@ -105,7 +107,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
         <p class="alert" role="status">This thread is no longer open in the current snapshot. Its saved discussion and reply remain here for reference.</p>
         <WriteContext.Provider value={undefined}><ThreadView thread={t} /></WriteContext.Provider>
       </>}
-      {d && current && <ReplyCard key={`${current.id}:${d.id}`} draft={d} run={current} stale={stale(t)} busy={busy} mutate={mutate} />}
+      {d && current && <ReplyCard key={`${current.id}:${d.id}`} draft={d} run={current} headState={headState} stale={stale(t)} busy={busy} mutate={mutate} />}
       {(change.drafts ?? []).filter((p) => p.thread_id === t.id).map((p) => <MyDraft draft={p} key={p.id} />)}
       {!d && <p class="muted">{current?.status === 'working' || current?.status === 'preparing' ? 'Waiting for the agent to classify this thread…' : 'Not triaged yet. You can reply directly or start triage.'}</p>}
     </article>
@@ -120,7 +122,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
     {tools.length === 0 && <p class="muted">No agent tool is available. You can still read the threads and reply directly when posting is supported.</p>}
     {!change.capabilities.drafts && <p class="muted">Replies can be drafted, edited and copied locally. Posting on this forge is unavailable.</p>}
     {error && <p class="alert" role="alert">{error}</p>}
-    {current && <div class="triage-run"><StatusBadge status={current.status} /><span class="muted">Triaged at {short(current.head)}</span>{current.error && <p class="alert">{current.error}</p>}{moved && <p class="alert" role="status">The head changed. Refresh and run triage again before accepting replies.</p>}
+    {current && <div class="triage-run"><StatusBadge status={current.status} /><HeadBadge state={headState} label="triaged" />{current.error && <p class="alert">{current.error}</p>}{moved && <p class="alert" role="status">The head changed. Refresh and run triage again before accepting replies.</p>}
       <details><summary>Talk to the agent · progress and reasoning</summary>{current.sessions.map((s) => <SessionPane run={current} session={s} key={s.id} />)}</details>
     </div>}
     {threads.length === 0 ? <p>No open human review threads to triage.</p> : <>
@@ -131,7 +133,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
   </section>
 }
 
-function ReplyCard({ draft, run, stale, busy, mutate }: { draft: Draft; run: Run; stale: boolean; busy: boolean; mutate: (action: () => Promise<Run>) => Promise<void> }) {
+function ReplyCard({ draft, run, headState, stale, busy, mutate }: { draft: Draft; run: Run; headState?: HeadState; stale: boolean; busy: boolean; mutate: (action: () => Promise<Run>) => Promise<void> }) {
   const w = useWriter()
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(draft.description)
@@ -142,6 +144,7 @@ function ReplyCard({ draft, run, stale, busy, mutate }: { draft: Draft; run: Run
   const copy = <button disabled={busy || !draft.description.trim()} onClick={() => void navigator.clipboard.writeText(draft.description).then(() => setCopied(true)).catch(() => { if (!draft.decision) setEditing(true) })}>{copied ? 'Copied' : 'Copy reply'}</button>
   return <div class="triage-reply">
     <div class="draft-meta muted">Drafted reply · {draft.drafted_by}{draft.edited && ' · edited by you'}</div>
+    <HeadBadge state={headState} label="triaged" />
     {stale && !draft.decision && <p class="alert" role="status">This discussion or head changed. Run triage again before accepting this reply.</p>}
     {draft.decision ? <><p class="muted">{draft.decision === 'kept' ? 'Accepted into pending comments. Current pending and published state comes from the forge.' : 'Reply discarded. The category and reason remain for reference.'}</p>{draft.description.trim() && <><Prose text={draft.description} />{copy}</>}</> : editing ? <form class="composer" onSubmit={(e) => { e.preventDefault(); void mutate(async () => { const next = await post<Run>(`${base}/edit-reply`, { body, category }); setEditing(false); return next }) }}>
       <label>Category <select value={category} onChange={(e) => setCategory(e.currentTarget.value as TriageCategory)}>{categories.map(([c,label]) => <option value={c} key={c}>{label}</option>)}</select></label>

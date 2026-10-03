@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks'
-import { fileID, FileView, MyDraft, ThreadView } from './diffview'
+import { DraftCard, fileID, FileView, MyDraft, ThreadView } from './diffview'
+import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
 import { changeNumber, type Change, type Draft, type Reviewer, type Setup } from './types'
@@ -23,6 +24,9 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   const [chosenTab, setTab] = useState<Tab>()
   const [error, setError] = useState<string>()
   const [runID, setRunID] = useState<string>()
+  const [reviewedHead, setReviewedHead] = useState<string>()
+  const headState = useRunHead(runID, reviewedHead, change)
+  const moved = !!reviewedHead && reviewedHead !== change.diff.head
   const [commenting, setCommenting] = useState(false)
   const writer = useMemo(() => makeWriter(change.web_url, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, onChange])
   // Writing needs the person's token: a forge in the config with this host.
@@ -58,6 +62,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   return (
     <RefsContext.Provider value={{ base: projectURL(change.web_url), kind: change.kind }}>
     <WriteContext.Provider value={canDraft ? writer : undefined}>
+    <HeadContext.Provider value={headState}>
     <div class="change">
       <header class="change-head">
         <h1>
@@ -126,6 +131,12 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
         </div>
       )}
       {tab === 'changes' && (
+        <>
+        {moved && drafts.length > 0 && <section class="section">
+          <h2>Drafts from the reviewed head</h2><HeadBadge state={headState} />
+          <p class="muted">These drafts retain their original locations. They are shown separately from the current diff; anchored findings need a new review before you keep them.</p>
+          {drafts.map((d) => <DraftCard key={d.id} draft={d} runID={runID} />)}
+        </section>}
         <div class="changes">
           <nav class="file-list">
             {files.map((f) => (
@@ -146,18 +157,20 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
                 key={f.new_path}
                 file={f}
                 threads={byFile.get(f.new_path) ?? (f.old_path !== f.new_path ? byFile.get(f.old_path) ?? [] : [])}
-                drafts={drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path)}
+                drafts={moved ? [] : drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path)}
                 mine={mine.filter((d) => d.anchor?.path === f.new_path && !d.thread_id)}
                 runID={runID}
               />
             ))}
           </div>
         </div>
+        </>
       )}
       <div hidden={tab !== 'review'}>
-        <RunPanel change={change} setup={setup} onPick={pick} onDrafts={(ds, id) => { setDrafts(ds); setRunID(id) }} />
+        <RunPanel change={change} setup={setup} onPick={pick} onDrafts={(ds, id, head) => { setDrafts(ds); setRunID(id); setReviewedHead(head) }} />
       </div>
     </div>
+    </HeadContext.Provider>
     </WriteContext.Provider>
     </RefsContext.Provider>
   )

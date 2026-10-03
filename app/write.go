@@ -259,6 +259,11 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	run := a.Runs.Get(runID)
+	if run.Ref != ch.Ref || run.Kind != ch.Kind {
+		writeError(w, errors.New("This draft belongs to another change."))
+		return
+	}
 	body, edited := keepBody(d), false
 	if req.Body != nil && *req.Body != body {
 		body, edited = *req.Body, true
@@ -270,7 +275,7 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 	nd := forge.NewDraft{Body: body}
 	if d.Anchor != nil {
 		if ch.Diff.Head != head {
-			writeError(w, fmt.Errorf("the change has moved since this run reviewed %.8s, so its lines may have too; keep it without its line, or run the review again", head))
+			writeError(w, fmt.Errorf("the change has moved since this run reviewed %.8s; run the review again before keeping an anchored finding", head))
 			return
 		}
 		if nd.Anchor, err = anchor(ch, place{Path: d.Anchor.Path, Side: d.Anchor.Side, Line: d.Anchor.EndLine}); err != nil {
