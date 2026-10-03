@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-03T00:17:04Z
-updated_at: 2026-10-03T01:52:19Z
+updated_at: 2026-10-03T01:59:58Z
 created_by:
   id: agent:codex/vuoro-design-20261002
   name: ""
@@ -62,3 +62,15 @@ Fix the four portability assumptions without changing production behavior: asser
 Implemented the four test portability fixes without changing production code. The Claude MCP test keeps argv token isolation and removal-on-close assertions on all platforms, additionally requires a regular file in the configured directory, and checks Unix 0600 only where os.Stat reports Unix permissions; it does not claim to verify Windows ACLs. The docs example compares CRLF-normalized text, git apply fixture commands set core.autocrlf=false/core.eol=lf, and the report test checks the exact filepath.Join path under the run state directory.
 
 Targeted package tests pass. The patch test also passes uncached while inheriting core.autocrlf=true and core.eol=crlf through command-scoped environment settings, with no user Git configuration changes. The full local just ci gate passes with CGO_ENABLED=0: all package tests, three-platform vet, six cross-builds, 27 frontend tests, TypeScript, bundle/design checks and strict tickets. Native Windows and macOS hosted validation remain required before checking criteria 1 and 2. Continuing the owner-authorized commit/push/PR/review/merge workflow for these fixes.
+
+**agent:codex/windows-roadmap-20261002** at 2026-10-03T01:58:48Z
+
+GitHub run 37087736239 passes all Go tests on Windows, including the four original failures; Linux/macOS pass including the native window check. Windows then reaches the previously unreachable design check and fails because core.autocrlf rewrites the generated stylesheet to CRLF. Preserve LF for the exported design CSS and exact bytes for all generated web/dist assets, retaining the pre-existing ticket/Go/diff attributes.
+
+The bundle checker also invokes npx through execFileSync, which is a .cmd shim requiring a shell on Windows. Run the locked local Vite JS CLI with process.execPath instead, preserving the no-shell argument boundary and exact output comparison. These changes finish the existing cross-platform gate rather than weakening comparisons or regenerating different content per OS. A fresh checkout with core.autocrlf=true will exercise generated-asset handling.
+
+The first model review is clean (run 31, 4af834c1-4ab4-4185-b1db-4c5e2bc84d26). Request another review for these substantive checker/attribute changes. Original-test Windows coverage is earned, but full multi-platform CI acceptance remains unticked until the downstream gates pass.
+
+**agent:codex/windows-roadmap-20261002** at 2026-10-03T01:59:58Z
+
+A scratch core.autocrlf=true checkout reproduced a second generated-asset mismatch: Vite preserves the HTML entry point’s CRLF in generated index.html. Added a targeted LF attribute for web/index.html as a build input, alongside the exported CSS and exact-byte web/dist rules. Rechecked a freshly materialized HTML entry point with the new attributes: both verify:dist and design-check pass in that checkout. The original ticket, Go and recorded-diff rules remain intact. The full local gate also passes after the portable Node/Vite invocation. No generated asset content or production application code changed.
