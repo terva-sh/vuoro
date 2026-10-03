@@ -78,6 +78,39 @@ describe('author triage interactions', () => {
     expect(root.textContent).toContain('My newer wording')
     expect(root.textContent).not.toContain('Could you share an example?')
   })
+  it('resets selection when reused for another change and ignores the previous edit response', async () => {
+    const otherChange = { ...change, ref: { ...change.ref, number: 2 }, web_url: 'https://lab.test/team/repo/-/merge_requests/2' }
+    const otherRun = { ...run, id: 'r2', ref: otherChange.ref, web_url: otherChange.web_url, drafts: [{ ...run.drafts[0], description: 'The second change reply' }] }
+    vi.mocked(api).mockImplementation(async (path) => path === '/api/runs' ? [run, otherRun] : path === '/api/runs/r2' ? otherRun : run)
+    await mount()
+    const previousPoll = vi.mocked(api).mock.calls.find((c) => c[0] === '/api/runs/r1')!
+    let finishEdit!: (value: Run) => void
+    vi.mocked(post).mockImplementationOnce(() => new Promise((resolve) => { finishEdit = resolve as typeof finishEdit }))
+    await click('Edit reply and category')
+    await act(async () => { root.querySelector('.composer')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await act(async () => render(<WriteContext.Provider value={{ url: otherChange.web_url, act: vi.fn(async () => {}) }}><TriagePanel change={otherChange} setup={setup} onPick={() => {}} /></WriteContext.Provider>, root))
+    await act(async () => {})
+    await act(async () => {})
+    expect(previousPoll[1]?.signal?.aborted).toBe(true)
+    expect(root.textContent).toContain('The second change reply')
+    await act(async () => { finishEdit({ ...run, drafts: [{ ...run.drafts[0], description: 'Late first-change edit' }] }) })
+    expect(root.textContent).toContain('The second change reply')
+    expect(root.textContent).not.toContain('Late first-change edit')
+    await click('Edit reply and category')
+    vi.mocked(post).mockResolvedValue(otherRun)
+    await act(async () => { root.querySelector('.composer')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    expect(vi.mocked(post).mock.lastCall?.[0]).toBe('/api/runs/r2/drafts/d1/edit-reply')
+  })
+  it('keeps a newly started run when the earlier run-list request arrives late', async () => {
+    let finishList!: (value: Run[]) => void
+    vi.mocked(api).mockImplementation((path) => path === '/api/runs' ? new Promise((resolve) => { finishList = resolve as typeof finishList }) : Promise.resolve(run) as ReturnType<typeof api>)
+    vi.mocked(post).mockResolvedValue(run)
+    await mount()
+    await click('Triage open threads')
+    await act(async () => { finishList([]) })
+    expect(root.textContent).toContain('Could you share an example?')
+    expect(root.querySelector('label select')?.children.length).toBe(1)
+  })
   it('aborts polling when leaving and keeps old drafts on polling failure', async () => {
     vi.useFakeTimers(); serve(); await mount()
     vi.mocked(api).mockRejectedValueOnce(new Error('Run could not load'))

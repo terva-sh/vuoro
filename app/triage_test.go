@@ -157,6 +157,30 @@ func TestAuthorReplyRefusesOversizedOverrideBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestAuthorReplyRequiresSavedLocalEditsBeforeAcceptance(t *testing.T) {
+	a, p, url := triageApp(t)
+	base := "/api/runs/triage-run/drafts/d1"
+	code, _ := call(t, a.Handler(), base+"/keep", map[string]any{"url": url, "body": "An unsaved override"})
+	if code == 200 || p.writes != 0 {
+		t.Fatal("unsaved override reached forge")
+	}
+	if err := a.Runs.EditReply("triage-run", "d1", "My saved wording", drafts.Discuss); err != nil {
+		t.Fatal(err)
+	}
+	code, _ = call(t, a.Handler(), base+"/keep", map[string]any{"url": url, "body": "My saved wording"})
+	if code != 200 || p.pending.Body != "My saved wording" {
+		t.Fatal("saved wording was not accepted")
+	}
+	restored := &review.Manager{StateDir: a.Runs.StateDir}
+	if err := restored.Load(); err != nil {
+		t.Fatal(err)
+	}
+	d, _, _ := restored.Draft("triage-run", "d1")
+	if !d.Edited || d.Description != p.pending.Body || d.Decision != drafts.Kept {
+		t.Fatal("accepted wording was not persisted")
+	}
+}
+
 func TestTriageRoutesRequireTheWindowCredential(t *testing.T) {
 	a, _, _ := triageApp(t)
 	h := server.New(server.Config{Addr: "127.0.0.1:9123", Token: "synthetic-window-token", Dist: fstest.MapFS{}, API: a.Handler()})

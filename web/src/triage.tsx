@@ -20,7 +20,15 @@ export const threadStamp = (t: Thread) => JSON.stringify([
   t.notes.filter((n) => !n.system && !n.author.bot).map((n) => [n.id, n.author.username, n.body, n.at]),
 ])
 
-export function TriagePanel({ change, setup, onPick }: { change: Change; setup?: Setup; onPick: (path: string) => void }) {
+type TriageProps = { change: Change; setup?: Setup; onPick: (path: string) => void }
+
+export function TriagePanel(props: TriageProps) {
+  // Scope selection, polling and mutation responses to this change, even when
+  // a caller reuses the panel without keying its own change workspace.
+  return <TriageWorkspace {...props} key={refKey(props.change.ref)} />
+}
+
+function TriageWorkspace({ change, setup, onPick }: TriageProps) {
   const [runs, setRuns] = useState<Run[]>([])
   const [selected, setSelected] = useState<string>()
   const [run, setRun] = useState<Run>()
@@ -37,8 +45,9 @@ export function TriagePanel({ change, setup, onPick }: { change: Change; setup?:
   useEffect(() => {
     mounted.current = true
     const controller = new AbortController()
+    const stamp = version.current
     api<Run[]>('/api/runs', { signal: controller.signal }).then((all) => {
-      if (!mounted.current || controller.signal.aborted) return
+      if (!mounted.current || controller.signal.aborted || stamp !== version.current) return
       const mine = all.filter((r) => r.mode === 'triage' && refKey(r.ref) === key)
       setRuns(mine)
       setSelected((id) => id ?? mine[0]?.id)
@@ -78,7 +87,7 @@ export function TriagePanel({ change, setup, onPick }: { change: Change; setup?:
     finally { working.current = false; if (mounted.current) setBusy(false) }
   }
   const start = () => mutate(() => post<Run>('/api/triage', { url: change.web_url, tool: tool ?? tools[0]?.name }))
-  const current = run?.id === selected ? run : undefined
+  const current = run && run.id === selected && refKey(run.ref) === key ? run : undefined
   const moved = !!current && current.head !== change.diff.head
   const drafts = new Map((current?.drafts ?? []).filter((d) => d.status === 'pending').map((d) => [d.thread_id, d]))
   const snapshots = new Map((current?.triage_threads ?? []).map((t) => [t.id, t]))

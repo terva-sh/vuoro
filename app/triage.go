@@ -85,6 +85,9 @@ func (a *App) discardReply(w http.ResponseWriter, r *http.Request) {
 func (a *App) keepReply(w http.ResponseWriter, r *http.Request, url string, body *string) {
 	runID, id := r.PathValue("id"), r.PathValue("did")
 	err := a.Runs.AcceptReply(runID, id, func(d drafts.Draft) (string, bool, error) {
+		if body != nil && *body != d.Description {
+			return "", false, errors.New("Save the reply locally before adding it to pending comments.")
+		}
 		ch, wr, err := a.writer(r.Context(), url)
 		if err != nil {
 			return "", false, err
@@ -96,18 +99,12 @@ func (a *App) keepReply(w http.ResponseWriter, r *http.Request, url string, body
 		if err := a.Runs.CheckReply(runID, d, ch); err != nil {
 			return "", false, err
 		}
-		text, edited := keepBody(d), false
-		if body != nil && *body != text {
-			text, edited = *body, true
-		}
+		text := keepBody(d)
 		if strings.TrimSpace(text) == "" {
 			return "", false, errors.New("Write a reply before adding it to pending comments.")
 		}
-		if len(text) > 20000 {
-			return "", false, errors.New("A reply must be at most 20000 bytes.")
-		}
 		note, err := wr.CreateDraft(r.Context(), ch.Ref, forge.NewDraft{Body: text, ThreadID: d.ThreadID})
-		return note.ID, edited, err
+		return note.ID, false, err
 	})
 	if err != nil {
 		writeError(w, err)

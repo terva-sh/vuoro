@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-03T06:30:33Z
+updated_at: 2026-10-03T06:34:14Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -65,3 +65,13 @@ Implemented the Threads workspace and documented the interaction points in docs/
 Used the existing proven read-only driver/worktree/conversation boundary rather than introducing an embedded agent or writable tool. Kept discussion suggestions separate from new review findings: no synthesizer/verifier stage for triage, consistent with D13/D17 and plan 6.4. Classification can omit a reply instead of fabricating fixes, tests or agreement. Exact diff-thread focus and persistent split conversation remain later refinements.
 
 Validation: full CGO_ENABLED=0 just ci passes (39 frontend tests; all Go tests/vet; six cross builds; dist/design/ticket checks). Regression coverage includes role/ownership, duplicate/retarget refusal, immutable snapshots, restart, configured bots without provider mutation, oversized overrides, changed head/thread/change/closed state, local edit/discard and explicit accept/submit boundaries, protected routes, no tools/read-only UI, polling cancellation/failure and an old in-flight poll versus a newer edit. Browser synthetic fixture verifies authored default Threads, all three categories, local save, pending acceptance, Submit confirmation/publication, resolved-thread history, Birch/Tar styling and 390px layout. Fixture-only banner removal avoids its own header overflow; production layout has no overflow. No real forge writes or agent quota used. Live GitLab posting remains separately blocked on writable test MR/configuration.
+
+**agent:codex/gitlab-live-20261003** at 2026-10-03T06:34:14Z
+
+PR #12 (Triage author threads and draft local replies) is open at https://git.local.sothr.com/terva-sh/vuoro/pulls/12. Initial full model review on 5ae3535 found two medium issues; both accepted and fixed:
+
+1. The panel retained selection if a caller reused it for another change. Although the current parent also keys the workspace, the panel now owns a keyed inner workspace using forge change identity. Selection, polling, local state and mutation responses are discarded together on identity change; a displayed run must also match the current reference. A run-list response started before a new mutation cannot replace the newer run. Regression reuses the public panel for another change with the same thread/draft IDs, verifies abort of old polling, resolves a late old local-edit response, and proves subsequent edits target the new run. Another test covers a delayed initial list after explicit triage start.
+
+2. Acceptance-time body overrides could leave persisted/copied wording different from the accepted reply. Removed that triage override behavior: different text is refused before any forge I/O and must be saved through EditReply first. Identical saved text is allowed; acceptance preserves existing edited provenance. Regression refuses unsaved wording, then saves/accepts and reloads to prove the actual forge body matches the persisted local text. Ordinary finding keep behavior is unchanged.
+
+Full CGO_ENABLED=0 just ci passes after these fixes, now including 41 frontend tests. Rebuilt embedded assets. Source changes require a fresh full model review; native checks will run on the new head.
