@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HWXJYKCNXM4G7E86YX1M
 title: "Agent: summarise a change, and what changed since my review"
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ dependencies:
   - TKT-01M3YK0CH5RHPJJS7E0DX9SH8X
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/head-summary-20261003
-  branch: tickets/change-summaries
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: e641406982a82e6ca061df1c77379c278c5bce4a
-  session: null
-  claimed_at: 2026-10-03T07:00:00Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T07:16:54Z
+updated_at: 2026-10-03T07:21:09Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -70,3 +63,11 @@ PR #14 review findings addressed: cancellation and timeout now Cancel and Close 
 **agent:codex/head-summary-20261003** at 2026-10-03T07:16:54Z
 
 Live real-change streaming criterion passed on 2026-10-03 in Vuoro's protected Summary UI: anonymously opened https://gitlab.com/gitlab-org/cli/-/merge_requests/3991, prepared exact range 59ae78ca..8526e3d7, and observed working text followed by a complete ended summary describing the label-count fix, changed files, tests and risks. Locked Claude session offered only Glob/Grep/Read, with no MCP server or forge credential. Authentication was supplied privately to the validation launch environment; values were not printed or saved. This supersedes the earlier live-login blocker. No GitLab posting was attempted. Since-review isolation remains proven by exact real local git histories rather than inferred published-review timestamps. README documents authentication through the launch environment without weakening the reviewer settings lockdown.
+
+**agent:codex/head-summary-20261003** at 2026-10-03T07:21:08Z
+
+Fresh full model review on ecc2258c57a8eabcec63a41ea61d220da41e0d24 is clean: Actions run #133 explicitly resolves both prior findings. Forgejo CI passes; GitHub run 37105855914 passes Linux, macOS (including the native window check) and Windows. Two bounded read-only public GitLab summaries completed in the UI. The optional Stop click occurred after the second summary had already ended; it is not claimed as live cancellation evidence. Cancellation/provider-stop evidence remains the targeted lifecycle and blocked-subprocess regression tests. All acceptance criteria are earned. Final ticket-only closure will carry the clean review and receive fresh exact-head CI before merge.
+
+## Summary
+
+Implemented in Forgejo PR #14: protected whole-change and explicit completed-Vuoro-review summaries with immutable exact ranges, read-only one-turn driver sessions, no drafts MCP or forge writes, streaming and saved history, partial text and cancellation through startup/send/close/shutdown. Failed/cancelled/legacy-unverified initial reviews stay ineligible after reload and successful follow-ups. Missing/rewritten/shallow/oversized ranges refuse before provider work. A public GitLab MR streamed to completion using locked Claude; exact incremental histories and cancellation are regression-tested. Both model findings fixed and dispositioned; fresh full review clean. Full cgo-free local CI and Linux/macOS/Windows gates pass. Live GitLab posting remains deferred, and published review timestamps are not used as commit baselines.
