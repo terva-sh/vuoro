@@ -1,6 +1,6 @@
 # Vuoro roadmap proposal
 
-Execution proposal following the owner’s choice on 2026-10-02: one inbox for GitLab and Forgejo, ordered by whose turn it is (D34). Based on the code and ticket store after Forgejo PR #3.
+Execution proposal following the owner’s choice on 2026-10-02: one inbox for GitLab and Forgejo, ordered by whose turn it is (D34). Based on the code and ticket store after Forgejo PR #3 and the Windows gate fixes in PR #4.
 The design of record remains [plan.md](plan.md), with owner decisions in
 [decisions.md](decisions.md). This proposes execution order and completion gates;
 implementation tickets stay in draft until selected. D34 brings Forgejo discovery/inbox into the MVP; Forgejo writes and GitHub remain later work.
@@ -9,7 +9,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 
 | Area | Evidence and remaining work |
 |---|---|
-| Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. The complete Windows/Linux/macOS gate passes for PR #4, including the macOS window check. |
+| Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. Merged PR #4 passes the complete Windows/Linux/macOS gate, including the macOS window check. |
 | Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
 | GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
