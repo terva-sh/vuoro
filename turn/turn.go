@@ -66,11 +66,12 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 		}
 		if last != nil {
 			pushed := earliestPush(ch.Pushes, last.At)
+			hasDatedPush := !pushed.IsZero()
 			differentHead := last.Stale || (last.SHA != "" && ch.Diff.Head != "" && last.SHA != ch.Diff.Head)
-			if differentHead && slices.ContainsFunc(ch.Pushes, func(p forge.Push) bool { return p.At.IsZero() && p.Head != "" && p.Head == ch.Diff.Head }) {
+			if slices.ContainsFunc(ch.Pushes, func(p forge.Push) bool { return p.At.IsZero() }) {
 				pushed = time.Time{}
 			}
-			if !pushed.IsZero() || differentHead {
+			if hasDatedPush || differentHead {
 				add("R2", "New commits arrived since your review.", pushed, "")
 			}
 			if at, found := requestSince(ch.Requests, me, last); found {

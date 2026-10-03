@@ -318,13 +318,17 @@ func TestMixedVerdictTimestampsPreserveUnknownUnansweredAge(t *testing.T) {
 	}
 }
 
-func TestUndatedCurrentHeadPushKeepsUnknownReviewAge(t *testing.T) {
-	ch := base(t)
-	reviewed(&ch)
-	ch.Reviews[0].SHA = "old"
-	ch.Pushes = []forge.Push{{Head: "head"}, {At: moment(3), Head: "head"}}
-	got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
-	if got.Owner != Mine || got.Reasons[0].Rule != "R2" || got.Since != nil {
-		t.Fatal("undated current-head push invented known earliest age")
+func TestUndatedPushHistoryKeepsUnknownReviewAge(t *testing.T) {
+	for _, tc := range []struct{ name, reviewSHA, pushHead string }{{"complete metadata", "old", "head"}, {"missing review SHA", "", "head"}, {"missing push head", "old", ""}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := base(t)
+			reviewed(&ch)
+			ch.Reviews[0].SHA = tc.reviewSHA
+			ch.Pushes = []forge.Push{{Head: tc.pushHead}, {At: moment(3), Head: "head"}}
+			got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+			if got.Owner != Mine || got.Reasons[0].Rule != "R2" || got.Since != nil {
+				t.Fatal("undated push history invented known earliest age")
+			}
+		})
 	}
 }

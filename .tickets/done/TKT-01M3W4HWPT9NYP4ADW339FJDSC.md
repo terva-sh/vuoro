@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:12:21Z
+updated_at: 2026-10-03T03:15:21Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -65,6 +65,10 @@ The full gate is running before a fresh review. These correct missing-fact behav
 **agent:codex/inbox-20261002** at 2026-10-03T03:12:21Z
 
 PR #7 second review at e56cd67ff28c1f689bbb77363684f618e9f50eb4 confirms the first two findings resolved. New finding (repeated undated change-request age): accepted. Human verdict history now sorts only when every relevant timestamp is present; otherwise it retains adapter chronological order. Bot/comment noise is filtered before choosing that order. Each effective verdict walks its uninterrupted run back to the first unanswered verdict; an undated member makes the age unknown. Opposing verdicts, dismissals/staleness, head mismatch, or an author push answering a change request end that run. This also keeps repeated approvals from resetting age and lets a latest undated verdict supersede prior dated history without inventing a timestamp. Regression covers mixed change-request times, an opposing verdict ending the unknown run, and a latest undated approval. Running full CI and requesting a fresh review.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:15:21Z
+
+PR #7 third review at 7a36cb7ece8f10207ff568f921f9a9f502ab5145 confirms the repeated-undated-verdict finding resolved. New finding (R2 age with incomplete push metadata): accepted. R2 now separates proof of a dated post-review push from uncertainty about earliest age. Any undated push in history keeps age unknown once a new-push action is proven by dates or stale/head evidence; review SHA and push Head are not required to preserve that uncertainty. The regression table covers complete metadata, missing review SHA and missing push Head. No action is invented from an undated push alone.
 
 ## Summary
 
