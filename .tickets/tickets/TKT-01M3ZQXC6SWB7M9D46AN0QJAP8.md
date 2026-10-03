@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:28Z
-updated_at: 2026-10-03T03:56:59Z
+updated_at: 2026-10-03T03:58:42Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -72,3 +72,7 @@ The read-only live comparison now passes: discovered all 22 open PR memberships 
 **agent:codex/inbox-20261002** at 2026-10-03T03:56:59Z
 
 Addressed both findings from terva-review run 12eb46ac-1d96-41d6-b12f-993e7f03c117 on PR #9. Accepted the high finding: request records and timeline removals now share per-reviewer chronological ordering, with reverse-chronology and missing-time regressions; uncertain chronology retains work instead of silently dropping a relationship. Accepted the medium finding: opt-in live tests select a tea login only after checking credential-free account metadata for the exact configured host and username, and pass that login to both adapter transport and independent comparison. No auth file or token was read. Updated plan records cross-source ordering. Fresh review follows these substantive fixes.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:58:42Z
+
+The host-pinned live comparison passed again for 22 open memberships in 30.58 seconds, with full facts and checkout validation. Review run f4de8913-7b6a-4caf-acd9-189ba9e7aa2e repeated the two original findings, both covered by the recorded 3aac35c fixes. Run d376a5d9-eb2d-4b26-8760-bce5644d996e confirmed both resolved and identified one additional valid chronology issue: an undated pending draft prevented sorting dated published verdicts. Published histories now normalize independently per reviewer, excluding pending/request records from the ordering decision. Regressions cover reverse-ordered change requests and dismissed later approvals alongside undated pending/request records. Undated human verdicts preserve their own history order, matching the neutral engine's uncertainty policy. Updated the plan and will request a fresh review.

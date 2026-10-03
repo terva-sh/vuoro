@@ -282,7 +282,9 @@ records establish the relationship; voluntary reviews alone do not. Request and
 removal events are ordered across both sources per reviewer. Undated events
 retain an uncertain relationship rather than silently hiding work. Current PR
 requests take precedence. All roles deduplicate by the existing change key.
-Patch-free fact reads omit pending private reviews. A later dismissed or stale
+Patch-free fact reads omit pending private reviews. Published review histories
+are ordered per reviewer independently of drafts and request records; an
+undated published verdict preserves that reviewer’s adapter order. A later dismissed or stale
 non-comment verdict supersedes an earlier verdict without reviving its effect.
 Signed-in merge permission remains unknown: repository write/admin permission
 alone does not prove permission to merge this PR. Paging rejects malformed responses (including null search/review lists)

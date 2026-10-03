@@ -277,3 +277,39 @@ func TestCrossSourceRerequestAfterRemovalSurvives(t *testing.T) {
 		})
 	}
 }
+
+func TestUndatedDraftAndRequestsDoNotReorderPublishedVerdicts(t *testing.T) {
+	for _, state := range []string{"REQUEST_CHANGES", "APPROVED"} {
+		t.Run(state, func(t *testing.T) {
+			c, ref := fixtureClient(t, true)
+			c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+				if strings.HasSuffix(r.URL.Path, "/reviews") {
+					if r.URL.Query().Get("page") != "1" {
+						return response(`[]`), nil
+					}
+					newer := apiReview{ID: 11, User: apiUser{Login: "reviewer"}, State: state, Commit: "68ff96c709bfbd9d96709b4b976bf4c77f131148", Submitted: time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC), Dismissed: state == "APPROVED"}
+					older := newer
+					older.ID = 10
+					older.State = "APPROVED"
+					older.Dismissed = false
+					older.Submitted = older.Submitted.Add(-time.Hour)
+					b, _ := json.Marshal([]apiReview{newer, older, {ID: 12, User: apiUser{Login: "reviewer"}, State: "PENDING"}, {ID: 13, User: apiUser{Login: "other"}, State: "REQUEST_REVIEW"}})
+					return response(string(b)), nil
+				}
+				return http.DefaultTransport.RoundTrip(r)
+			})
+			ch, err := c.ReadFacts(context.Background(), ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := forge.RequestedChanges
+			if state == "APPROVED" {
+				want = forge.Reviewed
+			}
+			i := slices.IndexFunc(ch.Reviewers, func(r forge.Reviewer) bool { return r.Username == "reviewer" })
+			if i < 0 || ch.Reviewers[i].State != want || len(ch.Reviews) != 2 || ch.Reviews[0].At.After(ch.Reviews[1].At) {
+				t.Fatalf("published chronology: %+v %+v", ch.Reviewers, ch.Reviews)
+			}
+		})
+	}
+}

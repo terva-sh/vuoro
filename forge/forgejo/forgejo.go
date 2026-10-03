@@ -253,9 +253,7 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	if err != nil {
 		return nil, err
 	}
-	if !slices.ContainsFunc(reviews, func(r apiReview) bool { return r.Submitted.IsZero() }) {
-		slices.SortStableFunc(reviews, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
-	}
+	published := map[string][]apiReview{}
 	type relationshipEvent struct {
 		username  string
 		requested bool
@@ -271,8 +269,8 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 			ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: r.User.Login, At: r.Submitted})
 			relationshipEvents = append(relationshipEvents, relationshipEvent{r.User.Login, true, r.Submitted})
 		}
-		if !pending {
-			addReview(ch, r)
+		if r.State == "APPROVED" || r.State == "REQUEST_CHANGES" || r.State == "COMMENT" {
+			published[r.User.Login] = append(published[r.User.Login], r)
 		}
 		if r.Body != "" {
 			if pending {
@@ -294,6 +292,22 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 			return nil, errors.New("forgejo: review comments changed while reading; refresh again")
 		}
 		addComments(ch, cs, pending)
+	}
+	// Pending drafts and request records have no verdict timestamp. They must
+	// not prevent a person's dated published reviews from being chronological.
+	names := make([]string, 0, len(published))
+	for name := range published {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		history := published[name]
+		if !slices.ContainsFunc(history, func(r apiReview) bool { return r.Submitted.IsZero() }) {
+			slices.SortStableFunc(history, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
+		}
+		for _, r := range history {
+			addReview(ch, r)
+		}
 	}
 	timeline, err := pages[apiEvent](ctx, c, fmt.Sprintf("%s/issues/%d/timeline", root, ref.Number))
 	if err != nil {
