@@ -318,7 +318,7 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		}
 		var r gqlResponse
 		if err := json.Unmarshal(b, &r); err != nil {
-			return nil, fmt.Errorf("gitlab: graphql: %w", err)
+			return nil, errors.New("gitlab: invalid GraphQL response")
 		}
 		if len(r.Errors) > 0 {
 			return nil, fmt.Errorf("gitlab: graphql: %s", c.scrub(r.Errors[0].Message))
@@ -327,6 +327,9 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 			return nil, fmt.Errorf("%s: %w", ref, ErrNotFound)
 		}
 		got := r.Data.Project.MergeRequest
+		if got.IID != strconv.Itoa(ref.Number) {
+			return nil, errors.New("gitlab: mismatched merge request identity")
+		}
 		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage || got.Diffs.PageInfo.HasNextPage {
 			return nil, errors.New("gitlab: review facts exceed connection limit")
 		}

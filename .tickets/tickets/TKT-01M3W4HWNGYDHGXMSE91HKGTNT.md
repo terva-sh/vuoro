@@ -31,7 +31,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:40:34Z
+updated_at: 2026-10-03T03:42:23Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -66,3 +66,7 @@ Discover complete open membership through authenticated REST author/reviewer/ass
 **agent:codex/inbox-20261002** at 2026-10-03T03:40:34Z
 
 Implemented complete role discovery and fresh patch-free facts. Full just ci passes with CGO_ENABLED=0, as does an opt-in anonymous live read of gitlab-org/cli !3991 confirming GraphQL schema compatibility. Offline regressions cover server-clamped/missing-header pagination, late failures, account/host isolation, rate limits, malformed cursors, nested truncation, moving snapshots, mixed system events and token truncation-prefix redaction. Personal-account live comparison remains unverified because glab's /user read cannot authenticate; acceptance criterion 2 remains unchecked. Added an opt-in comparison using glab's authenticated HTTP responses rather than extracting credentials: VUORO_LIVE_GITLAB_DISCOVERY=1 plus username/optional host. No auth file was read. Nested factual connections above 100 entries fail visibly pending separate exhaustive nested pagination support; partial facts never replace the cache.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:42:23Z
+
+PR #8's first terva-review was clean on fe6ea043ddfba1fd86338807a0c79ce59226af85. A subsequent self-review added explicit MR IID validation and fixed malformed GraphQL timestamps so decoder errors cannot echo credential values. Regression tests cover GraphQL error messages, invalid timestamps and mismatched identities. These substantive hardening changes will receive a fresh review. Personal-account live comparison is still pending local authentication.

@@ -233,3 +233,28 @@ func TestSystemEventsInMixedThreadsAreOrderedAndMarkBots(t *testing.T) {
 		t.Fatalf("events %+v", got.Reviews)
 	}
 }
+
+func TestGraphQLErrorsCannotEchoCredentials(t *testing.T) {
+	for _, mode := range []string{"graphql-error", "invalid-timestamp", "identity"} {
+		t.Run(mode, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				result := factsFixture(t)
+				switch mode {
+				case "graphql-error":
+					result["errors"] = []any{map[string]any{"message": "echo " + secret}}
+				case "invalid-timestamp":
+					fixtureMR(result)["createdAt"] = secret
+				case "identity":
+					fixtureMR(result)["iid"] = "1"
+				}
+				json.NewEncoder(w).Encode(result)
+			}))
+			defer srv.Close()
+			c, ref := client(t, srv, secret)
+			_, err := c.ReadFacts(context.Background(), ref)
+			if err == nil || strings.Contains(fmt.Sprintf("%+v %#v", err, err), secret) {
+				t.Fatal("invalid facts accepted or credential leaked")
+			}
+		})
+	}
+}
