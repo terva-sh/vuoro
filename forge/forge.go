@@ -132,6 +132,7 @@ const (
 // where the forge records it; GitLab does not.
 type Review struct {
 	Reviewer  string    `json:"reviewer"`
+	Bot       bool      `json:"bot"`
 	Verdict   Verdict   `json:"verdict"`
 	At        time.Time `json:"at"`
 	SHA       string    `json:"sha"`

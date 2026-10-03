@@ -92,6 +92,7 @@ frontend assets.
 | `forge` | The forge-neutral model (section 4), `Provider`/`Opener` and optional `Writer` contracts. No HTTP. |
 | `forge/adapters` | Parsers and factories select a provider by configured kind, or anonymous URL shape. No API orchestration. |
 | `forge/gitlab`, `forge/github`, `forge/forgejo` | One adapter each. All the API knowledge lives here. |
+| `inbox` | Account-scoped discovery, cached snapshots, scrubbed refresh status and authored snoozes. No agent or ticket dependency. |
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
 | `state` | Whole-file, private writes under the state directory. |
@@ -253,12 +254,29 @@ and those line coordinates; the first comment supplies thread resolution.
 Pending reviews are drafts rather than published threads. Push times come from
 `pull_push` timeline entries, never commit authorship dates.
 
-The current Forgejo API supplies no bot-user marker. This slice does not infer
-bot status from account names; configured bot classification must be added
-before Forgejo turn derivation claims the bot-exclusion rules in section 4.
+The current Forgejo API supplies no bot-user marker. Vuoro does not infer bot
+status from account names. Each configured forge may name automated accounts
+in `bots`; the inbox applies those names and native bot markers to users and
+reviews before turn derivation. Configured marks are applied to copies of raw
+cached facts, so removing a configured bot does not leave a permanent mark.
 If a forge does not fit the contracts, revise the model rather than leaking its
 API details through the application. Agent and ticket integrations keep their
 own contracts (D33).
+
+`forge.Discoverer` is optional beside `Provider`. It returns complete open
+membership for a username, with all roles and forge update stamps; pagination
+and API details stay in adapters. Complete membership makes removals safe.
+The `inbox` service deduplicates stable `Ref.String()` identities, merges roles,
+and reuses a cached change only when its update stamp matches a nonzero
+membership stamp. Missing stamps always cause a new read. Discovery and all
+reads must succeed before replacing an account snapshot. A change that closes
+between discovery and reading drops out of that successful snapshot.
+
+Refresh runs only when called by the window, with at most four accounts in
+parallel and a two-minute context per account. Calls are serialized. Failed,
+cancelled, timed-out and rate-limited accounts retain their items and last
+success, and expose fixed credential-free messages. Healthy accounts replace
+their own snapshots independently. The service launches no background poller.
 
 GitLab notes for the adapter:
 
@@ -311,7 +329,10 @@ secret in it:
 }
 ```
 
-Three fields are optional:
+Four fields are optional:
+
+- `bots` on a forge names automated usernames on that host, supplementing the
+  forge’s native markers without guessing from names.
 
 - `clone` on a forge is the git transport a review fetches the project over:
   `ssh`, the default, or `https`. Either uses the person's own keys or
@@ -716,6 +737,12 @@ remains the cgo-free option if that changes. The state directory holds:
 | `runs/<id>/` | a review run: its sessions, transcripts, and drafts | vuoro's own record, under the retention above |
 | `repos/` | a bare clone of each reviewed project, fetched over the person's own git transport | derived |
 | `worktrees/<run>/` | the checkout a run's reviewers read | derived, removed with the run |
+
+`cache/inbox/<account-hash>.json` holds each account’s derived snapshot and
+last-attempt/last-success/error metadata. Its key includes kind, host and
+username. Only configured accounts are loaded. `annotations/inbox.json` holds
+snoozes by the existing stable change key; cache replacement or deletion never
+touches it. In-memory views are independent copies.
 
 Files are written whole, to a temporary name and then renamed, so a crash
 leaves the old file or the new one and never half of either. Directories are
