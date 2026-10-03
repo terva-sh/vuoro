@@ -12,7 +12,8 @@ and submit without leaving it.
 > unanswered ages, account refresh status and snoozes. Run reviews with Claude
 > Code from the same workspace. GitLab posting awaits live validation; Forgejo
 > supports reading and agent reviews. Personal-account GitLab discovery parity
-> still awaits local authentication. [docs/plan.md](docs/plan.md) is the design
+> passed for an empty inbox; live validation limits are in the roadmap.
+> [docs/plan.md](docs/plan.md) is the design
 > of record, and [docs/roadmap.md](docs/roadmap.md) maps remaining MVP/v1.0 work.
 
 
