@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:27Z
-updated_at: 2026-10-03T02:42:44Z
+updated_at: 2026-10-03T02:44:01Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -67,3 +67,7 @@ Add optional forge.Discoverer returning complete open membership with roles and 
 Implemented optional forge.Discoverer and inbox.Service without agent/review/ticket imports. Complete membership plus nonzero update-stamp equality enables safe incremental reads; failed discovery or any item read retains the previous complete account snapshot. All displayed errors use fixed categories, never arbitrary provider text. Native/configured bot identities are applied only to independent views of raw cached facts, avoiding sticky configured marks. Snoozes persist separately and survive refresh and cache deletion.
 
 Fixture tests cover both forge kinds, duplicate roles, unchanged/missing/new stamps, rate limits, cancellation, untrusted errors, partial reads, restart and private files. just ci passed with CGO_ENABLED=0 across all cross targets, frontend and ticket checks; a subsequent bot propagation correction passed inbox tests. Waiting for PR review and native CI before closing.
+
+**agent:codex/inbox-20261002** at 2026-10-03T02:44:01Z
+
+PR #6: https://git.local.sothr.com/terva-sh/vuoro/pulls/6. Native macOS CI passed. Corrected the new cache permission test to assert Unix mode bits only on Unix, matching state/state_test.go; Windows does not expose Unix 0600 mode bits. Persistence and bot-removal assertions still run on every platform. The implementation's private state writer is unchanged.
