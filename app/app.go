@@ -22,6 +22,7 @@ import (
 	"github.com/terva-sh/vuoro/config"
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/adapters"
+	"github.com/terva-sh/vuoro/inbox"
 	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/review/drafts"
 )
@@ -48,10 +49,13 @@ type App struct {
 	probeOnce sync.Once
 	probes    map[string]probe
 
-	clientMu sync.Mutex
-	mu       sync.Mutex
-	clients  map[string]forge.Provider // by host and kind
-	changes  map[string]*forge.Change  // by Ref.String(), the last read of each
+	clientMu     sync.Mutex
+	mu           sync.Mutex
+	clients      map[string]forge.Provider // by host and kind
+	changes      map[string]*forge.Change  // by Ref.String(), the last read of each
+	inboxOnce    sync.Once
+	inboxService *inbox.Service
+	inboxErr     error
 }
 
 type probe struct {
@@ -66,6 +70,9 @@ type probe struct {
 func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/setup", a.setup)
+	mux.HandleFunc("GET /api/inbox", a.getInbox)
+	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
+	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
 	mux.HandleFunc("POST /api/runs/{id}/report", a.report)

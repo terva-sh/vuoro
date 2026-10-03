@@ -41,6 +41,7 @@ type AccountSnapshot struct {
 
 type Annotation struct {
 	SnoozedUntil time.Time `json:"snoozed_until"`
+	EventKey     string    `json:"event_key,omitempty"`
 }
 
 type View struct {
@@ -64,6 +65,7 @@ type Service struct {
 // appear in the view. Empty dir keeps state in memory only.
 func New(dir string, accounts []config.Forge, resolve Resolver) (*Service, error) {
 	s := &Service{dir: dir, resolve: resolve, gate: make(chan struct{}, 1), annotations: map[string]Annotation{}}
+	hosts := map[string]bool{}
 	for _, a := range accounts {
 		u, err := url.Parse(a.URL)
 		if err != nil || u.Host == "" || a.Username == "" || a.Kind == "" {
@@ -72,6 +74,12 @@ func New(dir string, accounts []config.Forge, resolve Resolver) (*Service, error
 		a.Bots = append([]string(nil), a.Bots...)
 		s.accounts = append(s.accounts, a)
 		host := strings.ToLower(u.Host)
+		// Match config.Parse and app credential routing: one account per host.
+		// Direct service callers must preserve that invariant too.
+		if hosts[host] {
+			return nil, errors.New("inbox: a host may have only one configured account")
+		}
+		hosts[host] = true
 		sum := sha256.Sum256([]byte(a.Kind + "\x00" + host + "\x00" + a.Username))
 		key := hex.EncodeToString(sum[:])
 		snapshot := AccountSnapshot{Key: key, Name: a.Name, Kind: a.Kind, Host: host, Username: a.Username, Items: []Item{}}
@@ -108,15 +116,19 @@ func (s *Service) annotationPath() string { return filepath.Join(s.dir, "annotat
 // Snapshot returns an independent copy, so neither the UI nor a caller can
 // mutate cached facts while another account is refreshing.
 func (s *Service) Snapshot() View {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	view := clone(View{Accounts: s.snapshots, Annotations: s.annotations})
+	view := s.rawSnapshot()
 	for i := range view.Accounts {
 		for j := range view.Accounts[i].Items {
 			classify(&view.Accounts[i].Items[j].Change, s.accounts[i].Bots)
 		}
 	}
 	return view
+}
+
+func (s *Service) rawSnapshot() View {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return clone(View{Accounts: s.snapshots, Annotations: s.annotations})
 }
 
 // Refresh serializes refreshes and bounds account work to four workers and two
@@ -299,7 +311,15 @@ func (s *Service) Snooze(ref forge.Ref, until time.Time) error {
 	if until.IsZero() {
 		delete(annotations, ref.String())
 	} else {
-		annotations[ref.String()] = Annotation{SnoozedUntil: until.UTC()}
+		key := ""
+		for _, a := range s.snapshots {
+			for _, item := range a.Items {
+				if item.Change.Ref == ref {
+					key = eventKey(item.Change)
+				}
+			}
+		}
+		annotations[ref.String()] = Annotation{SnoozedUntil: until.UTC(), EventKey: key}
 	}
 	if s.dir != "" {
 		if err := state.WriteJSON(s.annotationPath(), annotations); err != nil {

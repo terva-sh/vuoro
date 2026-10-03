@@ -75,6 +75,10 @@ func (a *App) reply(w http.ResponseWriter, r *http.Request, url string) {
 		writeError(w, err)
 		return
 	}
+	if service, err := a.inbox(); err == nil {
+		// Its own error/status preserves stale facts if the targeted read fails.
+		_ = service.RefreshChange(r.Context(), ch.Ref)
+	}
 	writeJSON(w, http.StatusOK, ch)
 }
 

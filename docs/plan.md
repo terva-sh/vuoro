@@ -318,6 +318,29 @@ cancelled, timed-out and rate-limited accounts retain their items and last
 success, and expose fixed credential-free messages. Healthy accounts replace
 their own snapshots independently. The service launches no background poller.
 
+The home window reads a lightweight inbox projection: account refresh status
+and `mine`, `theirs` and `snoozed` rows with forge/project, roles, structured
+reasons and nullable ages. Each group sorts by oldest known unanswered age,
+then unknown ages, with stable change keys for ties. Patches and private drafts
+are omitted. `/api/inbox`, `/api/inbox/refresh` and `/api/inbox/snooze` use the
+existing window guard and require no agent probing or ticket store. A bad config
+or unreadable cache is a visible failure, never an apparently empty inbox.
+
+The inbox polls only while its home view is mounted, a minute after the previous
+request completes; manual refresh and snooze actions share one frontend request
+gate. Unmount aborts active requests and cancels the timer. Per-account failures
+show cached results and the last successful refresh. Rows open the existing
+workspace or link to the forge. A separate snoozed list restores a row explicitly.
+Snoozes retain a fingerprint of raw forge facts, excluding patches, private drafts
+and capabilities. Expiry or changed facts wakes the row, including undated new
+notes; config-driven bot classification never changes that fingerprint.
+
+After a human write, a targeted fresh read updates the corresponding cached row
+and turn (or removes a closed change). It takes the same gate as full refresh
+before reading, so an older in-flight refresh cannot overwrite the new facts.
+It preserves the whole-account last-success time; only a full successful account
+refresh advances that stamp. No posted state is guessed from the write response.
+
 GitLab notes for the adapter:
 
 - Discover complete open membership with `GET /merge_requests?scope=all&state=opened`

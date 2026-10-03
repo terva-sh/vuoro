@@ -1,6 +1,6 @@
-# Vuoro roadmap proposal
+# Vuoro roadmap
 
-Execution proposal following the owner’s choice on 2026-10-02: one inbox for GitLab and Forgejo, ordered by whose turn it is (D34). Based on the code and ticket store after Forgejo PR #3 and the Windows gate fixes in PR #4.
+Execution proposal following the owner’s choice on 2026-10-02: one inbox for GitLab and Forgejo, ordered by whose turn it is (D34). Updated through the shared inbox implementation after merged discovery and turn PRs #6–#9.
 The design of record remains [plan.md](plan.md), with owner decisions in
 [decisions.md](decisions.md). This proposes execution order and completion gates;
 implementation tickets stay in draft until selected. D34 brings Forgejo discovery/inbox into the MVP; Forgejo writes and GitHub remain later work.
@@ -13,7 +13,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 | Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
 | GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
-| Inbox | Discovery, the pure turn engine, refresh/cache orchestration, and the inbox UI remain to be built. There is no turn-derived inbox today. |
+| Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9. The home inbox integrates both forges with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed; GitLab personal-account parity awaits local authentication, so stage 1’s live gate remains open. |
 | Review lifecycle | Token/cost displays and head-SHA flags already exist. Unknown-cost labeling, commit-distance/draft staleness coverage, and retention still need their ticket criteria checked or completed. |
 | External blockers | Terva reviewers wait for a release whose per-run MCP configuration and lockdown are proven. The editor waits for a sandbox spike. Neither blocks the inbox. |
 
@@ -46,7 +46,7 @@ pre-1.0 releases while retaining the existing v1.0 commitments. The terva driver
 can proceed independently only after its lockdown spike passes. Editor use on
 other people's changes stays after v1.0 (D18).
 
-## The next implementation slices
+## Inbox implementation slices
 
 1. **Shared discovery and refresh:** TKT-01M3ZQXC5CPRDM3CD937C6PC3Q (Share forge discovery,
    caching, and refresh for the inbox). Define an optional forge discovery contract,
@@ -83,10 +83,12 @@ other people's changes stays after v1.0 (D18).
    posting without adding an agent or ticket-store requirement to the inbox.
 
 The critical path is `shared discovery → GitLab + Forgejo adapters`, alongside
-`turn`, then `mixed-forge inbox`. The first shared-service and turn slices are
-startable by dependency, but remain drafts until selected by the owner. The
-blocked GitLab write validation can be scheduled alongside them; it should not
-stall the read-only path.
+`turn`, then `mixed-forge inbox`. The owner selected all five slices for
+autonomous implementation. The shared
+service, turn engine and both adapters are merged; the home inbox completes
+the implementation path. GitLab’s personal-account discovery comparison remains
+an explicit unfinished criterion, alongside the separate blocked GitLab write
+validation. These live gates do not stall the read-only implementation path.
 
 ## Remaining MVP work
 
@@ -122,9 +124,8 @@ stall the read-only path.
 
 ## How to use this plan
 
-D34 settles the next outcome, not an automatic start of every ticket. Select the
-shared discovery/refresh and turn-engine slices first; then add both adapters
-and integrate the inbox. Keep the remaining tickets in draft, and judge each
+The owner selected the five inbox slices, and their implementation now follows
+this sequence. Keep the remaining MVP/v1.0 tickets in draft, and judge each
 stage against its observable completion gate before expanding scope. The
 existing “agent drafts, person posts” and read-only reviewer boundaries hold
 across every stage.

@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3ZQXC6SWB7M9D46AN0QJAP8
 title: Discover open Forgejo changes for the shared inbox
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -20,17 +20,10 @@ dependencies:
   - TKT-01M3ZKGRZBBS869259MBA818NQ
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/inbox-20261002
-  branch: tickets/forgejo-discovery
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: f5fd01bf194c223f7e2a96a876d197a9651a3b6d
-  session: null
-  claimed_at: 2026-10-03T03:48:37Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-03T02:01:28Z
-updated_at: 2026-10-03T03:58:42Z
+updated_at: 2026-10-03T04:02:42Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -76,3 +69,7 @@ Addressed both findings from terva-review run 12eb46ac-1d96-41d6-b12f-993e7f03c1
 **agent:codex/inbox-20261002** at 2026-10-03T03:58:42Z
 
 The host-pinned live comparison passed again for 22 open memberships in 30.58 seconds, with full facts and checkout validation. Review run f4de8913-7b6a-4caf-acd9-189ba9e7aa2e repeated the two original findings, both covered by the recorded 3aac35c fixes. Run d376a5d9-eb2d-4b26-8760-bce5644d996e confirmed both resolved and identified one additional valid chronology issue: an undated pending draft prevented sorting dated published verdicts. Published histories now normalize independently per reviewer, excluding pending/request records from the ordering decision. Regressions cover reverse-ordered change requests and dismissed later approvals alongside undated pending/request records. Undated human verdicts preserve their own history order, matching the neutral engine's uncertainty policy. Updated the plan and will request a fresh review.
+
+## Summary
+
+Read-only Forgejo discovery and patch-free facts landed in PR #9 after all review findings were accepted/fixed and the final full review was clean on e7c4783bf49470216555b622ab606ff4d3ce7199. Exact-head internal CI and Linux/macOS/Windows native gates passed. Host-pinned live comparison matched 24 open PR memberships and read full facts/validated checkout metadata in 15.94 seconds; earlier complete comparisons also passed. A concurrent push during a recheck was correctly refused as a moving snapshot. Fixed the existing non-paginated review-comment timeout and documented the verified timeline-null representation. No forge writes, credentials extracted or auth files read.
