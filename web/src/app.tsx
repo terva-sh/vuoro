@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, bindings, post } from './api'
 import { ChangeView } from './change'
+import { Inbox } from './inbox'
 import { waive } from './confirm'
 import { changeNumber, type Change, type Run, type Setup } from './types'
 import { ago, short, StatusBadge, usd } from './ui'
@@ -72,18 +73,19 @@ export function App() {
         {change ? (
           <ChangeView change={change} setup={setup} onChange={setChange} onSetup={setSetup} key={`${change.web_url}@${change.diff.head}`} />
         ) : (
-          <Home setup={setup} onSetup={setSetup} runs={runs} onOpen={(u) => { setURL(u); void open(u) }} />
+          <Home setup={setup} onSetup={setSetup} runs={runs} opening={opening} onOpen={(u) => { setURL(u); void open(u) }} />
         )}
       </main>
     </div>
   )
 }
 
-function Home({ setup, onSetup, runs, onOpen }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void }) {
+function Home({ setup, onSetup, runs, onOpen, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; opening: boolean }) {
   return (
     <div class="home">
-      <p>Open a merge request or pull request by its URL to read it and review it with an agent.</p>
+      <Inbox onOpen={onOpen} opening={opening} />
       {setup && (
+        <details class="inbox-setup"><summary>Accounts and review tools</summary>
         <ul class="setup">
           <li>
             Forges: {setup.forges.length === 0 ? 'none configured, so changes open anonymously and only public projects work' : setup.forges.map((f) => `${f.name} as @${f.username}`).join(', ')}
@@ -103,6 +105,7 @@ function Home({ setup, onSetup, runs, onOpen }: { setup?: Setup; onSetup: (s: Se
             )}
           </li>
         </ul>
+        </details>
       )}
       {runs.length > 0 && (
         <>

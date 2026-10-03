@@ -41,6 +41,7 @@ type AccountSnapshot struct {
 
 type Annotation struct {
 	SnoozedUntil time.Time `json:"snoozed_until"`
+	EventKey     string    `json:"event_key,omitempty"`
 }
 
 type View struct {
@@ -108,15 +109,19 @@ func (s *Service) annotationPath() string { return filepath.Join(s.dir, "annotat
 // Snapshot returns an independent copy, so neither the UI nor a caller can
 // mutate cached facts while another account is refreshing.
 func (s *Service) Snapshot() View {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	view := clone(View{Accounts: s.snapshots, Annotations: s.annotations})
+	view := s.rawSnapshot()
 	for i := range view.Accounts {
 		for j := range view.Accounts[i].Items {
 			classify(&view.Accounts[i].Items[j].Change, s.accounts[i].Bots)
 		}
 	}
 	return view
+}
+
+func (s *Service) rawSnapshot() View {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return clone(View{Accounts: s.snapshots, Annotations: s.annotations})
 }
 
 // Refresh serializes refreshes and bounds account work to four workers and two
@@ -299,7 +304,15 @@ func (s *Service) Snooze(ref forge.Ref, until time.Time) error {
 	if until.IsZero() {
 		delete(annotations, ref.String())
 	} else {
-		annotations[ref.String()] = Annotation{SnoozedUntil: until.UTC()}
+		key := ""
+		for _, a := range s.snapshots {
+			for _, item := range a.Items {
+				if item.Change.Ref == ref {
+					key = eventKey(item.Change)
+				}
+			}
+		}
+		annotations[ref.String()] = Annotation{SnoozedUntil: until.UTC(), EventKey: key}
 	}
 	if s.dir != "" {
 		if err := state.WriteJSON(s.annotationPath(), annotations); err != nil {

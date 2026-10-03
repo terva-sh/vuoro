@@ -32,7 +32,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T04:03:25Z
+updated_at: 2026-10-03T04:12:26Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -52,12 +52,20 @@ Refresh manually and on a bounded interval only while the window is open. Keep l
 
 ## Acceptance criteria
 
-- [ ] Opening a row opens the change view, and each row also links to the forge URL
-- [ ] A snoozed change returns when its date passes or a new event arrives
-- [ ] Changes from configured GitLab and Forgejo accounts share both turn groups with correct reason, age, account roles and oldest-first ordering.
-- [ ] One account failing or being rate-limited preserves other results and shows visible stale/error state.
-- [ ] The inbox works with no agent tools and no ticket store; refresh stays bounded to the open window.
+- [x] Opening a row opens the change view, and each row also links to the forge URL
+- [x] A snoozed change returns when its date passes or a new event arrives
+- [x] Changes from configured GitLab and Forgejo accounts share both turn groups with correct reason, age, account roles and oldest-first ordering.
+- [x] One account failing or being rate-limited preserves other results and shows visible stale/error state.
+- [x] The inbox works with no agent tools and no ticket store; refresh stays bounded to the open window.
 
 ## Implementation plan
 
 Integrate the merged shared service, pure turn engine and both adapters via a light display projection containing account status and mine/theirs/snoozed rows, ordered by oldest known unanswered age with unknown ages last and stable Ref ties. Cached raw facts classify bots before deriving turns; projection omits patches, drafts and tokens. Record a raw event fingerprint with authored snoozes so expiry or new forge facts restores a row without config-only bot changes waking it. Add protected GET snapshot, POST refresh and POST snooze routes, initialized independently of tool probing or ticket stores. Refresh only while the home inbox is mounted, at most one frontend request at once, a minute after the previous request completes, with AbortController cleanup. Preserve stale account facts and visible last-success/errors. Rows open the existing workspace and link to the forge; a collapsed snoozed list restores work. After human writes, perform a serialized targeted fresh fact read so an older in-flight refresh cannot overwrite newer facts, preserving whole-account last-success semantics. Mixed-forge fixture, ordering/snooze/error, cancellation/polling, guard and human-write regressions plus light/dark browser validation precede full CI, review and merge. GitLab's implementation is merged; its personal-account live criterion remains blocked on authentication, so proceed with independent offline integration while preserving that blocker in the roadmap.
+
+## Notes
+
+**agent:codex/inbox-20261002** at 2026-10-03T04:12:26Z
+
+Implemented the guarded lightweight combined inbox, oldest-known unanswered ordering with unknown age last, per-account stale status, serialized mounted-only refresh, authored snooze fingerprints and targeted fresh facts after human writes. Local just ci passed with CGO_ENABLED=0: all backend tests, six cross builds, three-platform vet, typecheck, 31 frontend tests, generated assets/design and strict ticket checks. Regression coverage includes no tools/tickets/runs, protected route rejection, stale mixed results, new undated events, bot configuration stability, cancellation and save failure rollback.
+
+Collaborative browser verified the actual embedded fixture app in dark 1280x800 and light 390x844: mixed reasons/roles/age, unknown age, account rate-limit warning, snooze count 3 to 2 and restore to 3, row opening the existing read-only workspace, and no horizontal overflow at 390px. Browser loopback reached a different host, so a temporary scratch proxy forwarded only synthetic fixture traffic to the guarded local app; no production protection was altered and no real forge credentials were used. GitLab personal-account discovery parity remains unverified and blocked on CLI authentication under its own ticket.

@@ -7,14 +7,14 @@ and submit without leaving it.
 
 *Vuoro* is Finnish for "turn", as in "it is your turn".
 
-> **Status: review orchestration implemented.** Open GitLab merge requests or
-> Forgejo pull requests by URL, read their diffs and discussions, and run reviews
-> with Claude Code. GitLab posting is implemented and awaits live validation;
-> Forgejo currently supports reading and agent reviews. Discovery and the unified
-> inbox are still planned. [docs/plan.md](docs/plan.md) is the design of record,
-> and work is tracked in `.tickets/`. The next milestone is one GitLab-and-Forgejo
-> inbox ordered by whose turn it is; [docs/roadmap.md](docs/roadmap.md) maps its slices
-> and the remaining MVP/v1.0 work.
+> **Status: reviews and a combined GitLab/Forgejo inbox are implemented.** Open
+> changes by URL or discover your reviews automatically, with turn reasons,
+> unanswered ages, account refresh status and snoozes. Run reviews with Claude
+> Code from the same workspace. GitLab posting awaits live validation; Forgejo
+> supports reading and agent reviews. Personal-account GitLab discovery parity
+> still awaits local authentication. [docs/plan.md](docs/plan.md) is the design
+> of record, and [docs/roadmap.md](docs/roadmap.md) maps remaining MVP/v1.0 work.
+
 
 ## Why
 
