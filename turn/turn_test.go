@@ -406,3 +406,22 @@ func TestCurrentStatesAreForgeNeutral(t *testing.T) {
 		}
 	}
 }
+
+func TestDismissedLatestReviewStillAnswersEarlierPushAndRequest(t *testing.T) {
+	ch := base(t)
+	reviewed(&ch)
+	ch.Reviews[0].SHA = "old"
+	ch.Pushes = []forge.Push{{At: moment(2), Head: "head"}}
+	ch.Requests = []forge.ReviewRequest{{Reviewer: "me", At: moment(2)}}
+	ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: "me", Verdict: forge.VerdictApproved, At: moment(3), SHA: "head", Dismissed: true})
+	got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Owner != Theirs {
+		t.Fatalf("dismissal resurrected answered push/request: %+v", got)
+	}
+	ch.Diff.Head = "next"
+	ch.Pushes = append(ch.Pushes, forge.Push{At: moment(4), Head: "next"})
+	got = Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Owner != Mine || got.Reasons[0].Rule != "R2" || got.Since == nil || !got.Since.Equal(moment(4)) {
+		t.Fatalf("push after dismissed review lost boundary: %+v", got)
+	}
+}

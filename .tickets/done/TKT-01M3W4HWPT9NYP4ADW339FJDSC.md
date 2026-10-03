@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:25:35Z
+updated_at: 2026-10-03T03:29:43Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -81,6 +81,10 @@ PR #7 review at 4202d608c0bf7f132ad6a91dbc749b31155b6021 confirms current GitLab
 **agent:codex/inbox-20261002** at 2026-10-03T03:25:35Z
 
 PR #7 review at f63ef349e206688379378a82fcf6a8620e9fd7a5 confirms mixed thread ages resolved. New finding (non-GitLab current change requests without history): accepted. Current reviewer state reconciliation is now forge-neutral, including both explicit RequestedChanges and Approved states when history is missing or invalid. Unreviewed/Reviewed current states do not resurrect older verdicts, while an absent current state leaves valid history usable. A matrix covers change-request and approval fallbacks on GitLab, Forgejo and a future forge kind; every missing-history result has unknown age. This removes forge-kind knowledge from turn derivation.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:29:43Z
+
+PR #7 review at aeeac42755b585205c4ae2bd41cb81b035341044 confirms forge-neutral state fallback resolved. New finding (dismissed latest review handover): accepted. The reviewer's boundary is now their latest human review even when its verdict was dismissed; dismissal invalidates approval/change-request effects, not the fact that the person reviewed the commits. Regression proves a push and request between the earlier review and dismissed latest review stay answered, and a subsequent push starts R2 at its actual time.
 
 ## Summary
 

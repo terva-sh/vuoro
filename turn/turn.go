@@ -57,7 +57,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 		reviewer = false
 		author = false
 	}
-	last := latestReview(ch.Reviews, me, false)
+	last := latestReview(ch.Reviews, me)
 	if reviewer {
 		pending := current != nil && current.State == forge.Unreviewed
 		if pending || (last == nil && (current == nil || current.State == "")) {
@@ -272,15 +272,16 @@ func reviewHistory(rs []forge.Review, me string, verdictOnly bool) []forge.Revie
 	}
 	return history
 }
-func latestReview(rs []forge.Review, me string, verdictOnly bool) *forge.Review {
-	history := reviewHistory(rs, me, verdictOnly)
-	for i := len(history) - 1; i >= 0; i-- {
-		if !history[i].Dismissed {
-			r := history[i]
-			return &r
-		}
+
+// A dismissed verdict still records that the person reviewed those commits.
+// Dismissal affects its verdict, never the reviewer's handover boundary.
+func latestReview(rs []forge.Review, me string) *forge.Review {
+	history := reviewHistory(rs, me, false)
+	if len(history) == 0 {
+		return nil
 	}
-	return nil
+	last := history[len(history)-1]
+	return &last
 }
 
 // verdicts keeps each human reviewer's last non-comment verdict. Dismissed and
