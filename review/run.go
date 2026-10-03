@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/terva-sh/vuoro/agent"
@@ -80,15 +81,16 @@ type Run struct {
 	Error   string
 	Summary *SummaryRange
 
-	dir           string // the worktree
-	repoKey       string
-	anchors       lineIndex
-	store         *drafts.Store
-	sessions      []*Session
-	path          string
-	first         string // the first message, for a session that restarts
-	summaryCancel context.CancelFunc
-	summaryDone   chan struct{}
+	dir            string // the worktree
+	repoKey        string
+	anchors        lineIndex
+	store          *drafts.Store
+	sessions       []*Session
+	path           string
+	first          string // the first message, for a session that restarts
+	summaryCancel  context.CancelFunc
+	summaryDone    chan struct{}
+	summaryStopped atomic.Bool
 }
 
 // Session is one agent session in a run.

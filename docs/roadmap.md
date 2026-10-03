@@ -103,7 +103,6 @@ read-only credential.
 | Work | Ticket | What remains |
 |---|---|---|
 | Live GitLab posting | TKT-01M3W4HWTXC6EM9SS84A4WMEPG — Comment, reply, resolve, approve, and submit on GitLab | Owner-writable MR and configured token source; validate writes, then turn refresh when the inbox exists. Never request the token's value. |
-| Summary live check | TKT-01M3W4HWXJYKCNXM4G7E86YX1M — Agent: summarise a change, and what changed since my review | Implementation and offline streaming/range/cancellation checks pass. Public GitLab read/checkout passed; real text generation awaits a Claude login available to the locked reviewer invocation. |
 | Usage display | TKT-01M3YMSST3CNA34862NNERKMN2 — Show tokens and cost per session and per review run | Audit existing displays and totals, especially tools with no reported cost. |
 | Ticket context | TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM — Decide how a change finds its git-ticket store and ticket; then TKT-01M3W4HX1PHPQ98KX0PE5HW60E — Show a change's ticket, and give it to reviewers as context | Settle linking and store discovery before implementation; no ticket UI or dependency when absent. |
 | Retention | TKT-01M3YMSSX3WH3Q6TW6BCGK7XV7 — Keep review runs until the change closes, then 30 days | Configurable deletion of expired transcripts and preservation of one-line run records. |

@@ -28,7 +28,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T07:11:08Z
+updated_at: 2026-10-03T07:16:54Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -47,7 +47,7 @@ streams into a panel and is never posted anywhere.
 
 ## Acceptance criteria
 
-- [ ] A summary streams into the change view for a real GitLab change
+- [x] A summary streams into the change view for a real GitLab change
 - [x] The since-my-review summary covers only commits after my last review
 - [x] Cancelling stops the stream and the provider call
 
@@ -62,3 +62,11 @@ Add a separate summary run mode with one locked driver session, no drafts MCP ca
 Implemented separate one-turn summary runs with no MCP/draft access, bounded full exact git ranges, explicit completed-local-review baselines, protected fresh-read routes, streaming/history UI and cancellation across repository waiting/startup/generation/shutdown. Successful initial review completion is persisted; legacy/cancelled/failed records cannot be inferred as completed. Rationale: normalized GitLab published review facts lack commit SHAs, so timestamps cannot safely define the since-review range; labels identify Vuoro review runs instead. Rewrites/missing/shallow/oversized ranges refuse before provider work, and no partial patch is sent. A regression exposed bytes.Buffer's promoted ReadFrom bypassing a bounded Write; replaced it with a named buffer and confirmed oversized input refusal. Offline tests prove incremental input excludes earlier changes, partial-stream cancellation, late-start suppression, reload state, shutdown/close, no draft access, route protection and frontend response races. Full CI passed before the final small history-label/UI copy adjustment; latest gate is running.
 
 Live read-only browser validation opened public gitlab-org/cli!3991 anonymously and prepared exact range 59ae78ca..8526e3d7. Claude's session offered only Glob/Grep/Read but returned a login failure before text. Normal auth status reports loggedIn=true (oauth_token); the actual locked invocation, --restricted --setting-sources '', reports loggedIn=false. No auth files or tokens were read, and no GitLab writes were attempted. Asked the owner to expose the tool login independently of skipped settings while PR work continues. Added a typed login failure with a controlled actionable summary error. The real-change streaming criterion remains unchecked pending successful live text.
+
+**agent:codex/head-summary-20261003** at 2026-10-03T07:16:33Z
+
+PR #14 review findings addressed: cancellation and timeout now Cancel and Close the one-turn summary session; fixture cancellation leaves Events open until Close to prove lifecycle completion. Initial turn reported state is persisted separately from success, with reload plus successful-follow-up regressions for failed/cancelled first turns and conservative legacy handling. Additional blocked-pipe regression proves Claude Send does not hold the cancellation mutex, cancellation releases the write and the process is reaped. stopSummary cancels context before acquiring the send-held run mutex and records stop intent atomically so preparation failure races remain Cancelled. Full local just ci passed on these fixes: cgo-free Go tests/vet/six cross-builds, 51 frontend tests, embedded dist/design and strict ticket checks. Dispositions posted while PR open at https://git.local.sothr.com/terva-sh/vuoro/pulls/14#issuecomment-25291. A fresh full model review is required for the fix commit.
+
+**agent:codex/head-summary-20261003** at 2026-10-03T07:16:54Z
+
+Live real-change streaming criterion passed on 2026-10-03 in Vuoro's protected Summary UI: anonymously opened https://gitlab.com/gitlab-org/cli/-/merge_requests/3991, prepared exact range 59ae78ca..8526e3d7, and observed working text followed by a complete ended summary describing the label-count fix, changed files, tests and risks. Locked Claude session offered only Glob/Grep/Read, with no MCP server or forge credential. Authentication was supplied privately to the validation launch environment; values were not printed or saved. This supersedes the earlier live-login blocker. No GitLab posting was attempted. Since-review isolation remains proven by exact real local git histories rather than inferred published-review timestamps. README documents authentication through the launch environment without weakening the reviewer settings lockdown.

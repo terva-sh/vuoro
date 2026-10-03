@@ -120,6 +120,7 @@ func (m *Manager) prepareSummary(ctx context.Context, r *Run, s *Session, src So
 		select {
 		case <-ctx.Done():
 			_ = live.Cancel()
+			_ = live.Close()
 		case <-finished:
 		}
 	}()
@@ -143,8 +144,12 @@ func (m *Manager) prepareSummary(ctx context.Context, r *Run, s *Session, src So
 func (r *Run) failSummary(message string) {
 	r.mu.Lock()
 	if r.Status == Preparing || r.Status == Working {
-		r.Status, r.Error = Failed, message
-		r.sessions[0].Status, r.sessions[0].Error = Failed, message
+		if r.summaryStopped.Load() {
+			r.Status, r.sessions[0].Status = Cancelled, Cancelled
+		} else {
+			r.Status, r.Error = Failed, message
+			r.sessions[0].Status, r.sessions[0].Error = Failed, message
+		}
 	}
 	r.mu.Unlock()
 	r.save()
@@ -224,6 +229,12 @@ func (m *Manager) pumpSummary(ctx context.Context, r *Run, s *Session, live agen
 }
 
 func (m *Manager) stopSummary(r *Run) error {
+	// Cancel first so the watcher can interrupt a blocked driver Send before
+	// we acquire the run mutex held by that send.
+	r.summaryStopped.Store(true)
+	if r.summaryCancel != nil {
+		r.summaryCancel()
+	}
 	r.mu.Lock()
 	if r.Status != Preparing && r.Status != Working {
 		r.mu.Unlock()
@@ -240,6 +251,9 @@ func (m *Manager) stopSummary(r *Run) error {
 	var err error
 	if live != nil {
 		err = live.Cancel()
+		if closeErr := live.Close(); err == nil {
+			err = closeErr
+		}
 	}
 	r.save()
 	return err

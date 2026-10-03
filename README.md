@@ -90,6 +90,13 @@ clone URL supplies its port; git uses your own SSH keys. `clone: "https"` uses
 your git credential helper instead. Agent reviews need the agent tool installed
 and logged in separately.
 
+Claude reviewers deliberately skip user and project settings to preserve their
+read-only tool restrictions. If your authentication is supplied by those
+settings, provide it through Vuoro's launch environment instead, using Claude's
+authentication and endpoint environment variables. Vuoro does not read or copy
+your Claude settings file, and authentication values must stay out of Vuoro's
+configuration file.
+
 Forgejo posting controls remain unavailable until its write adapter lands.
 GitHub is not supported yet.
 

@@ -15,12 +15,13 @@ import (
 )
 
 type summaryDriver struct {
-	mu      sync.Mutex
-	specs   []agent.Spec
-	started chan struct{}
-	gate    chan struct{}
-	hold    bool
-	session *summarySession
+	mu               sync.Mutex
+	specs            []agent.Spec
+	started          chan struct{}
+	gate             chan struct{}
+	hold             bool
+	session          *summarySession
+	keepOpenOnCancel bool
 }
 
 func (d *summaryDriver) Name() string { return "summary fixture" }
@@ -30,7 +31,7 @@ func (d *summaryDriver) Probe(context.Context) (agent.Probe, error) {
 func (d *summaryDriver) Start(_ context.Context, spec agent.Spec) (agent.Session, error) {
 	d.mu.Lock()
 	d.specs = append(d.specs, spec)
-	s := &summarySession{events: make(chan agent.Event, 32), hold: d.hold}
+	s := &summarySession{events: make(chan agent.Event, 32), hold: d.hold, keepOpenOnCancel: d.keepOpenOnCancel}
 	d.session = s
 	d.mu.Unlock()
 	if d.started != nil {
@@ -43,13 +44,14 @@ func (d *summaryDriver) Start(_ context.Context, spec agent.Spec) (agent.Session
 }
 
 type summarySession struct {
-	mu      sync.Mutex
-	events  chan agent.Event
-	once    sync.Once
-	text    string
-	sends   int
-	cancels int
-	hold    bool
+	mu               sync.Mutex
+	events           chan agent.Event
+	closed           bool
+	keepOpenOnCancel bool
+	text             string
+	sends            int
+	cancels          int
+	hold             bool
 }
 
 func (s *summarySession) Ref() string                { return "summary-fixture" }
@@ -67,8 +69,28 @@ func (s *summarySession) Send(_ context.Context, text string) error {
 	}
 	return nil
 }
-func (s *summarySession) Cancel() error { s.mu.Lock(); s.cancels++; s.mu.Unlock(); return s.Close() }
-func (s *summarySession) Close() error  { s.once.Do(func() { close(s.events) }); return nil }
+func (s *summarySession) Cancel() error {
+	s.mu.Lock()
+	s.cancels++
+	if s.keepOpenOnCancel {
+		if !s.closed {
+			s.events <- agent.Event{Kind: agent.TurnDone, Cancelled: true}
+		}
+		s.mu.Unlock()
+		return nil
+	}
+	s.mu.Unlock()
+	return s.Close()
+}
+func (s *summarySession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.closed = true
+		close(s.events)
+	}
+	return nil
+}
 func summaryText(v RunView) string {
 	var b strings.Builder
 	for _, e := range v.Sessions[0].Log {
@@ -422,4 +444,57 @@ func TestInterruptedSummaryReloadKeepsPartialOutputAndDoesNotResume(t *testing.T
 		t.Fatal("summary resumed")
 	}
 	m.Shutdown()
+}
+
+func TestSummaryCancellationClosesATurnOnlyDriver(t *testing.T) {
+	m, _, ch, src := setup(t, nil)
+	d := &summaryDriver{hold: true, keepOpenOnCancel: true}
+	m.Drivers = map[string]agent.Driver{"summary": d}
+	r, err := m.StartSummary(ch, src, Reviewer{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, func(v RunView) bool { return summaryText(v) == "Partial summary" })
+	if err := m.Stop(r.ID, "s1"); err != nil {
+		t.Fatal(err)
+	}
+	awaitSummary(t, r)
+	m.Shutdown()
+	d.mu.Lock()
+	s := d.session
+	d.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed || s.cancels == 0 || r.View().Status != Cancelled {
+		t.Fatal("cancelled turn kept summary session alive")
+	}
+}
+
+func TestFailedInitialReviewRemainsIneligibleAfterReloadAndSuccessfulFollowUp(t *testing.T) {
+	for _, cancelled := range []bool{false, true} {
+		m, _, ch, src := setup(t, nil)
+		r := &Run{ID: "failed-initial", Ref: ch.Ref, Kind: ch.Kind, Head: src.Head, Status: Working, store: drafts.NewStore(), path: filepath.Join(m.StateDir, "runs", "failed-initial", "run.json")}
+		s := &Session{ID: "s1", Role: drafts.Reviewer, Status: Working}
+		r.sessions = []*Session{s}
+		first := &summarySession{events: make(chan agent.Event, 2)}
+		ev := agent.Event{Kind: agent.TurnDone, Cancelled: cancelled}
+		if !cancelled {
+			ev.Err = errors.New("fixture initial failure")
+		}
+		first.events <- ev
+		_ = first.Close()
+		m.pump(r, s, first)
+		loaded := &Manager{StateDir: m.StateDir}
+		if err := loaded.Load(); err != nil {
+			t.Fatal(err)
+		}
+		back := loaded.Get(r.ID)
+		follow := &summarySession{events: make(chan agent.Event, 2)}
+		follow.events <- agent.Event{Kind: agent.TurnDone}
+		_ = follow.Close()
+		loaded.pump(back, back.sessions[0], follow)
+		if back.View().ReviewComplete {
+			t.Fatal("successful follow-up upgraded a failed initial review")
+		}
+	}
 }
