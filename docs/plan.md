@@ -211,8 +211,9 @@ never sorts by it.
 ## 5. Forges
 
 GitLab came first because it hosts the owner's day-job reviews. D33 brings
-Forgejo open-by-URL reading and agent reviews into the MVP. Discovery, inbox
-support and Forgejo writes remain follow-ups, with GitHub after Forgejo (D21).
+Forgejo open-by-URL reading and agent reviews into the MVP. D34 brings Forgejo
+discovery and the shared GitLab/Forgejo inbox into the MVP as the next milestone.
+Forgejo writes remain later work, with GitHub after Forgejo (D21).
 
 `forge.Provider` reads a change and reports implemented actions available with
 its credentials. `forge.Writer` is a separate optional contract reached only
@@ -735,6 +736,9 @@ mode 0700, and files mode 0600.
 ## 10. Roadmap
 
 Scoped with the owner on 2026-10-02. Each line names its epic.
+[roadmap.md](roadmap.md) maps the current implementation, execution slices and
+completion gates. D34 selects one GitLab-and-Forgejo inbox as the next outcome;
+implementation tickets stay in draft until selected.
 
 ### 10.1 MVP: v0.1.0
 
@@ -752,10 +756,14 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    land here (D33); its posting controls remain unavailable. Presets and profiles live in vuoro's own config, and code,
    security, and documentation profiles are built in. Cost is shown, and runs
    are pinned to their head SHA and flagged when it moves.
-3. **The author's side.** Triage the threads on my change, and draft replies.
-4. **The inbox, second.** Discover every GitLab change I review or wrote,
-   derive whose turn it is with the reasons, and open any of them in the
-   orchestrator. It refreshes only while the window is open.
+3. **The shared inbox, next (D34).** Discover the open GitLab changes and
+   Forgejo PRs I review, wrote or am assigned to through one discovery/refresh
+   boundary. Derive whose turn it is with reasons and the earliest unanswered
+   age, and open any row in the existing orchestrator. It refreshes only while
+   the window is open. Account failures retain visible stale results rather
+   than hiding work; snoozes stay separate from the derived cache. Read-only
+   discovery does not wait for GitLab live-write validation.
+4. **The author's side.** Triage the threads on my change, and draft replies.
 5. **git-ticket, read-only.** Show a change's linked ticket, and give its
    acceptance criteria to the reviewers.
 6. **History.** Keep runs until the change closes, then 30 days, then one line
@@ -766,8 +774,8 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
 TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0: every forge, the editor agent,
 and a terva-sh release).
 
-- **Every forge.** Complete Forgejo discovery/inbox and writes after the MVP
-  read/review slice, then add GitHub.
+- **Every forge.** Complete Forgejo writes after the MVP read/review and inbox
+  slices, then add GitHub through the same contracts.
 - **terva as a reviewer**, once a terva release allows its lockdown (section
   6.6, D28).
 - **The editor agent** (section 6.3), on the author's side, with its sandbox

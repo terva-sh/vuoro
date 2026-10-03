@@ -355,3 +355,22 @@ Agent tools continue using agent.Driver, and git-ticket retains its separate
 boundary. A universal external-integration interface was considered but would
 combine unrelated operations and permissions. The second forge validates the
 contract against actual API and checkout differences before adding discovery.
+
+### D34. The next inbox includes GitLab and Forgejo together
+
+On 2026-10-02 the owner chose “one inbox for GitLab and Forgejo, ordered by
+whose turn it is” as the next outcome after the Windows CI fixes. This brings
+Forgejo discovery and inbox support forward from D33’s later-work schedule into
+the MVP. Forgejo posting remains separate; GitHub still follows Forgejo (D21).
+
+Build a shared, narrow discovery/refresh contract, both forge discovery adapters,
+and the pure turn engine, then integrate the inbox with the existing review
+workspace. Read-only discovery must not wait for blocked GitLab live-write
+validation. The person sees reasons and the age of the earliest unanswered
+event; bot/system activity never hands over the turn.
+
+The alternatives offered were completing Forgejo posting first, and adding
+more agent review tools and workflows first. The owner selected the inbox,
+which delivers Vuoro’s remaining core promise across both forges already read.
+Agent tools and ticket stores keep their separate interfaces. No implementation
+ticket is promoted merely by recording this execution plan.
