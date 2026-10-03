@@ -78,7 +78,12 @@ it. This is the pattern in `tuohi/examples/loopback`. The frontend is Preact
 and TypeScript, built with Vite, as in git-ticket-canvas. Its built assets are
 committed in `web/dist` and embedded, so `go build` needs no Node toolchain.
 Styles come from `terva-sh/design` through `design-tokens export -app vuoro`,
-with the `-check` form in CI.
+with the `-check` form in `just ci` and both forge workflows. The exporter
+is pinned as a Go tool to design v0.3.0 in `go.mod`.
+Vuoro uses violet on Birch (`#7546A4`) and lavender on Tar (`#B89AE3`),
+chosen in D32. Components read the shared `--ui-*` roles. `just design-export`
+refreshes the committed stylesheet; `just web-build` rebuilds its embedded
+frontend assets.
 
 ### 3.1 Packages (target)
 
@@ -108,7 +113,7 @@ without any of them. A test holds that boundary, in the same way as
 | terva (a tool, not a module) | v0.139.7 | Driven over `terva rpc`. The protocol major version is in its `hello` response. |
 | Claude Code (a tool) | 2.1.285 | Driven over stream-json. The version on this workstation at bootstrap. |
 | `github.com/terva-sh/tuohi` | v0.1.0 | The first release. Its README still warns that the API can change. |
-| `github.com/terva-sh/design` | v0.1.0 | Has no `vuoro` accent yet. |
+| `github.com/terva-sh/design` | v0.1.0 | Bootstrap version; the current stylesheet and exporter pin v0.3.0, with vuoro's violet preset. |
 | `github.com/terva-sh/git-ticket` | v0.24.0 | Library and CLI. This workstation had v0.23.0 installed. |
 
 These were read from the internal Forgejo (`git.local.sothr.com/terva-sh`), which

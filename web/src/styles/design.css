@@ -1,8 +1,4 @@
-/* A stand-in: git-ticket-canvas's stylesheet from terva-sh/design c3ceb4a, until
-   the vuoro accent ships and TKT-01M3W4HWHRKR936RT5MK8ZHB2B (Load the terva-sh
-   design stylesheet) exports the real one here. Components read --ui-* roles
-   only, so the swap changes this file and nothing else. */
-/* terva-sh design foundation, app "git-ticket-canvas".
+/* terva-sh design foundation, app "vuoro".
    Generated from tokens.json in github.com/terva-sh/design. Do not edit
    this file. Change the tokens there, and export it again. */
 
@@ -53,8 +49,8 @@
   --ui-danger: #B83A2E;
   --ui-hover: rgba(28, 26, 22, 0.07);
   --ui-shadow: rgba(60, 45, 20, 0.16);
-  --ui-accent: #2A63C0;
-  --ui-accent-hot: #1F4E99;
+  --ui-accent: #7546A4;
+  --ui-accent-hot: #603588;
   --ui-on-accent: #FFFFFF;
   --ui-accent-soft: color-mix(in srgb, var(--ui-accent) 14%, var(--ui-bg));
   --ui-ok-soft: color-mix(in srgb, var(--ui-ok) 14%, var(--ui-bg));
@@ -81,9 +77,9 @@
   --ui-danger: #D67A6A;
   --ui-hover: rgba(220, 214, 201, 0.07);
   --ui-shadow: rgba(0, 0, 0, 0.45);
-  --ui-accent: #6AA3F0;
-  --ui-accent-hot: #94BDF5;
-  --ui-on-accent: #0E1520;
+  --ui-accent: #B89AE3;
+  --ui-accent-hot: #D0B5F2;
+  --ui-on-accent: #20122F;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,8 +100,8 @@
     --ui-danger: #D67A6A;
     --ui-hover: rgba(220, 214, 201, 0.07);
     --ui-shadow: rgba(0, 0, 0, 0.45);
-    --ui-accent: #6AA3F0;
-    --ui-accent-hot: #94BDF5;
-    --ui-on-accent: #0E1520;
+    --ui-accent: #B89AE3;
+    --ui-accent-hot: #D0B5F2;
+    --ui-on-accent: #20122F;
   }
 }
