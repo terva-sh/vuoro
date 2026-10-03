@@ -14,6 +14,8 @@ import (
 type RunView struct {
 	ID       string         `json:"id"`
 	Kind     string         `json:"kind"`
+	Mode     string         `json:"mode,omitempty"`
+	Threads  []forge.Thread `json:"triage_threads,omitempty"`
 	Ref      forge.Ref      `json:"ref"`
 	Title    string         `json:"title"`
 	WebURL   string         `json:"web_url"`
@@ -46,9 +48,12 @@ func (r *Run) View() RunView {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	v := RunView{
-		ID: r.ID, Kind: r.Kind, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
+		ID: r.ID, Kind: r.Kind, Mode: r.Mode, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
 		Created: r.Created, Status: r.Status, Error: r.Error,
 		Drafts: r.store.All(),
+	}
+	for _, t := range r.Threads {
+		v.Threads = append(v.Threads, cleanThread(t))
 	}
 	for _, s := range r.sessions {
 		role := roleNames[s.Role]
@@ -66,12 +71,13 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
 type record struct {
 	RunView
+	First   string            `json:"first_message,omitempty"`
 	Repo    string            `json:"repo"`
 	Anchors lineIndex         `json:"anchors"`
 	Resume  map[string]string `json:"resume"` // each session's resume handle
@@ -81,6 +87,7 @@ func (r *Run) record() record {
 	rec := record{RunView: r.View()}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	rec.First = r.first
 	rec.Repo, rec.Anchors, rec.Resume = r.repoKey, r.anchors, map[string]string{}
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
@@ -115,13 +122,16 @@ func (m *Manager) Load() error {
 			continue
 		}
 		r := &Run{
-			ID: rec.ID, Kind: rec.Kind, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
+			ID: rec.ID, Kind: rec.Kind, Mode: rec.Mode, Threads: rec.Threads, first: rec.First, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
 			Created: rec.Created, Status: rec.Status, Error: rec.Error,
 			dir:     filepath.Join(m.StateDir, "worktrees", rec.ID),
 			repoKey: rec.Repo,
 			anchors: rec.Anchors,
 			store:   drafts.Restore(rec.Drafts),
 			path:    path,
+		}
+		if r.Mode == "triage" {
+			r.bindThreads()
 		}
 		if r.anchors != nil {
 			r.store.CheckAnchor = r.anchors.check
@@ -141,6 +151,8 @@ func (m *Manager) Load() error {
 				s.Status = Ended
 			}
 			switch p, ok := m.profile(s.Profile); {
+			case s.Role == drafts.Triage:
+				s.spec = agent.Spec{SystemPrompt: triagePrompt, Model: s.Model}
 			case s.Role == drafts.Synthesizer:
 				s.spec = agent.Spec{SystemPrompt: synthesisPrompt(), Model: s.Model}
 			case s.Role == drafts.Verifier:

@@ -10,7 +10,10 @@ and submit without leaving it.
 > **Status: reviews and a combined GitLab/Forgejo inbox are implemented.** Open
 > changes by URL or discover your reviews automatically, with turn reasons,
 > unanswered ages, account refresh status and snoozes. Run reviews with Claude
-> Code from the same workspace. GitLab posting awaits live validation; Forgejo
+> Code from the same workspace. On your own changes, triage human threads into
+> Must fix, Discuss and Nit, then edit and accept drafted replies explicitly.
+> [Author interactions](docs/author-triage.md) describes the flow.
+> GitLab posting awaits live validation; Forgejo
 > supports reading and agent reviews. Personal-account GitLab discovery parity
 > passed for an empty inbox; live validation limits are in the roadmap.
 > [docs/plan.md](docs/plan.md) is the design

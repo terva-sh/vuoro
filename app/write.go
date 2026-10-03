@@ -216,6 +216,9 @@ func (a *App) approve(w http.ResponseWriter, r *http.Request) {
 // keepBody is the comment an agent's draft becomes when the person keeps it
 // unedited.
 func keepBody(d drafts.Draft) string {
+	if d.ThreadID != "" {
+		return strings.TrimSpace(d.Description)
+	}
 	b := "**" + d.Title + "**\n\n" + strings.TrimSpace(d.Description)
 	if e := strings.TrimSpace(d.Evidence); e != "" {
 		f := drafts.Fence(e)
@@ -245,6 +248,10 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Status != drafts.Pending || d.Decision != "" {
 		writeError(w, fmt.Errorf("%s is no longer pending", id))
+		return
+	}
+	if d.ThreadID != "" {
+		a.keepReply(w, r, req.URL, req.Body)
 		return
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)

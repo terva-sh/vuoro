@@ -42,7 +42,9 @@ export interface ForgeDraft { id: string; body: string; thread_id: string; ancho
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
 export interface DraftAnchor { path: string; side: 'head' | 'base'; start_line: number; end_line: number }
+export type TriageCategory = "must_fix" | "discuss" | "nit"
 export interface Draft {
+  thread_id?: string; category?: TriageCategory; reason?: string; thread_key?: string
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
   suggestion?: string // replaces the anchor's head-side lines
@@ -64,10 +66,11 @@ export interface Entry {
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; cost_usd: number }
 export interface SessionInfo { tool: string; version: string; model: string; account: string; tools: string[] }
 export interface Session {
-  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier'
+  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage'
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {
+  mode?: "triage"; triage_threads?: Thread[]
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number
   sessions: Session[]; drafts: Draft[]

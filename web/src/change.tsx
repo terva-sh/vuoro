@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import { fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { RunPanel } from './run'
+import { TriagePanel } from './triage'
 import { changeNumber, type Change, type Draft, type Reviewer, type Setup } from './types'
 import { ago, CommentBubble, Prose, Section, short, worstSeverity } from './ui'
 import { SubmitBar, waive } from './confirm'
@@ -14,20 +15,22 @@ const reviewMark: Record<Reviewer['state'], string> = {
   approved: '✓ approved',
 }
 
-type Tab = 'overview' | 'changes' | 'review'
+type Tab = 'overview' | 'changes' | 'review' | 'threads'
 
 export function ChangeView({ change, setup, onChange, onSetup }: {
   change: Change; setup?: Setup; onChange: (c: Change) => void; onSetup: (s: Setup) => void
 }) {
-  const [tab, setTab] = useState<Tab>('changes')
+  const [chosenTab, setTab] = useState<Tab>()
   const [error, setError] = useState<string>()
   const [runID, setRunID] = useState<string>()
   const [commenting, setCommenting] = useState(false)
   const writer = useMemo(() => makeWriter(change.web_url, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, onChange])
   // Writing needs the person's token: a forge in the config with this host.
   const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
+  const isAuthor = !!me && me.username.toLowerCase() === change.author.username.toLowerCase()
+  const tab = chosenTab ?? (isAuthor ? 'threads' : 'changes')
   const canDraft = !!me && change.capabilities.drafts
- const mine = change.drafts ?? []
+  const mine = change.drafts ?? []
   // The drafts of the run the review tab shows, placed on the diff too.
   const [drafts, setDrafts] = useState<Draft[]>([])
   const files = change.files ?? []
@@ -89,6 +92,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
       <nav class="tabs" role="tablist">
         {(
           [
+            ...(isAuthor ? [['threads', 'Threads']] : []),
             ['overview', `Overview${general.length + mine.length ? ` (${general.length + mine.length})` : ''}`],
             ['changes', `Changes (${files.length} files, ${open} open threads)`],
             ['review', `Review${drafts.length ? ` (${drafts.length} drafts)` : ''}`],
@@ -99,6 +103,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           </button>
         ))}
       </nav>
+      {tab === 'threads' && isAuthor && <TriagePanel change={change} setup={setup} onPick={pick} />}
       {tab === 'overview' && (
         <div class="overview">
           <Section title="Description">

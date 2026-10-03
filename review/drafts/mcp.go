@@ -165,6 +165,9 @@ func (e entry) dispatch(req rpcRequest) (any, *rpcError) {
 }
 
 func instructions(role Role) string {
+	if role == Triage {
+		return "Group each supplied human thread as must_fix, discuss, or nit with a reason. Use propose_draft with thread_id, category, reason and optional description (a reply). You only write local drafts. The person edits, accepts and posts."
+	}
 	if role == Verifier {
 		return "You check the findings other agents drafted. list_drafts shows them. Mark each one with rate_draft: confirmed, plausible, or doubtful, with a one-line reason. You cannot propose, change, or withdraw a draft."
 	}
@@ -216,6 +219,15 @@ func Tools(role Role) []map[string]any {
 		},
 	}
 	required := []string{"severity", "title", "description"}
+	if role == Triage {
+		proposal = map[string]any{
+			"thread_id":   map[string]any{"type": "string"},
+			"category":    map[string]any{"type": "string", "enum": categories},
+			"reason":      map[string]any{"type": "string", "description": "Why this thread belongs in the category; at most 512 bytes."},
+			"description": map[string]any{"type": "string", "description": "Optional proposed reply in the author's voice, at most 20000 bytes. Omit when the evidence does not support a reply."},
+		}
+		required = []string{"thread_id", "category", "reason"}
+	}
 	if role == Synthesizer {
 		proposal["sources"] = map[string]any{"type": "array", "minItems": 1, "items": map[string]any{"type": "string"},
 			"description": "The ids of the drafts this one merges."}
