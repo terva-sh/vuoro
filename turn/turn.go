@@ -298,22 +298,24 @@ func verdicts(ch forge.Change) []forge.Review {
 		history := reviewHistory(ch.Reviews, r.Reviewer, true)
 		latest[r.Reviewer] = history[len(history)-1]
 	}
-	// GitLab current state is authoritative; a system-note timestamp may be
-	// unavailable. Do not resurrect a historical verdict the current state rejects.
+	// A stated current review state is authoritative on every forge. It
+	// supplements missing/invalid verdict history without inventing its time.
 	for _, r := range ch.Reviewers {
 		if r.Bot {
 			delete(latest, r.Username)
 			continue
 		}
-		if ch.Kind == forge.GitLab {
-			verdict := map[forge.ReviewState]forge.Verdict{forge.Approved: forge.VerdictApproved, forge.RequestedChanges: forge.VerdictChangesRequested}[r.State]
-			if verdict == "" {
-				delete(latest, r.Username)
-			} else if old, ok := latest[r.Username]; !ok || old.Verdict != verdict || old.Dismissed || old.Stale || (old.SHA != "" && ch.Diff.Head != "" && old.SHA != ch.Diff.Head) {
+		verdict := map[forge.ReviewState]forge.Verdict{forge.Approved: forge.VerdictApproved, forge.RequestedChanges: forge.VerdictChangesRequested}[r.State]
+		switch r.State {
+		case forge.Unreviewed, forge.Reviewed:
+			delete(latest, r.Username)
+		case forge.Approved, forge.RequestedChanges:
+			if old, ok := latest[r.Username]; !ok || old.Verdict != verdict || old.Dismissed || old.Stale || (old.SHA != "" && ch.Diff.Head != "" && old.SHA != ch.Diff.Head) {
 				latest[r.Username] = forge.Review{Reviewer: r.Username, Verdict: verdict}
 			}
 		}
 	}
+
 	names := make([]string, 0, len(latest))
 	for name := range latest {
 		names = append(names, name)

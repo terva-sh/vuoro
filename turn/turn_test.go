@@ -385,3 +385,24 @@ func TestMixedThreadTimestampsKeepUnansweredAgeUnknown(t *testing.T) {
 		t.Fatal("undated bot/system noise changed reply age")
 	}
 }
+
+func TestCurrentStatesAreForgeNeutral(t *testing.T) {
+	for _, kind := range []string{forge.GitLab, forge.Forgejo, "future-forge"} {
+		for _, tc := range []struct {
+			state forge.ReviewState
+			rule  string
+		}{{forge.RequestedChanges, "A2"}, {forge.Approved, "A3"}} {
+			t.Run(kind+"/"+string(tc.state), func(t *testing.T) {
+				ch := base(t)
+				ch.Kind = kind
+				ch.CanMerge = yes()
+				ch.Mergeability = "mergeable"
+				ch.Reviewers = []forge.Reviewer{{User: forge.User{Username: "r"}, State: tc.state}}
+				got := Derive(ch, "author", []forge.Role{forge.AuthorRole})
+				if got.Owner != Mine || got.Reasons[0].Rule != tc.rule || got.Since != nil {
+					t.Fatalf("current state without history: %+v", got)
+				}
+			})
+		}
+	}
+}
