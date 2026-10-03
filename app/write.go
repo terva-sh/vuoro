@@ -57,11 +57,15 @@ func (a *App) writer(ctx context.Context, url string) (*forge.Change, forge.Writ
 	if err != nil {
 		return nil, nil, err
 	}
-	c, err := a.client(ctx, ch.Ref.Host)
+	c, err := a.client(ctx, ch.Ref.Host, ch.Kind)
 	if err != nil {
 		return nil, nil, err
 	}
-	return ch, c, nil
+	wr, ok := c.(forge.Writer)
+	if !ok {
+		return nil, nil, forge.ErrUnsupported
+	}
+	return ch, wr, nil
 }
 
 // reply answers a write with the change as it now stands.

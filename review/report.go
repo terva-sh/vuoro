@@ -25,7 +25,7 @@ func Report(v RunView) string {
 	})
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Fix the review findings on %s\n\n", v.Ref)
+	fmt.Fprintf(&b, "# Fix the review findings on %s\n\n", v.Ref.Display(v.Kind))
 	fmt.Fprintf(&b, "Merge request: %s\n", v.WebURL)
 	fmt.Fprintf(&b, "Title: %s\n", oneLine(v.Title))
 	fmt.Fprintf(&b, "Reviewed at head `%s`, against merge base `%s`.\n\n", v.Head, v.Base)

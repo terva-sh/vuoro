@@ -66,7 +66,7 @@ type Profile struct {
 type Forge struct {
 	// Name is how vuoro shows the forge, and how a change names it.
 	Name string `json:"name"`
-	// Kind is the forge software. The MVP supports "gitlab".
+	// Kind is the forge software. This version supports "gitlab" and "forgejo".
 	Kind string `json:"kind"`
 	// URL is the forge's base URL, such as https://gitlab.com.
 	URL string `json:"url"`
@@ -154,6 +154,7 @@ func Parse(b []byte) (*Config, error) {
 		return nil, fmt.Errorf("config: %w", err)
 	}
 	seen := map[string]bool{}
+	hosts := map[string]bool{}
 	for i, f := range c.Forges {
 		if err := f.check(); err != nil {
 			return nil, fmt.Errorf("config: forges[%d]: %w", i, err)
@@ -162,6 +163,12 @@ func Parse(b []byte) (*Config, error) {
 			return nil, fmt.Errorf("config: forges[%d]: the name %q is used twice", i, f.Name)
 		}
 		seen[f.Name] = true
+		u, _ := url.Parse(f.URL)
+		host := strings.ToLower(u.Host)
+		if hosts[host] {
+			return nil, fmt.Errorf("config: forges[%d]: a host may have only one configured account", i)
+		}
+		hosts[host] = true
 	}
 	presets := map[string]bool{}
 	for i, p := range c.Presets {
@@ -192,8 +199,8 @@ func (f Forge) check() error {
 	switch {
 	case f.Name == "":
 		return errors.New("a forge needs a name")
-	case f.Kind != "gitlab":
-		return fmt.Errorf("kind %q: this version supports gitlab", f.Kind)
+	case f.Kind != "gitlab" && f.Kind != "forgejo":
+		return fmt.Errorf("kind %q: this version supports gitlab and forgejo", f.Kind)
 	case f.Username == "":
 		return errors.New("a forge needs the person's username")
 	case len(f.TokenCommand) == 0 && f.TokenEnv == "":
@@ -204,8 +211,8 @@ func (f Forge) check() error {
 		return fmt.Errorf("clone %q: ssh or https", f.Clone)
 	}
 	u, err := url.Parse(f.URL)
-	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" {
-		return fmt.Errorf("url %q: an https base URL, such as https://gitlab.com", f.URL)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
+		return errors.New("url: an https base URL without credentials, such as https://gitlab.com")
 	}
 	return nil
 }

@@ -36,3 +36,17 @@ describe('Markdown', () => {
     expect(r.querySelector('a')?.getAttribute('href')).toBe('https://example.com/a_b')
   })
 })
+
+describe('Forgejo references', () => {
+  it('links # references through Forgejo and leaves GitLab notation as text', () => {
+    const root = document.createElement('div')
+    render(<Markdown text="See #2 and !7." refs={{ base: 'https://forge.example/o/r', kind: 'forgejo' }} />, root)
+    expect([...root.querySelectorAll('a')].map((a) => a.getAttribute('href'))).toEqual(['https://forge.example/o/r/issues/2'])
+    expect(root.textContent).toContain('!7')
+  })
+  it('derives a project URL from both kinds of change URL', async () => {
+    const { projectURL } = await import('./markdown')
+    expect(projectURL('https://forge.example/o/r/pulls/2')).toBe('https://forge.example/o/r')
+    expect(projectURL('https://gitlab.example/g/sub/p/-/merge_requests/2')).toBe('https://gitlab.example/g/sub/p')
+  })
+})

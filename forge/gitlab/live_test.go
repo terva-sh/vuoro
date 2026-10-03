@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/terva-sh/vuoro/config"
-	"github.com/terva-sh/vuoro/forge"
 )
 
 // TestLive opens a public merge request on gitlab.com anonymously. It is the
@@ -24,7 +23,7 @@ func TestLive(t *testing.T) {
 	if raw == "" {
 		raw = "https://gitlab.com/gitlab-org/cli/-/merge_requests/3991"
 	}
-	ref, err := forge.ParseGitLabURL(raw)
+	ref, err := ParseURL(raw)
 	if err != nil {
 		t.Fatal(err)
 	}

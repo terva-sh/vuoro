@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import { fileID, FileView, MyDraft, ThreadView } from './diffview'
 import { RunPanel } from './run'
-import type { Change, Draft, Reviewer, Setup } from './types'
+import { changeNumber, type Change, type Draft, type Reviewer, type Setup } from './types'
 import { ago, CommentBubble, Prose, Section, short, worstSeverity } from './ui'
 import { SubmitBar, waive } from './confirm'
 import { projectURL, RefsContext } from './markdown'
@@ -26,7 +26,8 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   const writer = useMemo(() => makeWriter(change.web_url, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, onChange])
   // Writing needs the person's token: a forge in the config with this host.
   const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
-  const mine = change.drafts ?? []
+  const canDraft = !!me && change.capabilities.drafts
+ const mine = change.drafts ?? []
   // The drafts of the run the review tab shows, placed on the diff too.
   const [drafts, setDrafts] = useState<Draft[]>([])
   const files = change.files ?? []
@@ -52,15 +53,15 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   const act = (path: string, body: Record<string, unknown>) => void writer.act(path, body).catch(() => undefined)
 
   return (
-    <RefsContext.Provider value={{ base: projectURL(change.web_url) }}>
-    <WriteContext.Provider value={me ? writer : undefined}>
+    <RefsContext.Provider value={{ base: projectURL(change.web_url), kind: change.kind }}>
+    <WriteContext.Provider value={canDraft ? writer : undefined}>
     <div class="change">
       <header class="change-head">
         <h1>
           {change.draft && <span class="badge">draft</span>} {change.title}
         </h1>
         <div class="change-meta">
-          <a href={change.web_url} target="_blank" rel="noreferrer">{change.ref.project}!{change.ref.number}</a>
+          <a href={change.web_url} target="_blank" rel="noreferrer">{change.ref.project}{changeNumber(change.kind, change.ref.number)}</a>
           <span class="badge">{change.state}</span>
           <span>@{change.author.username}</span>
           <span class="mono">{change.source_branch} → {change.target_branch}</span>
@@ -77,11 +78,11 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
             ))}
           </ul>
         )}
-        {me ? (
+        {me && canDraft ? (
           <SubmitBar change={change} me={me.username} pending={mine.length} approved={approved} waived={setup?.waived ?? []} act={act}
             onWaive={(actions) => void waive(actions, false).then(onSetup).catch(() => undefined)} />
         ) : (
-          <p class="muted">Read-only: add this forge with a token_command to the config file to comment and approve.</p>
+          <p class="muted">{change.kind === 'forgejo' ? 'Forgejo posting is not available yet. You can read the change and run agent reviews.' : 'Read-only: add this forge with a token_command to the config file to comment and approve.'}</p>
         )}
         {error && <p class="alert" role="alert">⚠ {error}</p>}
       </header>
@@ -111,7 +112,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
             {mine.map((d) => (
               <MyDraft draft={d} key={d.id} where={d.anchor ? `${d.anchor.path}:${d.anchor.new_line || d.anchor.old_line}` : d.thread_id ? undefined : 'on the change'} />
             ))}
-            {me && (commenting ? (
+            {canDraft && (commenting ? (
               <Composer placeholder="A comment on the whole change" submit={(text) => writer.act('/api/changes/drafts', { body: text })} onDone={() => setCommenting(false)} />
             ) : (
               <button onClick={() => setCommenting(true)}>Comment on the change</button>

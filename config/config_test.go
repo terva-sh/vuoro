@@ -78,7 +78,7 @@ func TestBadForgesAreRefused(t *testing.T) {
 	good := Forge{Name: "g", Kind: "gitlab", URL: "https://gitlab.com", Username: "u", TokenEnv: "T"}
 	for name, edit := range map[string]func(*Forge){
 		"no name":         func(f *Forge) { f.Name = "" },
-		"forgejo":         func(f *Forge) { f.Kind = "forgejo" },
+		"github":          func(f *Forge) { f.Kind = "github" },
 		"http":            func(f *Forge) { f.URL = "http://gitlab.com" },
 		"user in url":     func(f *Forge) { f.URL = "https://u:p@gitlab.com" },
 		"path":            func(f *Forge) { f.URL = "https://gitlab.com/api/v4" },
@@ -184,5 +184,25 @@ func TestPresetsAndProfilesAreChecked(t *testing.T) {
 		if _, err := Parse([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)
 		}
+	}
+}
+
+func TestForgejoConfigAndDuplicateHosts(t *testing.T) {
+	f := Forge{Name: "fj", Kind: "forgejo", URL: "https://forge.example", Username: "me", TokenEnv: "VUORO_FORGEJO_TOKEN"}
+	b, _ := json.Marshal(Config{Forges: []Forge{f}})
+	if _, err := Parse(b); err != nil {
+		t.Fatal(err)
+	}
+	second := f
+	second.Name = "another"
+	second.URL = "https://FORGE.example/"
+	b, _ = json.Marshal(Config{Forges: []Forge{f, second}})
+	if _, err := Parse(b); err == nil {
+		t.Fatal("ambiguous account routing accepted")
+	}
+	f.URL = "https://user:private-value@forge.example"
+	b, _ = json.Marshal(Config{Forges: []Forge{f}})
+	if _, err := Parse(b); err == nil || strings.Contains(err.Error(), "private-value") {
+		t.Fatal("URL credentials accepted or exposed")
 	}
 }

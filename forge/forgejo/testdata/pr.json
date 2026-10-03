@@ -1,0 +1,38 @@
+{
+  "title": "TKT-01M3W4HWHRKR936RT5MK8ZHB2B Adopt the shared violet styling",
+  "state": "closed",
+  "draft": false,
+  "merged": true,
+  "mergeable": true,
+  "merge_base": "6cd594094a45010bc33180d7e389d24907cdcfe2",
+  "created_at": "2026-10-03T00:07:15Z",
+  "updated_at": "2026-10-03T00:14:36Z",
+  "user": {
+    "login": "author"
+  },
+  "body": "Use the shared design preset. See #1.",
+  "requested_reviewers": [
+    {
+      "login": "reviewer"
+    }
+  ],
+  "assignees": [],
+  "head": {
+    "ref": "vuoro-design",
+    "sha": "68ff96c709bfbd9d96709b4b976bf4c77f131148",
+    "repo": {
+      "full_name": "terva-sh/vuoro",
+      "clone_url": "https://forge.example/terva-sh/vuoro.git",
+      "ssh_url": "ssh://git@forge.example:2222/terva-sh/vuoro.git"
+    }
+  },
+  "base": {
+    "ref": "main",
+    "sha": "9b0abd1a72cc2c75bafc14e82994f93130538710",
+    "repo": {
+      "full_name": "terva-sh/vuoro",
+      "clone_url": "https://forge.example/terva-sh/vuoro.git",
+      "ssh_url": "ssh://git@forge.example:2222/terva-sh/vuoro.git"
+    }
+  }
+}
