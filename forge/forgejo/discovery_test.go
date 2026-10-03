@@ -247,3 +247,33 @@ func TestReviewCommentsAreACompleteListNotPaginated(t *testing.T) {
 		t.Fatalf("complete comments: %d reads, %v", reads, err)
 	}
 }
+
+func TestCrossSourceRerequestAfterRemovalSurvives(t *testing.T) {
+	for _, requestTime := range []string{"2026-10-02T03:00:00Z", "0001-01-01T00:00:00Z"} {
+		t.Run(requestTime, func(t *testing.T) {
+			c, ref := fixtureClient(t, false)
+			c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+				if strings.HasSuffix(r.URL.Path, "/reviews") {
+					if r.URL.Query().Get("page") != "1" {
+						return response(`[]`), nil
+					}
+					return response(fmt.Sprintf(`[{"id":1,"user":{"login":"extra"},"state":"REQUEST_REVIEW","submitted_at":%q}]`, requestTime)), nil
+				}
+				if strings.HasSuffix(r.URL.Path, "/timeline") {
+					if r.URL.Query().Get("page") != "1" {
+						return response(`null`), nil
+					}
+					return response(`[{"type":"review_request","assignee":{"login":"extra"},"removed_assignee":true,"created_at":"2026-10-02T02:00:00Z"}]`), nil
+				}
+				return http.DefaultTransport.RoundTrip(r)
+			})
+			ch, err := c.ReadFacts(context.Background(), ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.ContainsFunc(ch.Reviewers, func(r forge.Reviewer) bool { return r.Username == "extra" }) {
+				t.Fatal("older removal erased a new or undated request")
+			}
+		})
+	}
+}

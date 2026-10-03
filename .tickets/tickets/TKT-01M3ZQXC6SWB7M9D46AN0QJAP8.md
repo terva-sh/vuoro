@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:28Z
-updated_at: 2026-10-03T03:55:25Z
+updated_at: 2026-10-03T03:56:59Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -68,3 +68,7 @@ Implemented shared discovery and patch-free facts. Full local just ci passes wit
 **agent:codex/inbox-20261002** at 2026-10-03T03:55:25Z
 
 The read-only live comparison now passes: discovered all 22 open PR memberships for warricksothr, matched Forgejo's authored/requested/assigned API lists, and read complete facts plus validated checkout metadata for each. First complete-facts run revealed that /pulls/N/reviews/ID/comments ignores page parameters (confirmed by live identical pages and Swagger's lack of page/limit). Replaced the old looping pagination with one bounded complete-list read and a count-consistency check, added an offline regression, and kept the verified timeline-null exception. Corrected live run finished in 11.94 seconds. This fixes an existing open-by-URL reader timeout as well as inbox facts. These substantive changes require a new full PR review.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:56:59Z
+
+Addressed both findings from terva-review run 12eb46ac-1d96-41d6-b12f-993e7f03c117 on PR #9. Accepted the high finding: request records and timeline removals now share per-reviewer chronological ordering, with reverse-chronology and missing-time regressions; uncertain chronology retains work instead of silently dropping a relationship. Accepted the medium finding: opt-in live tests select a tea login only after checking credential-free account metadata for the exact configured host and username, and pass that login to both adapter transport and independent comparison. No auth file or token was read. Updated plan records cross-source ordering. Fresh review follows these substantive fixes.

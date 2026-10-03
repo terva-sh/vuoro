@@ -256,7 +256,12 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	if !slices.ContainsFunc(reviews, func(r apiReview) bool { return r.Submitted.IsZero() }) {
 		slices.SortStableFunc(reviews, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
 	}
-	relationships := map[string]bool{}
+	type relationshipEvent struct {
+		username  string
+		requested bool
+		at        time.Time
+	}
+	var relationshipEvents []relationshipEvent
 	for _, r := range reviews {
 		pending := r.State == "PENDING"
 		if pending && !workspace {
@@ -264,7 +269,7 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 		}
 		if r.State == "REQUEST_REVIEW" && !r.Dismissed {
 			ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: r.User.Login, At: r.Submitted})
-			relationships[r.User.Login] = true
+			relationshipEvents = append(relationshipEvents, relationshipEvent{r.User.Login, true, r.Submitted})
 		}
 		if !pending {
 			addReview(ch, r)
@@ -303,7 +308,7 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 			ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprintf("comment-%d", e.ID), Notes: []forge.Note{{ID: fmt.Sprint(e.ID), Author: user(e.User), Body: e.Body, At: e.Created}}})
 		case "review_request":
 			if e.Assignee != nil {
-				relationships[e.Assignee.Login] = !e.RemovedAssignee
+				relationshipEvents = append(relationshipEvents, relationshipEvent{e.Assignee.Login, !e.RemovedAssignee, e.Created})
 				if !e.RemovedAssignee {
 					ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: e.Assignee.Login, By: e.User.Login, At: e.Created})
 				}
@@ -322,6 +327,24 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	}
 	// A historical voluntary review is a verdict, not a requested relationship.
 	// Current PR requests win; otherwise the latest timeline request/removal wins.
+	relationships := map[string]bool{}
+	byPerson := map[string][]relationshipEvent{}
+	for _, e := range relationshipEvents {
+		byPerson[e.username] = append(byPerson[e.username], e)
+	}
+	for username, events := range byPerson {
+		// An undated request/removal cannot be placed across the two sources.
+		// Retain an uncertain relationship instead of silently dropping work;
+		// its unanswered age stays unknown in the neutral request history.
+		if slices.ContainsFunc(events, func(e relationshipEvent) bool { return e.at.IsZero() }) {
+			for _, e := range events {
+				relationships[username] = relationships[username] || e.requested
+			}
+		} else {
+			slices.SortStableFunc(events, func(a, b relationshipEvent) int { return a.at.Compare(b.at) })
+			relationships[username] = events[len(events)-1].requested
+		}
+	}
 	for _, u := range p.Requested {
 		relationships[u.Login] = true
 	}

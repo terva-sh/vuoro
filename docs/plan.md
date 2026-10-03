@@ -278,7 +278,9 @@ Forgejo discovery verifies `/user` against the configured account and pages
 and `assigned` filters. It also examines `reviewed` candidates to retain a
 requested-reviewer relationship after a verdict, when a later push may need
 another review. Recorded request/removal timeline entries and `REQUEST_REVIEW`
-records establish the relationship; voluntary reviews alone do not. Current PR
+records establish the relationship; voluntary reviews alone do not. Request and
+removal events are ordered across both sources per reviewer. Undated events
+retain an uncertain relationship rather than silently hiding work. Current PR
 requests take precedence. All roles deduplicate by the existing change key.
 Patch-free fact reads omit pending private reviews. A later dismissed or stale
 non-comment verdict supersedes an earlier verdict without reviving its effect.
