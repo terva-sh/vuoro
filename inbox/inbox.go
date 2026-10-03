@@ -65,6 +65,7 @@ type Service struct {
 // appear in the view. Empty dir keeps state in memory only.
 func New(dir string, accounts []config.Forge, resolve Resolver) (*Service, error) {
 	s := &Service{dir: dir, resolve: resolve, gate: make(chan struct{}, 1), annotations: map[string]Annotation{}}
+	hosts := map[string]bool{}
 	for _, a := range accounts {
 		u, err := url.Parse(a.URL)
 		if err != nil || u.Host == "" || a.Username == "" || a.Kind == "" {
@@ -73,6 +74,12 @@ func New(dir string, accounts []config.Forge, resolve Resolver) (*Service, error
 		a.Bots = append([]string(nil), a.Bots...)
 		s.accounts = append(s.accounts, a)
 		host := strings.ToLower(u.Host)
+		// Match config.Parse and app credential routing: one account per host.
+		// Direct service callers must preserve that invariant too.
+		if hosts[host] {
+			return nil, errors.New("inbox: a host may have only one configured account")
+		}
+		hosts[host] = true
 		sum := sha256.Sum256([]byte(a.Kind + "\x00" + host + "\x00" + a.Username))
 		key := hex.EncodeToString(sum[:])
 		snapshot := AccountSnapshot{Key: key, Name: a.Name, Kind: a.Kind, Host: host, Username: a.Username, Items: []Item{}}

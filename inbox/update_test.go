@@ -18,6 +18,15 @@ type orderedFacts struct {
 	reads   atomic.Int32
 }
 
+func TestServiceRejectsAmbiguousHostAccounts(t *testing.T) {
+	first := account("lab.test", forge.GitLab)
+	second := account("LAB.TEST", forge.GitLab)
+	second.Username = "another-person"
+	if _, err := New("", []config.Forge{first, second}, nil); err == nil {
+		t.Fatal("ambiguous credential and targeted-refresh routing accepted")
+	}
+}
+
 func (p *orderedFacts) ReadFacts(ctx context.Context, r forge.Ref) (*forge.Change, error) {
 	n := p.reads.Add(1)
 	ch := clone(*p.changes[r.String()])

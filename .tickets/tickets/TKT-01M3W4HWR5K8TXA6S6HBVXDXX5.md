@@ -32,7 +32,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T04:12:26Z
+updated_at: 2026-10-03T04:14:16Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -69,3 +69,7 @@ Integrate the merged shared service, pure turn engine and both adapters via a li
 Implemented the guarded lightweight combined inbox, oldest-known unanswered ordering with unknown age last, per-account stale status, serialized mounted-only refresh, authored snooze fingerprints and targeted fresh facts after human writes. Local just ci passed with CGO_ENABLED=0: all backend tests, six cross builds, three-platform vet, typecheck, 31 frontend tests, generated assets/design and strict ticket checks. Regression coverage includes no tools/tickets/runs, protected route rejection, stale mixed results, new undated events, bot configuration stability, cancellation and save failure rollback.
 
 Collaborative browser verified the actual embedded fixture app in dark 1280x800 and light 390x844: mixed reasons/roles/age, unknown age, account rate-limit warning, snooze count 3 to 2 and restore to 3, row opening the existing read-only workspace, and no horizontal overflow at 390px. Browser loopback reached a different host, so a temporary scratch proxy forwarded only synthetic fixture traffic to the guarded local app; no production protection was altered and no real forge credentials were used. GitLab personal-account discovery parity remains unverified and blocked on CLI authentication under its own ticket.
+
+**agent:codex/inbox-20261002** at 2026-10-03T04:14:16Z
+
+PR #10 first review (9acf4341-c760-43e6-bc85-cd5a4f44e9f0, head 63f1bbd) raised one medium finding: refresh all same-host account memberships. The requested multi-account behavior is declined because config.Parse already rejects multiple accounts on a host (config/config.go) and app credential routing intentionally chooses one host account; README documents this supported constraint. Instead hardened inbox.New to enforce the same case-insensitive host uniqueness for direct service callers, with a regression test. This resolves the bypass at the public service boundary without adding ambiguous credential routing or unsupported identity semantics. Request a full review of the changed source.
