@@ -279,9 +279,14 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 		if r.Comments == 0 {
 			continue
 		}
-		cs, err := pages[apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
+		// This endpoint returns the complete list and has no page/limit API.
+		// Page parameters are ignored, so paging would repeat the same comments.
+		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
 		if err != nil {
 			return nil, err
+		}
+		if len(cs) != r.Comments {
+			return nil, errors.New("forgejo: review comments changed while reading; refresh again")
 		}
 		addComments(ch, cs, pending)
 	}

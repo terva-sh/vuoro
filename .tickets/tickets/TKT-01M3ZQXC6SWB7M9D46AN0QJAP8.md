@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:28Z
-updated_at: 2026-10-03T03:53:34Z
+updated_at: 2026-10-03T03:55:25Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -52,7 +52,7 @@ Compare one configured account’s results to the Forgejo web/API view in a read
 
 - [x] Open authored, requested-reviewer and assigned PRs are discovered and deduplicated with all account roles retained.
 - [x] Offline fixtures cover pagination, review re-requests, stale/dismissed reviews, real push times, threads and bot classification.
-- [ ] A read-only live account comparison matches the Forgejo view; checkout retains PR refs and SSH ports.
+- [x] A read-only live account comparison matches the Forgejo view; checkout retains PR refs and SSH ports.
 - [x] Discovery uses the shared refresh contract, has no Writer requirement and does not depend on GitLab live-write validation.
 
 ## Implementation plan
@@ -64,3 +64,7 @@ Use authenticated global issue search with state=open and type=pulls for created
 **agent:codex/inbox-20261002** at 2026-10-03T03:53:34Z
 
 Implemented shared discovery and patch-free facts. Full local just ci passes with cgo disabled. Offline fixtures prove role deduplication, clamped pagination, failures/account/host isolation, retained historical requests and R2 push obligations, excluded voluntary/removed reviewers, REQUEST_REVIEW normalization, pending-draft omission, stale/dismissed verdicts, PR refs and SSH ports. Shared inbox regressions hold bot classification before turns. Live account comparison found Forgejo's empty timeline pages serialize as null; narrowed the empty-page exception to timelines and added a regression, keeping null search/review pages invalid. Live comparison is still running through tea's authenticated GET transport; no credential was extracted or auth file read. Merge permission stays unknown because repository push/admin access is insufficient evidence.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:55:25Z
+
+The read-only live comparison now passes: discovered all 22 open PR memberships for warricksothr, matched Forgejo's authored/requested/assigned API lists, and read complete facts plus validated checkout metadata for each. First complete-facts run revealed that /pulls/N/reviews/ID/comments ignores page parameters (confirmed by live identical pages and Swagger's lack of page/limit). Replaced the old looping pagination with one bounded complete-list read and a count-consistency check, added an offline regression, and kept the verified timeline-null exception. Corrected live run finished in 11.94 seconds. This fixes an existing open-by-URL reader timeout as well as inbox facts. These substantive changes require a new full PR review.

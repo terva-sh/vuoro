@@ -229,3 +229,21 @@ func TestNullTimelineIsEmptyButNullReviewsAreMalformed(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewCommentsAreACompleteListNotPaginated(t *testing.T) {
+	c, ref := fixtureClient(t, true)
+	reads := 0
+	c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+		if strings.Contains(r.URL.Path, "/reviews/") && strings.HasSuffix(r.URL.Path, "/comments") {
+			reads++
+			if r.URL.Query().Has("page") || r.URL.Query().Has("limit") {
+				t.Fatal("non-paginated endpoint received page parameters")
+			}
+		}
+		return http.DefaultTransport.RoundTrip(r)
+	})
+	ch, err := c.ReadFacts(context.Background(), ref)
+	if err != nil || reads != 1 || len(ch.Threads) != 4 {
+		t.Fatalf("complete comments: %d reads, %v", reads, err)
+	}
+}

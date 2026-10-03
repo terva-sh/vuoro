@@ -259,8 +259,9 @@ validates hosts, credentials in URLs, refs and branch names before fetching,
 and git uses the person's own transport credentials. Run records retain forge
 kind for display; existing GitLab records and Ref identity keys stay compatible.
 
-Forgejo reads the PR, paginated file inventory, reviews, review comments and
-issue timeline. The separate `.diff` response supplies patches. Binary,
+Forgejo reads the PR, paginated file inventory, reviews and issue timeline.
+Review comments use a single complete-list endpoint: Forgejo ignores page
+parameters there. The returned count must match the review’s count. The separate `.diff` response supplies patches. Binary,
 missing or incomplete patches are marked omitted, including incomplete hunk
 counts or a mismatch with the inventory's addition/deletion totals. Pages run
 to an empty response, respecting server-clamped limits, with bounded response
