@@ -1,3 +1,2 @@
-.tickets/**/*.md text eol=lf
-.tickets/**/*.md merge=gitticket
-*.go text eol=lf
+# Recorded HTTP diff bodies are byte fixtures; checkout must not rewrite them.
+forge/forgejo/testdata/*.diff -text

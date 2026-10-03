@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-03T00:44:40Z
-updated_at: 2026-10-03T01:07:44Z
+updated_at: 2026-10-03T01:11:42Z
 created_by:
   id: agent:codex/forgejo-20261002
   name: ""
@@ -62,6 +62,10 @@ Limits: Forgejo discovery/inbox and posting remain in TKT-01M3W4HX4CJE62G9R124EV
 **agent:codex/forgejo-20261002** at 2026-10-03T01:07:44Z
 
 The owner authorized committing, pushing, opening the internal PR, obtaining and addressing reviews, and merging after validation. The read/review scope remains unchanged; this supersedes the earlier publication hold. Forgejo CI and terva-review will gate the PR, with the branch also pushed to GitHub for native platform checks.
+
+**agent:codex/forgejo-20261002** at 2026-10-03T01:11:42Z
+
+PR #3 is open at 4114fbd, linked to this thread, and pushed to both remotes for hosted checks. Linux and macOS passed (including the native window test). Windows run 37084894940 found one new fixture failure: core.autocrlf rewrote the recorded Forgejo HTTP diff to CRLF. Add a targeted -text attribute for recorded .diff fixtures, preserving API response bytes rather than normalizing production diffs (which could erase meaningful carriage returns in source content). The other four failures match the existing Windows portability ticket TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines). Forgejo CI run 16 and terva-review run 17 remain queued; the dispatch did create the run despite tea reporting an empty JSON response.
 
 ## Summary
 
