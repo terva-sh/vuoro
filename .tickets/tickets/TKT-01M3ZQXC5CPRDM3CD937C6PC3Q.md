@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3ZQXC5CPRDM3CD937C6PC3Q
 title: Share forge discovery, caching, and refresh for the inbox
 type: task
-status: draft
+status: in-progress
 status_reason: null
 priority: high
 due_on: null
@@ -20,15 +20,22 @@ dependencies:
   - TKT-01M3W4HWM6V2F20KNT03BSBNZY
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:codex/inbox-20261002
+  branch: tickets/inbox-discovery
+  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
+  commit: bd81a4eea8df78cd7d7a9bbe31a3dfa18dc0170d
+  session: null
+  claimed_at: 2026-10-03T02:39:51Z
+  expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:27Z
-updated_at: 2026-10-03T02:01:27Z
+updated_at: 2026-10-03T02:39:59Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
 updated_by:
-  id: agent:codex/windows-roadmap-20261002
+  id: agent:codex/inbox-20261002
   name: ""
 extensions: {}
 ---
@@ -48,3 +55,7 @@ Build with fixture providers first so both adapter tasks can implement the same 
 - [ ] A failed, cancelled or rate-limited refresh preserves prior account snapshots and exposes last-success/error state without leaking credentials.
 - [ ] Configured bot identities are applied before turn derivation, and authored snoozes survive cache replacement.
 - [ ] Tests cover mixed-account refresh and partial failures without network I/O or installed agent tools.
+
+## Implementation plan
+
+Add optional forge.Discoverer returning complete open membership with roles and forge update stamps. Keep pagination inside adapters. Build an inbox service independent of agents/tickets, bounded to four concurrent accounts with per-account timeouts and cancellation; each account commits an entire new snapshot only after all reads succeed. Reuse unchanged cached facts by update stamp, preserve failed snapshots, and store scrubbed status categories. Use stable Ref keys; persist derived snapshots under cache and authored snoozes under annotations. Apply configured bots to neutral users and reviews before serving facts. Prove duplicate membership, incremental reads, partial failures, cancellation, private persistence, bot exclusion and snooze survival using fixture providers. No routes or background refresh yet.
