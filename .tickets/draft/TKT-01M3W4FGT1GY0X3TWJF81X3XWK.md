@@ -28,12 +28,12 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-02T16:51:37Z
+updated_at: 2026-10-03T02:01:28Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-mvp-1
+  id: agent:codex/windows-roadmap-20261002
   name: ""
 extensions: {}
 ---
@@ -62,3 +62,12 @@ terva 0.139.7 cannot be locked down. It moves to the v1.0.0 epic.
 - [ ] I can talk to any reviewer while it works, and nothing posts without my action
 - [ ] Every session shows its tool, model, tokens, and cost
 - [ ] I can open a GitLab merge request by URL and run several Claude Code reviewers on it in parallel
+- [ ] GitLab and Forgejo authored/requested changes appear in one inbox with correct turn, reason and earliest-unanswered age.
+
+## Notes
+
+**agent:codex/windows-roadmap-20261002** at 2026-10-03T02:01:28Z
+
+Owner-selected priority: one GitLab-and-Forgejo inbox ordered by whose turn it is. D34 records that outcome and moves Forgejo discovery/inbox into the MVP while writes remain later. The executable backlog is shared discovery/refresh (TKT-01M3ZQXC5CPRDM3CD937C6PC3Q), the existing pure turn ticket, both adapters (new Forgejo slice TKT-01M3ZQXC6SWB7M9D46AN0QJAP8), then the mixed inbox. Structured dependencies connect the slices. The new read-only Forgejo task does not inherit blocked GitLab live-write validation. The broader Forgejo ticket now tracks only writes.
+
+All implementation tickets remain draft. docs/roadmap.md maps the existing implementation, completion gates and subsequent MVP/v1.0 work; docs/plan.md remains authoritative. Considered alternatives were Forgejo posting first and more agent workflows first; the owner chose the inbox because it supplies the missing whose-turn workflow across both existing readers. Older relocation/publication/usage tickets are flagged for evidence-based reconciliation, not silently closed, and the earlier adoption claim is left untouched.

@@ -1,7 +1,7 @@
 ---
 schema: 3
 id: TKT-01M3W4HX4CJE62G9R124EV5PT4
-title: Forgejo adapter for the forge interface
+title: Forgejo posting through the shared forge boundary
 type: task
 status: draft
 status_reason: null
@@ -17,32 +17,32 @@ origin: null
 dependencies:
   - TKT-01M3W4HWTXC6EM9SS84A4WMEPG
   - TKT-01M3ZKGRZBBS869259MBA818NQ
+  - TKT-01M3W4HWR5K8TXA6S6HBVXDXX5
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T00:44:56Z
+updated_at: 2026-10-03T02:01:28Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:codex/forgejo-20261002
+  id: agent:codex/windows-roadmap-20261002
   name: ""
 extensions: {}
 ---
 
 ## Description
 
-Implement the `forge` interface for Forgejo, which hosts terva-sh's internal
-work. Forgejo's API follows Gitea's: pull request reviews, review comments, and
-requested reviewers. Check what it records for thread resolution and a
-reviewer's last reviewed SHA, because the turn rules depend on both.
+Complete human-directed Forgejo posting through the shared forge boundary: comment, reply, approve, request changes and submit drafts, with live round-trip validation and capability-gated controls. Agents still only draft; every remote write requires the person’s protected UI action.
+
+Open-by-URL reading/checkout is complete under TKT-01M3ZKGRZBBS869259MBA818NQ (Open Forgejo PRs through the shared forge boundary), merged as PR #3. D34 moves discovery and the mixed inbox into v0.1.0 under TKT-01M3ZQXC6SWB7M9D46AN0QJAP8 (Discover open Forgejo changes for the shared inbox). This v1.0 ticket now tracks writes only, avoiding an unrelated live-write prerequisite on read-only discovery.
 
 ## Acceptance criteria
 
-- [ ] Forgejo pull requests appear in the inbox with correct turns, tested from fixtures
 - [ ] Comment, reply, approve, request changes, and submit work against a real pull request
+- [ ] Human-directed writes refresh forge facts and the shared inbox turn; agents have no posting route.
 
 ## Notes
 
