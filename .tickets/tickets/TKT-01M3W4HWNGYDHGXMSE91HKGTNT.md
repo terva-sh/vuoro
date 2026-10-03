@@ -3,8 +3,8 @@ schema: 3
 id: TKT-01M3W4HWNGYDHGXMSE91HKGTNT
 title: "GitLab adapter: discover the changes I review and wrote"
 type: task
-status: in-progress
-status_reason: null
+status: blocked
+status_reason: "Personal-account requested-review comparison needs working local glab authentication. Read-only implementation is merged in PR #8 and all offline/platform gates pass."
 priority: high
 due_on: null
 labels:
@@ -21,17 +21,10 @@ dependencies:
   - TKT-01M3ZQXC5CPRDM3CD937C6PC3Q
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/inbox-20261002
-  branch: tickets/gitlab-discovery
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: 763a973cc6cfc415e6724e9ca5ce743c40962ff6
-  session: null
-  claimed_at: 2026-10-03T03:37:21Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:42:23Z
+updated_at: 2026-10-03T03:47:45Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -70,3 +63,11 @@ Implemented complete role discovery and fresh patch-free facts. Full just ci pas
 **agent:codex/inbox-20261002** at 2026-10-03T03:42:23Z
 
 PR #8's first terva-review was clean on fe6ea043ddfba1fd86338807a0c79ce59226af85. A subsequent self-review added explicit MR IID validation and fixed malformed GraphQL timestamps so decoder errors cannot echo credential values. Regression tests cover GraphQL error messages, invalid timestamps and mismatched identities. These substantive hardening changes will receive a fresh review. Personal-account live comparison is still pending local authentication.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:47:44Z
+
+in-progress to blocked: Personal-account requested-review comparison needs working local glab authentication. Read-only implementation is merged in PR #8 and all offline/platform gates pass.
+
+## Summary
+
+Read-only GitLab discovery and fresh patch-free facts landed in PR #8 after two clean full reviews and passing exact-head internal CI plus Linux/macOS/Windows native checks, including the macOS window and race checks. Final reviewed head: 0abfba143744674a4a7efc3533a3bdabd8850a07. Full local just ci and anonymous live schema/read validation passed. Personal-account discovery parity remains the sole unfinished acceptance criterion and needs the owner's local glab authentication. No credential was extracted or auth file read.
