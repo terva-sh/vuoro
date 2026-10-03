@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HWF70KRCRRXZQT2M9C7Y
 title: Add a vuoro accent to terva-sh/design and release it
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -17,17 +17,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/vuoro-design-20261002
-  branch: main
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: 6cd594094a45010bc33180d7e389d24907cdcfe2
-  session: null
-  claimed_at: 2026-10-02T23:59:40Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T23:59:41Z
+updated_at: 2026-10-03T00:06:33Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -53,7 +46,7 @@ Record the design release here when it lands.
 ## Acceptance criteria
 
 - [x] terva-sh/design has a vuoro accent that passes its contrast test in both schemes
-- [ ] A design release containing it is tagged, and the version is recorded in a note here
+- [x] A design release containing it is tagged, and the version is recorded in a note here
 
 ## Implementation plan
 
@@ -77,6 +70,10 @@ in-progress to blocked: The violet preset is validated locally; publishing its d
 
 The owner explicitly authorized commits/pushes for both repositories and publication of design v0.3.0. The earlier authorization blocker is resolved. The GitHub design main and Forgejo main were verified equal at a49e3ba before publication; neither has v0.3.0 yet.
 
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:06:33Z
+
+Published design v0.3.0 on both forges, with annotated tag 6bf4ad0cac8fbcfb7616f83eba8b8582b9194c6c pointing to the tested preset commit 8ae5a076158fde2f3afc4799b9cdbe3b45b69c3d. Forgejo release: https://git.local.sothr.com/terva-sh/design/releases/tag/v0.3.0. GitHub module-source release: https://github.com/terva-sh/design/releases/tag/v0.3.0. Both releases are published and neither draft nor prerelease, and tag/commit identities match on both remotes. The full local design gate, including race tests, passed before tagging. Design PR #2 (Add the vuoro violet accent), https://git.local.sothr.com/terva-sh/design/pulls/2, remains open because Forgejo CI is waiting for a runner. Publication uses the tested branch commit and does not merge the PR. Vuoro successfully downloaded v0.3.0, resolved its module checksums, and exported/checked -app vuoro from the real module without a replace or workspace override. This resolves the release criterion and supersedes the earlier unpublished-release notes.
+
 ## Summary
 
-The selected violet vuoro preset and comparison documentation are ready in the sibling design working tree; validation passes. Publishing a version containing the preset remains pending authorization to commit and push.
+The owner-selected violet vuoro preset, generated stylesheet, and comparison docs are published in design v0.3.0 on Forgejo and GitHub, pointing to commit 8ae5a076158fde2f3afc4799b9cdbe3b45b69c3d. Both acceptance criteria are satisfied and local just ci passes. The tagged source branch is in open design PR #2 (Add the vuoro violet accent); hosted CI was still waiting for a runner at publication.
