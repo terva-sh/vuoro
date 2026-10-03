@@ -30,3 +30,10 @@ type Discovered struct {
 type Discoverer interface {
 	Discover(ctx context.Context, username string) ([]Discovered, error)
 }
+
+// FactsReader optionally reads fresh review facts without patches or personal
+// drafts. The inbox calls it every refresh, even when Updated is unchanged:
+// merge readiness and the signed-in person's permissions can change separately.
+type FactsReader interface {
+	ReadFacts(ctx context.Context, ref Ref) (*Change, error)
+}

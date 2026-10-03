@@ -229,8 +229,15 @@ func (s *Service) readAccount(ctx context.Context, a config.Forge, previous Acco
 		}
 		m := members[key]
 		item, exists := cached[key]
-		if !exists || m.Updated.IsZero() || item.Change.Updated.IsZero() || !m.Updated.Equal(item.Change.Updated) {
-			ch, err := p.Open(ctx, m.Ref)
+		facts, freshFacts := p.(forge.FactsReader)
+		if freshFacts || !exists || m.Updated.IsZero() || item.Change.Updated.IsZero() || !m.Updated.Equal(item.Change.Updated) {
+			var ch *forge.Change
+			var err error
+			if freshFacts {
+				ch, err = facts.ReadFacts(ctx, m.Ref)
+			} else {
+				ch, err = p.Open(ctx, m.Ref)
+			}
 			if err != nil {
 				return nil, err
 			}

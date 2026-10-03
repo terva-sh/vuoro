@@ -215,3 +215,25 @@ func TestProviderOwnershipAndReviewOnlyBotMarker(t *testing.T) {
 		t.Fatal("failed refresh exposed provider mutations")
 	}
 }
+
+type factsFixture struct {
+	*fixture
+	reads atomic.Int32
+}
+
+func (f *factsFixture) ReadFacts(ctx context.Context, r forge.Ref) (*forge.Change, error) {
+	f.reads.Add(1)
+	return f.changes[r.String()], nil
+}
+func TestFreshFactsReflectPermissionsWithoutUpdateStampChange(t *testing.T) {
+	a := account("lab.test", forge.GitLab)
+	p := &factsFixture{fixture: provider(a)}
+	s, _ := New("", []config.Forge{a}, func(context.Context, config.Forge) (forge.Provider, error) { return p, nil })
+	s.Refresh(context.Background())
+	allowed := true
+	p.changes[p.members[0].Ref.String()].CanMerge = &allowed
+	got := s.Refresh(context.Background()).Accounts[0]
+	if got.Error != "" || p.reads.Load() != 2 || p.opens.Load() != 0 || got.Items[0].Change.CanMerge == nil || !*got.Items[0].Change.CanMerge {
+		t.Fatal("fresh permission facts were hidden by unchanged update stamp")
+	}
+}
