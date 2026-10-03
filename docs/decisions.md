@@ -326,3 +326,17 @@ request (next-gen-compute!144), and added to the MVP:
   editor's multi-file patches on others' changes stay in
   TKT-01M3YMSVPTE1QGMV63GCF6HPW1. The alternatives were a patch that rides
   only in the report, and both.
+
+### D32. Vuoro uses violet on the shared Birch and Tar foundation
+
+The owner chose violet on 2026-10-02 after comparing the existing blue with
+violet and teal in both schemes. The accent is `#7546A4` on Birch and
+`#B89AE3` on Tar, with hover and text-on-accent roles supplied by
+`terva-sh/design`. Components keep reading the shared `--ui-*` roles.
+
+Violet gives vuoro its own identity and stays apart from review status
+colors. The former blue was an accessible stand-in from git-ticket-canvas,
+but lampi, ketju, and git-ticket-canvas already use blue. Teal also passed
+contrast checks, but sits closer to Dayroom's green and the shared success
+color. The comparison and measured contrast live in
+`terva-sh/design/docs/vuoro-accent.md`.

@@ -3,8 +3,8 @@ schema: 3
 id: TKT-01M3W4HWHRKR936RT5MK8ZHB2B
 title: Load the terva-sh design stylesheet, with the export check in CI
 type: task
-status: blocked
-status_reason: The stylesheet is exported and validated; the pinned CI export check waits for a published design release containing vuoro.
+status: in-progress
+status_reason: null
 priority: normal
 due_on: null
 labels:
@@ -18,10 +18,17 @@ dependencies:
   - TKT-01M3W4HWF70KRCRRXZQT2M9C7Y
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:codex/vuoro-design-20261002
+  branch: vuoro-design
+  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
+  commit: 2fa117bfe9677b2b61fdffac789dfa3ff465e931
+  session: null
+  claimed_at: 2026-10-03T00:00:46Z
+  expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T23:58:01Z
+updated_at: 2026-10-03T00:00:46Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -64,6 +71,10 @@ The pinned export check is prepared as a patch in task scratch, against go.mod (
 **agent:codex/vuoro-design-20261002** at 2026-10-02T23:58:01Z
 
 ready to blocked: The stylesheet is exported and validated; the pinned CI export check waits for a published design release containing vuoro.
+
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:00:46Z
+
+The owner authorized committing and pushing both repositories and publishing design v0.3.0. Design PR #2 (Add the vuoro violet accent), https://git.local.sothr.com/terva-sh/design/pulls/2, contains commit 8ae5a07 and passes the local full just ci gate, including race tests. Forgejo CI is queued. The prepared adoption patch will be applied once the release is published on the GitHub module source.
 
 ## Summary
 
