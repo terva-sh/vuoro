@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HWHRKR936RT5MK8ZHB2B
 title: Load the terva-sh design stylesheet, with the export check in CI
 type: task
-status: in-progress
+status: review
 status_reason: null
 priority: normal
 due_on: null
@@ -17,18 +17,13 @@ dependencies:
   - TKT-01M3W4HWGGB7RMVFAJPW2KPKY5
   - TKT-01M3W4HWF70KRCRRXZQT2M9C7Y
 blocks_on: none
-references: []
-claim:
-  actor: agent:codex/vuoro-design-20261002
-  branch: vuoro-design
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: 2fa117bfe9677b2b61fdffac789dfa3ff465e931
-  session: null
-  claimed_at: 2026-10-03T00:00:46Z
-  expires_at: null
+references:
+  - ref: pr:https://git.local.sothr.com/terva-sh/vuoro/pulls/2
+    path: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T00:06:52Z
+updated_at: 2026-10-03T00:07:28Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -48,7 +43,7 @@ Honour `data-scheme` for light and dark, and leave `data-theme` alone.
 
 ## Acceptance criteria
 
-- [ ] design-tokens export -app vuoro -check runs in just ci
+- [x] design-tokens export -app vuoro -check runs in just ci
 - [x] The app follows the system scheme, and data-scheme on html overrides it both ways
 - [x] No component stylesheet contains a literal colour
 
@@ -80,6 +75,10 @@ The owner authorized committing and pushing both repositories and publishing des
 
 The published design v0.3.0 is now pinned as the design-tokens Go tool in go.mod, with real module checksums in go.sum. Go mod tidy retains the tool dependency, with the Go 1.26 line and tuohi pin unchanged. The export and export -check commands succeed from the downloaded module, without a replace or workspace override. Added design-export/design-check recipes and put design-check in just ci; both Forgejo and GitHub workflows run the same pinned export -check. Updated the README refresh instructions and the design-of-record plan to reflect completed pinned adoption.
 
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:07:28Z
+
+The completed just ci gate passed against downloaded design v0.3.0 without a workspace override, including the new design-check recipe, the native tests, all six cross builds, all 23 frontend tests, frontend dist verification, and ticket-store validation. The implementation is committed and pushed on vuoro-design in vuoro PR #2 (Adopt the shared violet styling), https://git.local.sothr.com/terva-sh/vuoro/pulls/2. All acceptance criteria are satisfied; the ticket moves to review while hosted CI and the requested terva-review run complete. PRs remain open; no merge was requested or performed.
+
 ## Summary
 
-Vuoro now uses the generated violet preset, with rebuilt embedded frontend assets and D32 recorded. Existing just ci passes. A real design release is still needed to finish the module/tool pin and matching export -check gates.
+Vuoro PR #2 (Adopt the shared violet styling), https://git.local.sothr.com/terva-sh/vuoro/pulls/2, contains the generated violet preset, rebuilt embedded frontend, the real design v0.3.0 tool/module pin, matching just/Forgejo/GitHub export checks, and README/plan/D32 documentation. All acceptance criteria and the completed local just ci gate pass. Published design v0.3.0 is available on both forges. The PR remains open for hosted checks and review.
