@@ -63,10 +63,12 @@ type Change struct {
 	Draft        bool     `json:"draft"`
 	State        State    `json:"state"`
 	// Mergeability is the forge's own word for it, such as GitLab's
-	// detailedMergeStatus. MergeableByMe says whether the person can merge.
-	Mergeability string    `json:"mergeability"`
-	Created      time.Time `json:"created"`
-	Updated      time.Time `json:"updated"`
+	// detailedMergeStatus. CanMerge says whether the signed-in person can merge.
+	Mergeability string `json:"mergeability"`
+	// CanMerge is permission of the authenticated person, nil when unknown.
+	CanMerge *bool     `json:"can_merge"`
+	Created  time.Time `json:"created"`
+	Updated  time.Time `json:"updated"`
 
 	Reviewers []Reviewer `json:"reviewers"`
 	Assignees []User     `json:"assignees"`

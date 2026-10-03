@@ -134,7 +134,8 @@ Codeberg (forgejo/forgejo #4212). The GitLab responses are the fixtures in
 - **Change**: one merge request or pull request. Forge, project, number,
   title, author, web URL, source and target branch, base and head SHA, draft
   flag, state (open, merged, closed), and mergeability as the forge reports
-  it.
+  it. The authenticated person’s merge permission is nullable (`can_merge`):
+  unknown is never treated as allowed.
 - **Role**: what the person is to a change. One or more of author, requested
   reviewer, assignee, and participant.
 - **Review request**: a reviewer was asked, at a time. A re-request is a new
@@ -195,7 +196,19 @@ right: the reviewer resolves the thread or answers.
 answers "how long have I owed this", which is what the inbox sorts by. Bot
 nudges, "+1"s, and a second push do not move it, and it moves on only when
 the person acts. The latest event is shown as last activity, and the inbox
-never sorts by it.
+never sorts by it. `turn.Derive` returns structured rule/text/thread reasons for
+both `mine` and `theirs`. Resolved threads carry no unanswered reply reason.
+Current reviewer state supplements dated verdict history, and the last human
+non-comment verdict supersedes earlier ones; stale or dismissed verdicts cannot
+resurrect an earlier verdict. Merge readiness requires explicit authenticated
+permission, an approval, no current change request, and a non-draft change.
+
+A reason’s time and the overall `since` are nullable. When an unanswered event
+has no recorded timestamp, its age remains unknown; creation, update and commit
+authorship times never stand in for it. Undated notes retain adapter order;
+fully dated notes sort chronologically. Last activity can include forge noise,
+but noise does not alter unanswered reasons or their age. Closed and merged
+changes carry a readable inactive reason and no actionable turn.
 
 ### 4.2 What each forge needs
 

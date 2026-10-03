@@ -1,0 +1,320 @@
+{
+  "kind": "gitlab",
+  "capabilities": {
+    "drafts": false,
+    "resolve": false,
+    "approve": false
+  },
+  "ref": {
+    "host": "gitlab.com",
+    "project": "gitlab-org/cli",
+    "number": 3991
+  },
+  "title": "fix(label): show the real total in the list header",
+  "description": "<description removed>",
+  "author": {
+    "username": "unstable-code",
+    "bot": false
+  },
+  "web_url": "https://gitlab.com/gitlab-org/cli/-/merge_requests/3991",
+  "source_branch": "fix/label-list-total",
+  "target_branch": "main",
+  "diff": {
+    "base": "59ae78caddfe91cef7808d7fb7c41d04d5b80c77",
+    "start": "b7120b8092103ed5e582899f997237dd0f118901",
+    "head": "8526e3d7d20ebe488c05425d32b4563b70840df9"
+  },
+  "draft": false,
+  "state": "open",
+  "mergeability": "requested_changes",
+  "can_merge": null,
+  "created": "2026-10-02T06:51:05Z",
+  "updated": "2026-10-02T14:16:28Z",
+  "reviewers": [
+    {
+      "username": "GitLabDuo",
+      "bot": true,
+      "state": "reviewed",
+      "can_merge": false
+    },
+    {
+      "username": "rkumar555",
+      "bot": false,
+      "state": "unreviewed",
+      "can_merge": false
+    },
+    {
+      "username": "phikai",
+      "bot": false,
+      "state": "requested_changes",
+      "can_merge": true
+    }
+  ],
+  "assignees": [
+    {
+      "username": "unstable-code",
+      "bot": false
+    }
+  ],
+  "participants": [
+    {
+      "username": "phikai",
+      "bot": false
+    },
+    {
+      "username": "rkumar555",
+      "bot": false
+    },
+    {
+      "username": "GitLabDuo",
+      "bot": true
+    },
+    {
+      "username": "unstable-code",
+      "bot": false
+    },
+    {
+      "username": "contributors.gitlab.com",
+      "bot": true
+    },
+    {
+      "username": "gitlab-bot",
+      "bot": false
+    }
+  ],
+  "requests": [
+    {
+      "reviewer": "rkumar555",
+      "by": "contributors.gitlab.com",
+      "at": "2026-10-02T12:01:25Z"
+    },
+    {
+      "reviewer": "GitLabDuo",
+      "by": "gitlab-bot",
+      "at": "2026-10-02T12:01:51Z"
+    }
+  ],
+  "reviews": [
+    {
+      "reviewer": "phikai",
+      "bot": false,
+      "verdict": "changes_requested",
+      "at": "2026-10-02T12:55:53Z",
+      "sha": "",
+      "dismissed": false,
+      "stale": false
+    }
+  ],
+  "pushes": [
+    {
+      "at": "2026-10-02T06:51:06Z",
+      "head": "",
+      "by": ""
+    },
+    {
+      "at": "2026-10-02T14:07:40Z",
+      "head": "8526e3d7d20ebe488c05425d32b4563b70840df9",
+      "by": ""
+    }
+  ],
+  "threads": [
+    {
+      "id": "77235acb5ec81a5a7a5d427b310306606204f80b",
+      "anchor": null,
+      "resolvable": false,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "3943098416",
+          "author": {
+            "username": "gitlab-bot",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T06:51:14Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "d7f0bca46813458783644c8fc52a5ae12b3cd4de",
+      "anchor": null,
+      "resolvable": true,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "gid://gitlab/DiscussionNote/3944865104",
+          "author": {
+            "username": "contributors.gitlab.com",
+            "bot": true
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:01:25Z",
+          "system": false
+        },
+        {
+          "id": "gid://gitlab/DiscussionNote/3944867357",
+          "author": {
+            "username": "gitlab-bot",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:01:53Z",
+          "system": false
+        },
+        {
+          "id": "gid://gitlab/DiscussionNote/3944878388",
+          "author": {
+            "username": "GitLabDuo",
+            "bot": true
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:04:14Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "41cab69c59a6439e1ac3348c60137ecaeea0692a",
+      "anchor": null,
+      "resolvable": false,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "3944870038",
+          "author": {
+            "username": "unstable-code",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:02:28Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "b4f2fdaa3b4403ea15d48bcd6ca4b18049443985",
+      "anchor": null,
+      "resolvable": false,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "3944892945",
+          "author": {
+            "username": "GitLabDuo",
+            "bot": true
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:06:58Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "93ca26787089c90be3d0f58b8c1aa55929490154",
+      "anchor": {
+        "path": "internal/commands/label/list/label_list.go",
+        "old_path": "internal/commands/label/list/label_list.go",
+        "new_line": 196,
+        "old_line": 0,
+        "diff": {
+          "base": "59ae78caddfe91cef7808d7fb7c41d04d5b80c77",
+          "start": "59ae78caddfe91cef7808d7fb7c41d04d5b80c77",
+          "head": "a3a7ae7cadbe3fef1f83cefd04dc7e8dce7e7282"
+        }
+      },
+      "resolvable": true,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "gid://gitlab/DiffNote/3945151813",
+          "author": {
+            "username": "phikai",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:55:52Z",
+          "system": false
+        },
+        {
+          "id": "gid://gitlab/DiffNote/3945446369",
+          "author": {
+            "username": "rkumar555",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T13:45:05Z",
+          "system": false
+        },
+        {
+          "id": "gid://gitlab/DiffNote/3945585398",
+          "author": {
+            "username": "unstable-code",
+            "bot": false
+          },
+          "body": "changed this line in [version 2 of the diff](/gitlab-org/cli/-/merge_requests/3991/diffs?diff_id=2072058561&start_sha=a3a7ae7cadbe3fef1f83cefd04dc7e8dce7e7282#f8e36fb71e15a413840a061047b83176dbfdb027_196_193)",
+          "at": "2026-10-02T14:07:40Z",
+          "system": true
+        },
+        {
+          "id": "gid://gitlab/DiffNote/3945598105",
+          "author": {
+            "username": "unstable-code",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T14:09:27Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "dfc42df3575bfa2aa7c30371b66f1fdb9c0087d3",
+      "anchor": null,
+      "resolvable": true,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "gid://gitlab/DiscussionNote/3945151858",
+          "author": {
+            "username": "phikai",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T12:55:53Z",
+          "system": false
+        },
+        {
+          "id": "gid://gitlab/DiscussionNote/3945598179",
+          "author": {
+            "username": "unstable-code",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T14:09:28Z",
+          "system": false
+        }
+      ]
+    },
+    {
+      "id": "7a207588872a390fa7c25a80a1b050b7717758ef",
+      "anchor": null,
+      "resolvable": false,
+      "resolved": false,
+      "notes": [
+        {
+          "id": "3945597971",
+          "author": {
+            "username": "unstable-code",
+            "bot": false
+          },
+          "body": "<note body removed>",
+          "at": "2026-10-02T14:09:26Z",
+          "system": false
+        }
+      ]
+    }
+  ],
+  "files": null,
+  "drafts": null
+}
