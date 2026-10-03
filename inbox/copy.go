@@ -24,6 +24,11 @@ func classify(ch *forge.Change, configured []string) {
 	for _, name := range configured {
 		bots[name] = true
 	}
+	for _, r := range ch.Reviews {
+		if r.Bot {
+			bots[r.Reviewer] = true
+		}
+	}
 	users := []*forge.User{&ch.Author}
 	for i := range ch.Reviewers {
 		users = append(users, &ch.Reviewers[i].User)

@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:27Z
-updated_at: 2026-10-03T02:44:01Z
+updated_at: 2026-10-03T02:46:29Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -71,3 +71,10 @@ Fixture tests cover both forge kinds, duplicate roles, unchanged/missing/new sta
 **agent:codex/inbox-20261002** at 2026-10-03T02:44:01Z
 
 PR #6: https://git.local.sothr.com/terva-sh/vuoro/pulls/6. Native macOS CI passed. Corrected the new cache permission test to assert Unix mode bits only on Unix, matching state/state_test.go; Windows does not expose Unix 0600 mode bits. Persistence and bot-removal assertions still run on every platform. The implementation's private state writer is unchanged.
+
+**agent:codex/inbox-20261002** at 2026-10-03T02:46:29Z
+
+PR #6 review dispositions, reviewed head d8b222344c7f4c24fb5c806fefeda0e88b918fcd:
+- Copy provider-owned changes: accepted. Deep-copy all returned facts before caching; regression mutates nested provider notes/reviews/reviewers after refresh and proves the cache and failed-refresh snapshot remain unchanged.
+- Include native review bot markers: accepted. Seed bot identities from Review.Bot as well as User.Bot; regression uses a marker present only on a review and proves its note author is classified.
+Both findings are fixed; running the full gate and requesting a new model review on the corrected head.

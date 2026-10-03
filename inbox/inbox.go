@@ -237,7 +237,7 @@ func (s *Service) readAccount(ctx context.Context, a config.Forge, previous Acco
 			if ch == nil || ch.Ref != m.Ref || ch.Kind != a.Kind {
 				return nil, errors.New("invalid opened identity")
 			}
-			item.Change = *ch
+			item.Change = clone(*ch)
 		}
 		// A change may close between discovery and reading; do not keep it open.
 		if item.Change.State != forge.Open {

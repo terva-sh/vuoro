@@ -190,3 +190,28 @@ func TestFailedReadIsAtomic(t *testing.T) {
 		t.Fatal("partial reads replaced complete snapshot")
 	}
 }
+
+func TestProviderOwnershipAndReviewOnlyBotMarker(t *testing.T) {
+	a := account("lab.test", forge.GitLab)
+	p := provider(a)
+	raw := p.changes[p.members[0].Ref.String()]
+	raw.Reviews = append(raw.Reviews, forge.Review{Reviewer: "review-bot", Bot: true})
+	raw.Threads[0].Notes = append(raw.Threads[0].Notes, forge.Note{Author: forge.User{Username: "review-bot"}, Body: "original"})
+	s, _ := New("", []config.Forge{a}, func(context.Context, config.Forge) (forge.Provider, error) { return p, nil })
+	s.Refresh(context.Background())
+	raw.Threads[0].Notes[2].Body = "provider changed"
+	raw.Reviews[2].Bot = false
+	raw.Reviewers[0].Username = "changed"
+	got := s.Snapshot().Accounts[0].Items[0].Change
+	if got.Threads[0].Notes[2].Body != "original" || got.Reviewers[0].Username != "robot" || !got.Reviews[2].Bot {
+		t.Fatal("provider owns nested cached facts")
+	}
+	if !got.Threads[0].Notes[2].Author.Bot {
+		t.Fatal("review-only bot marker not propagated")
+	}
+	p.err = errors.New("offline")
+	got = s.Refresh(context.Background()).Accounts[0].Items[0].Change
+	if got.Threads[0].Notes[2].Body != "original" {
+		t.Fatal("failed refresh exposed provider mutations")
+	}
+}
