@@ -66,6 +66,7 @@ type Run struct {
 	saveMu sync.Mutex // orders the writes of the run record
 
 	ID      string
+	Kind    string
 	Ref     forge.Ref
 	Title   string
 	WebURL  string
@@ -175,7 +176,7 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 
 	id := newRunID()
 	r := &Run{
-		ID: id, Ref: ch.Ref, Title: ch.Title, WebURL: ch.WebURL,
+		ID: id, Kind: ch.Kind, Ref: ch.Ref, Title: ch.Title, WebURL: ch.WebURL,
 		Head: ch.Diff.Head, Base: ch.Diff.Base, Created: time.Now().UTC(), Status: Preparing,
 		dir:      filepath.Join(m.StateDir, "worktrees", id),
 		repoKey:  src.Key,

@@ -1,0 +1,16 @@
+[
+  {
+    "filename": "README.md",
+    "previous_filename": "",
+    "status": "changed",
+    "additions": 16,
+    "deletions": 0
+  },
+  {
+    "filename": "docs/decisions.md",
+    "previous_filename": "",
+    "status": "changed",
+    "additions": 14,
+    "deletions": 0
+  }
+]

@@ -41,6 +41,9 @@ func TestBoundaries(t *testing.T) {
 	for _, line := range strings.Split(strings.TrimSpace(string(all)), "\n") {
 		f := strings.Fields(line)
 		for _, d := range f[1:] {
+			if f[0] == mod+"app" && strings.HasPrefix(d, mod+"forge/") && d != mod+"forge/adapters" && d != mod+"forge/patch" {
+				t.Errorf("app imports individual forge adapter %s", d)
+			}
 			if strings.HasPrefix(d, "github.com/terva-sh/git-ticket") && !strings.HasPrefix(f[0], mod+"tickets") {
 				t.Errorf("%s imports %s; only tickets may", f[0], d)
 			}

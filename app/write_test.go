@@ -18,6 +18,7 @@ import (
 
 	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/config"
+	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/gitlab"
 	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/review/drafts"
@@ -150,7 +151,7 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 		Runs: &review.Manager{StateDir: stateDir, Repos: &review.Repos{Dir: filepath.Join(stateDir, "repos")},
 			Drafts: mcp, MCPURL: mcpSrv.URL + "/mcp/"},
 		Tools: map[string]agent.Driver{"fake": agentDriver{}},
-		Dial: func(string, config.Secret) (*gitlab.Client, error) {
+		Dial: func(string, string, config.Secret) (forge.Provider, error) {
 			tok, _ := (&config.Forge{TokenEnv: "VUORO_TEST_TOKEN"}).Token(context.Background())
 			return gitlab.New(forgeSrv.URL, tok)
 		},

@@ -1,0 +1,68 @@
+---
+schema: 3
+id: TKT-01M3ZKGRZBBS869259MBA818NQ
+title: Open Forgejo PRs through the shared forge boundary
+type: task
+status: review
+status_reason: null
+priority: high
+due_on: null
+labels:
+  - forge
+  - forgejo
+  - review
+assignees: []
+milestone: v0.1.0
+parent: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
+origin: null
+dependencies: []
+blocks_on: none
+references: []
+claim: null
+archive: null
+created_at: 2026-10-03T00:44:40Z
+updated_at: 2026-10-03T01:07:44Z
+created_by:
+  id: agent:codex/forgejo-20261002
+  name: ""
+updated_by:
+  id: agent:codex/forgejo-20261002
+  name: ""
+extensions: {}
+---
+
+## Description
+
+The owner selected the shared forge boundary plus Forgejo open-by-URL support on 2026-10-02. This brings the first read/review slice forward from v1.0; discovery, the inbox and Forgejo writes stay in TKT-01M3W4HX4CJE62G9R124EV5PT4 (Forgejo adapter for the forge interface).
+
+Use forge-neutral models, checkout metadata, supported actions and errors, with per-forge parsing and API details in adapters. Preserve the existing agent and ticket boundaries rather than a universal integration interface. A second real adapter will expose model mismatches more effectively than speculative abstractions. The slice does not need GitLab live-write credentials and therefore does not depend on that blocked validation.
+
+## Acceptance criteria
+
+- [x] GitLab and Forgejo URLs route through a shared provider boundary without adapter-specific logic in app
+- [x] Forgejo metadata, diffs, reviews and discussions normalize from offline fixtures, including pagination and line anchors
+- [x] Forgejo PR checkout feeds the existing review pipeline, including fork heads and explicit SSH ports
+- [x] Forgejo exposes no write controls or write routes; GitLab human-only writes remain covered
+- [x] A read-only live run opens and checks out a real internal Forgejo PR, and the full local CI gate passes
+
+## Implementation plan
+
+Keep the existing forge Ref identity stable, and add neutral provider capabilities, checkout metadata and errors. Put parsers and client factories in forge/adapters; app resolves a configured host before obtaining its credentials and otherwise reads anonymously. Preserve GitLab Writer as a separate optional interface. Forgejo reads paginated files, reviews, review comments and timeline, with a bounded diff parser and no writes. Checkout uses the target repository's PR head ref (also for forks), advertised clone URLs and the target branch. Gate the frontend's write context on supported actions; neutralize reference rendering and UI wording. Test mixed-forge routing, token/redirect isolation, fixtures, anchors, checkout and the human posting boundary; update the plan, append D33, rebuild web/dist and run just ci plus a read-only internal live check.
+
+## Notes
+
+**agent:codex/forgejo-20261002** at 2026-10-03T00:58:09Z
+
+Implemented forge.Provider with optional Writer, neutral capabilities/errors/checkout metadata, and the parser/factory registry. app no longer imports GitLab API types. Existing Ref identity keys stay stable; display and persisted run kind distinguish PRs. Configuration accepts Forgejo and refuses ambiguous accounts on the same host. The Forgejo reader normalizes paginated metadata/reviews/threads/timeline; the separate diff is matched to its inventory, with incomplete/binary content marked omitted. Comments use new/old line fields rather than diff-row offsets. The final metadata read refuses head/target changes during the read. Capability-gated controls and Writer checks keep Forgejo read-only; GitLab posting remains protected by its existing human-action regression test.
+
+Validation: all Go package tests, vet for Linux/macOS/Windows, six cross-builds, 27 frontend tests, TypeScript, generated bundle comparison, design-export check and strict ticket-store check passed through just ci with CGO_ENABLED=0. A fixture-driven fork test removed the source branch and reviewed only refs/pull/7/head; local drafts and Forgejo identity survived reload. The read-only live check opened internal vuoro PR #2, read 16 files (15 visible patches), one discussion and three push events, and checked out head 68ff96c709bf through the advertised SSH URL on port 2222. tea handled API authentication without exposing its config or credential; no remote writes or real agent review were run.
+
+Limits: Forgejo discovery/inbox and posting remain in TKT-01M3W4HX4CJE62G9R124EV5PT4 (Forgejo adapter for the forge interface). This API has no bot marker; configured bot classification must precede correct turn derivation. Native Windows/macOS runtime checks were not run here, and the pre-existing Windows portability ticket remains separate. README, plan and owner decision D33 record the early read/review scope. Changes are on forgejo-open, awaiting the owner's commit/publication instruction under repository AGENTS.md.
+
+**agent:codex/forgejo-20261002** at 2026-10-03T01:07:44Z
+
+The owner authorized committing, pushing, opening the internal PR, obtaining and addressing reviews, and merging after validation. The read/review scope remains unchanged; this supersedes the earlier publication hold. Forgejo CI and terva-review will gate the PR, with the branch also pushed to GitHub for native platform checks.
+
+## Summary
+
+Implemented the shared forge boundary and Forgejo open-by-URL read/review slice on forgejo-open. GitLab continues through the same contracts; Forgejo opens diffs/discussions and supplies validated checkout metadata for the existing review runner, with posting unavailable. Offline, fork-checkout, human-action and UI boundary coverage plus the complete local CI gate pass. A read-only internal PR check confirms the real API and SSH checkout. Source and regenerated web/dist are ready for review; commit and publication await the owner's instruction. Discovery/inbox and Forgejo writes remain a separate draft.

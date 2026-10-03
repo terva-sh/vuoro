@@ -340,3 +340,18 @@ but lampi, ketju, and git-ticket-canvas already use blue. Teal also passed
 contrast checks, but sits closer to Dayroom's green and the shared success
 color. The comparison and measured contrast live in
 `terva-sh/design/docs/vuoro-accent.md`.
+
+### D33. Bring Forgejo reading and the shared forge boundary into the MVP
+
+On 2026-10-02 the owner selected a shared forge boundary plus Forgejo
+open-by-URL support as the next work. This brings the read/review slice forward
+from D21's v1.0 schedule: open a PR, read its diff and discussions, fetch its
+head and run the existing agent review pipeline. Forgejo discovery, the inbox
+and human-directed writes remain separate follow-ups; GitHub still follows
+Forgejo. GitLab's live write validation does not block this read-only slice.
+
+All code-host integrations use the neutral forge model and provider contracts.
+Agent tools continue using agent.Driver, and git-ticket retains its separate
+boundary. A universal external-integration interface was considered but would
+combine unrelated operations and permissions. The second forge validates the
+contract against actual API and checkout differences before adding discovery.

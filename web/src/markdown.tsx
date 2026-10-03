@@ -9,6 +9,7 @@ import { useContext } from 'preact/hooks'
 export interface Refs {
   // base is the project's web URL, for GitLab references such as !12 and #3.
   base?: string
+ kind?: string
 }
 
 // RefsContext gives every Markdown under a change that change's project.
@@ -16,7 +17,7 @@ export const RefsContext = createContext<Refs>({})
 
 // projectURL is the project's web URL from a merge request's.
 export function projectURL(mrURL: string): string | undefined {
-  const i = mrURL.indexOf('/-/')
+  const i = mrURL.includes('/-/') ? mrURL.indexOf('/-/') : mrURL.indexOf('/pulls/')
   return i > 0 ? mrURL.slice(0, i) : undefined
 }
 
@@ -179,7 +180,8 @@ export function inline(src: string, refs: Refs): ComponentChildren[] {
     else if (m[10]) out.push(<a href={m[10]} target="_blank" rel="noreferrer noopener" key={k++}>{m[10]}</a>)
     else if (m[11]) {
       const kind = m[11] === '!' ? 'merge_requests' : 'issues'
-      out.push(refs.base ? <a href={`${refs.base.replace(/\/$/, '')}/-/${kind}/${m[12]}`} target="_blank" rel="noreferrer noopener" key={k++}>{m[11]}{m[12]}</a> : m[0])
+      const gitlab = refs.kind !== 'forgejo'
+      out.push(refs.base && (gitlab || m[11] === '#') ? <a href={`${refs.base.replace(/\/$/, '')}/${gitlab ? '-/' : ''}${kind}/${m[12]}`} target="_blank" rel="noreferrer noopener" key={k++}>{m[11]}{m[12]}</a> : m[0])
     } else if (m[13]) out.push(<br key={k++} />)
   }
   if (last < src.length) out.push(src.slice(last))

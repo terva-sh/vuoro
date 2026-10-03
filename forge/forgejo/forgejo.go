@@ -1,0 +1,354 @@
+// Package forgejo reads Forgejo pull requests into the neutral forge model.
+// It implements no Writer: a configured account cannot enable posting here.
+package forgejo
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/terva-sh/vuoro/config"
+	"github.com/terva-sh/vuoro/forge"
+)
+
+const maxBody = 32 << 20
+
+var _ forge.Provider = (*Client)(nil)
+
+type Client struct {
+	base  *url.URL
+	token config.Secret
+	http  *http.Client
+}
+
+func New(base string, token config.Secret) (*Client, error) {
+	u, err := url.Parse(strings.TrimSuffix(base, "/"))
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return nil, errors.New("forgejo: invalid base URL")
+	}
+	u.Host = strings.ToLower(u.Host)
+	return &Client{base: u, token: token, http: &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("forgejo: redirects are refused") }}}, nil
+}
+func ParseURL(raw string) (forge.Ref, error)       { return forge.URLRef(raw, "/pulls/", 2) }
+func (c *Client) Capabilities() forge.Capabilities { return forge.Capabilities{} }
+func (c *Client) scrub(s string) string {
+	if t := c.token.Reveal(); t != "" {
+		s = strings.ReplaceAll(s, t, "[redacted]")
+	}
+	return s
+}
+func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, error) {
+	target := c.base.String() + "/api/v1" + path
+	if len(q) > 0 {
+		target += "?" + q.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if !c.token.Empty() {
+		req.Header.Set("Authorization", "token "+c.token.Reveal())
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return nil, fmt.Errorf("forgejo: GET %s: %s", path, c.scrub(err.Error()))
+	}
+	defer res.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(res.Body, maxBody+1))
+	if err != nil {
+		return nil, fmt.Errorf("forgejo: reading response: %s", c.scrub(err.Error()))
+	}
+	if len(b) > maxBody {
+		return nil, errors.New("forgejo: response exceeds 32 MiB")
+	}
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		var m struct {
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(b, &m)
+		msg := c.scrub(m.Message)
+		if len(msg) > 200 {
+			msg = msg[:200]
+		}
+		return nil, &forge.APIError{Forge: forge.Forgejo, Method: "GET", Path: path, Status: res.StatusCode, Message: msg}
+	}
+	return b, nil
+}
+func read[T any](ctx context.Context, c *Client, path string) (T, error) {
+	var out T
+	b, err := c.get(ctx, path, nil)
+	if err != nil {
+		return out, err
+	}
+	if err = json.Unmarshal(b, &out); err != nil {
+		return out, fmt.Errorf("forgejo: invalid response for %s", path)
+	}
+	return out, nil
+}
+func pages[T any](ctx context.Context, c *Client, path string) ([]T, error) {
+	var out []T
+	// Follow until an empty page rather than guessing the server's maximum limit
+	// or trusting an absolute Link URL with the person's token.
+	for page := 1; page <= 1000; page++ {
+		b, err := c.get(ctx, path, url.Values{"page": {strconv.Itoa(page)}, "limit": {"100"}})
+		if err != nil {
+			return nil, err
+		}
+		var got []T
+		if json.Unmarshal(b, &got) != nil {
+			return nil, fmt.Errorf("forgejo: invalid page for %s", path)
+		}
+		if len(got) == 0 {
+			return out, nil
+		}
+		out = append(out, got...)
+	}
+	return nil, errors.New("forgejo: pagination exceeded 1000 pages")
+}
+
+type apiUser struct {
+	Login string `json:"login"`
+}
+
+func user(u apiUser) forge.User { return forge.User{Username: u.Login} }
+
+type apiRepo struct {
+	FullName string `json:"full_name"`
+	CloneURL string `json:"clone_url"`
+	SSHURL   string `json:"ssh_url"`
+}
+type apiBranch struct {
+	Ref  string   `json:"ref"`
+	SHA  string   `json:"sha"`
+	Repo *apiRepo `json:"repo"`
+}
+type apiPR struct {
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	HTMLURL   string    `json:"html_url"`
+	User      apiUser   `json:"user"`
+	State     string    `json:"state"`
+	Draft     bool      `json:"draft"`
+	Merged    bool      `json:"merged"`
+	Mergeable bool      `json:"mergeable"`
+	Base      apiBranch `json:"base"`
+	Head      apiBranch `json:"head"`
+	MergeBase string    `json:"merge_base"`
+	Assignees []apiUser `json:"assignees"`
+	Requested []apiUser `json:"requested_reviewers"`
+	Created   time.Time `json:"created_at"`
+	Updated   time.Time `json:"updated_at"`
+}
+type apiReview struct {
+	ID        int64     `json:"id"`
+	User      apiUser   `json:"user"`
+	Body      string    `json:"body"`
+	State     string    `json:"state"`
+	Commit    string    `json:"commit_id"`
+	Dismissed bool      `json:"dismissed"`
+	Stale     bool      `json:"stale"`
+	Submitted time.Time `json:"submitted_at"`
+	Comments  int       `json:"comments_count"`
+}
+type apiComment struct {
+	ID             int64     `json:"id"`
+	ReviewID       int64     `json:"pull_request_review_id"`
+	User           apiUser   `json:"user"`
+	Body           string    `json:"body"`
+	Path           string    `json:"path"`
+	Position       int       `json:"position"`
+	OldPosition    int       `json:"original_position"`
+	Commit         string    `json:"commit_id"`
+	OriginalCommit string    `json:"original_commit_id"`
+	Resolver       *apiUser  `json:"resolver"`
+	Created        time.Time `json:"created_at"`
+}
+type apiEvent struct {
+	ID       int64     `json:"id"`
+	Type     string    `json:"type"`
+	Body     string    `json:"body"`
+	User     apiUser   `json:"user"`
+	Assignee *apiUser  `json:"assignee"`
+	Created  time.Time `json:"created_at"`
+}
+
+func repoPath(ref forge.Ref) string {
+	parts := strings.Split(ref.Project, "/")
+	return "/repos/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1])
+}
+func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error) {
+	if !strings.EqualFold(ref.Host, c.base.Host) || len(strings.Split(ref.Project, "/")) != 2 || ref.Number < 1 {
+		return nil, errors.New("forgejo: change does not belong to this client")
+	}
+	root := repoPath(ref)
+	prPath := fmt.Sprintf("%s/pulls/%d", root, ref.Number)
+	p, err := read[apiPR](ctx, c, prPath)
+	if err != nil {
+		return nil, err
+	}
+	if p.Base.Repo == nil || p.Base.Repo.FullName != ref.Project {
+		return nil, errors.New("forgejo: target repository metadata is missing or mismatched")
+	}
+	ch := &forge.Change{Kind: forge.Forgejo, Ref: ref, Title: p.Title, Description: p.Body, Author: user(p.User), WebURL: c.base.String() + "/" + ref.Project + "/pulls/" + strconv.Itoa(ref.Number),
+		SourceBranch: p.Head.Ref, TargetBranch: p.Base.Ref, Diff: forge.DiffRefs{Base: p.MergeBase, Start: p.Base.SHA, Head: p.Head.SHA}, Draft: p.Draft, State: forge.State(p.State), Created: p.Created, Updated: p.Updated,
+		Checkout: forge.Checkout{HTTPS: p.Base.Repo.CloneURL, SSH: p.Base.Repo.SSHURL, HeadRef: fmt.Sprintf("refs/pull/%d/head", ref.Number)}}
+	if ch.State == "" {
+		ch.State = forge.Open
+	}
+	if p.Merged {
+		ch.State = forge.Merged
+	}
+	if p.Mergeable {
+		ch.Mergeability = "mergeable"
+	}
+	if err := forge.ValidateCheckout(ch.Checkout, ref.Host); err != nil {
+		return nil, fmt.Errorf("forgejo: %w", err)
+	}
+	for _, u := range p.Assignees {
+		ch.Assignees = append(ch.Assignees, user(u))
+	}
+	for _, u := range p.Requested {
+		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(u), State: forge.Unreviewed})
+	}
+	fs, err := pages[apiFile](ctx, c, prPath+"/files")
+	if err != nil {
+		return nil, err
+	}
+	diff, err := c.get(ctx, prPath+".diff", nil)
+	if err != nil {
+		return nil, err
+	}
+	ch.Files = fileDiffs(fs, string(diff))
+	reviews, err := pages[apiReview](ctx, c, prPath+"/reviews")
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(reviews, func(a, b apiReview) int { return a.Submitted.Compare(b.Submitted) })
+	for _, r := range reviews {
+		pending := r.State == "PENDING"
+		if !pending {
+			addReview(ch, r)
+		}
+		if r.Body != "" {
+			if pending {
+				ch.Drafts = append(ch.Drafts, forge.Draft{ID: fmt.Sprint(r.ID), Body: r.Body})
+			} else if r.State != "REQUEST_REVIEW" {
+				ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprintf("review-%d", r.ID), Notes: []forge.Note{{ID: fmt.Sprint(r.ID), Author: user(r.User), Body: r.Body, At: r.Submitted}}})
+			}
+		}
+		if r.Comments == 0 {
+			continue
+		}
+		cs, err := pages[apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
+		if err != nil {
+			return nil, err
+		}
+		addComments(ch, cs, pending)
+	}
+	timeline, err := pages[apiEvent](ctx, c, fmt.Sprintf("%s/issues/%d/timeline", root, ref.Number))
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range timeline {
+		switch e.Type {
+		case "comment":
+			ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprintf("comment-%d", e.ID), Notes: []forge.Note{{ID: fmt.Sprint(e.ID), Author: user(e.User), Body: e.Body, At: e.Created}}})
+		case "review_request":
+			if e.Assignee != nil {
+				ch.Requests = append(ch.Requests, forge.ReviewRequest{Reviewer: e.Assignee.Login, By: e.User.Login, At: e.Created})
+			}
+		case "pull_push":
+			var push struct {
+				Commits []string `json:"commit_ids"`
+			}
+			_ = json.Unmarshal([]byte(e.Body), &push)
+			head := ""
+			if len(push.Commits) > 0 {
+				head = push.Commits[len(push.Commits)-1]
+			}
+			ch.Pushes = append(ch.Pushes, forge.Push{At: e.Created, Head: head, By: e.User.Login})
+		}
+	}
+	// The diff endpoint reads the current PR, not a requested commit. Refuse a
+	// mixed snapshot if a push or target update raced these paginated reads.
+	current, err := read[apiPR](ctx, c, prPath)
+	if err != nil {
+		return nil, err
+	}
+	if current.Head.SHA != p.Head.SHA || current.Base.SHA != p.Base.SHA || current.MergeBase != p.MergeBase {
+		return nil, errors.New("forgejo: pull request moved while reading; refresh it and try again")
+	}
+	slices.SortFunc(ch.Threads, func(a, b forge.Thread) int { return a.Notes[0].At.Compare(b.Notes[0].At) })
+	seen := map[string]bool{}
+	add := func(u forge.User) {
+		if u.Username != "" && !seen[u.Username] {
+			seen[u.Username] = true
+			ch.Participants = append(ch.Participants, u)
+		}
+	}
+	add(ch.Author)
+	for _, t := range ch.Threads {
+		for _, n := range t.Notes {
+			add(n.Author)
+		}
+	}
+	return ch, nil
+}
+func addReview(ch *forge.Change, r apiReview) {
+	verdict := map[string]forge.Verdict{"APPROVED": forge.VerdictApproved, "REQUEST_CHANGES": forge.VerdictChangesRequested, "COMMENT": forge.VerdictCommented}[r.State]
+	if verdict == "" {
+		return
+	}
+	ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: r.User.Login, Verdict: verdict, At: r.Submitted, SHA: r.Commit, Dismissed: r.Dismissed, Stale: r.Stale})
+
+	i := slices.IndexFunc(ch.Reviewers, func(u forge.Reviewer) bool { return u.Username == r.User.Login })
+	if i < 0 {
+		i = len(ch.Reviewers)
+		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(r.User), State: forge.Reviewed})
+	}
+	if r.Dismissed || r.Stale || r.Commit != ch.Diff.Head {
+		// An older review must not answer a new request, or keep a stale approval.
+		if ch.Reviewers[i].State != forge.Unreviewed {
+			ch.Reviewers[i].State = forge.Reviewed
+		}
+		return
+	}
+	state := map[forge.Verdict]forge.ReviewState{forge.VerdictApproved: forge.Approved, forge.VerdictChangesRequested: forge.RequestedChanges, forge.VerdictCommented: forge.Reviewed}[verdict]
+	if verdict == forge.VerdictCommented && (ch.Reviewers[i].State == forge.Approved || ch.Reviewers[i].State == forge.RequestedChanges) {
+		return
+	}
+	ch.Reviewers[i].State = state
+
+}
+func addComments(ch *forge.Change, cs []apiComment, pending bool) {
+	slices.SortFunc(cs, func(a, b apiComment) int { return a.Created.Compare(b.Created) })
+	groups := map[string]int{}
+	for _, n := range cs {
+		a := &forge.Anchor{Path: n.Path, OldPath: n.Path, NewLine: n.Position, OldLine: n.OldPosition, Diff: forge.DiffRefs{Head: n.Commit, Base: n.OriginalCommit}}
+		if pending {
+			ch.Drafts = append(ch.Drafts, forge.Draft{ID: fmt.Sprint(n.ID), Body: n.Body, Anchor: a})
+			continue
+		}
+		key := fmt.Sprintf("%d:%s:%d:%d", n.ReviewID, n.Path, n.Position, n.OldPosition)
+		i, ok := groups[key]
+		if !ok {
+			i = len(ch.Threads)
+			groups[key] = i
+			ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprint(n.ID), Anchor: a, Resolvable: true, Resolved: n.Resolver != nil && n.Resolver.Login != ""})
+		}
+		ch.Threads[i].Notes = append(ch.Threads[i].Notes, forge.Note{ID: fmt.Sprint(n.ID), Author: user(n.User), Body: n.Body, At: n.Created})
+	}
+}

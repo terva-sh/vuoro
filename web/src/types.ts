@@ -8,7 +8,7 @@ export interface Reviewer extends User {
   state: 'unreviewed' | 'reviewed' | 'requested_changes' | 'approved'
   can_merge: boolean
 }
-export interface Review { reviewer: string; verdict: 'approved' | 'changes_requested' | 'commented'; at: string; sha: string; dismissed: boolean }
+export interface Review { reviewer: string; verdict: 'approved' | 'changes_requested' | 'commented'; at: string; sha: string; dismissed: boolean; stale: boolean }
 export interface ReviewRequest { reviewer: string; by: string; at: string }
 export interface Push { at: string; head: string; by: string }
 
@@ -22,7 +22,10 @@ export interface FileDiff {
   patch: string; rebuilt: boolean; omitted: boolean
 }
 
+export interface Capabilities { drafts: boolean; resolve: boolean; approve: boolean }
+
 export interface Change {
+ kind: string; capabilities: Capabilities
   ref: Ref; title: string; description: string; author: User; web_url: string
   source_branch: string; target_branch: string; diff: DiffRefs
   draft: boolean; state: 'open' | 'merged' | 'closed'; mergeability: string
@@ -65,7 +68,7 @@ export interface Session {
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {
-  id: string; ref: Ref; title: string; web_url: string; head: string; base: string
+  id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number
   sessions: Session[]; drafts: Draft[]
 }
@@ -81,3 +84,5 @@ export interface Setup {
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`
+
+export const changeNumber = (kind: string | undefined, n: number) => `${kind === 'forgejo' ? '#' : '!'}${n}`

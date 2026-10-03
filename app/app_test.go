@@ -19,6 +19,7 @@ func change(target string) *forge.Change {
 		Ref:          forge.Ref{Host: "gitlab.com", Project: "group/sub/proj", Number: 12},
 		TargetBranch: target,
 		Diff:         forge.DiffRefs{Base: "b", Head: "h"},
+		Checkout:     forge.Checkout{HTTPS: "https://gitlab.com/group/sub/proj.git", SSH: "git@gitlab.com:group/sub/proj.git", HeadRef: "refs/merge-requests/12/head"},
 	}
 }
 
@@ -31,7 +32,7 @@ func TestASourceFetchesTheMergeRequestOverThePersonsTransport(t *testing.T) {
 	if src.Remote != "git@gitlab.com:group/sub/proj.git" || src.Key != "gitlab.com/group/sub/proj" {
 		t.Fatalf("%+v", src)
 	}
-	if strings.Join(src.Refspecs, " ") != "+refs/merge-requests/12/head:refs/vuoro/mr/12 +refs/heads/release/1.x:refs/vuoro/target/release/1.x" {
+	if strings.Join(src.Refspecs, " ") != "+refs/merge-requests/12/head:refs/vuoro/head +refs/heads/release/1.x:refs/vuoro/target/release/1.x" {
 		t.Fatalf("refspecs %q", src.Refspecs)
 	}
 	a.Config.Forges[0].Clone = "https"
@@ -73,7 +74,9 @@ func TestAPrivateChangeReadAnonymouslySaysWhy(t *testing.T) {
 	}))
 	defer srv.Close()
 	host := strings.TrimPrefix(srv.URL, "http://")
-	a := &App{Dial: func(string, config.Secret) (*gitlab.Client, error) { return gitlab.New(srv.URL, config.Secret{}) }}
+	a := &App{Dial: func(string, string, config.Secret) (forge.Provider, error) {
+		return gitlab.New(srv.URL, config.Secret{})
+	}}
 	_, err := a.open(context.Background(), "https://"+host+"/g/p/-/merge_requests/1")
 	if !errors.Is(err, gitlab.ErrNotFound) || !strings.Contains(err.Error(), "names no forge for "+host) {
 		t.Fatalf("err %v", err)

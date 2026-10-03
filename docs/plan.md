@@ -89,7 +89,8 @@ frontend assets.
 
 | Package | Holds |
 |---|---|
-| `forge` | The forge-neutral model (section 4) and the `Forge` interface. No HTTP. |
+| `forge` | The forge-neutral model (section 4), `Provider`/`Opener` and optional `Writer` contracts. No HTTP. |
+| `forge/adapters` | Parsers and factories select a provider by configured kind, or anonymous URL shape. No API orchestration. |
 | `forge/gitlab`, `forge/github`, `forge/forgejo` | One adapter each. All the API knowledge lives here. |
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
@@ -139,7 +140,7 @@ Codeberg (forgejo/forgejo #4212). The GitLab responses are the fixtures in
   one. All three forges record it, and it is the clearest "your turn" signal
   they give.
 - **Review**: one reviewer's verdict, at a time: approved, changes requested,
-  or commented, and whether it was dismissed. It carries the SHA it was given
+  or commented, and whether it was dismissed or marked stale. It carries the SHA it was given
   at when the forge records one. GitHub and Forgejo do. GitLab keeps only each
   reviewer's current state, so the adapter reads the time from the state's
   system note.
@@ -209,10 +210,54 @@ never sorts by it.
 
 ## 5. Forges
 
-GitLab comes first, because that is where the owner's day-job reviews are.
-GitHub and Forgejo follow, each as its own ticket against the `forge`
-interface. If the interface does not fit a forge, that is a finding against the
-model, not a reason to leak forge detail through the interface.
+GitLab came first because it hosts the owner's day-job reviews. D33 brings
+Forgejo open-by-URL reading and agent reviews into the MVP. Discovery, inbox
+support and Forgejo writes remain follow-ups, with GitHub after Forgejo (D21).
+
+`forge.Provider` reads a change and reports implemented actions available with
+its credentials. `forge.Writer` is a separate optional contract reached only
+through the person's protected API actions. Capability flags are not a promise
+of repository permission: the forge authorizes each write. GitLab supplies
+writing capabilities when authenticated; Forgejo supplies none in this slice.
+The UI uses these flags, so configuring a Forgejo account enables private reads
+without enabling posting, keeping findings on the forge, or inline suggestions
+that would post there. Agent findings remain local drafts.
+
+`forge/adapters` owns the parser/factory registry. A configured host's kind wins;
+unconfigured URLs use the GitLab `/-/merge_requests/` or Forgejo `/pulls/` path
+shape and read anonymously. GitHub's public host is refused until its adapter
+exists. Each host has one configured account, and clients and credentials are
+cached by host and kind. Application code consumes neutral errors and metadata;
+it imports no individual adapter. A new forge extends the registry and contracts
+without adding API details to the application or review runner.
+
+Checkout metadata comes from the adapter: HTTPS and SSH clone URLs and the
+change's head ref in its target repository. GitLab uses
+`refs/merge-requests/N/head`; Forgejo uses `refs/pull/N/head`, including fork
+heads. Advertised Forgejo SSH URLs retain explicit ports. The application
+validates hosts, credentials in URLs, refs and branch names before fetching,
+and git uses the person's own transport credentials. Run records retain forge
+kind for display; existing GitLab records and Ref identity keys stay compatible.
+
+Forgejo reads the PR, paginated file inventory, reviews, review comments and
+issue timeline. The separate `.diff` response supplies patches. Binary,
+missing or incomplete patches are marked omitted, including incomplete hunk
+counts or a mismatch with the inventory's addition/deletion totals. Pages run
+to an empty response, respecting server-clamped limits, with bounded response
+sizes and page counts. Absolute pagination links and redirects are never
+followed with the token. A final PR read refuses mixed snapshots when the head
+or target moved while paginated data and patches were read. Review anchors use `position` for the new-side line
+and `original_position` for the old-side line. Comments group by review, path
+and those line coordinates; the first comment supplies thread resolution.
+Pending reviews are drafts rather than published threads. Push times come from
+`pull_push` timeline entries, never commit authorship dates.
+
+The current Forgejo API supplies no bot-user marker. This slice does not infer
+bot status from account names; configured bot classification must be added
+before Forgejo turn derivation claims the bot-exclusion rules in section 4.
+If a forge does not fit the contracts, revise the model rather than leaking its
+API details through the application. Agent and ticket integrations keep their
+own contracts (D33).
 
 GitLab notes for the adapter:
 
@@ -703,7 +748,8 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
 2. **The orchestrator, the first usable slice.** Open a GitLab merge request by
    URL. Run a preset's reviewers in parallel on Claude Code (D28).
    Talk to them, let a synthesizer merge their drafts, edit the drafts, and
-   submit the review. Presets and profiles live in vuoro's own config, and code,
+   submit the review. Forgejo open-by-URL reading, checkout and agent reviews also
+   land here (D33); its posting controls remain unavailable. Presets and profiles live in vuoro's own config, and code,
    security, and documentation profiles are built in. Cost is shown, and runs
    are pinned to their head SHA and flagged when it moves.
 3. **The author's side.** Triage the threads on my change, and draft replies.
@@ -720,7 +766,8 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
 TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0: every forge, the editor agent,
 and a terva-sh release).
 
-- **Every forge.** Forgejo next, then GitHub.
+- **Every forge.** Complete Forgejo discovery/inbox and writes after the MVP
+  read/review slice, then add GitHub.
 - **terva as a reviewer**, once a terva release allows its lockdown (section
   6.6, D28).
 - **The editor agent** (section 6.3), on the author's side, with its sandbox

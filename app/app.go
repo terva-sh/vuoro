@@ -21,7 +21,7 @@ import (
 	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/config"
 	"github.com/terva-sh/vuoro/forge"
-	"github.com/terva-sh/vuoro/forge/gitlab"
+	"github.com/terva-sh/vuoro/forge/adapters"
 	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/review/drafts"
 )
@@ -39,7 +39,7 @@ type App struct {
 	Tools map[string]agent.Driver
 	// Dial makes the client for a host. Nil means https on that host; a
 	// test points it at a fake forge.
-	Dial func(host string, token config.Secret) (*gitlab.Client, error)
+	Dial func(kind, base string, token config.Secret) (forge.Provider, error)
 	// StateDir keeps the person's UI choices, in prefs.json. Empty keeps
 	// none, and every action asks first.
 	StateDir string
@@ -48,9 +48,10 @@ type App struct {
 	probeOnce sync.Once
 	probes    map[string]probe
 
-	mu      sync.Mutex
-	clients map[string]*gitlab.Client // by host
-	changes map[string]*forge.Change  // by Ref.String(), the last read of each
+	clientMu sync.Mutex
+	mu       sync.Mutex
+	clients  map[string]forge.Provider // by host and kind
+	changes  map[string]*forge.Change  // by Ref.String(), the last read of each
 }
 
 type probe struct {
@@ -151,7 +152,7 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 // forgeFor returns the configured forge for host, or nil.
 func (a *App) forgeFor(host string) *config.Forge {
 	for i, f := range a.config().Forges {
-		if u, err := url.Parse(f.URL); err == nil && u.Host == host {
+		if u, err := url.Parse(f.URL); err == nil && strings.EqualFold(u.Host, host) {
 			return &a.config().Forges[i]
 		}
 	}
@@ -159,15 +160,20 @@ func (a *App) forgeFor(host string) *config.Forge {
 }
 
 // client returns the client for host, resolving the token once per launch.
-func (a *App) client(ctx context.Context, host string) (*gitlab.Client, error) {
+func (a *App) client(ctx context.Context, host, kind string) (forge.Provider, error) {
+	a.clientMu.Lock()
+	defer a.clientMu.Unlock()
+	key := kind + ":" + host
 	a.mu.Lock()
-	c := a.clients[host]
+	c := a.clients[key]
 	a.mu.Unlock()
 	if c != nil {
 		return c, nil
 	}
 	var token config.Secret
+	base := "https://" + host
 	if f := a.forgeFor(host); f != nil {
+		base = f.URL
 		t, err := f.Token(ctx)
 		if err != nil {
 			return nil, err
@@ -176,39 +182,46 @@ func (a *App) client(ctx context.Context, host string) (*gitlab.Client, error) {
 	}
 	dial := a.Dial
 	if dial == nil {
-		dial = func(host string, token config.Secret) (*gitlab.Client, error) {
-			return gitlab.New("https://"+host, token)
-		}
+		dial = adapters.New
 	}
-	c, err := dial(host, token)
+	c, err := dial(kind, base, token)
 	if err != nil {
 		return nil, err
 	}
 	a.mu.Lock()
 	if a.clients == nil {
-		a.clients = map[string]*gitlab.Client{}
+		a.clients = map[string]forge.Provider{}
 	}
-	a.clients[host] = c
+	a.clients[key] = c
 	a.mu.Unlock()
 	return c, nil
 }
 
 func (a *App) open(ctx context.Context, raw string) (*forge.Change, error) {
-	ref, err := forge.ParseGitLabURL(raw)
+	u, err := forge.ChangeURL(raw)
 	if err != nil {
 		return nil, err
 	}
-	c, err := a.client(ctx, ref.Host)
+	kind := ""
+	if f := a.forgeFor(u.Host); f != nil {
+		kind = f.Kind
+	}
+	ref, kind, err := adapters.ParseURL(raw, kind)
+	if err != nil {
+		return nil, err
+	}
+	c, err := a.client(ctx, ref.Host, kind)
 	if err != nil {
 		return nil, err
 	}
 	ch, err := c.Open(ctx, ref)
-	if errors.Is(err, gitlab.ErrNotFound) && a.forgeFor(ref.Host) == nil {
+	if errors.Is(err, forge.ErrNotFound) && a.forgeFor(ref.Host) == nil {
 		return nil, fmt.Errorf("%w; it was read anonymously, because the config file names no forge for %s, so only public projects open", err, ref.Host)
 	}
 	if err != nil {
 		return nil, err
 	}
+	ch.Capabilities = c.Capabilities()
 	a.mu.Lock()
 	if a.changes == nil {
 		a.changes = map[string]*forge.Change{}
@@ -233,27 +246,29 @@ func (a *App) openChange(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ch)
 }
 
-// source is where a review fetches ch from: the project over the person's
-// configured git transport, its merge request head, and its target branch.
+// source fetches the adapter-supplied change ref and target branch over the
+// person's configured git transport.
 func (a *App) source(ch *forge.Change) (review.Source, error) {
 	t := ch.TargetBranch
-	if t == "" || strings.ContainsAny(t, ": \t\n*?[\\^~") || strings.HasPrefix(t, "-") || strings.Contains(t, "..") {
-		return review.Source{}, fmt.Errorf("the target branch name %q cannot be fetched safely", t)
+	if !forge.ValidBranch(t) {
+		return review.Source{}, fmt.Errorf("the target branch cannot be fetched safely")
 	}
-	remote := "https://" + ch.Ref.Host + "/" + ch.Ref.Project + ".git"
+	if ch.Diff.Base == "" || ch.Diff.Head == "" {
+		return review.Source{}, fmt.Errorf("the forge did not supply the base and head commits for this review")
+	}
+	meta := ch.Checkout
+	if err := forge.ValidateCheckout(meta, ch.Ref.Host); err != nil {
+		return review.Source{}, err
+	}
+	remote := meta.HTTPS
 	if f := a.forgeFor(ch.Ref.Host); f != nil && f.Clone != "https" {
-		remote = "git@" + ch.Ref.Host + ":" + ch.Ref.Project + ".git"
+		if meta.SSH == "" {
+			return review.Source{}, fmt.Errorf("this forge supplies no SSH clone URL; select https in the config")
+		}
+		remote = meta.SSH
 	}
-	return review.Source{
-		Remote: remote,
-		Key:    ch.Ref.Host + "/" + ch.Ref.Project,
-		Refspecs: []string{
-			fmt.Sprintf("+refs/merge-requests/%d/head:refs/vuoro/mr/%d", ch.Ref.Number, ch.Ref.Number),
-			"+refs/heads/" + t + ":refs/vuoro/target/" + t,
-		},
-		Head: ch.Diff.Head,
-		Base: ch.Diff.Base,
-	}, nil
+	return review.Source{Remote: remote, Key: ch.Ref.Host + "/" + ch.Ref.Project,
+		Refspecs: []string{"+" + meta.HeadRef + ":refs/vuoro/head", "+refs/heads/" + t + ":refs/vuoro/target/" + t}, Head: ch.Diff.Head, Base: ch.Diff.Base}, nil
 }
 
 func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
@@ -450,10 +465,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // package never quotes a token command's output.
 func writeError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
-	var api *gitlab.APIError
+	var api *forge.APIError
 	switch {
-	case errors.Is(err, review.ErrNoRun), errors.Is(err, gitlab.ErrNotFound):
+	case errors.Is(err, review.ErrNoRun), errors.Is(err, forge.ErrNotFound):
 		status = http.StatusNotFound
+	case errors.Is(err, forge.ErrUnsupported):
+		status = http.StatusUnprocessableEntity
 	case errors.As(err, &api):
 		status = http.StatusBadGateway
 	}

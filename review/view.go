@@ -13,6 +13,7 @@ import (
 // RunView is a run as the person sees it, and as runs/<id>/run.json keeps it.
 type RunView struct {
 	ID       string         `json:"id"`
+	Kind     string         `json:"kind"`
 	Ref      forge.Ref      `json:"ref"`
 	Title    string         `json:"title"`
 	WebURL   string         `json:"web_url"`
@@ -45,7 +46,7 @@ func (r *Run) View() RunView {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	v := RunView{
-		ID: r.ID, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
+		ID: r.ID, Kind: r.Kind, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
 		Created: r.Created, Status: r.Status, Error: r.Error,
 		Drafts: r.store.All(),
 	}
@@ -114,7 +115,7 @@ func (m *Manager) Load() error {
 			continue
 		}
 		r := &Run{
-			ID: rec.ID, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
+			ID: rec.ID, Kind: rec.Kind, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
 			Created: rec.Created, Status: rec.Status, Error: rec.Error,
 			dir:     filepath.Join(m.StateDir, "worktrees", rec.ID),
 			repoKey: rec.Repo,

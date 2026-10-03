@@ -37,9 +37,10 @@ type Client struct {
 // An empty token reads anonymously, which public projects allow.
 func New(base string, token config.Secret) (*Client, error) {
 	u, err := url.Parse(strings.TrimSuffix(base, "/"))
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		return nil, fmt.Errorf("gitlab: bad base URL %q", base)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return nil, errors.New("gitlab: invalid base URL")
 	}
+	u.Host = strings.ToLower(u.Host)
 	return &Client{
 		base:  u,
 		token: token,
@@ -59,20 +60,7 @@ func (c *Client) Host() string { return c.base.Host }
 
 // APIError is an unsuccessful API response. It names the request and the
 // status, and never the token.
-type APIError struct {
-	Method, Path string
-	Status       int
-	Message      string // GitLab's own message, when it sends one
-}
-
-func (e *APIError) Error() string {
-	msg := fmt.Sprintf("gitlab: %s %s: %d %s", e.Method, e.Path, e.Status, http.StatusText(e.Status))
-	// GitLab's message is often the status again, which says nothing new.
-	if e.Message != "" && e.Message != fmt.Sprintf("%d %s", e.Status, http.StatusText(e.Status)) {
-		msg += ": " + e.Message
-	}
-	return msg
-}
+type APIError = forge.APIError
 
 // maxBody bounds any one response.
 const maxBody = 32 << 20
@@ -115,7 +103,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return nil, nil, fmt.Errorf("gitlab: %s %s: %w", method, path, err)
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, nil, &APIError{Method: method, Path: path, Status: res.StatusCode, Message: c.scrub(apiMessage(b))}
+		return nil, nil, &APIError{Forge: forge.GitLab, Method: method, Path: path, Status: res.StatusCode, Message: c.scrub(apiMessage(b))}
 	}
 	return b, res.Header, nil
 }
@@ -260,7 +248,7 @@ type gqlResponse struct {
 
 // ErrNotFound means the project or the merge request does not exist, or the
 // person cannot see it.
-var ErrNotFound = errors.New("gitlab: merge request not found, or not visible to this account")
+var ErrNotFound = forge.ErrNotFound
 
 // Open reads a merge request with its diff, threads, review state, and the
 // person's own draft notes.
@@ -273,6 +261,9 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 		return nil, err
 	}
 	ch := convert(ref, mr)
+	ch.Kind = forge.GitLab
+	ch.Checkout = c.checkout(ref)
+	ch.Capabilities = c.Capabilities()
 	if ch.Files, err = c.diffs(ctx, ref, ch.Diff); err != nil {
 		return nil, err
 	}

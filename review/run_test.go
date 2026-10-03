@@ -553,3 +553,52 @@ func TestAskingForASuggestionGoesToTheSessionThatDraftedIt(t *testing.T) {
 	}
 	m.Close(context.Background(), r.ID)
 }
+
+func TestForgejoForkHeadRunsWithoutTheSourceBranchAndSurvivesReload(t *testing.T) {
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
+		if _, failed := call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "Use addition.", "anchor": map[string]any{"path": "calc.go", "start_line": 3}}); failed {
+			return "draft refused"
+		}
+		return "Found one problem."
+	})
+	// The target repository exposes a fork head only as its pull ref. There is
+	// no feature branch left to fetch, so using source_branch would fail.
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", src.Remote}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git: %v\n%s", err, out)
+		}
+	}
+	git("update-ref", "refs/pull/7/head", ch.Diff.Head)
+	git("switch", "-q", "main")
+	git("branch", "-D", "feature")
+	ch.Kind = forge.Forgejo
+	ch.Ref.Host = "forgejo.example"
+	ch.WebURL = "https://forgejo.example/g/calc/pulls/7"
+	src.Key = "forgejo.example/g/calc"
+	src.Refspecs = []string{"+refs/pull/7/head:refs/vuoro/head", "+refs/heads/main:refs/vuoro/target/main"}
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, idle)
+	if v.Status != Idle || v.Kind != forge.Forgejo || v.Head != ch.Diff.Head || len(v.Drafts) != 1 {
+		t.Fatalf("fork review: %+v", v)
+	}
+	b, err := os.ReadFile(filepath.Join(r.dir, "calc.go"))
+	if err != nil || !strings.Contains(string(b), "a - b") {
+		t.Fatal("fork head was not checked out")
+	}
+	r.save()
+	loaded := &Manager{StateDir: m.StateDir}
+	if err := loaded.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if restored := loaded.Get(r.ID); restored == nil || restored.View().Kind != forge.Forgejo || len(restored.View().Drafts) != 1 {
+		t.Fatal("forge kind or drafts lost on reload")
+	}
+	if err := m.Close(context.Background(), r.ID); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -7,10 +7,12 @@ and submit without leaving it.
 
 *Vuoro* is Finnish for "turn", as in "it is your turn".
 
-> **Status: walking skeleton.** `vuoro` opens a window over its own loopback
-> server and does nothing else yet. The scope from here to v1.0 is settled.
-> [docs/plan.md](docs/plan.md) is the design of record, and the work is
-> tracked as tickets in `.tickets/`.
+> **Status: review orchestration implemented.** Open GitLab merge requests or
+> Forgejo pull requests by URL, read their diffs and discussions, and run reviews
+> with Claude Code. GitLab posting is implemented and awaits live validation;
+> Forgejo currently supports reading and agent reviews. Discovery and the unified
+> inbox are still planned. [docs/plan.md](docs/plan.md) is the design of record,
+> and work is tracked in `.tickets/`.
 
 ## Why
 
@@ -53,6 +55,37 @@ Read [AGENTS.md](AGENTS.md), [docs/plan.md](docs/plan.md),
 lists startable work, and `git ticket list --status draft` lists the rest of the
 backlog. [handoffs/](handoffs/) has orientation for a session that picks the
 work up.
+
+## Opening changes
+
+Paste a GitLab merge-request URL or a Forgejo pull-request URL into the window.
+Public changes can open anonymously. For a private Forgejo, add an account to
+vuoro's `config.json` in the platform's configuration directory:
+
+```json
+{
+  "forges": [
+    {
+      "name": "internal",
+      "kind": "forgejo",
+      "url": "https://git.local.sothr.com",
+      "username": "YOUR_USERNAME",
+      "token_env": "VUORO_FORGEJO_TOKEN",
+      "clone": "ssh"
+    }
+  ]
+}
+```
+
+Set the named environment variable before launching vuoro, or use a
+`token_command` array that retrieves the credential without a shell. Never put
+its value in the file. Each host has one configured account. The forge's SSH
+clone URL supplies its port; git uses your own SSH keys. `clone: "https"` uses
+your git credential helper instead. Agent reviews need the agent tool installed
+and logged in separately.
+
+Forgejo posting controls remain unavailable until its write adapter lands.
+GitHub is not supported yet.
 
 ## Shared styling
 

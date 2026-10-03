@@ -9,9 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -22,30 +19,23 @@ type Ref struct {
 	Number  int    `json:"number"`  // the merge request's iid, or the pull request's number
 }
 
+// String is the stable identity used by existing run/cache records. Its
+// historical separator is preserved; Display supplies the forge notation.
 func (r Ref) String() string { return fmt.Sprintf("%s/%s!%d", r.Host, r.Project, r.Number) }
 
-// ErrNotAChange means a URL does not name a merge request.
-var ErrNotAChange = errors.New("not a merge request URL")
-
-// ParseGitLabURL reads a GitLab merge request URL, such as
-// https://gitlab.com/group/project/-/merge_requests/12, with any trailing
-// path, query, or fragment.
-func ParseGitLabURL(raw string) (Ref, error) {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
-		return Ref{}, fmt.Errorf("%q: %w", raw, ErrNotAChange)
+func (r Ref) Display(kind string) string {
+	separator := "!"
+	if kind == Forgejo {
+		separator = "#"
 	}
-	project, rest, ok := strings.Cut(strings.Trim(u.Path, "/"), "/-/merge_requests/")
-	if !ok || project == "" {
-		return Ref{}, fmt.Errorf("%q: %w", raw, ErrNotAChange)
-	}
-	num, _, _ := strings.Cut(rest, "/")
-	n, err := strconv.Atoi(num)
-	if err != nil || n < 1 {
-		return Ref{}, fmt.Errorf("%q: %w", raw, ErrNotAChange)
-	}
-	return Ref{Host: u.Host, Project: project, Number: n}, nil
+	return fmt.Sprintf("%s/%s%s%d", r.Host, r.Project, separator, r.Number)
 }
+
+var (
+	ErrNotAChange  = errors.New("not a merge request or pull request URL")
+	ErrNotFound    = errors.New("change not found, or not visible to this account")
+	ErrUnsupported = errors.New("this forge does not support that action in this version")
+)
 
 // State is where a change stands.
 type State string
@@ -58,6 +48,10 @@ const (
 
 // Change is one merge request or pull request, as the forge reports it.
 type Change struct {
+	Kind         string       `json:"kind"`
+	Capabilities Capabilities `json:"capabilities"`
+	// Checkout is adapter-supplied git metadata, used only by the server.
+	Checkout     Checkout `json:"-"`
 	Ref          Ref      `json:"ref"`
 	Title        string   `json:"title"`
 	Description  string   `json:"description"`
@@ -142,6 +136,7 @@ type Review struct {
 	At        time.Time `json:"at"`
 	SHA       string    `json:"sha"`
 	Dismissed bool      `json:"dismissed"`
+	Stale     bool      `json:"stale"`
 }
 
 // Push is new commits arriving on the change. Head is set where the forge
