@@ -295,3 +295,36 @@ func TestMixedDatedAndUndatedRequestsHaveUnknownAge(t *testing.T) {
 		t.Fatalf("dated rerequest lost amid undated history: %+v", got)
 	}
 }
+
+func TestMixedVerdictTimestampsPreserveUnknownUnansweredAge(t *testing.T) {
+	ch := base(t)
+	ch.Kind = forge.Forgejo
+	ch.Reviews = []forge.Review{{Reviewer: "r", Verdict: forge.VerdictChangesRequested}, {Reviewer: "r", Verdict: forge.VerdictChangesRequested, At: moment(3), SHA: "head"}}
+	got := Derive(ch, "author", []forge.Role{forge.AuthorRole})
+	if got.Owner != Mine || got.Reasons[0].Rule != "A2" || got.Since != nil {
+		t.Fatalf("undated unanswered verdict run: %+v", got)
+	}
+	ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: "r", Verdict: forge.VerdictApproved, At: moment(4), SHA: "head"}, forge.Review{Reviewer: "r", Verdict: forge.VerdictChangesRequested, At: moment(5), SHA: "head"})
+	got = Derive(ch, "author", []forge.Role{forge.AuthorRole})
+	if got.Since == nil || !got.Since.Equal(moment(5)) {
+		t.Fatal("opposing verdict did not end unknown run")
+	}
+	ch.Reviews = append(ch.Reviews, forge.Review{Reviewer: "r", Verdict: forge.VerdictApproved, SHA: "head"})
+	ch.Mergeability = "mergeable"
+	ch.CanMerge = yes()
+	got = Derive(ch, "author", []forge.Role{forge.AuthorRole})
+	if got.Owner != Mine || got.Reasons[0].Rule != "A3" || got.Since != nil {
+		t.Fatal("latest undated verdict did not supersede dated history")
+	}
+}
+
+func TestUndatedCurrentHeadPushKeepsUnknownReviewAge(t *testing.T) {
+	ch := base(t)
+	reviewed(&ch)
+	ch.Reviews[0].SHA = "old"
+	ch.Pushes = []forge.Push{{Head: "head"}, {At: moment(3), Head: "head"}}
+	got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Owner != Mine || got.Reasons[0].Rule != "R2" || got.Since != nil {
+		t.Fatal("undated current-head push invented known earliest age")
+	}
+}

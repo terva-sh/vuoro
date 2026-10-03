@@ -209,8 +209,9 @@ actionable when undated request history makes its earliest age unknown.
 
 A reason’s time and the overall `since` are nullable. When an unanswered event
 has no recorded timestamp, its age remains unknown; creation, update and commit
-authorship times never stand in for it. Undated notes retain adapter order;
-fully dated notes sort chronologically. Last activity can include forge noise,
+authorship times never stand in for it. Undated notes and human verdict history retain adapter chronological order;
+fully dated histories sort by time. Repeated verdicts retain the first
+unanswered age in their uninterrupted run, including an unknown age. Last activity can include forge noise,
 but noise does not alter unanswered reasons or their age. Closed and merged
 changes carry a readable inactive reason and no actionable turn.
 

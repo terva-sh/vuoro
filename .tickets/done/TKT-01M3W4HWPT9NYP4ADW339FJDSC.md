@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:06:52Z
+updated_at: 2026-10-03T03:12:21Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -61,6 +61,10 @@ PR #7 review dispositions at f2dd08f7a22e320185b7ba38c110451eec129062:
 - Preserve undated current change requests: accepted. Explicit GitLab RequestedChanges state now yields A2 with unknown since when no dated verdict was recorded. Its reason states that the age is unknown rather than asserting a dated push comparison. A regression checks Mine/A2/nil age, not merely the absence of A3.
 - Mixed dated/undated review requests: accepted. Request derivation tracks whether a later dated request exists separately from its age; undated matching history makes the earliest age unknown without suppressing a known re-request action. Regressions cover initial requests and re-requests mixed with undated history.
 The full gate is running before a fresh review. These correct missing-fact behavior; no timestamps are invented.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:12:21Z
+
+PR #7 second review at e56cd67ff28c1f689bbb77363684f618e9f50eb4 confirms the first two findings resolved. New finding (repeated undated change-request age): accepted. Human verdict history now sorts only when every relevant timestamp is present; otherwise it retains adapter chronological order. Bot/comment noise is filtered before choosing that order. Each effective verdict walks its uninterrupted run back to the first unanswered verdict; an undated member makes the age unknown. Opposing verdicts, dismissals/staleness, head mismatch, or an author push answering a change request end that run. This also keeps repeated approvals from resetting age and lets a latest undated verdict supersede prior dated history without inventing a timestamp. Regression covers mixed change-request times, an opposing verdict ending the unknown run, and a latest undated approval. Running full CI and requesting a fresh review.
 
 ## Summary
 

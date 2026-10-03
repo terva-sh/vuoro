@@ -67,6 +67,9 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 		if last != nil {
 			pushed := earliestPush(ch.Pushes, last.At)
 			differentHead := last.Stale || (last.SHA != "" && ch.Diff.Head != "" && last.SHA != ch.Diff.Head)
+			if differentHead && slices.ContainsFunc(ch.Pushes, func(p forge.Push) bool { return p.At.IsZero() && p.Head != "" && p.Head == ch.Diff.Head }) {
+				pushed = time.Time{}
+			}
 			if !pushed.IsZero() || differentHead {
 				add("R2", "New commits arrived since your review.", pushed, "")
 			}
@@ -251,18 +254,34 @@ func earliestPush(ps []forge.Push, after time.Time) time.Time {
 	}
 	return at
 }
-func latestReview(rs []forge.Review, me string, verdictOnly bool) *forge.Review {
-	var last *forge.Review
-	for i := range rs {
-		r := &rs[i]
-		if r.Reviewer != me || r.Bot || r.Dismissed || (verdictOnly && r.Verdict == forge.VerdictCommented) {
+
+// reviewHistory orders fully dated facts and otherwise retains the adapter's
+// chronological order. Filter bots/comments before deciding the ordering so
+// excluded noise cannot change which human verdict is latest.
+func reviewHistory(rs []forge.Review, me string, verdictOnly bool) []forge.Review {
+	history := []forge.Review{}
+	dated := true
+	for _, r := range rs {
+		if r.Reviewer != me || r.Bot || (verdictOnly && r.Verdict == forge.VerdictCommented) {
 			continue
 		}
-		if last == nil || r.At.After(last.At) || r.At.Equal(last.At) {
-			last = r
+		history = append(history, r)
+		dated = dated && !r.At.IsZero()
+	}
+	if dated {
+		slices.SortStableFunc(history, func(a, b forge.Review) int { return a.At.Compare(b.At) })
+	}
+	return history
+}
+func latestReview(rs []forge.Review, me string, verdictOnly bool) *forge.Review {
+	history := reviewHistory(rs, me, verdictOnly)
+	for i := len(history) - 1; i >= 0; i-- {
+		if !history[i].Dismissed {
+			r := history[i]
+			return &r
 		}
 	}
-	return last
+	return nil
 }
 
 // verdicts keeps each human reviewer's last non-comment verdict. Dismissed and
@@ -274,9 +293,11 @@ func verdicts(ch forge.Change) []forge.Review {
 		if r.Bot || r.Verdict == forge.VerdictCommented {
 			continue
 		}
-		if old, ok := latest[r.Reviewer]; !ok || !r.At.Before(old.At) {
-			latest[r.Reviewer] = r
+		if _, seen := latest[r.Reviewer]; seen {
+			continue
 		}
+		history := reviewHistory(ch.Reviews, r.Reviewer, true)
+		latest[r.Reviewer] = history[len(history)-1]
 	}
 	// GitLab current state is authoritative; a system-note timestamp may be
 	// unavailable. Do not resurrect a historical verdict the current state rejects.
@@ -310,30 +331,38 @@ func verdicts(ch forge.Change) []forge.Review {
 		}
 		// An explicit current change request still demands an author response
 		// when its timestamp is missing. Keep the action with an unknown age.
-		// Repeating a change request without an author push must not reset how
-		// long the author has owed it. A later opposing verdict ends that run.
-		if r.Verdict == forge.VerdictChangesRequested && !r.At.IsZero() {
-			for _, old := range ch.Reviews {
-				if old.Reviewer != r.Reviewer || old.Bot || old.Dismissed || old.Stale || old.Verdict != r.Verdict || old.At.IsZero() || !old.At.Before(r.At) {
-					continue
-				}
-				if old.SHA != "" && ch.Diff.Head != "" && old.SHA != ch.Diff.Head {
-					continue
-				}
-				if !earliestPush(ch.Pushes, old.At).IsZero() {
-					continue
-				}
-				answered := slices.ContainsFunc(ch.Reviews, func(later forge.Review) bool {
-					return later.Reviewer == r.Reviewer && !later.Bot && later.Verdict != forge.VerdictCommented && later.Verdict != r.Verdict && later.At.After(old.At) && !later.At.After(r.At)
-				})
-				if !answered {
-					r.At = old.At
-				}
-			}
-		}
+		r.At = verdictSince(ch, r)
 		out = append(out, r)
 	}
 	return out
+}
+
+// Repeating a verdict does not reset an unanswered run. An opposing verdict,
+// dismissal/staleness, or (for a change request) an author push ends it. Unknown
+// times within the run remain unknown even when the latest repeat is dated.
+func verdictSince(ch forge.Change, current forge.Review) time.Time {
+	if current.At.IsZero() {
+		return time.Time{}
+	}
+	history := reviewHistory(ch.Reviews, current.Reviewer, true)
+	if len(history) == 0 || history[len(history)-1].Verdict != current.Verdict {
+		return current.At
+	}
+	at := current.At
+	for i := len(history) - 1; i >= 0; i-- {
+		old := history[i]
+		if old.Verdict != current.Verdict || old.Dismissed || old.Stale || (old.SHA != "" && ch.Diff.Head != "" && old.SHA != ch.Diff.Head) {
+			break
+		}
+		if old.At.IsZero() {
+			return time.Time{}
+		}
+		if old.Verdict == forge.VerdictChangesRequested && !earliestPush(ch.Pushes, old.At).IsZero() {
+			break
+		}
+		at = old.At
+	}
+	return at
 }
 
 func realNotes(t forge.Thread) []forge.Note {
