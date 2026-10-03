@@ -11,7 +11,7 @@ import (
 // so the inbox builds without any agent tool. Only tickets imports git-ticket.
 func TestBoundaries(t *testing.T) {
 	const mod = "github.com/terva-sh/vuoro/"
-	deps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./forge/...", "./inbox/...").Output()
+	deps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./forge/...", "./inbox/...", "./turn/...").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,6 +20,15 @@ func TestBoundaries(t *testing.T) {
 			if d == banned || strings.HasPrefix(d, banned+"/") {
 				t.Errorf("forge depends on %s", d)
 			}
+		}
+	}
+	turnDeps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./turn/...").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range strings.Fields(string(turnDeps)) {
+		if strings.HasPrefix(d, mod+"forge/") || d == mod+"server" || d == "net/http" || d == mod+"app" {
+			t.Errorf("turn depends on %s", d)
 		}
 	}
 	// No code an agent run reaches can write to a forge: the agent drivers
