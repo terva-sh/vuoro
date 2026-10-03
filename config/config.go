@@ -72,6 +72,8 @@ type Forge struct {
 	URL string `json:"url"`
 	// Username is the person's account on the forge.
 	Username string `json:"username"`
+	// Bots names automated accounts on this host, supplementing forge markers.
+	Bots []string `json:"bots,omitempty"`
 	// TokenCommand is a program and its arguments, run without a shell, that
 	// prints the token on stdout. A leading ~/ in the program is the home
 	// directory.

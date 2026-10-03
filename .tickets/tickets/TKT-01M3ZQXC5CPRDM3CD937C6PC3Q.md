@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-03T02:01:27Z
-updated_at: 2026-10-03T02:39:59Z
+updated_at: 2026-10-03T02:42:44Z
 created_by:
   id: agent:codex/windows-roadmap-20261002
   name: ""
@@ -50,12 +50,20 @@ Build with fixture providers first so both adapter tasks can implement the same 
 
 ## Acceptance criteria
 
-- [ ] A narrow optional forge discovery contract works with fixture providers without importing agent or tickets.
-- [ ] Account results deduplicate change identities and roles while preserving existing Ref identities.
-- [ ] A failed, cancelled or rate-limited refresh preserves prior account snapshots and exposes last-success/error state without leaking credentials.
-- [ ] Configured bot identities are applied before turn derivation, and authored snoozes survive cache replacement.
-- [ ] Tests cover mixed-account refresh and partial failures without network I/O or installed agent tools.
+- [x] A narrow optional forge discovery contract works with fixture providers without importing agent or tickets.
+- [x] Account results deduplicate change identities and roles while preserving existing Ref identities.
+- [x] A failed, cancelled or rate-limited refresh preserves prior account snapshots and exposes last-success/error state without leaking credentials.
+- [x] Configured bot identities are applied before turn derivation, and authored snoozes survive cache replacement.
+- [x] Tests cover mixed-account refresh and partial failures without network I/O or installed agent tools.
 
 ## Implementation plan
 
 Add optional forge.Discoverer returning complete open membership with roles and forge update stamps. Keep pagination inside adapters. Build an inbox service independent of agents/tickets, bounded to four concurrent accounts with per-account timeouts and cancellation; each account commits an entire new snapshot only after all reads succeed. Reuse unchanged cached facts by update stamp, preserve failed snapshots, and store scrubbed status categories. Use stable Ref keys; persist derived snapshots under cache and authored snoozes under annotations. Apply configured bots to neutral users and reviews before serving facts. Prove duplicate membership, incremental reads, partial failures, cancellation, private persistence, bot exclusion and snooze survival using fixture providers. No routes or background refresh yet.
+
+## Notes
+
+**agent:codex/inbox-20261002** at 2026-10-03T02:42:43Z
+
+Implemented optional forge.Discoverer and inbox.Service without agent/review/ticket imports. Complete membership plus nonzero update-stamp equality enables safe incremental reads; failed discovery or any item read retains the previous complete account snapshot. All displayed errors use fixed categories, never arbitrary provider text. Native/configured bot identities are applied only to independent views of raw cached facts, avoiding sticky configured marks. Snoozes persist separately and survive refresh and cache deletion.
+
+Fixture tests cover both forge kinds, duplicate roles, unchanged/missing/new stamps, rate limits, cancellation, untrusted errors, partial reads, restart and private files. just ci passed with CGO_ENABLED=0 across all cross targets, frontend and ticket checks; a subsequent bot propagation correction passed inbox tests. Waiting for PR review and native CI before closing.
