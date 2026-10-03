@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 function tree(dir, prefix = '') {
   const files = new Map()
@@ -20,7 +21,9 @@ function tree(dir, prefix = '') {
 
 const out = mkdtempSync(join(tmpdir(), 'vuoro-dist-'))
 try {
-  execFileSync('npx', ['vite', 'build', '--outDir', out, '--emptyOutDir', '--logLevel', 'error'], { stdio: 'inherit' })
+  // Run the locked local CLI through Node: Windows npx.cmd needs a shell.
+  const vite = fileURLToPath(new URL('../node_modules/vite/bin/vite.js', import.meta.url))
+  execFileSync(process.execPath, [vite, 'build', '--outDir', out, '--emptyOutDir', '--logLevel', 'error'], { stdio: 'inherit' })
   const fresh = tree(out), committed = tree('web/dist')
   const errors = []
   for (const [name, bytes] of fresh) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -207,8 +208,9 @@ func TestATwoTurnConversationStreams(t *testing.T) {
 			t.Errorf("argv lacks %q: %q", want, got)
 		}
 	}
-	// The MCP config, which can carry a credential, went in a file of mode
-	// 0600 and never in argv.
+	// The MCP config, which can carry a credential, goes in the configured
+	// directory, never in argv. Unix enforces mode 0600; Windows uses ACLs
+	// rather than the Unix permission bits reported by os.Stat.
 	for _, a := range got {
 		if strings.Contains(a, "secret-in-a-file") {
 			t.Fatal("a credential reached argv")
@@ -219,7 +221,10 @@ func TestATwoTurnConversationStreams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mcp config: %v", err)
 	}
-	if fi.Mode().Perm() != 0o600 {
+	if !fi.Mode().IsRegular() || filepath.Dir(cfg) != d.ConfigDir {
+		t.Error("mcp config is not a regular file in the configured directory")
+	}
+	if runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("mcp config mode %v", fi.Mode().Perm())
 	}
 

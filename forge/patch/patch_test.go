@@ -54,7 +54,9 @@ func TestAgreesWithGit(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "p.diff"), []byte(p), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command("git", "apply", "--unidiff-zero", "p.diff")
+		// These fixtures describe exact LF bytes. Do not inherit a user's
+		// checkout conversion settings or change their Git configuration.
+		cmd := exec.Command("git", "-c", "core.autocrlf=false", "-c", "core.eol=lf", "apply", "--unidiff-zero", "p.diff")
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("case %d: git apply: %v\n%s\n%s", i, err, out, p)

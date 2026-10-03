@@ -59,7 +59,8 @@ func TestTheDocumentedExampleParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(doc), example) {
+	// Git checkouts may use CRLF; the documented content must still match.
+	if !strings.Contains(strings.ReplaceAll(string(doc), "\r\n", "\n"), example) {
 		t.Fatal("docs/plan.md section 5.1 does not carry this example verbatim")
 	}
 }

@@ -2,6 +2,7 @@ package review
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -62,7 +63,7 @@ func TestTheReportIsWrittenInTheRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(path)
-	if err != nil || string(b) != text || !strings.HasSuffix(path, r.ID+"/report.md") || !strings.Contains(text, "Add subtracts") {
+	if err != nil || string(b) != text || path != filepath.Join(m.StateDir, "runs", r.ID, "report.md") || !strings.Contains(text, "Add subtracts") {
 		t.Fatalf("path %s, err %v, file %q", path, err, b)
 	}
 	m.Close(t.Context(), r.ID)
