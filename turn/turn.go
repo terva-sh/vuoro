@@ -92,11 +92,9 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 			if mine < 0 {
 				continue
 			}
-			for _, n := range notes[mine+1:] {
-				if n.Author.Username == ch.Author.Username {
-					add("R3", ch.Author.Username+" answered in a thread you are in.", n.At, thread.ID)
-					break
-				}
+			replies := notes[mine+1:]
+			if slices.ContainsFunc(replies, func(n forge.Note) bool { return n.Author.Username == ch.Author.Username }) {
+				add("R3", ch.Author.Username+" answered in a thread you are in.", notesSince(replies, ch.Author.Username), thread.ID)
 			}
 		}
 	}
@@ -112,7 +110,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 					start = i + 1
 				}
 			}
-			add("A1", notes[len(notes)-1].Author.Username+" is waiting for your answer in an unresolved thread.", notes[start].At, thread.ID)
+			add("A1", notes[len(notes)-1].Author.Username+" is waiting for your answer in an unresolved thread.", notesSince(notes[start:], ""), thread.ID)
 		}
 		effective := verdicts(ch)
 		approved := false
@@ -189,7 +187,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 					start = i + 1
 				}
 			}
-			add("waiting", name+" is answering an unresolved thread you are in.", notes[start].At, thread.ID)
+			add("waiting", name+" is answering an unresolved thread you are in.", notesSince(notes[start:], ""), thread.ID)
 		}
 		if len(out.Reasons) == 0 {
 			add("waiting", fmt.Sprintf("Waiting for %s; no unanswered review action is recorded for you.", name), time.Time{}, "")
@@ -362,6 +360,24 @@ func verdictSince(ch forge.Change, current forge.Review) time.Time {
 			break
 		}
 		at = old.At
+	}
+	return at
+}
+
+// Only unanswered human notes are passed here. For R3, count the author's
+// replies alone. Missing timestamps anywhere in that run make its age unknown.
+func notesSince(notes []forge.Note, username string) time.Time {
+	var at time.Time
+	for _, n := range notes {
+		if username != "" && n.Author.Username != username {
+			continue
+		}
+		if n.At.IsZero() {
+			return time.Time{}
+		}
+		if at.IsZero() || n.At.Before(at) {
+			at = n.At
+		}
 	}
 	return at
 }

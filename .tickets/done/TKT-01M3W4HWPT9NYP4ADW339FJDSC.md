@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:18:48Z
+updated_at: 2026-10-03T03:21:22Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -73,6 +73,10 @@ PR #7 third review at 7a36cb7ece8f10207ff568f921f9a9f502ab5145 confirms the repe
 **agent:codex/inbox-20261002** at 2026-10-03T03:18:48Z
 
 PR #7 review at f49a8aa20ee2257774882088c1a0508bd9ca4d2e confirms the incomplete-push age finding resolved. New finding (current GitLab verdict with invalid matching history): accepted. Current state now replaces matching dated history when it is dismissed, stale, or explicitly attached to an old head, leaving the current verdict actionable with unknown age. A three-case regression proves Mine/A2/nil age for those invalid historical facts. Known valid GitLab change-request timestamps still compare against recorded pushes, so the recorded author-push handover remains intact.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:21:22Z
+
+PR #7 review at 4202d608c0bf7f132ad6a91dbc749b31155b6021 confirms current GitLab state reconciliation resolved. New finding (mixed thread timestamp ages): accepted. A1, R3 and waiting-thread ages now inspect all relevant unanswered human notes. Any undated relevant note makes age unknown; R3 counts only author replies, and bot/system noise is excluded before age calculation. Regression table covers author/reviewer/waiting threads with dated first notes and undated follow-ups, plus undated bot/system noise retaining the known age. This makes unknown-time handling uniform across requests, pushes, verdicts and threads.
 
 ## Summary
 

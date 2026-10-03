@@ -354,3 +354,34 @@ func TestCurrentGitLabVerdictSupersedesInvalidMatchingHistory(t *testing.T) {
 		})
 	}
 }
+
+func TestMixedThreadTimestampsKeepUnansweredAgeUnknown(t *testing.T) {
+	cases := []struct {
+		name, me, rule string
+		role           forge.Role
+		notes          []forge.Note
+		owner          Owner
+	}{
+		{"author unanswered reviewers", "author", "A1", forge.AuthorRole, []forge.Note{note("author", 1), note("me", 2), {Author: forge.User{Username: "other"}}}, Mine},
+		{"reviewer author replies", "me", "R3", forge.ReviewerRole, []forge.Note{note("me", 1), note("author", 2), {Author: forge.User{Username: "author"}}}, Mine},
+		{"reviewer waiting for author", "me", "waiting", forge.ReviewerRole, []forge.Note{note("author", 1), note("me", 2), {Author: forge.User{Username: "other"}}}, Theirs},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := base(t)
+			reviewed(&ch)
+			ch.Threads = []forge.Thread{{ID: "x", Resolvable: true, Notes: tc.notes}}
+			got := Derive(ch, tc.me, []forge.Role{tc.role})
+			if got.Owner != tc.owner || len(got.Reasons) != 1 || got.Reasons[0].Rule != tc.rule || got.Since != nil {
+				t.Fatalf("mixed thread age: %+v", got)
+			}
+		})
+	}
+	ch := base(t)
+	reviewed(&ch)
+	ch.Threads = []forge.Thread{{ID: "x", Resolvable: true, Notes: []forge.Note{note("me", 1), note("author", 2), {Author: forge.User{Username: "bot", Bot: true}}, {Author: forge.User{Username: "author"}, System: true}}}}
+	got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Since == nil || !got.Since.Equal(moment(2)) {
+		t.Fatal("undated bot/system noise changed reply age")
+	}
+}
