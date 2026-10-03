@@ -61,7 +61,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 	if reviewer {
 		pending := current != nil && current.State == forge.Unreviewed
 		if pending || (last == nil && (current == nil || current.State == "")) {
-			at := requestSince(ch.Requests, me, last)
+			at, _ := requestSince(ch.Requests, me, last)
 			add("R1", "Your review is requested.", at, "")
 		}
 		if last != nil {
@@ -70,7 +70,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 			if !pushed.IsZero() || differentHead {
 				add("R2", "New commits arrived since your review.", pushed, "")
 			}
-			if at := requestSince(ch.Requests, me, last); !at.IsZero() {
+			if at, found := requestSince(ch.Requests, me, last); found {
 				add("R2b", "Your review was requested again.", at, "")
 			}
 		}
@@ -118,7 +118,11 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 		for _, r := range effective {
 			if r.Verdict == forge.VerdictChangesRequested {
 				blocked = true
-				add("A2", r.Reviewer+" requested changes; no new commits have answered them.", r.At, "")
+				text := r.Reviewer + " requested changes; no new commits have answered them."
+				if r.At.IsZero() {
+					text = r.Reviewer + " currently requests changes; the request’s age is unknown."
+				}
+				add("A2", text, r.At, "")
 			}
 			if r.Verdict == forge.VerdictApproved {
 				approved = true
@@ -211,10 +215,15 @@ func earliestReason(rs []Reason) *time.Time {
 	}
 	return at
 }
-func requestSince(rs []forge.ReviewRequest, me string, last *forge.Review) time.Time {
+func requestSince(rs []forge.ReviewRequest, me string, last *forge.Review) (time.Time, bool) {
 	var at time.Time
+	unknown := false
 	for _, r := range rs {
-		if r.Reviewer != me || r.At.IsZero() {
+		if r.Reviewer != me {
+			continue
+		}
+		if r.At.IsZero() {
+			unknown = true
 			continue
 		}
 		if last != nil && (last.At.IsZero() || !r.At.After(last.At)) {
@@ -224,7 +233,11 @@ func requestSince(rs []forge.ReviewRequest, me string, last *forge.Review) time.
 			at = r.At
 		}
 	}
-	return at
+	found := !at.IsZero()
+	if unknown {
+		return time.Time{}, found
+	}
+	return at, found
 }
 func earliestPush(ps []forge.Push, after time.Time) time.Time {
 	if after.IsZero() {
@@ -295,11 +308,8 @@ func verdicts(ch forge.Change) []forge.Review {
 		if r.Verdict == forge.VerdictChangesRequested && !earliestPush(ch.Pushes, r.At).IsZero() {
 			continue
 		}
-		// With neither head nor time evidence, a change request cannot establish
-		// that no push answered it. An approval still requires confirmed mergeability.
-		if r.Verdict == forge.VerdictChangesRequested && r.At.IsZero() && r.SHA == "" {
-			continue
-		}
+		// An explicit current change request still demands an author response
+		// when its timestamp is missing. Keep the action with an unknown age.
 		// Repeating a change request without an author push must not reset how
 		// long the author has owed it. A later opposing verdict ends that run.
 		if r.Verdict == forge.VerdictChangesRequested && !r.At.IsZero() {

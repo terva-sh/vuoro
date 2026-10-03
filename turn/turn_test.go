@@ -271,3 +271,27 @@ func TestRepeatedChangeRequestDoesNotResetWait(t *testing.T) {
 		t.Fatal("author push did not answer earlier request")
 	}
 }
+
+func TestUndatedCurrentChangeRequestRemainsActionable(t *testing.T) {
+	ch := base(t)
+	ch.Reviewers = []forge.Reviewer{{User: forge.User{Username: "r"}, State: forge.RequestedChanges}}
+	got := Derive(ch, "author", []forge.Role{forge.AuthorRole})
+	if got.Owner != Mine || len(got.Reasons) != 1 || got.Reasons[0].Rule != "A2" || got.Since != nil {
+		t.Fatalf("undated current request: %+v", got)
+	}
+}
+
+func TestMixedDatedAndUndatedRequestsHaveUnknownAge(t *testing.T) {
+	ch := base(t)
+	ch.Reviewers = []forge.Reviewer{{User: forge.User{Username: "me"}, State: forge.Unreviewed}}
+	ch.Requests = []forge.ReviewRequest{{Reviewer: "me"}, {Reviewer: "me", At: moment(2)}}
+	got := Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Owner != Mine || got.Since != nil || got.Reasons[0].Since != nil {
+		t.Fatalf("mixed request age: %+v", got)
+	}
+	reviewed(&ch)
+	got = Derive(ch, "me", []forge.Role{forge.ReviewerRole})
+	if got.Owner != Mine || got.Reasons[0].Rule != "R2b" || got.Since != nil {
+		t.Fatalf("dated rerequest lost amid undated history: %+v", got)
+	}
+}

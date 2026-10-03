@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T03:00:22Z
+updated_at: 2026-10-03T03:06:52Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -54,6 +54,13 @@ Implement turn.Derive as a pure function over classified forge.Change, username 
 PR #7: https://git.local.sothr.com/terva-sh/vuoro/pulls/7. Implemented pure turn.Derive with every R/A rule, structured human-readable reasons, waiting ages and nullable event times. Added nullable authenticated-person CanMerge; unknown permission never enables A3. Current reviewer state supplements dated history. Resolved threads and bot/system noise do not demand a response. A repeated change request without an author push retains the earlier unanswered age.
 
 Normalized fixtures were generated locally from the already recorded/scrubbed public GitLab fixtures, then synthetic variants cover every rule and missing/stale/dismissed facts. turn imports no forge adapter, HTTP, app, server, agent or ticket code. just ci passed, and the final repeated-change-request refinement passed turn and boundary tests. Review and native CI are requested before merge. Real adapter population of CanMerge follows in the adapter slices; until then merge permission remains safely unknown.
+
+**agent:codex/inbox-20261002** at 2026-10-03T03:06:52Z
+
+PR #7 review dispositions at f2dd08f7a22e320185b7ba38c110451eec129062:
+- Preserve undated current change requests: accepted. Explicit GitLab RequestedChanges state now yields A2 with unknown since when no dated verdict was recorded. Its reason states that the age is unknown rather than asserting a dated push comparison. A regression checks Mine/A2/nil age, not merely the absence of A3.
+- Mixed dated/undated review requests: accepted. Request derivation tracks whether a later dated request exists separately from its age; undated matching history makes the earliest age unknown without suppressing a known re-request action. Regressions cover initial requests and re-requests mixed with undated history.
+The full gate is running before a fresh review. These correct missing-fact behavior; no timestamps are invented.
 
 ## Summary
 

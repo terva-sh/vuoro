@@ -203,6 +203,10 @@ non-comment verdict supersedes earlier ones; stale or dismissed verdicts cannot
 resurrect an earlier verdict. Merge readiness requires explicit authenticated
 permission, an approval, no current change request, and a non-draft change.
 
+Explicit current change requests remain actionable with an unknown age when
+the historical verdict timestamp is unavailable. A known re-request also remains
+actionable when undated request history makes its earliest age unknown.
+
 A reason’s time and the overall `since` are nullable. When an unanswered event
 has no recorded timestamp, its age remains unknown; creation, update and commit
 authorship times never stand in for it. Undated notes retain adapter order;
