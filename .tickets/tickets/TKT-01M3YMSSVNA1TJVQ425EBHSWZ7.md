@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-03T06:45:19Z
+updated_at: 2026-10-03T06:53:34Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -46,10 +46,16 @@ commits come at v1.0.0.
 
 ## Acceptance criteria
 
-- [ ] A run records the head SHA it reviewed
-- [ ] After a push, the run and its drafts show how many commits behind they are
-- [ ] Nothing re-runs automatically
+- [x] A run records the head SHA it reviewed
+- [x] After a push, the run and its drafts show how many commits behind they are
+- [x] Nothing re-runs automatically
 
 ## Implementation plan
 
 Finish D15's moving-head behavior before the selected summary ticket. Keep immutable reviewed head/base and existing personal drafts. Add a protected explicit head-comparison endpoint that fresh-reads the exact forge change, fetches its refs with the existing git transport, verifies full object IDs and ancestry, and returns derived same/ahead/rewritten/unavailable status bound to both commits. Count reachable commits only when reviewed head is an ancestor; missing objects, canceled/failed fetches and rewritten history never invent a count. Share the badge across the selected review, all its findings/source/withdrawn cards, diff-side drafts and author triage. Isolate old anchored drafts from today's diff and disable stale anchored acceptance; the server independently checks fresh identity/head. Checking status never launches an agent, modifies a draft or automatically reruns. Cover linear/merge histories, rewrites, unavailable/cancelled data, protection/identity, persistence and frontend response races/placement. Update the plan/roadmap, rebuild embedded assets, run full CGO_ENABLED=0 CI and native gates, then review/fix/merge and sync before implementing summaries. No live posting validation or re-anchoring/incremental review in this slice.
+
+## Notes
+
+**agent:codex/head-summary-20261003** at 2026-10-03T06:53:34Z
+
+Implemented protected exact-pair head comparison with cancellable repository fetch, verified ancestry and reachable commit counts. Rewrites/unavailable history have no invented count. Old anchored drafts keep their wording/locations and appear separately from today's diff; fresh server identity/head checks refuse acceptance. No review reruns or draft mutation from status reads. Full just ci passed with CGO_ENABLED=0: Go tests/vet/cross-builds, 44 frontend tests, bundle/design matching and strict tickets. Browser synthetic fixture confirmed the run/finding badges and separate old-draft section; no live forge writes or model involved. Native and model review gates follow on the PR.

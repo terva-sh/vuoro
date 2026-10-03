@@ -25,7 +25,7 @@ type Repos struct {
 	Git string // the git binary; empty for git on PATH
 
 	mu    sync.Mutex
-	locks map[string]*sync.Mutex
+	locks map[string]chan struct{}
 }
 
 // Source is what to fetch for one change.
@@ -50,9 +50,32 @@ func (r *Repos) Checkout(ctx context.Context, src Source, dir string) error {
 		return fmt.Errorf("review: bad repository key %q", src.Key)
 	}
 	gitDir := filepath.Join(r.Dir, filepath.FromSlash(src.Key)+".git")
-	unlock := r.lock(gitDir)
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 
+	if err := r.fetch(ctx, gitDir, src); err != nil {
+		return err
+	}
+	for _, sha := range []string{src.Head, src.Base} {
+		if sha == "" {
+			continue
+		}
+		if _, err := r.git(ctx, gitDir, "cat-file", "-e", sha+"^{commit}"); err != nil {
+			return fmt.Errorf("review: %s did not arrive with the fetch", short(sha))
+		}
+	}
+	if err := state.MkdirAll(filepath.Dir(dir)); err != nil {
+		return err
+	}
+	_, err = r.git(ctx, gitDir, "worktree", "add", "--quiet", "--detach", dir, src.Head)
+	return err
+}
+
+// fetch runs while the repository lock is held. It never changes a worktree.
+func (r *Repos) fetch(ctx context.Context, gitDir string, src Source) error {
 	if _, err := os.Stat(filepath.Join(gitDir, "HEAD")); errors.Is(err, os.ErrNotExist) {
 		if err := state.MkdirAll(filepath.Dir(gitDir)); err != nil {
 			return err
@@ -72,27 +95,18 @@ func (r *Repos) Checkout(ctx context.Context, src Source, dir string) error {
 	if _, err := r.git(ctx, gitDir, fetch...); err != nil {
 		return err
 	}
-	for _, sha := range []string{src.Head, src.Base} {
-		if sha == "" {
-			continue
-		}
-		if _, err := r.git(ctx, gitDir, "cat-file", "-e", sha+"^{commit}"); err != nil {
-			return fmt.Errorf("review: %s did not arrive with the fetch", short(sha))
-		}
-	}
-	if err := state.MkdirAll(filepath.Dir(dir)); err != nil {
-		return err
-	}
-	_, err := r.git(ctx, gitDir, "worktree", "add", "--quiet", "--detach", dir, src.Head)
-	return err
+	return nil
 }
 
 // Remove deletes the worktree at dir, which came from src's clone.
 func (r *Repos) Remove(ctx context.Context, key, dir string) error {
 	gitDir := filepath.Join(r.Dir, filepath.FromSlash(key)+".git")
-	unlock := r.lock(gitDir)
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
 	defer unlock()
-	_, err := r.git(ctx, gitDir, "worktree", "remove", "--force", dir)
+	_, err = r.git(ctx, gitDir, "worktree", "remove", "--force", dir)
 	if rmErr := os.RemoveAll(dir); err == nil {
 		err = rmErr
 	}
@@ -100,19 +114,23 @@ func (r *Repos) Remove(ctx context.Context, key, dir string) error {
 	return err
 }
 
-func (r *Repos) lock(gitDir string) func() {
+func (r *Repos) lock(ctx context.Context, gitDir string) (func(), error) {
 	r.mu.Lock()
 	if r.locks == nil {
-		r.locks = map[string]*sync.Mutex{}
+		r.locks = map[string]chan struct{}{}
 	}
 	m := r.locks[gitDir]
 	if m == nil {
-		m = &sync.Mutex{}
+		m = make(chan struct{}, 1)
 		r.locks[gitDir] = m
 	}
 	r.mu.Unlock()
-	m.Lock()
-	return m.Unlock
+	select {
+	case m <- struct{}{}:
+		return func() { <-m }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // git runs one git command. No hook runs, git never prompts, and an error
@@ -138,7 +156,7 @@ func (r *Repos) git(ctx context.Context, gitDir string, args ...string) (string,
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("review: git %s: %s", args[0], lastLine(errb.String(), err))
+		return "", fmt.Errorf("review: git %s: %s: %w", args[0], lastLine(errb.String(), err), err)
 	}
 	return out.String(), nil
 }

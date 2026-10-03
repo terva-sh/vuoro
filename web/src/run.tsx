@@ -1,38 +1,40 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
 import { DraftCard } from './diffview'
+import { HeadBadge, useHead } from './head'
 import type { Change, Draft, Entry, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
 import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
 
 // usePoll reads a run, quickly while anything works and slowly otherwise.
 function usePoll(id: string | undefined, onRun: (r: Run) => void) {
-  const live = useRef(true)
   useEffect(() => {
-    live.current = true
     if (!id) return
+    let live = true
+    const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout>
     const tick = async () => {
       try {
-        const r = await api<Run>(`/api/runs/${id}`)
-        if (!live.current) return
+        const r = await api<Run>(`/api/runs/${id}`, { signal: controller.signal })
+        if (!live) return
         onRun(r)
         const busy = r.status === 'preparing' || r.sessions.some((s) => s.status === 'working' || s.status === 'preparing')
         timer = setTimeout(tick, busy ? 1000 : 3000)
       } catch {
-        timer = setTimeout(tick, 5000)
+        if (live) timer = setTimeout(tick, 5000)
       }
     }
     void tick()
     return () => {
-      live.current = false
+      live = false
+      controller.abort()
       clearTimeout(timer)
     }
   }, [id])
 }
 
 export function RunPanel({ change, setup, onPick, onDrafts }: {
-  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string) => void
+  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string, head?: string) => void
 }) {
   const [runs, setRuns] = useState<Run[]>([])
   const [selected, setSelected] = useState<string>()
@@ -52,7 +54,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       .catch((e: unknown) => setError(String(e)))
   }, [change]) // a refresh reads the change again, and the runs with it
   usePoll(selected, setRun)
-  useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id), [run])
+  useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
   const start = async () => {
@@ -113,15 +115,15 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} change={change} onClose={close} onPick={onPick} onRun={setRun} />}
+      {run && <RunView run={run} onClose={close} onPick={onPick} onRun={setRun} />}
     </div>
   )
 }
 
-function RunView({ run, change, onClose, onPick, onRun }: {
-  run: Run; change: Change; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
+function RunView({ run, onClose, onPick, onRun }: {
+  run: Run; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
 }) {
-  const moved = run.head !== change.diff.head
+  const headState = useHead()
   // A pane opens while its session works, and the person can fold or open
   // any of them.
   const [opened, setOpened] = useState<Record<string, boolean>>({})
@@ -135,8 +137,7 @@ function RunView({ run, change, onClose, onPick, onRun }: {
     <div class="run">
       <div class="run-head">
         <StatusBadge status={run.status} />
-        <span>reviewed at <span class="mono">{short(run.head)}</span></span>
-        {moved && <span class="badge warn">⚠ the change has moved to {short(change.diff.head)}</span>}
+        {headState ? <HeadBadge state={headState} /> : <span>reviewed at <span class="mono">{short(run.head)}</span></span>}
         <span class="muted">total {usd(run.cost_usd)}</span>
         {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
       </div>
@@ -243,6 +244,7 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
         <span class="finding-title">{d.title}</span>
         {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
         {decided && <span class="badge">{decided}</span>}
+        <HeadBadge state={useHead()} />
       </summary>
       <div class="finding-body">
         <Marks draft={d} runID={runID} onRun={onRun} checking={checking} />

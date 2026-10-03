@@ -586,6 +586,22 @@ A run is pinned to the head SHA it reviewed. When the change moves, the run and
 its drafts show "reviewed at abc123, 2 commits behind". Nothing re-runs on its
 own.
 
+The protected head-comparison route fresh-reads the exact change and fetches
+its current refs through the person's git transport. An ancestry check permits
+a count of commits reachable from the current head but not the reviewed head.
+Rewritten history is labelled separately. Missing or shallow history, failed
+fetches and cancellation show an unavailable count, never a guessed number.
+This status is derived for an exact pair of commits, not persisted as review
+state. Comparing history never moves a run's worktree or starts an agent.
+
+The same reviewed-head badge appears on the run and each finding/reply, including
+source and withdrawn drafts. Drafts from an older head are shown separately from
+the current diff with their original locations; no re-anchoring happens. Stale
+anchored findings cannot be kept, and the server independently checks fresh
+change identity and head before creating a pending comment. General findings
+remain explicitly actionable with their old-head warning. Head-comparison reads
+abort on leaving the workspace and cannot overwrite a newer head's status.
+
 Every session pane shows its tool, model, tokens, and cost as the tool reports
 them, and the run shows a total.
 

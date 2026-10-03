@@ -4,6 +4,7 @@ import { parsePatch, patchLines, placeAll, type Place, type Row } from './diff'
 import type { Draft, FileDiff, ForgeDraft, Thread } from './types'
 import { ago, CommentBubble, Prose, SeverityBadge, worstSeverity } from './ui'
 import { post } from './api'
+import { HeadBadge, useHead } from './head'
 import { Composer, useWriter } from './write'
 
 // A file past this many lines starts collapsed, and its rows are built only
@@ -130,6 +131,8 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
   const w = useWriter()
   const [editing, setEditing] = useState(false)
   const [asked, setAsked] = useState<string>()
+  const head = useHead()
+  const staleAnchor = !!draft.anchor && !!head && head.reviewed_head !== head.current_head
   const a = draft.anchor
   const open = draft.status === 'pending' && !draft.decision
   const ask = () => {
@@ -162,6 +165,7 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
         {draft.decision === 'dropped' && ' · ✗ dropped by you'}
       </div>
       {label && <div class="draft-label">{label}</div>}
+      <HeadBadge state={head} />
       {editing && w && runID ? (
         <Composer
           placeholder="Edit before keeping"
@@ -183,8 +187,8 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
           )}
           {open && w && runID && (
             <div class="actions">
-              <button class="primary" onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, {}).catch(() => undefined)}>Keep</button>
-              <button onClick={() => setEditing(true)}>Edit and keep</button>
+              <button class="primary" disabled={staleAnchor} onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, {}).catch(() => undefined)}>Keep</button>
+              <button disabled={staleAnchor} onClick={() => setEditing(true)}>Edit and keep</button>
               <button onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/drop`, {}).catch(() => undefined)}>Drop</button>
               {a?.side === 'head' && draft.suggestion === undefined && (
                 <button disabled={asked === 'asked'} onClick={ask}

@@ -84,6 +84,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/edit-reply", a.editReply)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/discard-reply", a.discardReply)
 	mux.HandleFunc("GET /api/runs/{id}", a.getRun)
+	mux.HandleFunc("POST /api/runs/{id}/head", a.compareHead)
 	mux.HandleFunc("POST /api/runs/{id}/close", a.closeRun)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
