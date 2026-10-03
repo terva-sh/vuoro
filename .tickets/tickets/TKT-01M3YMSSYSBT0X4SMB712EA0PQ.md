@@ -30,7 +30,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-03T06:16:40Z
+updated_at: 2026-10-03T06:30:33Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -49,9 +49,19 @@ editor agent's job, at v1.0.0.
 
 ## Acceptance criteria
 
-- [ ] Open threads on my change are grouped as must fix, discuss, or nit, with the reason for each
-- [ ] Reply drafts appear on their threads, marked as drafted, and post only on my action
+- [x] Open threads on my change are grouped as must fix, discuss, or nit, with the reason for each
+- [x] Reply drafts appear on their threads, marked as drafted, and post only on my action
 
 ## Implementation plan
 
 Start with a documented interaction sketch and a working Threads tab on changes authored by the configured account. Group actionable human threads into Must fix, Discuss and Nit with visible agent rationale; retain an Untriaged group while work is incomplete. Use a dedicated single reviewer-class triage session through the existing proven driver, worktree and conversation infrastructure, never an embedded agent or forge-writing MCP tool. Extend local drafts with validated thread/category/reason and a server-bound thread snapshot. Persist runs/replies and expose local edit/discard independently of forge write capability; freeze person-edited drafts against later agent revisions. The person accepts a reply into existing pending forge comments and submits through the existing confirmation. Fresh server-side identity/head/thread checks refuse stale, resolved or mismatched replies. Forgejo supports local triage/reply drafting and copy while posting remains unavailable. Show progress, cancellation, absent tools, read-only, errors and changed-snapshot states in the sketch and fixture preview. Cover role separation, injection-resistant context, full thread context, persistence, user-edited drafts, stale/identity checks, protected routes and UI interactions with meaningful tests; rebuild embedded assets and run full CGO_ENABLED=0 CI before PR/review/merge. Do not expand into usage, retention, editor or summaries tickets.
+
+## Notes
+
+**agent:codex/gitlab-live-20261003** at 2026-10-03T06:30:33Z
+
+Implemented the Threads workspace and documented the interaction points in docs/author-triage.md. The configured author starts one reviewer-class triage run, sees Must fix/Discuss/Nit rationale beside full human threads, edits locally, accepts into private pending forge replies after a fresh identity/head/thread check, and publishes only through explicit Submit. Forgejo remains local edit/copy. Person edits freeze against agent revision; acceptance serializes against edits/revision/discard/duplicate writes; exact full-discussion fingerprints catch undated edits. Bot/system-only, author-only and resolved threads are excluded from new work. Previously triaged replies survive changed/resolved/missing threads for copying, with acceptance disabled. Persistence restores context, bindings and edited state.
+
+Used the existing proven read-only driver/worktree/conversation boundary rather than introducing an embedded agent or writable tool. Kept discussion suggestions separate from new review findings: no synthesizer/verifier stage for triage, consistent with D13/D17 and plan 6.4. Classification can omit a reply instead of fabricating fixes, tests or agreement. Exact diff-thread focus and persistent split conversation remain later refinements.
+
+Validation: full CGO_ENABLED=0 just ci passes (39 frontend tests; all Go tests/vet; six cross builds; dist/design/ticket checks). Regression coverage includes role/ownership, duplicate/retarget refusal, immutable snapshots, restart, configured bots without provider mutation, oversized overrides, changed head/thread/change/closed state, local edit/discard and explicit accept/submit boundaries, protected routes, no tools/read-only UI, polling cancellation/failure and an old in-flight poll versus a newer edit. Browser synthetic fixture verifies authored default Threads, all three categories, local save, pending acceptance, Submit confirmation/publication, resolved-thread history, Birch/Tar styling and 390px layout. Fixture-only banner removal avoids its own header overflow; production layout has no overflow. No real forge writes or agent quota used. Live GitLab posting remains separately blocked on writable test MR/configuration.

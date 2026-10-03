@@ -63,6 +63,11 @@ type Draft struct {
 	// the head, which the forge offers the author to apply. Only a head-side
 	// anchor carries one.
 	Suggestion *string `json:"suggestion,omitempty"`
+	// Triage replies are local drafts attached to an existing human thread.
+	ThreadID  string   `json:"thread_id,omitempty"`
+	Category  Category `json:"category,omitempty"`
+	Reason    string   `json:"reason,omitempty"`
+	ThreadKey string   `json:"thread_key,omitempty"`
 
 	Status   Status `json:"status"`
 	Revision int    `json:"revision"`
@@ -109,6 +114,9 @@ type Proposal struct {
 	Anchor      *Anchor  `json:"anchor,omitempty"`
 	Sources     []string `json:"sources,omitempty"`
 	Suggestion  *string  `json:"suggestion,omitempty"`
+	ThreadID    string   `json:"thread_id,omitempty"`
+	Category    Category `json:"category,omitempty"`
+	Reason      string   `json:"reason,omitempty"`
 }
 
 // Role is what a session may do with the run's drafts.
@@ -118,6 +126,7 @@ const (
 	Reviewer    Role = iota + 1 // its own drafts only
 	Synthesizer                 // lists every draft; its proposals name sources
 	Verifier                    // lists every draft, and only marks confidence
+	Triage                      // groups existing threads and drafts replies
 )
 
 // Session is an agent session as the store knows it.
@@ -148,6 +157,12 @@ const (
 
 // Validate checks a proposal from a session of the given role.
 func Validate(p Proposal, role Role) error {
+	if role == Triage {
+		return validateTriage(p)
+	}
+	if p.ThreadID != "" || p.Category != "" || p.Reason != "" {
+		return &RuleError{"triage.role", "thread_id", "only author triage attaches a reply to a thread"}
+	}
 	switch {
 	case !slices.Contains(severities, p.Severity):
 		return &RuleError{"severity.value", "severity", "one of critical, high, medium, low, info"}
@@ -210,6 +225,8 @@ type Store struct {
 	// that its lines are in the diff. It returns a *RuleError. Set it before
 	// any session starts.
 	CheckAnchor func(Anchor) error
+	// CheckThread binds a triage proposal to the run's immutable snapshot.
+	CheckThread func(string) (string, error)
 
 	mu     sync.Mutex
 	drafts []*Draft
@@ -247,12 +264,18 @@ func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 	if err := st.checkSources(p.Sources); err != nil {
 		return Draft{}, err
 	}
+	if s.Role == Triage && slices.ContainsFunc(st.drafts, func(d *Draft) bool { return d.ThreadID == p.ThreadID && d.Status == Pending }) {
+		return Draft{}, &RuleError{"thread.duplicate", "thread_id", "revise the existing pending triage for this thread"}
+	}
 	st.next++
 	d := &Draft{
 		ID: fmt.Sprintf("d%d", st.next), Status: Pending, Revision: 1,
 		Session: s.ID, Drafted: s.Drafted, Updated: st.now(),
 	}
 	d.apply(p)
+	if p.ThreadID != "" {
+		d.ThreadKey, _ = st.CheckThread(p.ThreadID)
+	}
 	st.drafts = append(st.drafts, d)
 	return *d, nil
 }
@@ -271,6 +294,9 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 	if err != nil {
 		return Draft{}, err
 	}
+	if s.Role == Triage && p.ThreadID != d.ThreadID {
+		return Draft{}, &RuleError{"reply.thread", "thread_id", "the thread this draft already belongs to"}
+	}
 	if err := st.checkSources(p.Sources); err != nil {
 		return Draft{}, err
 	}
@@ -282,6 +308,13 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 
 func (st *Store) validate(p Proposal, role Role) error {
 	if err := Validate(p, role); err != nil {
+		return err
+	}
+	if role == Triage {
+		if st.CheckThread == nil {
+			return &RuleError{"thread.unknown", "thread_id", "a thread in this triage run"}
+		}
+		_, err := st.CheckThread(p.ThreadID)
 		return err
 	}
 	if p.Anchor != nil && st.CheckAnchor != nil {
@@ -398,7 +431,7 @@ func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error)
 		case d.Decision != "":
 			return Draft{}, fmt.Errorf("drafts: %s is already %s", id, d.Decision)
 		}
-		d.Decision, d.NoteID, d.Edited = decision, noteID, edited
+		d.Decision, d.NoteID, d.Edited = decision, noteID, edited || d.Edited
 		d.Updated = st.now()
 		return *d, nil
 	}
@@ -424,7 +457,7 @@ func (st *Store) List(s Session, withdrawn bool) []Draft {
 	defer st.mu.Unlock()
 	var out []Draft
 	for _, d := range st.drafts {
-		if s.Role == Reviewer && d.Session != s.ID {
+		if (s.Role == Reviewer || s.Role == Triage) && d.Session != s.ID {
 			continue
 		}
 		if d.Status == Withdrawn && !withdrawn {
@@ -458,6 +491,8 @@ func (st *Store) own(s Session, id string) (*Draft, error) {
 			return nil, &RuleError{"draft.withdrawn", "id", "a draft that is still pending"}
 		case d.Decision != "":
 			return nil, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
+		case d.ThreadID != "" && d.Edited:
+			return nil, &RuleError{"draft.edited", "id", "a reply the person has not edited"}
 		}
 		return d, nil
 	}
@@ -478,6 +513,7 @@ func (st *Store) checkSources(ids []string) error {
 
 func (d *Draft) apply(p Proposal) {
 	d.Severity, d.Title, d.Description, d.Evidence = p.Severity, strings.TrimSpace(p.Title), p.Description, p.Evidence
+	d.ThreadID, d.Category, d.Reason = p.ThreadID, p.Category, strings.TrimSpace(p.Reason)
 	d.Anchor, d.Sources, d.Suggestion = nil, slices.Clone(p.Sources), nil
 	if p.Suggestion != nil {
 		s := strings.TrimRight(*p.Suggestion, "\n")

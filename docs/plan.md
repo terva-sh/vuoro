@@ -553,7 +553,8 @@ A merged draft whose sources all come from one reviewer is labelled as
 raised by one reviewer. A preset's `synthesizer` names its tool and model,
 and the default is the first reviewer's tool on its default model.
 
-Every run ends with a verifier (D31). It waits until every reviewer and any
+Every review run that drafts new findings ends with a verifier (D31). It waits
+until every reviewer and any
 synthesizer has reported, then gets the findings the person works from, by
 id, with the change. It reads the worktree as a reviewer does, and marks each
 finding confirmed, plausible, or doubtful (✅ ❔ ⛈), with a one-line reason,
@@ -620,6 +621,24 @@ author's triage are reviewer-class work: the same drivers and the same
 lockdown. Triage groups the open threads on the person's own change as must
 fix, discuss, or nit, and drafts replies through the drafts server. None of it
 is posted by an agent.
+
+The author's Threads tab and its interaction sketch are specified in
+[author-triage.md](author-triage.md). One reviewer-class triage session captures
+complete unresolved human discussions and writes category/reason/optional reply
+through the local drafts MCP server. These discussion suggestions are separate
+from D31's new-finding synthesis and verification pipeline. Each proposal is
+bound to an allowed thread in the run; unknown threads, ordinary review roles,
+retargeted replies and duplicate classifications are refused. Bot/system-only,
+author-only and resolved threads do not become triage work.
+
+Local editing and discarding require the window credential and never reach a
+forge. Saving wording or category freezes that draft against agent revisions.
+Acceptance is serialized against edits/revisions and creates only a private
+pending comment through the existing human keep route. It re-reads the forge,
+checks the exact change/head and complete human-thread fingerprint, and refuses
+changed, resolved or closed work. Submit retains the existing confirmation.
+Triage runs, thread snapshots, local replies and conversations survive restart.
+Forgejo supports local triage/edit/copy; posting remains capability-gated.
 
 ### 6.5 Prior art
 

@@ -67,6 +67,8 @@ type Run struct {
 
 	ID      string
 	Kind    string
+	Mode    string
+	Threads []forge.Thread
 	Ref     forge.Ref
 	Title   string
 	WebURL  string
@@ -174,19 +176,26 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 		})
 	}
 
+	return m.start(ch, src, sessions, "", firstMessage(ch), nil)
+}
+
+func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread) (*Run, error) {
 	id := newRunID()
 	r := &Run{
-		ID: id, Kind: ch.Kind, Ref: ch.Ref, Title: ch.Title, WebURL: ch.WebURL,
+		ID: id, Kind: ch.Kind, Mode: mode, Threads: threads, Ref: ch.Ref, Title: ch.Title, WebURL: ch.WebURL,
 		Head: ch.Diff.Head, Base: ch.Diff.Base, Created: time.Now().UTC(), Status: Preparing,
 		dir:      filepath.Join(m.StateDir, "worktrees", id),
 		repoKey:  src.Key,
 		store:    drafts.NewStore(),
 		sessions: sessions,
 		path:     filepath.Join(m.StateDir, "runs", id, "run.json"),
-		first:    firstMessage(ch),
+		first:    first,
 	}
 	r.anchors = indexLines(ch.Files)
 	r.store.CheckAnchor = r.anchors.check
+	if mode == "triage" {
+		r.bindThreads()
+	}
 	m.mu.Lock()
 	if m.runs == nil {
 		m.runs = map[string]*Run{}
@@ -216,7 +225,7 @@ func (m *Manager) prepare(r *Run, src Source) {
 	r.Status = Working
 	r.mu.Unlock()
 	for _, s := range r.sessions {
-		if s.Role == drafts.Reviewer {
+		if s.Role == drafts.Reviewer || s.Role == drafts.Triage {
 			go m.begin(r, s, r.first)
 		}
 	}

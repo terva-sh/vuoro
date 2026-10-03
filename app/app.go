@@ -80,6 +80,9 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/changes", a.openChange)
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
+	mux.HandleFunc("POST /api/triage", a.startTriage)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/edit-reply", a.editReply)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/discard-reply", a.discardReply)
 	mux.HandleFunc("GET /api/runs/{id}", a.getRun)
 	mux.HandleFunc("POST /api/runs/{id}/close", a.closeRun)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
@@ -227,6 +230,23 @@ func (a *App) open(ctx context.Context, raw string) (*forge.Change, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	// Keep configured automated accounts out of human-thread interactions.
+	if f := a.forgeFor(ref.Host); f != nil && len(f.Bots) > 0 {
+		copyChange := *ch
+		copyChange.Threads = append([]forge.Thread(nil), ch.Threads...)
+		for i := range copyChange.Threads {
+			copyChange.Threads[i].Notes = append([]forge.Note(nil), ch.Threads[i].Notes...)
+			for j := range copyChange.Threads[i].Notes {
+				n := &copyChange.Threads[i].Notes[j]
+				for _, bot := range f.Bots {
+					if strings.EqualFold(n.Author.Username, bot) {
+						n.Author.Bot = true
+					}
+				}
+			}
+		}
+		ch = &copyChange
 	}
 	ch.Capabilities = c.Capabilities()
 	a.mu.Lock()
