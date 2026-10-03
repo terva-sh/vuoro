@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HWHRKR936RT5MK8ZHB2B
 title: Load the terva-sh design stylesheet, with the export check in CI
 type: task
-status: review
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -23,7 +23,7 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T00:08:38Z
+updated_at: 2026-10-03T00:17:33Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -83,6 +83,12 @@ The completed just ci gate passed against downloaded design v0.3.0 without a wor
 
 Requested terva-review for vuoro PR #2 (Adopt the shared violet styling) using request-id vuoro-design-v030-ready. Tea reported its documented unexpected end of JSON input error; the dispatch was nevertheless accepted, as verified by Forgejo run 19762 at https://git.local.sothr.com/terva-sh/vuoro/actions/runs/10, workflow terva-review.yml, status waiting. No duplicate request was submitted. Hosted CI for the PR is also waiting for a runner. Pushed vuoro-design to the existing GitHub remote as well so the mirror workflow can exercise Go 1.26, macOS/Windows, and the native-window test. Both PRs remain open and are registered with the thread. All intended code, generated assets, and ticket records are committed and pushed; the release/module adoption is complete locally. Hosted findings, if any, still need dispositions before merging.
 
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:17:32Z
+
+The owner merged vuoro PR #2 (Adopt the shared violet styling) at c874f63aae096a97f091785033f9a615046fcf93. Fast-forwarded the local main and synchronized GitHub main with just sync-github --yes. The requested model review completed cleanly on the final PR head 68ff96c709bfbd9d96709b4b976bf4c77f131148, with no findings: https://git.local.sothr.com/terva-sh/vuoro/pulls/2#issuecomment-24654, Actions run https://git.local.sothr.com/terva-sh/vuoro/actions/runs/10. Generated frontend assets and the external design implementation were outside that model review; local build/export tests and design CI covered those artifacts.
+
+GitHub run https://github.com/terva-sh/vuoro/actions/runs/37080789715 passed Linux and macOS, including the native-window check, but failed four existing Windows test assertions (Unix mode 0600, LF-versus-CRLF in the documented example and Git-apply fixture, and a forward-slash path suffix). The four test files are unchanged between base 6cd5940 and merge c874f63. Filed TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines) as a labeled draft with failure evidence and acceptance criteria; it has not been promoted. The styling adoption itself is merged and all of its acceptance criteria are satisfied.
+
 ## Summary
 
-Vuoro PR #2 (Adopt the shared violet styling), https://git.local.sothr.com/terva-sh/vuoro/pulls/2, contains the generated violet preset, rebuilt embedded frontend, the real design v0.3.0 tool/module pin, matching just/Forgejo/GitHub export checks, and README/plan/D32 documentation. All acceptance criteria and the completed local just ci gate pass. Published design v0.3.0 is available on both forges. The PR remains open for hosted checks and review.
+Merged through vuoro PR #2 (Adopt the shared violet styling) at c874f63aae096a97f091785033f9a615046fcf93; both forge main branches are synchronized. Vuoro uses the generated violet preset from design v0.3.0, pins its Go exporter, checks stylesheet drift in just/Forgejo/GitHub CI, and carries rebuilt frontend assets plus README/plan/D32 documentation. Local just ci passed; the model review was clean; GitHub Linux and macOS (including GUI) passed. Existing Windows test-portability failures are recorded separately in draft TKT-01M3ZHY78HXTVPBC8J1QY77BER (Make the Windows CI tests portable across modes and newlines).

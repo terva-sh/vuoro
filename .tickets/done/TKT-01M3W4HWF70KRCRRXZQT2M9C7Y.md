@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-03T00:06:33Z
+updated_at: 2026-10-03T00:17:32Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -73,6 +73,10 @@ The owner explicitly authorized commits/pushes for both repositories and publica
 **agent:codex/vuoro-design-20261002** at 2026-10-03T00:06:33Z
 
 Published design v0.3.0 on both forges, with annotated tag 6bf4ad0cac8fbcfb7616f83eba8b8582b9194c6c pointing to the tested preset commit 8ae5a076158fde2f3afc4799b9cdbe3b45b69c3d. Forgejo release: https://git.local.sothr.com/terva-sh/design/releases/tag/v0.3.0. GitHub module-source release: https://github.com/terva-sh/design/releases/tag/v0.3.0. Both releases are published and neither draft nor prerelease, and tag/commit identities match on both remotes. The full local design gate, including race tests, passed before tagging. Design PR #2 (Add the vuoro violet accent), https://git.local.sothr.com/terva-sh/design/pulls/2, remains open because Forgejo CI is waiting for a runner. Publication uses the tested branch commit and does not merge the PR. Vuoro successfully downloaded v0.3.0, resolved its module checksums, and exported/checked -app vuoro from the real module without a replace or workspace override. This resolves the release criterion and supersedes the earlier unpublished-release notes.
+
+**agent:codex/vuoro-design-20261002** at 2026-10-03T00:17:32Z
+
+The owner merged design PR #2 (Add the vuoro violet accent) at 1c24ed707a4aea192ba39bf1474aa726f34d501a. Fast-forwarded the local main and GitHub main to the merged Forgejo main. The v0.3.0 tag remains unchanged on the tested source commit 8ae5a076158fde2f3afc4799b9cdbe3b45b69c3d; its source is now also in both main branches.
 
 ## Summary
 
