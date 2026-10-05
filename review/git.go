@@ -175,3 +175,96 @@ func short(sha string) string {
 	}
 	return sha
 }
+
+// gitDir is the clone of a repository key.
+func (r *Repos) gitDir(key string) (string, error) {
+	if !keyRE.MatchString(key) || strings.Contains(key, "..") {
+		return "", fmt.Errorf("review: bad repository key %q", key)
+	}
+	return filepath.Join(r.Dir, filepath.FromSlash(key)+".git"), nil
+}
+
+// editorRef is where an editor's commits are kept in the clone, once fetched.
+func editorRef(runID string) string { return "refs/vuoro/editor/" + runID }
+
+// SeedEditor makes dir a new repository holding head, from key's clone, on a
+// new branch. It shares nothing with the clone, so the editor writes only its
+// own repository (D40). The run's checkout has brought head's files into the
+// clone, which a shallow fetch needs. dir must not exist yet.
+func (r *Repos) SeedEditor(ctx context.Context, key, runID, head, branch, dir string) error {
+	gitDir, err := r.gitDir(key)
+	if err != nil {
+		return err
+	}
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	base := "refs/vuoro/editor-base/" + runID
+	if _, err := r.git(ctx, gitDir, "update-ref", base, head); err != nil {
+		return err
+	}
+	if err := state.MkdirAll(dir); err != nil {
+		return err
+	}
+	if _, err := r.git(ctx, "", "init", "--quiet", dir); err != nil {
+		return err
+	}
+	work := "--work-tree=" + dir
+	ed := filepath.Join(dir, ".git")
+	if _, err := r.git(ctx, ed, "fetch", "--quiet", "--depth=1", "--no-tags", gitDir, base); err != nil {
+		return err
+	}
+	if _, err := r.git(ctx, ed, work, "checkout", "--quiet", "-b", branch, "FETCH_HEAD"); err != nil {
+		return err
+	}
+	got, err := r.git(ctx, ed, "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(got) != head {
+		return fmt.Errorf("review: the editor's checkout is at %s, not %s", short(got), short(head))
+	}
+	return nil
+}
+
+// FetchEditor brings branch's commits from the editor's repository at dir
+// into key's clone, and returns the ref that holds them. vuoro never runs git
+// inside the editor's repository, whose configuration the agent could have
+// written. Serving a fetch runs no command that configuration names, and the
+// upload-pack it starts is told to ignore fsmonitor and hooks too.
+func (r *Repos) FetchEditor(ctx context.Context, key, runID, branch, dir string) (string, error) {
+	gitDir, err := r.gitDir(key)
+	if err != nil {
+		return "", err
+	}
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	ref := editorRef(runID)
+	pack := "--upload-pack=git -c core.fsmonitor=false -c core.hooksPath=" + os.DevNull + " upload-pack"
+	if _, err := r.git(ctx, gitDir, "fetch", "--quiet", "--no-tags", "--no-write-fetch-head", pack, dir, "+refs/heads/"+branch+":"+ref); err != nil {
+		return "", err
+	}
+	return ref, nil
+}
+
+// DropEditor removes an editor's refs from key's clone.
+func (r *Repos) DropEditor(ctx context.Context, key, runID string) error {
+	gitDir, err := r.gitDir(key)
+	if err != nil {
+		return err
+	}
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	for _, ref := range []string{editorRef(runID), "refs/vuoro/editor-base/" + runID} {
+		_, _ = r.git(ctx, gitDir, "update-ref", "-d", ref)
+	}
+	return nil
+}

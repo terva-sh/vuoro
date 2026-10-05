@@ -694,9 +694,15 @@ hand-off report lists, become the editor's task:
 1. "Fix these in a branch" is offered on a run whose reviewed head is still
    the change's head, and which has at least one kept finding. A moved
    change is reviewed again first, as Keep requires.
-2. vuoro makes a worktree at the reviewed head on a local branch
+2. vuoro makes a fresh repository at the reviewed head on a local branch
    `vuoro/fix-<number>-<run>`, and starts one editor session in the sandbox
-   (D40) with the report as its first message. It may read, edit, build, and
+   (D40) with the report as its first message. The repository is seeded by
+   a shallow fetch from vuoro's clone and shares no objects or
+   configuration with it, and vuoro never runs git inside it: it reads the
+   editor's commits back by fetching the branch into its clone, with the
+   editor repository's hooks and fsmonitor turned off. The editor's commits
+   carry the person's git identity, a `Vuoro-Finding` trailer naming the
+   finding, and the caches its builds use live beside it. It may read, edit, build, and
    test inside the worktree. It commits once per finding, with a message
    naming the finding, and says which findings it left alone and why. It
    gets no forge credential and no forge connector.

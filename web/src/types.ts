@@ -76,7 +76,14 @@ export interface Run {
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number
   sessions: Session[]; drafts: Draft[]
+  editor?: EditorState
 }
+
+// EditorState is a run's editor, which fixes the kept findings on a local
+// branch (D39).
+export interface EditorState { session: string; branch: string; base: string; started: string; discarded?: boolean }
+export interface EditorCommit { sha: string; subject: string; findings: string[] }
+export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
 
 export interface Preset { name: string; reviewers: { profile: string; tool?: string; model?: string }[] }
 export interface Setup {

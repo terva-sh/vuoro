@@ -30,6 +30,8 @@ type fakeDriver struct {
 	specs []agent.Spec
 	// act is the agent's turn: it gets the drafts endpoint and the text sent.
 	act func(call toolCaller, text string) string
+	// edit is an editor's turn, in its spec's directory and environment.
+	edit func(spec agent.Spec, text string) string
 }
 
 type toolCaller func(name string, args map[string]any) (string, bool)
@@ -44,8 +46,17 @@ func (d *fakeDriver) Start(_ context.Context, spec agent.Spec) (agent.Session, e
 	d.specs = append(d.specs, spec)
 	n := len(d.specs)
 	d.mu.Unlock()
-	cfg := spec.Drafts.Config
-	call := func(name string, args map[string]any) (string, bool) {
+	call := func(string, map[string]any) (string, bool) { return "no drafts server", true }
+	if spec.Drafts != nil {
+		call = draftsCaller(spec.Drafts.Config)
+	}
+	s := &fakeSession{events: make(chan agent.Event, 64), d: d, call: call, ref: fmt.Sprint("ref-", n), spec: spec}
+	s.events <- agent.Event{Kind: agent.Info, Info: &agent.SessionInfo{Tool: "fake", Model: "m1"}}
+	return s, nil
+}
+
+func draftsCaller(cfg map[string]any) toolCaller {
+	return func(name string, args map[string]any) (string, bool) {
 		b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
 			"params": map[string]any{"name": name, "arguments": args}})
 		req, _ := http.NewRequest("POST", cfg["url"].(string), bytes.NewReader(b))
@@ -69,9 +80,6 @@ func (d *fakeDriver) Start(_ context.Context, spec agent.Spec) (agent.Session, e
 		}
 		return out.Result.Content[0].Text, out.Result.IsError
 	}
-	s := &fakeSession{events: make(chan agent.Event, 64), d: d, call: call, ref: fmt.Sprint("ref-", n)}
-	s.events <- agent.Event{Kind: agent.Info, Info: &agent.SessionInfo{Tool: "fake", Model: "m1"}}
-	return s, nil
 }
 
 type fakeSession struct {
@@ -79,6 +87,7 @@ type fakeSession struct {
 	d      *fakeDriver
 	call   toolCaller
 	ref    string
+	spec   agent.Spec
 	once   sync.Once
 }
 
@@ -93,9 +102,14 @@ func (s *fakeSession) Close() error {
 func (s *fakeSession) Send(_ context.Context, text string) error {
 	go func() {
 		s.d.mu.Lock()
-		act := s.d.act
+		act, edit := s.d.act, s.d.edit
 		s.d.mu.Unlock()
-		reply := act(s.call, text)
+		var reply string
+		if s.spec.Editor != nil {
+			reply = edit(s.spec, text)
+		} else {
+			reply = act(s.call, text)
+		}
 		s.events <- agent.Event{Kind: agent.ToolCall, Tool: &agent.Tool{ID: "c1", Name: "Read", Input: `{"file_path":"calc.go"}`}}
 		s.events <- agent.Event{Kind: agent.ToolResult, Tool: &agent.Tool{ID: "c1", Output: "package calc"}}
 		s.events <- agent.Event{Kind: agent.Text, Text: reply}
@@ -419,7 +433,11 @@ func TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := wait(t, r, func(v RunView) bool { return len(v.Sessions) == 3 && v.Sessions[2].Status == Idle })
+	// A launched session is idle for a moment before its first message is
+	// sent, so the wait is for its first turn to have completed.
+	v := wait(t, r, func(v RunView) bool {
+		return len(v.Sessions) == 3 && v.Sessions[2].Status == Idle && v.Sessions[2].FirstComplete
+	})
 	if most != 2 {
 		t.Fatalf("at most %d reviewers ran at once", most)
 	}

@@ -36,6 +36,9 @@ type Manager struct {
 	// MCPURL is the drafts server's URL on the loopback server.
 	MCPURL   string
 	Profiles []Profile
+	// EditorDomains are the hosts an editor's commands may reach; nil for
+	// DefaultEditorDomains.
+	EditorDomains []string
 
 	mu   sync.Mutex
 	runs map[string]*Run
@@ -91,6 +94,8 @@ type Run struct {
 	summaryCancel  context.CancelFunc
 	summaryDone    chan struct{}
 	summaryStopped atomic.Bool
+	editor         *EditorState
+	who            Identity // the editor's git identity
 }
 
 // Session is one agent session in a run.
@@ -380,6 +385,16 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		}
 		s.driver = d
 	}
+	if s.Role == drafts.Editor {
+		if !r.editor.Active() || r.editor.Session != s.ID {
+			r.mu.Unlock()
+			return errors.New("review: this editor's work was discarded")
+		}
+		spec := m.editorSpec(r, s.spec)
+		spec.Resume = resume
+		r.mu.Unlock()
+		return m.started(r, s, spec)
+	}
 	if s.token == "" {
 		s.token = m.Drafts.Register(r.store, drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted(), Target: s.Target})
 	}
@@ -396,7 +411,11 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		Tools: drafts.ToolNames(s.Role),
 	}
 	r.mu.Unlock()
+	return m.started(r, s, spec)
+}
 
+// started starts s's tool with spec.
+func (m *Manager) started(r *Run, s *Session, spec agent.Spec) error {
 	live, err := s.driver.Start(context.Background(), spec)
 	r.mu.Lock()
 	if err != nil {
@@ -804,6 +823,16 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	r.mu.Unlock()
 	for _, l := range live {
 		_ = l.Close()
+	}
+	r.mu.Lock()
+	ed := r.editor.Active()
+	if ed {
+		r.editor.Discarded = true
+	}
+	r.mu.Unlock()
+	if ed { // nothing of the editor's outlives its review
+		_ = os.RemoveAll(m.editorDir(r.ID))
+		_ = m.Repos.DropEditor(ctx, r.repoKey, r.ID)
 	}
 	err := m.Repos.Remove(ctx, r.repoKey, r.dir)
 	if _, statErr := os.Stat(r.dir); errors.Is(statErr, os.ErrNotExist) {

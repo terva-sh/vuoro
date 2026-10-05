@@ -92,6 +92,10 @@ func (s *agentSession) Cancel() error              { return s.Close() }
 func (s *agentSession) Close() error               { s.once.Do(func() { close(s.events) }); return nil }
 func (s *agentSession) Send(context.Context, string) error {
 	go func() {
+		if s.spec.Editor != nil { // an editor commits nothing here, and drafts nothing
+			s.events <- agent.Event{Kind: agent.TurnDone}
+			return
+		}
 		for _, p := range []map[string]any{
 			{"severity": "medium", "title": "Comment is wrong", "description": "It says new.",
 				"anchor": map[string]any{"path": "label_list.go", "start_line": 2}},
@@ -231,6 +235,25 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	}
 	if len(g.seen()) != 1 {
 		t.Fatalf("drop wrote %q", g.seen())
+	}
+
+	// Asking for an editor writes nothing to the forge. The recorded change's
+	// head is not in this test's clone, so the editor's checkout fails there,
+	// after the head and identity checks have passed; review's own test
+	// carries an editor through.
+	gitconfig := filepath.Join(t.TempDir(), "gitconfig")
+	os.WriteFile(gitconfig, []byte("[user]\n\tname = Pat\n\temail = pat@example.com\n"), 0o644)
+	t.Setenv("GIT_CONFIG_GLOBAL", gitconfig)
+	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/editor", run.ID), map[string]any{"url": mrURL}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "update-ref") {
+		t.Fatalf("editor: %d %v", code, out)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", fmt.Sprintf("/api/runs/%s/editor", run.ID), nil))
+	if rec.Code == 200 || run.View().Editor != nil {
+		t.Fatalf("a failed editor left %d %s", rec.Code, rec.Body)
+	}
+	if len(g.seen()) != 1 {
+		t.Fatalf("the editor wrote %q", g.seen())
 	}
 
 	// Nothing is published until the person submits, and then all at once.

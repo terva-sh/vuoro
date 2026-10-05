@@ -29,6 +29,7 @@ type RunView struct {
 	CostUSD        float64        `json:"cost_usd"`
 	Sessions       []SessionView  `json:"sessions"`
 	Drafts         []drafts.Draft `json:"drafts"`
+	Editor         *EditorState   `json:"editor,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -57,6 +58,10 @@ func (r *Run) View() RunView {
 		Created: r.Created, Status: r.Status, Error: r.Error,
 		Drafts: r.store.All(),
 	}
+	if r.editor != nil {
+		e := *r.editor
+		v.Editor = &e
+	}
 	if r.Summary != nil {
 		sr := *r.Summary
 		v.Summary = &sr
@@ -66,8 +71,8 @@ func (r *Run) View() RunView {
 		v.Threads = append(v.Threads, cleanThread(t))
 	}
 	for _, s := range r.sessions {
-		// A suggestion asked for later is not part of the review.
-		v.ReviewComplete = v.ReviewComplete && (s.FirstComplete || s.Role == drafts.Suggester)
+		// A suggestion or an editor asked for later is not part of the review.
+		v.ReviewComplete = v.ReviewComplete && (s.FirstComplete || s.Role == drafts.Suggester || s.Role == drafts.Editor)
 		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
 		v.Sessions = append(v.Sessions, SessionView{
@@ -83,7 +88,7 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester", drafts.Editor: "editor"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -93,6 +98,7 @@ type record struct {
 	Repo    string            `json:"repo"`
 	Anchors lineIndex         `json:"anchors"`
 	Resume  map[string]string `json:"resume"` // each session's resume handle
+	Who     *Identity         `json:"editor_identity,omitempty"`
 }
 
 func (r *Run) record() record {
@@ -103,6 +109,10 @@ func (r *Run) record() record {
 	rec.Repo, rec.Anchors, rec.Resume = r.repoKey, r.anchors, map[string]string{}
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
+	}
+	if r.editor != nil {
+		who := r.who
+		rec.Who = &who
 	}
 	return rec
 }
@@ -141,6 +151,10 @@ func (m *Manager) Load() error {
 			anchors: rec.Anchors,
 			store:   drafts.Restore(rec.Drafts),
 			path:    path,
+			editor:  rec.Editor,
+		}
+		if rec.Who != nil {
+			r.who = *rec.Who
 		}
 		if r.Mode == "triage" {
 			r.bindThreads()
@@ -174,6 +188,8 @@ func (m *Manager) Load() error {
 				s.spec = agent.Spec{SystemPrompt: verificationPrompt(), Model: s.Model}
 			case s.Role == drafts.Suggester:
 				s.spec = agent.Spec{SystemPrompt: suggestionPrompt(), Model: s.Model}
+			case s.Role == drafts.Editor:
+				s.spec = agent.Spec{SystemPrompt: editorPrompt(), Model: s.Model}
 			case ok:
 				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
 			}

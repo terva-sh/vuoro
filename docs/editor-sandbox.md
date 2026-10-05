@@ -107,6 +107,16 @@ tools against fake canaries.
 | Fix the bug, `go test`, commit | all ran |
 | A token in the inherited environment | **seen**. vuoro must build the environment, as with `srt` |
 
+A second trap, found when the editor was built: **Claude Code's sandbox sets
+git's configuration for each command itself** (`GIT_CONFIG_COUNT` with
+`safe.directory`, and its proxy in `GIT_CONFIG_PARAMETERS`), **and drops
+`GIT_CONFIG_GLOBAL`**. git then reads `~/.gitconfig`, the sandbox refuses
+it, and git stops. The driver therefore writes the editor's variables to a
+shell file that the sandbox may read, and points `CLAUDE_ENV_FILE` at it,
+so each command exports them again. Pointing `HOME` elsewhere instead
+breaks Claude Code's login. `TestLiveEditor` in `agent/claude` runs the
+whole editor against fake canaries and holds both traps.
+
 One trap found on the way: **without `--restricted`, Grep and Glob ignore
 the sandbox's `denyRead` and search anywhere**, even when Read is scoped to
 the worktree by permission rules. vuoro's reviewers already pass

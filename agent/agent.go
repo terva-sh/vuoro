@@ -54,6 +54,25 @@ type Spec struct {
 	Drafts *MCPServer
 	// Resume is the Ref of an earlier session to continue, or empty.
 	Resume string
+	// Editor, when set, starts the editor (D17, D40) rather than a reviewer:
+	// it may edit files and run commands, inside Dir and its sandbox.
+	Editor *Editor
+}
+
+// Editor is what an editor session may reach beyond its worktree, Dir. A
+// driver confines its file tools to Dir, runs its commands in an operating
+// system sandbox with no reads or writes of the home directory, and refuses
+// to start one it cannot sandbox.
+type Editor struct {
+	// Caches are directories outside Dir that its commands may read and
+	// write, such as build and module caches.
+	Caches []string
+	// Domains are the only hosts its commands may reach, such as package
+	// registries. A forge is never one of them.
+	Domains []string
+	// Env is added to the environment, which otherwise holds only what the
+	// tool needs to start. It holds no credential.
+	Env []string
 }
 
 // MCPServer names an MCP server and the tools on it that a session may call.

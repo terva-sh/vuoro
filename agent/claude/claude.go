@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -33,9 +34,13 @@ const MinVersion = "2.1.285"
 // readTools are the only built-in tools a reviewer gets.
 var readTools = []string{"Read", "Grep", "Glob"}
 
+// editTools are the built-in tools the editor gets (D40). --restricted keeps
+// the file tools in its worktree, and the sandbox confines Bash.
+var editTools = []string{"Read", "Grep", "Glob", "Edit", "Write", "Bash"}
+
 // ErrLockdown means the session offered a tool the lockdown does not allow.
 // The driver ends such a session at once rather than let it run.
-var ErrLockdown = errors.New("claude: the session offered a tool outside the reviewer lockdown")
+var ErrLockdown = errors.New("claude: the session offered a tool outside its lockdown")
 
 // Driver drives the claude binary.
 type Driver struct {
@@ -117,14 +122,18 @@ func atLeast(a, b string) bool {
 
 // args is the reviewer lockdown, proven in spikes/agentdriver. Each flag's
 // reason is in docs/plan.md section 6.6.
-func args(spec agent.Spec, mcpConfig string, allowed []string, sessionArgs []string) []string {
+func args(spec agent.Spec, mcpConfig, settings string, allowed []string, sessionArgs []string) []string {
+	tools := readTools
+	if spec.Editor != nil {
+		tools = editTools
+	}
 	a := []string{
 		"-p",
 		"--input-format", "stream-json",
 		"--output-format", "stream-json",
 		"--verbose",
 		"--include-partial-messages",
-		"--tools", strings.Join(readTools, ","),
+		"--tools", strings.Join(tools, ","),
 		"--restricted",
 		"--strict-mcp-config",
 		"--mcp-config", mcpConfig,
@@ -134,6 +143,9 @@ func args(spec agent.Spec, mcpConfig string, allowed []string, sessionArgs []str
 		"--setting-sources", "",
 		"--disable-slash-commands",
 		"--system-prompt", spec.SystemPrompt,
+	}
+	if settings != "" {
+		a = append(a, "--settings", settings)
 	}
 	if spec.Model != "" {
 		a = append(a, "--model", spec.Model)
@@ -152,6 +164,12 @@ func (d *Driver) Start(ctx context.Context, spec agent.Spec) (agent.Session, err
 	}
 
 	allowed := slices.Clone(readTools)
+	if spec.Editor != nil {
+		if spec.Drafts != nil {
+			return nil, errors.New("claude: the editor gets no drafts server")
+		}
+		allowed = slices.Clone(editTools)
+	}
 	servers := map[string]any{}
 	if spec.Drafts != nil {
 		servers[spec.Drafts.Name] = spec.Drafts.Config
@@ -163,6 +181,39 @@ func (d *Driver) Start(ctx context.Context, spec agent.Spec) (agent.Session, err
 	if err != nil {
 		return nil, err
 	}
+	env := childEnv(os.Environ())
+	settings := ""
+	envFile := ""
+	if spec.Editor != nil {
+		// Claude Code's sandbox sets git's configuration for a command itself,
+		// and drops GIT_CONFIG_GLOBAL, so the editor's variables are exported
+		// again by the file it sources before each command.
+		envFile, err = writeEnvFile(d.ConfigDir, spec.Editor.Env)
+		var sb map[string]any
+		if err == nil {
+			sb, err = sandboxSettings(spec.Dir, *spec.Editor, envFile)
+		}
+		if err == nil {
+			settings, err = writeConfig(d.ConfigDir, sb)
+		}
+		if err != nil {
+			os.Remove(cfgPath)
+			if envFile != "" {
+				os.Remove(envFile)
+			}
+			return nil, err
+		}
+		env = append(editorEnv(os.Environ(), spec.Editor.Env), "CLAUDE_ENV_FILE="+envFile)
+	}
+	cleanup := func() {
+		os.Remove(cfgPath)
+		if settings != "" {
+			os.Remove(settings)
+		}
+		if envFile != "" {
+			os.Remove(envFile)
+		}
+	}
 
 	ref := spec.Resume
 	sessionArgs := []string{"--resume", ref}
@@ -171,23 +222,23 @@ func (d *Driver) Start(ctx context.Context, spec agent.Spec) (agent.Session, err
 		sessionArgs = []string{"--session-id", ref}
 	}
 
-	cmd := exec.Command(path, args(spec, cfgPath, allowed, sessionArgs)...)
+	cmd := exec.Command(path, args(spec, cfgPath, settings, allowed, sessionArgs)...)
 	cmd.Dir = spec.Dir
-	cmd.Env = childEnv(os.Environ())
+	cmd.Env = env
 	var stderr tail
 	cmd.Stderr = &stderr
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		os.Remove(cfgPath)
+		cleanup()
 		return nil, err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		os.Remove(cfgPath)
+		cleanup()
 		return nil, err
 	}
 	if err := cmd.Start(); err != nil {
-		os.Remove(cfgPath)
+		cleanup()
 		return nil, fmt.Errorf("claude: start: %w", err)
 	}
 	s := &session{
@@ -195,7 +246,7 @@ func (d *Driver) Start(ctx context.Context, spec agent.Spec) (agent.Session, err
 		cmd:     cmd,
 		stdin:   stdin,
 		stderr:  &stderr,
-		cfgPath: cfgPath,
+		cleanup: cleanup,
 		allowed: allowed,
 		events:  make(chan agent.Event, 256),
 		exited:  make(chan struct{}),
@@ -228,6 +279,36 @@ func writeConfig(dir string, cfg map[string]any) (string, error) {
 	return f.Name(), nil
 }
 
+var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// writeEnvFile writes vars as a shell file that exports each one, for
+// CLAUDE_ENV_FILE.
+func writeEnvFile(dir string, vars []string) (string, error) {
+	var b strings.Builder
+	for _, kv := range vars {
+		k, v, _ := strings.Cut(kv, "=")
+		if !envName.MatchString(k) {
+			return "", fmt.Errorf("claude: editor variable %q is not a name", k)
+		}
+		fmt.Fprintf(&b, "export %s='%s'\n", k, strings.ReplaceAll(v, "'", `'\''`))
+	}
+	f, err := os.CreateTemp(dir, "vuoro-claude-env-*.sh")
+	if err != nil {
+		return "", fmt.Errorf("claude: editor env: %w", err)
+	}
+	if err := f.Chmod(0o600); err == nil {
+		_, err = f.WriteString(b.String())
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(f.Name())
+		return "", fmt.Errorf("claude: editor env: %w", err)
+	}
+	return f.Name(), nil
+}
+
 // childEnv passes the person's environment through, so Claude Code finds its
 // own login, and drops the markers that tell it that it is nested inside
 // another Claude Code session.
@@ -240,6 +321,88 @@ func childEnv(env []string) []string {
 		out = append(out, kv)
 	}
 	return out
+}
+
+// editorEnv is the editor's environment: what Claude Code needs to start and
+// find its own login, and extra, and nothing else the person's environment
+// holds, such as a forge token. Claude Code keeps its login variables, and
+// scrubs them from every command it runs.
+func editorEnv(env, extra []string) []string {
+	keep := []string{"PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR",
+		"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"}
+	var out []string
+	for _, kv := range env {
+		k, _, _ := strings.Cut(kv, "=")
+		if slices.Contains(keep, k) {
+			out = append(out, kv)
+		}
+	}
+	out = append(out, "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1")
+	return append(out, extra...)
+}
+
+// loginVars are the model credentials Claude Code may hold, which no command
+// it runs may see.
+var loginVars = []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"}
+
+// sandboxSettings is the editor's sandbox (D40), passed with --settings, the
+// one settings source the session loads. Commands read and write only dir and
+// the caches, never the home directory, reach only the named domains, and
+// never run unsandboxed. Without a working sandbox the session does not
+// start.
+func sandboxSettings(dir string, e agent.Editor, envFile string) (map[string]any, error) {
+	abs := func(p string) (string, error) {
+		p, err := filepath.Abs(p)
+		if err != nil {
+			return "", err
+		}
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			p = r
+		}
+		return p, nil
+	}
+	root, err := abs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("claude: editor worktree: %w", err)
+	}
+	readable, writable := []string{root}, []string{}
+	for _, c := range e.Caches {
+		p, err := abs(c)
+		if err != nil {
+			return nil, fmt.Errorf("claude: editor cache: %w", err)
+		}
+		readable, writable = append(readable, p), append(writable, p)
+	}
+	if envFile != "" { // the file the sandboxed shell sources, read-only
+		p, err := abs(envFile)
+		if err != nil {
+			return nil, fmt.Errorf("claude: editor env: %w", err)
+		}
+		readable = append(readable, p)
+	}
+	var envVars []map[string]string
+	for _, v := range loginVars {
+		envVars = append(envVars, map[string]string{"name": v, "mode": "deny"})
+	}
+	domains := e.Domains
+	if domains == nil {
+		domains = []string{}
+	}
+	return map[string]any{
+		"sandbox": map[string]any{
+			"enabled":                  true,
+			"allowUnsandboxedCommands": false,
+			"failIfUnavailable":        true,
+			"filesystem": map[string]any{
+				"denyRead":   []string{"~/"},
+				"allowRead":  readable,
+				"allowWrite": writable,
+			},
+			"network":     map[string]any{"allowedDomains": domains},
+			"credentials": map[string]any{"envVars": envVars},
+		},
+		"permissions": map[string]any{"deny": []string{"WebFetch", "WebSearch"}},
+	}, nil
 }
 
 func newUUID() string {
@@ -255,7 +418,7 @@ type session struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	stderr  *tail
-	cfgPath string
+	cleanup func() // removes the session's config files
 	allowed []string
 	events  chan agent.Event
 	exited  chan struct{}
@@ -354,7 +517,7 @@ func (s *session) emit(ev agent.Event) {
 // read turns the stream into events until the process ends.
 func (s *session) read(stdout io.Reader) {
 	defer close(s.events)
-	defer os.Remove(s.cfgPath)
+	defer s.cleanup()
 
 	sc := bufio.NewScanner(stdout)
 	sc.Buffer(make([]byte, 1<<20), 64<<20)

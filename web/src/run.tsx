@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
-import { DraftCard } from './diffview'
+import { DraftCard, FileView } from './diffview'
 import { HeadBadge, useHead } from './head'
-import type { Change, Draft, Entry, Level, Run, Session, Setup } from './types'
+import type { Change, Draft, EditorDetail, Entry, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
+import { WriteContext } from './write'
 import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
 
 // usePoll reads a run, quickly while anything works and slowly otherwise.
@@ -121,13 +122,13 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} onClose={close} onPick={onPick} onRun={update} />}
+      {run && <RunView run={run} url={change.web_url} onClose={close} onPick={onPick} onRun={update} />}
     </div>
   )
 }
 
-function RunView({ run, onClose, onPick, onRun }: {
-  run: Run; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
+function RunView({ run, url, onClose, onPick, onRun }: {
+  run: Run; url: string; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
 }) {
   const headState = useHead()
   // A pane opens while its session works, and the person can fold or open
@@ -176,6 +177,7 @@ function RunView({ run, onClose, onPick, onRun }: {
         <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
       </div>
       <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />
+      <Editor run={run} url={url} onRun={onRun} />
       <Drafts run={run} onPick={onPick} onRun={onRun} />
     </div>
   )
@@ -294,6 +296,99 @@ function HandOff({ run, kept }: { run: Run; kept: number }) {
         </span>
       )}
       {done && !done.copied && <textarea class="report-text" readOnly value={done.markdown} onFocus={(e) => (e.target as HTMLTextAreaElement).select()} />}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+    </div>
+  )
+}
+
+// Editor hands the kept findings to an editor session, which fixes them on
+// a local branch in a sandbox, and shows its commits beside the findings
+// they answer (D39, D40). Nothing here touches the forge.
+export function Editor({ run, url, onRun }: { run: Run; url: string; onRun: (r: Run) => void }) {
+  const [detail, setDetail] = useState<EditorDetail>()
+  const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
+  const kept = run.drafts.filter((d) => d.decision === 'kept')
+  const ed = run.editor && !run.editor.discarded ? run.editor : undefined
+  const session = ed && run.sessions.find((s) => s.id === ed.session)
+  const working = session?.status === 'working' || session?.status === 'preparing'
+  // The editor's work is read again each time its turn ends.
+  useEffect(() => {
+    if (!ed || working) return
+    api<EditorDetail>(`/api/runs/${run.id}/editor`).then(setDetail, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  }, [ed?.session, working, session?.log?.length])
+  const act = async (path: string, body?: unknown) => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      onRun(await post<Run>(path, body))
+      setDetail(undefined)
+      setDiscarding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (run.mode || run.kind === 'local') return null
+  if (!ed) {
+    const why = kept.length === 0 ? 'Keep a finding first' : run.status === 'closed' ? 'The run is closed' : ''
+    return (
+      <div class="editor-panel">
+        <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, { url })}
+          title={why || 'An agent fixes the kept findings on a local branch, in a sandbox, with no forge credential. Nothing is pushed.'}>
+          {busy ? '⧗ Starting the editor…' : `⚒ Fix these in a branch (${kept.length} kept)`}
+        </button>
+        {error && <p class="alert" role="alert">⚠ {error}</p>}
+      </div>
+    )
+  }
+  const title = new Map(run.drafts.map((d) => [d.id, d.title]))
+  const fixed = new Set(detail?.commits.flatMap((c) => c.findings) ?? [])
+  const left = kept.filter((d) => !fixed.has(d.id))
+  return (
+    <div class="editor-panel">
+      <header class="editor-head">
+        <strong>⚒ Editor</strong>
+        <span class="mono">{ed.branch}</span>
+        {session && <StatusBadge status={session.status} />}
+        <span class="muted">from <span class="mono">{short(ed.base)}</span>, local only</span>
+        {discarding ? (
+          <span class="push">
+            Delete the branch and its work?{' '}
+            <button class="primary" disabled={busy} onClick={() => void act(`/api/runs/${run.id}/editor/discard`)}>Discard</button>{' '}
+            <button class="link" onClick={() => setDiscarding(false)}>Keep it</button>
+          </span>
+        ) : (
+          <button class="push" disabled={busy} onClick={() => setDiscarding(true)}>Discard…</button>
+        )}
+      </header>
+      {working && <p class="muted">⧗ The editor is working. Open its session above to follow it or talk to it.</p>}
+      {detail && (
+        <>
+          <ol class="editor-commits">
+            {detail.commits.map((c) => (
+              <li key={c.sha}>
+                <span class="mono">{short(c.sha)}</span> {c.subject}
+                {c.findings.length > 0 && (
+                  <span class="muted"> · answers {c.findings.map((id) => `${id} ${title.get(id) ?? ''}`.trim()).join(', ')}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+          {detail.commits.length === 0 && !working && <p class="muted">No commits yet.</p>}
+          {left.length > 0 && !working && (
+            <p class="muted">
+              ○ No commit names {left.map((d) => `${d.id} ${d.title}`).join(', ')}. Its reply in the session says why.
+            </p>
+          )}
+          {/* The editor's diff is not the change's, so nothing here comments on the forge. */}
+          <WriteContext.Provider value={undefined}>
+            {detail.files.map((f) => <FileView file={f} threads={[]} drafts={[]} key={f.new_path} />)}
+          </WriteContext.Provider>
+        </>
+      )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
   )

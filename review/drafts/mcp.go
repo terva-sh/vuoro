@@ -184,7 +184,7 @@ func instructions(role Role) string {
 // reviewer and a synthesizer list, propose, revise, and withdraw. A verifier
 // lists and rates, and nothing else. None reaches a forge.
 func Tools(role Role) []map[string]any {
-	if role == Summary {
+	if role == Summary || role == Editor {
 		return nil
 	}
 	list := map[string]any{
