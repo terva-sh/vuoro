@@ -2,8 +2,8 @@
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api } from './api'
-import { Editor } from './run'
+import { api, post } from './api'
+import { Editor, PushDialog } from './run'
 import type { Draft, Run, Session } from './types'
 
 const draft = (id: string, decision?: 'kept' | 'dropped') =>
@@ -49,5 +49,23 @@ describe('Editor', () => {
     expect(root.textContent).not.toContain('d3')
     act(() => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Discard…')!.click())
     expect(root.textContent).toContain('Delete the branch')
+  })
+
+  it('pushes only from the dialog, with what the person saw and edited', async () => {
+    const preview = { branch: 'vuoro/fix-7-abc', target: 'fix/total', sha: 'f00d', commits: 2, files: ['.gitlab-ci.yml', 'calc.go'], ci: ['.gitlab-ci.yml'], title: 'Fix review findings', description: 'd' }
+    vi.mocked(post).mockResolvedValue(run())
+    const closed = vi.fn()
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<PushDialog run={run()} url="u" preview={preview} onClose={closed} onRun={() => {}} />, root))
+    expect(root.textContent).toContain('Changes CI configuration')
+    expect(document.activeElement?.textContent).toBe('Cancel')
+    expect(post).not.toHaveBeenCalled()
+    const title = root.querySelector('input')!
+    act(() => { title.value = 'My title'; title.dispatchEvent(new Event('input')) })
+    await act(async () => { [...root.querySelectorAll('button')].find((b) => b.textContent === 'Push and open')!.click() })
+    expect(post).toHaveBeenCalledWith('/api/runs/r1/editor/push', { url: 'u', confirm: 'push', sha: 'f00d', title: 'My title', description: 'd' })
+    expect(closed).toHaveBeenCalled()
+    root.remove()
   })
 })

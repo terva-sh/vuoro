@@ -233,3 +233,33 @@ type Writer interface {
 	Resolve(ctx context.Context, ref Ref, threadID string, resolved bool) error
 	Approve(ctx context.Context, ref Ref, approve bool) error
 }
+
+// Stacker opens a change onto another change's source branch, which is how
+// vuoro hands back an editor's fixes (D39). The person's token opens it, and
+// only at their confirmed action.
+type Stacker interface {
+	// StackTarget says where a change stacked on ref goes. It refuses a
+	// change whose source branch is in a fork, which the person may not be
+	// able to push to and whose author owns it.
+	StackTarget(ctx context.Context, ref Ref) (StackTarget, error)
+	// OpenStacked opens a draft change from s.Branch onto s.Target in ref's
+	// project, and returns its web URL.
+	OpenStacked(ctx context.Context, ref Ref, s NewStacked) (string, error)
+}
+
+// StackTarget is the branch a stacked change goes onto, and its head.
+type StackTarget struct {
+	Branch string `json:"branch"`
+	Head   string `json:"head"`
+}
+
+// NewStacked is a draft change to open onto another change's branch.
+type NewStacked struct {
+	Branch      string // the pushed branch
+	Target      string // the reviewed change's source branch
+	Title       string
+	Description string
+}
+
+// ErrFork means the change's source branch is in a fork.
+var ErrFork = errors.New("this change's source branch is in a fork, which vuoro does not push to; its author owns it")

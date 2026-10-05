@@ -719,6 +719,17 @@ hand-off report lists, become the editor's task:
    merges it, or does not. A change whose source branch lives in a fork is
    refused for now, with the reason.
 
+   The push goes from vuoro's clone over the person's own git transport,
+   the remote vuoro fetches from, so vuoro holds no git credential. It
+   pushes the commit the person saw in the dialog and refuses a newer one,
+   requires the editor's history to stand on the reviewed head, and never
+   forces. The dialog flags a change to CI configuration, which runs when
+   the branch lands, and a source branch that moved since the review. A
+   later push of new editor commits updates the same merge request. The
+   push route is the only caller of the push and of the merge request's
+   creation, and a test holds that. GitLab is supported first; Forgejo
+   answers that it is not supported yet.
+
 ### 6.4 Other actions
 
 Summarising a change, summarising what changed since my last review, and the

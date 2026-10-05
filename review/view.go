@@ -60,6 +60,10 @@ func (r *Run) View() RunView {
 	}
 	if r.editor != nil {
 		e := *r.editor
+		if e.Pushed != nil {
+			p := *e.Pushed
+			e.Pushed = &p
+		}
 		v.Editor = &e
 	}
 	if r.Summary != nil {

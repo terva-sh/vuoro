@@ -93,6 +93,8 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/editor", a.startEditor)
 	mux.HandleFunc("GET /api/runs/{id}/editor", a.getEditor)
 	mux.HandleFunc("POST /api/runs/{id}/editor/discard", a.discardEditor)
+	mux.HandleFunc("POST /api/runs/{id}/editor/stack", a.previewStack)
+	mux.HandleFunc("POST /api/runs/{id}/editor/push", a.pushEditor)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
 	a.writeRoutes(mux)

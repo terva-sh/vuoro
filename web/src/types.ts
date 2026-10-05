@@ -81,7 +81,16 @@ export interface Run {
 
 // EditorState is a run's editor, which fixes the kept findings on a local
 // branch (D39).
-export interface EditorState { session: string; branch: string; base: string; started: string; discarded?: boolean }
+export interface EditorState {
+  session: string; branch: string; base: string; started: string; discarded?: boolean
+  pushed?: { branch: string; sha: string; target: string; url?: string; at: string }
+}
+// StackPreview is where a push of the editor's work would go, before the
+// person confirms it.
+export interface StackPreview {
+  branch: string; target: string; sha: string; commits: number; files: string[]; ci?: string[]
+  moved?: boolean; title: string; description: string; opened?: string
+}
 export interface EditorCommit { sha: string; subject: string; findings: string[] }
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
 

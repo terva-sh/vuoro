@@ -22,6 +22,9 @@ type EditorState struct {
 	Base      string    `json:"base"` // the reviewed head the branch starts from
 	Started   time.Time `json:"started"`
 	Discarded bool      `json:"discarded,omitempty"`
+	Pushed    *Pushed   `json:"pushed,omitempty"`
+
+	pushing bool // a push is under way
 }
 
 // Active says the editor's work is still there to review or push.
@@ -189,9 +192,13 @@ func (m *Manager) Editor(ctx context.Context, runID string) (*EditorDetail, erro
 		return nil, ErrNoRun
 	}
 	r.mu.Lock()
-	e := r.editor
+	var e EditorState
+	active := r.editor.Active()
+	if active {
+		e = *r.editor
+	}
 	r.mu.Unlock()
-	if !e.Active() {
+	if !active {
 		return nil, errors.New("review: this review has no editor")
 	}
 	ref, err := m.Repos.FetchEditor(ctx, r.repoKey, runID, e.Branch, filepath.Join(m.editorDir(runID), "wt"))
@@ -203,7 +210,7 @@ func (m *Manager) Editor(ctx context.Context, runID string) (*EditorDetail, erro
 		return nil, err
 	}
 	g := localGit{bin: m.Repos.Git, dir: gitDir}
-	out := &EditorDetail{EditorState: *e, Commits: []EditorCommit{}, Files: []forge.FileDiff{}}
+	out := &EditorDetail{EditorState: e, Commits: []EditorCommit{}, Files: []forge.FileDiff{}}
 	log, err := g.run(ctx, maxLocalLog, "log", "--reverse", "--format=%H%x00%s%x00%(trailers:key=Vuoro-Finding,valueonly,separator=%x2C)%x1e", e.Base+".."+ref)
 	if err != nil {
 		return nil, err
@@ -324,4 +331,135 @@ func editorMessage(v RunView) string {
 		fmt.Fprintf(&b, "- Finding %d is %s\n", i+1, d.ID)
 	}
 	return b.String()
+}
+
+// Pushed is where the editor's work went: the branch on the forge, the
+// commit pushed last, and the draft change opened onto the reviewed one.
+type Pushed struct {
+	Branch string    `json:"branch"`
+	SHA    string    `json:"sha"`
+	Target string    `json:"target"`
+	URL    string    `json:"url,omitempty"` // the draft change, once opened
+	At     time.Time `json:"at"`
+}
+
+// ErrPushing means a push of this editor's work is already under way.
+var ErrPushing = errors.New("review: the editor's work is already being pushed")
+
+// PushEditor pushes the editor's commits to its branch at remote, and opens
+// the stacked draft change with open when none is open yet (D39). It is
+// called only from the person's confirmed action. sha is the editor's last
+// commit as the person saw it; anything newer is refused, so what is pushed
+// is what they reviewed.
+func (m *Manager) PushEditor(ctx context.Context, runID, remote, target, sha string, open func() (string, error)) (*Pushed, error) {
+	r := m.Get(runID)
+	if r == nil {
+		return nil, ErrNoRun
+	}
+	r.mu.Lock()
+	e := r.editor
+	switch {
+	case !e.Active():
+		r.mu.Unlock()
+		return nil, errors.New("review: this review has no editor")
+	case e.pushing:
+		r.mu.Unlock()
+		return nil, ErrPushing
+	}
+	e.pushing = true
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		e.pushing = false
+		r.mu.Unlock()
+	}()
+
+	detail, err := m.Editor(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	if len(detail.Commits) == 0 {
+		return nil, errors.New("review: the editor has committed nothing to push")
+	}
+	gitDir, err := m.Repos.gitDir(r.repoKey)
+	if err != nil {
+		return nil, err
+	}
+	// The editor's history must stand on the reviewed head, so the push adds
+	// its commits and nothing else.
+	if _, err := (localGit{bin: m.Repos.Git, dir: gitDir}).run(ctx, 4<<10, "merge-base", "--is-ancestor", e.Base, sha); err != nil {
+		return nil, fmt.Errorf("review: the editor's branch does not stand on the reviewed head %s", short(e.Base))
+	}
+	if err := m.Repos.PushEditor(ctx, r.repoKey, runID, remote, e.Branch, sha); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	p := Pushed{Branch: e.Branch, Target: target, SHA: sha, At: time.Now().UTC()}
+	if e.Pushed != nil {
+		p.URL = e.Pushed.URL
+	}
+	e.Pushed = &p
+	r.mu.Unlock()
+	r.save()
+	if p.URL == "" {
+		url, err := open()
+		if err != nil {
+			return &p, fmt.Errorf("review: the branch %s is pushed, but the merge request did not open: %w", e.Branch, err)
+		}
+		r.mu.Lock()
+		p.URL = url
+		np := p
+		e.Pushed = &np // replaced, never changed in place, since views share it
+		r.mu.Unlock()
+		r.save()
+	}
+	return &p, nil
+}
+
+// StackTitle is the stacked change's title, before the person edits it.
+func StackTitle(v RunView) string {
+	return fmt.Sprintf("Fix review findings on %s: %s", changeName(v), v.Title)
+}
+
+// StackDescription is the stacked change's description, before the person
+// edits it: each commit with the finding it answers, the kept findings no
+// commit names, and a link to the reviewed change.
+func StackDescription(v RunView, d *EditorDetail, by string) string {
+	title := map[string]drafts.Draft{}
+	for _, dr := range v.Drafts {
+		title[dr.ID] = dr
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Fixes for findings from a review of %s.\n\n", v.WebURL)
+	b.WriteString("Each commit addresses one finding:\n\n")
+	fixed := map[string]bool{}
+	for _, c := range d.Commits {
+		fmt.Fprintf(&b, "- %s %s", c.SHA[:min(8, len(c.SHA))], c.Subject)
+		for _, id := range c.Findings {
+			if f, ok := title[id]; ok {
+				fmt.Fprintf(&b, " (%s: %s)", f.Severity, f.Title)
+				fixed[id] = true
+			}
+		}
+		b.WriteString("\n")
+	}
+	var left []string
+	for _, f := range kept(v.Drafts) {
+		if !fixed[f.ID] {
+			left = append(left, fmt.Sprintf("- %s: %s", f.Severity, f.Title))
+		}
+	}
+	if len(left) > 0 {
+		b.WriteString("\nNot changed here, and left to the review's comments:\n\n" + strings.Join(left, "\n") + "\n")
+	}
+	fmt.Fprintf(&b, "\nThe changes were drafted by an agent in a sandbox, and %s reviewed them before pushing. Merge this into the source branch if you agree, or take what helps.\n", by)
+	return b.String()
+}
+
+// changeName is a change's short name, such as !2487.
+func changeName(v RunView) string {
+	if v.Kind == "forgejo" {
+		return fmt.Sprintf("#%d", v.Ref.Number)
+	}
+	return fmt.Sprintf("!%d", v.Ref.Number)
 }

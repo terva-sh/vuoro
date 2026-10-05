@@ -100,11 +100,36 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 		t.Fatalf("files %+v", detail.Files)
 	}
 
+	// The person pushes what they saw, once, and the draft change opens once.
+	sha := detail.Commits[0].SHA
+	opens := 0
+	open := func() (string, error) { opens++; return "https://gitlab.example/g/calc/-/merge_requests/8", nil }
+	if _, err := m.PushEditor(context.Background(), r.ID, src.Remote, "feature", "0123456789012345678901234567890123456789", open); err == nil {
+		t.Fatal("a commit the person never saw was pushed")
+	}
+	p, err := m.PushEditor(context.Background(), r.ID, src.Remote, "feature", sha, open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Branch != ed.Branch || p.SHA != sha || p.URL != "https://gitlab.example/g/calc/-/merge_requests/8" || opens != 1 {
+		t.Fatalf("pushed %+v, opened %d", p, opens)
+	}
+	if out, err := exec.Command("git", "-C", src.Remote, "rev-parse", "refs/heads/"+ed.Branch).Output(); err != nil || strings.TrimSpace(string(out)) != sha {
+		t.Fatalf("the forge's branch is at %q: %v", out, err)
+	}
+	if _, err := m.PushEditor(context.Background(), r.ID, src.Remote, "feature", sha, open); err != nil || opens != 1 {
+		t.Fatalf("a second push: %v, opened %d", err, opens)
+	}
+	desc := StackDescription(r.View(), detail, "Pat")
+	if !strings.Contains(desc, sha[:8]+" Add adds (high: Add subtracts)") || !strings.Contains(desc, "Pat reviewed them") || strings.Contains(desc, "Name it") {
+		t.Fatalf("description %q", desc)
+	}
+
 	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: m.Drivers, Drafts: m.Drafts, MCPURL: m.MCPURL}
 	if err := m2.Load(); err != nil {
 		t.Fatal(err)
 	}
-	if back := m2.Get(r.ID); back.View().Editor == nil || back.View().Sessions[1].Role != "editor" || back.who != who {
+	if back := m2.Get(r.ID); back.View().Editor.Pushed == nil || back.View().Editor == nil || back.View().Sessions[1].Role != "editor" || back.who != who {
 		t.Fatalf("reloaded %+v", back.View())
 	}
 

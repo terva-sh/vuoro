@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
 import { DraftCard, FileView } from './diffview'
 import { HeadBadge, useHead } from './head'
-import type { Change, Draft, EditorDetail, Entry, Level, Run, Session, Setup } from './types'
+import type { Change, Draft, EditorDetail, Entry, Level, Run, Session, Setup, StackPreview } from './types'
 import { refKey } from './types'
 import { WriteContext } from './write'
 import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
@@ -383,6 +383,7 @@ export function Editor({ run, url, onRun }: { run: Run; url: string; onRun: (r: 
               ○ No commit names {left.map((d) => `${d.id} ${d.title}`).join(', ')}. Its reply in the session says why.
             </p>
           )}
+          <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} />
           {/* The editor's diff is not the change's, so nothing here comments on the forge. */}
           <WriteContext.Provider value={undefined}>
             {detail.files.map((f) => <FileView file={f} threads={[]} drafts={[]} key={f.new_path} />)}
@@ -390,6 +391,103 @@ export function Editor({ run, url, onRun }: { run: Run; url: string; onRun: (r: 
         </>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
+    </div>
+  )
+}
+
+// PushBar offers the push of the editor's work and the stacked draft merge
+// request, and links it once open. The push always asks first: it is the
+// one action here that reaches the forge.
+function PushBar({ run, url, detail, working, onRun }: {
+  run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
+}) {
+  const [preview, setPreview] = useState<StackPreview>()
+  const [error, setError] = useState<string>()
+  const [loading, setLoading] = useState(false)
+  const pushed = run.editor?.pushed
+  const last = detail.commits[detail.commits.length - 1]
+  const fresh = !!last && last.sha !== pushed?.sha
+  const ask = async () => {
+    setLoading(true)
+    setError(undefined)
+    try {
+      setPreview(await post<StackPreview>(`/api/runs/${run.id}/editor/stack`, { url }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <div class="push-bar">
+      {pushed && (
+        <span>
+          ✓ Pushed <span class="mono">{pushed.branch}</span> at <span class="mono">{short(pushed.sha)}</span>
+          {pushed.url ? <> · <a href={pushed.url} target="_blank" rel="noreferrer">the draft merge request</a></> : ' · the merge request did not open; push again to retry'}
+        </span>
+      )}
+      {(fresh || (pushed && !pushed.url)) && (
+        <button class="primary" disabled={working || loading} onClick={() => void ask()}
+          title={working ? 'Wait for the editor to finish' : 'Shows where it goes, and asks first'}>
+          {loading ? '⧗ Reading the merge request…' : pushed ? '⇪ Push the new commits…' : '⇪ Push and open a draft merge request…'}
+        </button>
+      )}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+      {preview && <PushDialog run={run} url={url} preview={preview} onClose={() => setPreview(undefined)} onRun={onRun} />}
+    </div>
+  )
+}
+
+// PushDialog is the confirmation, with the title and description to edit.
+// Cancel has the focus, so a stray Enter pushes nothing.
+export function PushDialog({ run, url, preview: p, onClose, onRun }: {
+  run: Run; url: string; preview: StackPreview; onClose: () => void; onRun: (r: Run) => void
+}) {
+  const [title, setTitle] = useState(p.title)
+  const [description, setDescription] = useState(p.description)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const cancel = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    cancel.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy])
+  const push = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
+      <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">
+        <h2 id="push-title">{p.opened ? 'Push the new commits' : 'Push and open a draft merge request'}</h2>
+        <ul>
+          <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.branch}</span>, as you, with your own git access.</li>
+          <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">draft merge request</a>.</> : <>Opens a draft merge request onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
+          <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
+          {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
+          {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since the review, so the merge request may need a rebase.</li>}
+        </ul>
+        {!p.opened && (
+          <>
+            <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+            <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
+          </>
+        )}
+        {error && <p class="alert" role="alert">⚠ {error}</p>}
+        <div class="actions">
+          <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
+          <button class="primary" disabled={busy || !title.trim()} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.opened ? 'Push' : 'Push and open'}</button>
+        </div>
+      </div>
     </div>
   )
 }

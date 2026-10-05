@@ -31,6 +31,8 @@ type fakeGitLab struct {
 	bodies []map[string]any
 	// slow holds each write back this long, as a busy forge does.
 	slow time.Duration
+	// fork puts the merge request's source branch in another project.
+	fork bool
 }
 
 func (g *fakeGitLab) handler(t *testing.T) http.Handler {
@@ -50,6 +52,14 @@ func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 			w.Write([]byte(`[{"old_path":"label_list.go","new_path":"label_list.go","diff":"@@ -1,3 +1,3 @@\n package list\n-// old\n+// new\n tail\n"}]`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/draft_notes"):
 			w.Write([]byte(`[]`))
+		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/merge_requests/3991"):
+			g.mu.Lock()
+			source := 1
+			if g.fork {
+				source = 2
+			}
+			g.mu.Unlock()
+			fmt.Fprintf(w, `{"source_project_id": %d, "target_project_id": 1, "source_branch": "fix/label-list-total", "sha": "abc"}`, source)
 		default:
 			var body map[string]any
 			json.NewDecoder(r.Body).Decode(&body)
@@ -251,6 +261,21 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest("GET", fmt.Sprintf("/api/runs/%s/editor", run.ID), nil))
 	if rec.Code == 200 || run.View().Editor != nil {
 		t.Fatalf("a failed editor left %d %s", rec.Code, rec.Body)
+	}
+	// Nothing pushes or opens a merge request without the person's
+	// confirmation, and a fork is refused before anything is pushed.
+	pushPath := fmt.Sprintf("/api/runs/%s/editor/push", run.ID)
+	if code, out := call(t, h, pushPath, map[string]any{"url": mrURL, "title": "t", "sha": "abc"}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "confirmation") {
+		t.Fatalf("an unconfirmed push: %d %v", code, out)
+	}
+	if code, out := call(t, h, pushPath, map[string]any{"url": mrURL, "confirm": "push", "title": "t", "sha": "abc"}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "no editor") {
+		t.Fatalf("a push with no editor: %d %v", code, out)
+	}
+	g.mu.Lock()
+	g.fork = true
+	g.mu.Unlock()
+	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/editor/stack", run.ID), map[string]any{"url": mrURL}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "fork") {
+		t.Fatalf("a fork's preview: %d %v", code, out)
 	}
 	if len(g.seen()) != 1 {
 		t.Fatalf("the editor wrote %q", g.seen())

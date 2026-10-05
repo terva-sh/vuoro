@@ -283,6 +283,32 @@ func (r *Repos) FetchEditor(ctx context.Context, key, runID, branch, dir string)
 	return ref, nil
 }
 
+// PushEditor pushes the editor's commits, as FetchEditor brought them into
+// key's clone, to branch at remote, over the person's own git transport. It
+// pushes nothing else, and never forces: a branch that moved on the forge is
+// refused rather than overwritten. sha is the commit the person reviewed,
+// and the push is refused when the ref has moved past it.
+func (r *Repos) PushEditor(ctx context.Context, key, runID, remote, branch, sha string) error {
+	gitDir, err := r.gitDir(key)
+	if err != nil {
+		return err
+	}
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	got, err := r.git(ctx, gitDir, "rev-parse", "--verify", editorRef(runID))
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(got) != sha {
+		return fmt.Errorf("review: the editor committed again after %s; look at its work again before pushing", short(sha))
+	}
+	_, err = r.git(ctx, gitDir, "push", "--quiet", "--no-verify", remote, sha+":refs/heads/"+branch)
+	return err
+}
+
 // DropEditor removes an editor's refs from key's clone.
 func (r *Repos) DropEditor(ctx context.Context, key, runID string) error {
 	gitDir, err := r.gitDir(key)
