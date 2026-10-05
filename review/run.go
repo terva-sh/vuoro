@@ -534,7 +534,6 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 	m.advance(r, next)
 }
 
-// settle sets the run's status from its sessions'. r.mu is held.
 // Settled says the run has nothing left to do without the person: it
 // failed or closed, or every session has reported its first turn and none
 // is working or waiting for its stage.
@@ -555,6 +554,7 @@ func (r *Run) Settled() bool {
 	return true
 }
 
+// settle sets the run's status from its sessions'. r.mu is held.
 func (r *Run) settle() {
 	if r.Status == Closed || r.Status == Failed || r.Status == Preparing {
 		return
