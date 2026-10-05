@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/terva-sh/vuoro/agent"
+	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/review/drafts"
 )
 
@@ -221,5 +222,17 @@ func TestTheEditorSeedsAHeadWhoseFilesTheCloneLacks(t *testing.T) {
 	}
 	if err := repos.SeedEditor(ctx, src.Key, "run2", strings.Repeat("ab", 20), "b", filepath.Join(state, "e2")); err == nil || !strings.Contains(err.Error(), "no longer holds") {
 		t.Fatalf("a head the clone never had: %v", err)
+	}
+}
+
+func TestAStackedTitleDropsTheReviewedTitlesDraftMarker(t *testing.T) {
+	for in, want := range map[string]string{
+		"[PLT-5686] Draft: Cilium install": "Fix review findings on !7: [PLT-5686] Cilium install",
+		"Draft: Fix Add":                   "Fix review findings on !7: Fix Add",
+		"Redraft the docs":                 "Fix review findings on !7: Redraft the docs",
+	} {
+		if got := StackTitle(RunView{Title: in, Ref: forge.Ref{Number: 7}}); got != want {
+			t.Errorf("StackTitle(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

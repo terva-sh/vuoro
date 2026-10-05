@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -417,9 +418,14 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote, target, sha str
 }
 
 // StackTitle is the stacked change's title, before the person edits it.
+// The forge marks the stacked change a draft itself, so a draft marker in
+// the reviewed title is dropped rather than repeated.
 func StackTitle(v RunView) string {
-	return fmt.Sprintf("Fix review findings on %s: %s", changeName(v), v.Title)
+	title := strings.TrimSpace(draftMarker.ReplaceAllString(v.Title, ""))
+	return fmt.Sprintf("Fix review findings on %s: %s", changeName(v), title)
 }
+
+var draftMarker = regexp.MustCompile(`(?i)(\[draft\]|\(draft\)|\bdraft:|\bwip:)\s*`)
 
 // StackDescription is the stacked change's description, before the person
 // edits it: each commit with the finding it answers, the kept findings no
