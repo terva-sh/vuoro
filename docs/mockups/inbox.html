@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- A static sketch of the inbox proposals in docs/inbox-design.md. Synthetic
+     data; the real stylesheet. Open it in a browser from this directory. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vuoro inbox sketch</title>
+<link rel="stylesheet" href="../../web/src/styles/design.css">
+<style>
+  body { margin: 0; background: var(--ui-bg); color: var(--ui-fg); font-family: var(--ui-font-sans); font-size: var(--ui-fs-ui); }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--ui-line); }
+  header .brand { color: var(--ui-accent); font-weight: 700; }
+  header input { flex: 0 1 420px; margin-left: auto; padding: 5px 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-control); background: var(--ui-surface); color: var(--ui-muted); font: inherit; }
+  header .acct { color: var(--ui-muted); font-size: var(--ui-fs-note); }
+  header .acct b { color: var(--ui-ok); }
+  main { display: grid; grid-template-columns: minmax(420px, 46%) 1fr; height: calc(100vh - 45px); }
+  .list { border-right: 1px solid var(--ui-line); overflow: auto; }
+  .group { padding: 12px 16px 4px; display: flex; align-items: baseline; gap: 8px; color: var(--ui-heading); font-weight: 600; }
+  .group .n { font-weight: 400; color: var(--ui-muted); }
+  .group.fold { color: var(--ui-muted); font-weight: 500; border-top: 1px solid var(--ui-line); margin-top: 8px; cursor: pointer; }
+  .group.fold::before { content: '▸'; }
+  .row { display: grid; grid-template-columns: 64px 1fr auto; gap: 2px 10px; padding: 8px 16px; border-left: 3px solid transparent; cursor: pointer; }
+  .row:hover { background: var(--ui-hover); }
+  .row.sel { background: var(--ui-accent-soft); border-left-color: var(--ui-accent); }
+  .age { grid-row: span 2; align-self: start; text-align: center; font-size: var(--ui-fs-note); font-variant-numeric: tabular-nums; border-radius: var(--ui-radius-pill); padding: 2px 0; border: 1px solid; }
+  .age.fresh { color: #3B78C4; border-color: #3B78C4; }   /* blue, < 2 days  */
+  .age.week  { color: #B7791F; border-color: #B7791F; }   /* amber, < 2 weeks */
+  .age.old   { color: #B23A8C; border-color: #B23A8C; }   /* magenta, older */
+  .title { color: var(--ui-heading); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proj { color: var(--ui-muted); font-size: var(--ui-fs-note); white-space: nowrap; }
+  .why { grid-column: 2 / 4; color: var(--ui-fg); font-size: var(--ui-fs-note); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .why .role { color: var(--ui-muted); }
+  .tag { font-size: 11px; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-pill); padding: 0 6px; color: var(--ui-muted); margin-left: 6px; font-weight: 400; }
+  .detail { overflow: auto; padding: 20px 28px; }
+  .detail h1 { margin: 0 0 4px; font-size: 20px; color: var(--ui-heading); }
+  .detail .meta { color: var(--ui-muted); font-size: var(--ui-fs-note); display: flex; gap: 14px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+  .actions button { font: inherit; padding: 6px 12px; border-radius: var(--ui-radius-control); border: 1px solid var(--ui-line-strong); background: var(--ui-surface); color: var(--ui-fg); }
+  .actions button.primary { background: var(--ui-accent); color: var(--ui-on-accent); border-color: var(--ui-accent); }
+  .actions kbd, .keys kbd { font-family: var(--ui-font-mono); font-size: 11px; color: var(--ui-muted); border: 1px solid var(--ui-line); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
+  .threads { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); }
+  .thread { padding: 10px 14px; border-bottom: 1px solid var(--ui-line); }
+  .thread:last-child { border-bottom: 0; }
+  .thread .who { font-weight: 600; color: var(--ui-heading); }
+  .thread .where { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); color: var(--ui-muted); margin-left: 8px; }
+  .thread p { margin: 4px 0 0; color: var(--ui-fg); }
+  h2 { font-size: var(--ui-fs-body); color: var(--ui-heading); margin: 20px 0 8px; }
+  .keys { color: var(--ui-muted); font-size: var(--ui-fs-note); margin-top: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">vuoro</span>
+  <span class="acct"><b>●</b> gitlab.com @me · refreshed 1m ago</span>
+  <input placeholder="Open a change by URL…">
+</header>
+<main>
+  <section class="list" aria-label="Inbox">
+    <div class="group">Your turn <span class="n">6</span></div>
+    <div class="row sel">
+      <span class="age old">44d</span>
+      <span class="title">Gate the dashboard behind SSO, shared with the observer</span><span class="proj">compute!144</span>
+      <span class="why"><span class="role">Author ·</span> 8 threads await your reply: alice (5), bo (3)</span>
+    </div>
+    <div class="row">
+      <span class="age old">23d</span>
+      <span class="title">Lock file maintenance</span><span class="proj">agent-api!156</span>
+      <span class="why"><span class="role">Reviewer ·</span> Your review is requested</span>
+    </div>
+    <div class="row">
+      <span class="age week">6d</span>
+      <span class="title">Retry uploads on 503 with jittered backoff</span><span class="proj">ingest!88</span>
+      <span class="why"><span class="role">Reviewer ·</span> 3 new commits since your review</span>
+    </div>
+    <div class="row">
+      <span class="age week">3d</span>
+      <span class="title">Move the scheduler config into Helm values<span class="tag">Draft</span></span><span class="proj">infra!2669</span>
+      <span class="why"><span class="role">Assignee ·</span> carol requested changes</span>
+    </div>
+    <div class="row">
+      <span class="age fresh">20h</span>
+      <span class="title">Add a users lookup package</span><span class="proj">sandbox!2</span>
+      <span class="why"><span class="role">Reviewer ·</span> Your review is requested · <span style="color:var(--ui-accent)">vuoro review: 5 findings</span></span>
+    </div>
+    <div class="row">
+      <span class="age fresh">2h</span>
+      <span class="title">Ready to merge: approved, pipeline green</span><span class="proj">devkit!34</span>
+      <span class="why"><span class="role">Author ·</span> Approved by dan; you can merge</span>
+    </div>
+    <div class="group fold">Their turn <span class="n">38 · waiting on others</span></div>
+    <div class="group fold">Dormant <span class="n">7 · no activity for 90 days</span></div>
+    <div class="group fold">Snoozed <span class="n">2</span></div>
+  </section>
+  <section class="detail" aria-label="Selected change">
+    <h1>Gate the dashboard behind SSO, shared with the observer</h1>
+    <div class="meta"><span>group/backend/compute!144</span><span>you → main</span><span>updated 2h ago</span><span>approvals 1/2</span></div>
+    <div class="actions">
+      <button class="primary">Open in vuoro<kbd>↵</kbd></button>
+      <button>Triage threads<kbd>t</kbd></button>
+      <button>Snooze ▾<kbd>s</kbd></button>
+      <button>Open on GitLab ↗<kbd>o</kbd></button>
+    </div>
+    <h2>Waiting for your reply (8)</h2>
+    <div class="threads">
+      <div class="thread"><span class="who">alice</span><span class="where">dashboard/auth.go:42</span><p>Should the observer share this session, or get its own audience?</p></div>
+      <div class="thread"><span class="who">alice</span><span class="where">dashboard/proxy.go:118</span><p>This logs the full upstream URL, including the query string.</p></div>
+      <div class="thread"><span class="who">bo</span><span class="where">general</span><p>Can we split the log proxy into its own change?</p></div>
+      <div class="thread" style="color:var(--ui-muted)">+ 5 more</div>
+    </div>
+    <div class="keys"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>↵</kbd> open · <kbd>s</kbd> snooze · <kbd>t</kbd> triage · <kbd>r</kbd> refresh · <kbd>/</kbd> open by URL</div>
+  </section>
+</main>
+</body>
+</html>
