@@ -55,7 +55,8 @@ var ErrEditorBusy = errors.New("review: this review already has an editor; disca
 
 // StartEditor starts the run's editor on the findings the person kept. head
 // is the change's head as the forge reports it now. The run must still be at
-// that head, as Keep requires, and must have at least one kept finding.
+// that head, as Keep requires, and must have at least one kept finding. It
+// may be closed.
 func (m *Manager) StartEditor(ctx context.Context, runID, head string, who Identity) (*EditorState, error) {
 	r := m.Get(runID)
 	if r == nil {
@@ -67,7 +68,9 @@ func (m *Manager) StartEditor(ctx context.Context, runID, head string, who Ident
 		return nil, errors.New("review: only a review has findings to fix")
 	case r.Kind == Local:
 		return nil, errors.New("review: a local review's fixes belong in your own checkout; the editor fixes merge requests")
-	case v.Status == Closed || v.Status == Failed || v.Status == Preparing:
+	// A closed run can still be fixed: the editor seeds its own repository
+	// from the cache and never uses the run's worktree.
+	case v.Status == Failed || v.Status == Preparing:
 		return nil, fmt.Errorf("review: the run is %s", v.Status)
 	case head != r.Head:
 		return nil, fmt.Errorf("review: the change has moved since this run reviewed %s; review it again before fixing its findings", short(r.Head))
@@ -76,10 +79,6 @@ func (m *Manager) StartEditor(ctx context.Context, runID, head string, who Ident
 	case who.Name == "" || who.Email == "":
 		return nil, errors.New("review: set git's user.name and user.email, which the editor's commits carry")
 	}
-	if _, err := os.Stat(r.dir); err != nil {
-		return nil, errors.New("review: the run's checkout is gone; review the change again")
-	}
-
 	r.mu.Lock()
 	if r.editor.Active() {
 		r.mu.Unlock()

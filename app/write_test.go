@@ -238,13 +238,13 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	}
 
 	// Asking for an editor writes nothing to the forge. The recorded change's
-	// head is not in this test's clone, so the editor's checkout fails there,
+	// head is not in this test's clone, so the editor is refused there,
 	// after the head and identity checks have passed; review's own test
 	// carries an editor through.
 	gitconfig := filepath.Join(t.TempDir(), "gitconfig")
 	os.WriteFile(gitconfig, []byte("[user]\n\tname = Pat\n\temail = pat@example.com\n"), 0o644)
 	t.Setenv("GIT_CONFIG_GLOBAL", gitconfig)
-	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/editor", run.ID), map[string]any{"url": mrURL}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "update-ref") {
+	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/editor", run.ID), map[string]any{"url": mrURL}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "no longer holds") {
 		t.Fatalf("editor: %d %v", code, out)
 	}
 	rec := httptest.NewRecorder()

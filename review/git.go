@@ -201,6 +201,12 @@ func (r *Repos) SeedEditor(ctx context.Context, key, runID, head, branch, dir st
 		return err
 	}
 	defer unlock()
+	if _, err := r.git(ctx, gitDir, "cat-file", "-e", head+"^{commit}"); err != nil {
+		return fmt.Errorf("review: vuoro's copy of the repository no longer holds %s; review the change again", short(head))
+	}
+	if err := r.hydrate(ctx, gitDir, head); err != nil {
+		return err
+	}
 	base := "refs/vuoro/editor-base/" + runID
 	if _, err := r.git(ctx, gitDir, "update-ref", base, head); err != nil {
 		return err
@@ -227,6 +233,31 @@ func (r *Repos) SeedEditor(ctx context.Context, key, runID, head, branch, dir st
 		return fmt.Errorf("review: the editor's checkout is at %s, not %s", short(got), short(head))
 	}
 	return nil
+}
+
+// hydrate brings in head's files when the clone lacks any, since the clone
+// fetches blobs only when a worktree is checked out, and a shallow fetch from
+// it needs them all. A temporary checkout fetches them in one batch. gitDir is
+// locked.
+func (r *Repos) hydrate(ctx context.Context, gitDir, head string) error {
+	out, err := r.git(ctx, gitDir, "rev-list", "--objects", "--missing=print", "--no-object-names", head+"^{tree}")
+	if err != nil {
+		return err
+	}
+	if !strings.Contains("\n"+out, "\n?") {
+		return nil
+	}
+	tmp, err := os.MkdirTemp(r.Dir, "hydrate-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = r.git(ctx, gitDir, "worktree", "remove", "--force", tmp)
+		os.RemoveAll(tmp)
+		_, _ = r.git(ctx, gitDir, "worktree", "prune")
+	}()
+	_, err = r.git(ctx, gitDir, "worktree", "add", "--quiet", "--force", "--detach", tmp, head)
+	return err
 }
 
 // FetchEditor brings branch's commits from the editor's repository at dir

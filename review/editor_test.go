@@ -125,4 +125,76 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(m.StateDir, "editor", r.ID)); !os.IsNotExist(err) {
 		t.Fatalf("the editor's directory outlived its review: %v", err)
 	}
+
+	// A closed review can still be fixed, and its editor talked to: the
+	// editor needs the cache, not the run's worktree, which is gone.
+	if _, err := os.Stat(r.dir); !os.IsNotExist(err) {
+		t.Fatalf("the closed run's worktree is still there: %v", err)
+	}
+	if _, err := m.StartEditor(context.Background(), r.ID, ch.Diff.Head, who); err != nil {
+		t.Fatalf("an editor on a closed run: %v", err)
+	}
+	v = wait(t, r, func(v RunView) bool {
+		return len(v.Sessions) == 4 && v.Sessions[3].FirstComplete && v.Sessions[3].Status == Idle
+	})
+	if v.Status != Closed {
+		t.Fatalf("the editor reopened the run: %s", v.Status)
+	}
+	if err := m.Say(r.ID, v.Sessions[3].ID, "and the rest"); err != nil {
+		t.Fatalf("talking to a closed run's editor: %v", err)
+	}
+	if err := m.Say(r.ID, v.Sessions[0].ID, "hello"); err == nil {
+		t.Fatal("a closed run's reviewer was resumed")
+	}
+	wait(t, r, func(v RunView) bool { return v.Sessions[3].Status == Idle && len(v.Sessions[3].Log) > 3 })
+	if detail, err := m.Editor(context.Background(), r.ID); err != nil || len(detail.Commits) == 0 {
+		t.Fatalf("a closed run's editor: %+v %v", detail, err)
+	}
+	if err := m.DiscardEditor(context.Background(), r.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A head the clone fetched but never checked out lacks its files, and the
+// editor's shallow seed needs them, so they are brought in first.
+func TestTheEditorSeedsAHeadWhoseFilesTheCloneLacks(t *testing.T) {
+	dir, base, head := remote(t)
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("config", "uploadpack.allowFilter", "true")
+	state := t.TempDir()
+	repos := &Repos{Dir: filepath.Join(state, "repos")}
+	src := Source{Remote: "file://" + dir, Key: "example/g/calc", Head: head, Base: base,
+		Refspecs: []string{"+refs/heads/feature:refs/vuoro/head", "+refs/heads/main:refs/vuoro/target"}}
+	ctx := context.Background()
+	if err := repos.Checkout(ctx, src, filepath.Join(state, "wt")); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "more.go"), []byte("package calc\n\nconst More = 1\n"), 0o644)
+	git("add", ".")
+	git("commit", "-q", "-m", "more")
+	src.Head = git("rev-parse", "HEAD")
+	gitDir, _ := repos.gitDir(src.Key)
+	if err := repos.fetch(ctx, gitDir, src); err != nil {
+		t.Fatal(err)
+	}
+	missing, err := repos.git(ctx, gitDir, "rev-list", "--objects", "--missing=print", "--no-object-names", src.Head+"^{tree}")
+	if err != nil || !strings.Contains(missing, "?") {
+		t.Fatalf("the new head's files are already here, so this test proves nothing: %q %v", missing, err)
+	}
+	wt := filepath.Join(state, "editor", "wt")
+	if err := repos.SeedEditor(ctx, src.Key, "run1", src.Head, "vuoro/fix-7-run1", wt); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(wt, "more.go")); err != nil || !strings.Contains(string(b), "More") {
+		t.Fatalf("the editor's checkout: %q %v", b, err)
+	}
+	if err := repos.SeedEditor(ctx, src.Key, "run2", strings.Repeat("ab", 20), "b", filepath.Join(state, "e2")); err == nil || !strings.Contains(err.Error(), "no longer holds") {
+		t.Fatalf("a head the clone never had: %v", err)
+	}
 }

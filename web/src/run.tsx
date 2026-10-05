@@ -333,7 +333,7 @@ export function Editor({ run, url, onRun }: { run: Run; url: string; onRun: (r: 
   }
   if (run.mode || run.kind === 'local') return null
   if (!ed) {
-    const why = kept.length === 0 ? 'Keep a finding first' : run.status === 'closed' ? 'The run is closed' : ''
+    const why = kept.length === 0 ? 'Keep a finding first' : ''
     return (
       <div class="editor-panel">
         <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, { url })}
@@ -499,7 +499,8 @@ function Talk({ run, session }: { run: Run; session: Session }) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string>()
   const [sending, setSending] = useState(false)
-  if (run.status === 'closed') return <p class="muted pad">The run is closed.</p>
+  // An editor outlives its review's close; the reviewers do not.
+  if (run.status === 'closed' && session.role !== 'editor') return <p class="muted pad">The run is closed.</p>
   if (session.status === 'waiting') return <p class="muted pad">⧗ Starts when every reviewer has reported.</p>
   const working = session.status === 'working'
   const send = async () => {

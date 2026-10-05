@@ -27,6 +27,12 @@ describe('Editor', () => {
     expect(b.title).toBe('Keep a finding first')
   })
 
+  it('offers a closed review to the editor', () => {
+    const root = document.createElement('div')
+    act(() => render(<Editor run={run({ status: 'closed' })} url="u" onRun={() => {}} />, root))
+    expect(root.querySelector('button')!.disabled).toBe(false)
+  })
+
   it('shows the commits beside their findings and names the ones left alone', async () => {
     vi.mocked(api).mockResolvedValue({
       session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '',

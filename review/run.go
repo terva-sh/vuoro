@@ -447,7 +447,7 @@ func (m *Manager) send(r *Run, s *Session, text string, fromPerson bool) error {
 	r.mu.Lock()
 	live, ref := s.live, s.Ref
 	switch {
-	case r.Status == Closed:
+	case r.Status == Closed && s.Role != drafts.Editor: // an editor outlives its review's close
 		r.mu.Unlock()
 		return errors.New("review: the run is closed")
 	case s.Status == Working:
