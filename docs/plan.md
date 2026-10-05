@@ -682,6 +682,32 @@ different class of agent with its own rules, so it is kept apart:
   makes vuoro push to the merge request branch, or discards them. The editor
   never holds a forge credential and never pushes.
 
+**Fixing a reviewed change in a stacked merge request** (D39) comes first.
+After a review of somebody else's change, the kept findings, which the
+hand-off report lists, become the editor's task:
+
+1. "Fix these in a branch" is offered on a run whose reviewed head is still
+   the change's head, and which has at least one kept finding. A moved
+   change is reviewed again first, as Keep requires.
+2. vuoro makes a worktree at the reviewed head on a local branch
+   `vuoro/fix-<number>-<run>`, and starts one editor session in the sandbox
+   (D20) with the report as its first message. It may read, edit, build, and
+   test inside the worktree. It commits once per finding, with a message
+   naming the finding, and says which findings it left alone and why. It
+   gets no forge credential and no forge connector.
+3. The run shows the editor's commits as a diff, with each commit beside the
+   finding it answers, and the person can talk to the editor as to any
+   session. Discard deletes the branch and the worktree, and the forge never
+   hears of them.
+4. "Push and open a draft merge request" asks first, showing the branch, the
+   target, and an editable title and description. The description lists
+   each finding addressed, with its commit, and links the original merge
+   request. On confirming, vuoro pushes the branch to the change's project
+   with the person's credential, never in `argv`, and opens a Draft merge
+   request onto the original's source branch. The author marks it ready and
+   merges it, or does not. A change whose source branch lives in a fork is
+   refused for now, with the reason.
+
 ### 6.4 Other actions
 
 Summarising a change, summarising what changed since my last review, and the
@@ -1042,8 +1068,9 @@ and a terva-sh release).
   slices, then add GitHub through the same contracts.
 - **terva as a reviewer**, once a terva release allows its lockdown (section
   6.6, D28).
-- **The editor agent** (section 6.3), on the author's side, with its sandbox
-  decided by a spike first.
+- **The editor agent** (section 6.3), with its sandbox decided by a spike
+  first. Fixing a reviewed change in a stacked draft merge request comes
+  first (D39), then the author's side.
 - **Reviews before a push.** Review a local branch or range in the window, and
   carry the findings into the merge request. The headless command arrives in
   the MVP (D35).

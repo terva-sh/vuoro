@@ -484,3 +484,32 @@ options:
 
 "Their turn" and "Dormant" fold by default. Each reason kind gets one line on
 the row, with counts, rather than one line per thread.
+
+### D39. The editor fixes a review's kept findings in a stacked draft merge request, first
+
+On 2026-10-05 the owner asked to give a completed review's hand-off report to
+an editor agent. The editor addresses the concerns on a new branch from the
+review target, and a merge request goes against the original merge request.
+The goal is less friction to get code in. A reviewer who agrees with their
+comments can review the fixes and merge them without writing the changes
+themselves. One who does not can iterate from the proposal or start from
+scratch. This changes three earlier decisions:
+
+- **It brings reviewer-side editing forward.** It supersedes D18's order,
+  which put the editor on the person's own change first and others' changes
+  after v1.0. This comes first, and the author's side stays in v1.0.
+- **The fixes go to a new branch, not the merge request's branch.** It
+  supersedes D19's push target for this case. The author's own branch is
+  never pushed to. The editor still commits locally, one commit per finding,
+  and never holds a credential. vuoro pushes only when the person accepts
+  the commits after reviewing them as a diff.
+- **vuoro opens a Draft merge request** whose source is the new branch and
+  whose target is the original merge request's source branch. Its
+  description lists each finding addressed and links the original. The
+  person edits the title and description before it opens. The alternatives
+  were a ready merge request, and pushing the branch only.
+
+The sandbox comes first. The owner chose to run D20's spike before the
+editor is built, so the boundary is proven before an agent runs someone
+else's code. The alternatives were starting on Claude Code's own sandbox, or
+going straight to a container.
