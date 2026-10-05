@@ -1,9 +1,10 @@
 # The editor's sandbox: spike findings
 
-Status: findings, 2026-10-05, for TKT-01M3YMSVD4Y1ME5QST9BY818XD (Decide the
-editor agent's sandbox). D20 made a container the default and asked a spike to
-compare it with the alternatives. This page is the comparison. The choice is
-the owner's, because the recommendation differs from D20's default.
+Status: decided, 2026-10-05 (D40). This page is the comparison for
+TKT-01M3YMSVD4Y1ME5QST9BY818XD (Decide the editor agent's sandbox). The editor
+runs locally under Claude Code's own sandbox with `--restricted`, which is the
+follow-up section. It runs under `srt` when the person configures an API key
+for it.
 
 ## What the boundary must hold
 

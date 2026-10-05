@@ -513,3 +513,34 @@ The sandbox comes first. The owner chose to run D20's spike before the
 editor is built, so the boundary is proven before an agent runs someone
 else's code. The alternatives were starting on Claude Code's own sandbox, or
 going straight to a container.
+
+### D40. The editor runs locally under Claude Code's own sandbox, and under `srt` when it has an API key
+
+Decided by the owner on 2026-10-05, from the spike in docs/editor-sandbox.md.
+This supersedes D20's container default.
+
+- **By default the editor runs on the local machine** as Claude Code, with
+  the person's normal login. It runs with no user settings, hooks, or MCP
+  servers. `--restricted` confines its file tools to the worktree, and
+  symlinks are resolved before the check. Claude Code's sandbox confines
+  every shell command: no reads or writes of the home directory, no
+  unsandboxed retry, and no start at all when the sandbox is unavailable.
+  The network allows only the package registries the preset names, so
+  forges are refused. vuoro builds the environment from an allowlist, so it
+  holds no forge token. The spike recorded every probe holding, against
+  fake canaries.
+- **When the person configures an API key for the editor**, vuoro wraps the
+  whole Claude Code process in the sandbox runtime (`srt`). The operating
+  system then confines the file tools too, not only shell commands. Under
+  Seatbelt the macOS Keychain login is unreachable, so this mode needs a
+  credential handed in. With a key there is nothing to work around. The key
+  comes from a `token_command` or `token_env`, like a forge token, and only
+  the model endpoint is reachable with it. The owner raised this case. The
+  spike ran `srt`'s boundary with shell probes, and a run of Claude itself
+  under `srt` waits for a key to test with.
+- **A container stays a later opt-in.** It isolates files completely, but
+  it needs a toolchain image for each project and an egress proxy run by
+  vuoro, because podman's network is all or nothing.
+
+The alternatives were D20's container, and `srt` for everyone, which needs
+a separate long-lived token from `claude setup-token`.

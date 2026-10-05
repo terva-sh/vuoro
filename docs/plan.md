@@ -674,9 +674,14 @@ different class of agent with its own rules, so it is kept apart:
   cannot write. The editor is never parallel with another writer.
 - It works from the reviewers' priors: on the person's own change, the triaged
   threads and the findings.
-- It runs in a sandbox, by default a container with only its worktree
-  mounted, no forge credentials, and network limited to the model endpoint and
-  package registries. A spike decides the sandbox before the editor is built.
+- It runs in a sandbox (D40). By default it runs on the local machine as
+  Claude Code, with the person's login. `--restricted` confines its file
+  tools to the worktree. Claude Code's sandbox confines its shell commands,
+  with no home-directory reads or writes, no unsandboxed retry, and the
+  network limited to package registries. Its environment is built from an
+  allowlist and holds no forge credential. When the person configures an API
+  key for the editor, the sandbox runtime (`srt`) wraps the whole process
+  instead. docs/editor-sandbox.md has the spike's probes.
 - It commits on a local branch, one commit per finding or thread it addresses.
   The person reviews those commits as a diff, and then accepts them, which
   makes vuoro push to the merge request branch, or discards them. The editor
@@ -691,7 +696,7 @@ hand-off report lists, become the editor's task:
    change is reviewed again first, as Keep requires.
 2. vuoro makes a worktree at the reviewed head on a local branch
    `vuoro/fix-<number>-<run>`, and starts one editor session in the sandbox
-   (D20) with the report as its first message. It may read, edit, build, and
+   (D40) with the report as its first message. It may read, edit, build, and
    test inside the worktree. It commits once per finding, with a message
    naming the finding, and says which findings it left alone and why. It
    gets no forge credential and no forge connector.
