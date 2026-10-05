@@ -27,7 +27,9 @@ func (a *App) inbox() (*inbox.Service, error) {
 		})
 		if a.inboxErr != nil {
 			a.inboxErr = errors.New("The inbox cache could not load; check local state.")
+			return
 		}
+		a.inboxService.Dormant = a.config().Dormant()
 	})
 	return a.inboxService, a.inboxErr
 }

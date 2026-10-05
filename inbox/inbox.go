@@ -61,6 +61,10 @@ type View struct {
 type Resolver func(context.Context, config.Forge) (forge.Provider, error)
 
 type Service struct {
+	// Dormant folds a change quiet this long into the Dormant group (D38).
+	// Zero turns the group off. Set it before the first Display.
+	Dormant time.Duration
+
 	dir         string
 	accounts    []config.Forge
 	resolve     Resolver

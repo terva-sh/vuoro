@@ -32,6 +32,27 @@ type Config struct {
 	// Profiles are the person's own, beside the built-in code, security, and
 	// documentation profiles (D14).
 	Profiles []Profile `json:"profiles,omitempty"`
+	// Inbox tunes the inbox (D38).
+	Inbox *Inbox `json:"inbox,omitempty"`
+}
+
+// Inbox tunes the inbox.
+type Inbox struct {
+	// DormantDays folds a change with no human activity for this many days
+	// into the Dormant group. Zero means the default, 90.
+	DormantDays int `json:"dormant_days,omitempty"`
+}
+
+// DefaultDormantDays is how long a change may be quiet before it folds away.
+const DefaultDormantDays = 90
+
+// Dormant is how long a change may be quiet before it folds away.
+func (c *Config) Dormant() time.Duration {
+	days := DefaultDormantDays
+	if c != nil && c.Inbox != nil && c.Inbox.DormantDays > 0 {
+		days = c.Inbox.DormantDays
+	}
+	return time.Duration(days) * 24 * time.Hour
 }
 
 // Preset is a named set of reviewers.
@@ -186,6 +207,9 @@ func Parse(b []byte) (*Config, error) {
 			}
 		}
 		presets[p.Name] = true
+	}
+	if c.Inbox != nil && (c.Inbox.DormantDays < 0 || c.Inbox.DormantDays > 3650) {
+		return nil, errors.New("config: inbox.dormant_days: a number of days from 1 to 3650, or leave it out for 90")
 	}
 	profiles := map[string]bool{}
 	for i, p := range c.Profiles {

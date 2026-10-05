@@ -57,7 +57,7 @@ export function App() {
         <form class="open" onSubmit={(e) => { e.preventDefault(); void open(url) }}>
           <input
             type="url"
-            placeholder="https://gitlab.com/group/project/-/merge_requests/1"
+            placeholder="Open a change by URL…"
             value={url}
             onInput={(e) => setURL((e.target as HTMLInputElement).value)}
             aria-label="Merge request or pull request URL"

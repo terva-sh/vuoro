@@ -22,6 +22,9 @@ type Reason struct {
 	Text     string     `json:"text"`
 	Since    *time.Time `json:"since"`
 	ThreadID string     `json:"thread_id,omitempty"`
+	// Who is the person the reason is about, when there is one: who waits
+	// in a thread, who answered, or who requested changes.
+	Who string `json:"who,omitempty"`
 }
 
 type Turn struct {
@@ -38,6 +41,8 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 	add := func(rule, text string, at time.Time, thread string) {
 		out.Reasons = append(out.Reasons, Reason{Rule: rule, Text: text, Since: stamp(at), ThreadID: thread})
 	}
+	// by names whom the reason just added is about.
+	by := func(who string) { out.Reasons[len(out.Reasons)-1].Who = who }
 	if ch.State != forge.Open {
 		add("inactive", "This change is "+string(ch.State)+".", time.Time{}, "")
 		return out
@@ -95,6 +100,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 			replies := notes[mine+1:]
 			if slices.ContainsFunc(replies, func(n forge.Note) bool { return n.Author.Username == ch.Author.Username }) {
 				add("R3", ch.Author.Username+" answered in a thread you are in.", notesSince(replies, ch.Author.Username), thread.ID)
+				by(ch.Author.Username)
 			}
 		}
 	}
@@ -111,6 +117,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 				}
 			}
 			add("A1", notes[len(notes)-1].Author.Username+" is waiting for your answer in an unresolved thread.", notesSince(notes[start:], ""), thread.ID)
+			by(notes[len(notes)-1].Author.Username)
 		}
 		effective := verdicts(ch)
 		approved := false
@@ -125,6 +132,7 @@ func Derive(ch forge.Change, me string, roles []forge.Role) Turn {
 					text = r.Reviewer + " currently requests changes; the request’s age is unknown."
 				}
 				add("A2", text, r.At, "")
+				by(r.Reviewer)
 			}
 			if r.Verdict == forge.VerdictApproved {
 				approved = true
@@ -402,6 +410,36 @@ func realNotes(t forge.Thread) []forge.Note {
 	}
 	return out
 }
+
+// LastHumanActivity is the latest event a person made on the change: a
+// push, a review request, a review, or a real note. Bots, system notes, and
+// the forge's own updated stamp, which they move, do not count. It is nil
+// when no such event has a known time.
+func LastHumanActivity(ch forge.Change) *time.Time {
+	var at time.Time
+	update := func(v time.Time) {
+		if v.After(at) {
+			at = v
+		}
+	}
+	for _, p := range ch.Pushes {
+		update(p.At)
+	}
+	for _, r := range ch.Requests {
+		update(r.At)
+	}
+	for _, r := range ch.Reviews {
+		update(r.At)
+	}
+	for _, t := range ch.Threads {
+		for _, n := range realNotes(t) {
+			update(n.At)
+		}
+	}
+	update(ch.Created)
+	return stamp(at)
+}
+
 func activity(ch forge.Change) *time.Time {
 	at := ch.Updated
 	update := func(v time.Time) {

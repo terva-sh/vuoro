@@ -425,3 +425,17 @@ func TestDismissedLatestReviewStillAnswersEarlierPushAndRequest(t *testing.T) {
 		t.Fatalf("push after dismissed review lost boundary: %+v", got)
 	}
 }
+
+func TestLastHumanActivityIgnoresBotsSystemNotesAndTheUpdatedStamp(t *testing.T) {
+	at := func(d int) time.Time { return time.Date(2026, 1, d, 0, 0, 0, 0, time.UTC) }
+	ch := forge.Change{Created: at(1), Updated: at(28),
+		Pushes: []forge.Push{{At: at(3)}},
+		Threads: []forge.Thread{{Notes: []forge.Note{
+			{Author: forge.User{Username: "alice"}, At: at(5)},
+			{Author: forge.User{Username: "ci", Bot: true}, At: at(20)},
+			{Author: forge.User{Username: "alice"}, System: true, At: at(21)},
+		}}}}
+	if got := LastHumanActivity(ch); got == nil || !got.Equal(at(5)) {
+		t.Fatalf("last human activity %v, want the 5th", got)
+	}
+}

@@ -325,9 +325,30 @@ success, and expose fixed credential-free messages. Healthy accounts replace
 their own snapshots independently. The service launches no background poller.
 
 The home window reads a lightweight inbox projection: account refresh status
-and `mine`, `theirs` and `snoozed` rows with forge/project, roles, structured
-reasons and nullable ages. Each group sorts by oldest known unanswered age,
-then unknown ages, with stable change keys for ties. Patches and private drafts
+and `mine`, `theirs`, `dormant` and `snoozed` rows with forge/project, roles,
+structured reasons and nullable ages. Each row also carries its lane, a
+summary with one line per kind of reason ("8 threads await your answer:
+ehlertjd (5), naterichman (3)"), the threads behind the reasons (author,
+place, the first line of the last real note), and its last human activity.
+Each group sorts by oldest known unanswered age, then unknown ages, with
+stable change keys for ties.
+
+The inbox view follows D38. A header line holds each account's refresh state.
+Beneath it a summary strip counts what needs the person: changes requested on
+their changes (A2), ready to merge (A3), replies owed (A1, R3), and reviews
+requested (R1, R2, R2b). Each count filters the list. "Your turn" splits into
+lanes, their changes, then replies owed, then reviews, and a row sits in the
+lane of its most pressing reason. Rows are two lines: an age badge (blue under
+two days, amber under two weeks, magenta beyond, always with the number), the
+title and a short reference, then the role and the summary. "Their turn",
+"Dormant" and "Snoozed" fold until opened. A change with no human activity for
+`inbox.dormant_days` (default 90) is Dormant whoever's turn it is. Bots,
+system notes, and the forge's updated stamp do not count as activity. The
+selected row fills a detail pane with its actions, its summary, and its
+waiting threads. Snooze offers until tomorrow morning, a week, and until it
+changes, which the server keeps as 9999-12-31 so that only the event key ends
+it. Keys: j/k move, Enter opens in vuoro, o opens on the forge, s snoozes
+until tomorrow, r refreshes, and / focuses the URL field. Patches and private drafts
 are omitted. `/api/inbox`, `/api/inbox/refresh` and `/api/inbox/snooze` use the
 existing window guard and require no agent probing or ticket store. A bad config
 or unreadable cache is a visible failure, never an apparently empty inbox.

@@ -1,8 +1,11 @@
 # Inbox design: proposals
 
-Status: proposal, 2026-10-05. Nothing here is decided. The design of record is
-[plan.md](plan.md); a proposal the owner accepts gets a decision number and
-moves into the plan.
+Status: decided, 2026-10-05. The owner took proposals 1 through 8, with one
+addition: a summary strip over "Your turn", which splits into lanes. That is
+D38 in [decisions.md](decisions.md), and plan.md section 5 describes the inbox
+as built. The triage action and its `t` key are not in the detail pane yet,
+because a change opened in vuoro already offers triage to its author. Proposal 9 is still open. This page stays as the record of
+what the first real inbox showed.
 
 [mockups/inbox.html](mockups/inbox.html) sketches the result with synthetic
 data and the real stylesheet. Open it in a browser from `docs/mockups/`.

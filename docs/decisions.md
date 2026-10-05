@@ -454,3 +454,33 @@ whole context on every ask, and to draft a suggestion on every finding,
 which spends output on low findings the person rarely keeps. A suggestion is
 still text that a read-only agent writes, and keeping it is still the
 person's act, so D17 and "an agent drafts, a person posts" are unchanged.
+
+### D38. The inbox is a list with a detail pane, "Your turn" splits into lanes under a summary, quiet changes fold away, and snooze has three lengths
+
+Decided by the owner on 2026-10-05, after the first real inbox (docs/inbox-design.md)
+proved overwhelming as one long list. The owner chose each of the recommended
+options:
+
+- **A list and a detail pane.** Each row is two lines: an age badge, the
+  title and a short project reference, then the role and one summarised
+  reason. Selecting a row fills a pane on the right with what is waiting:
+  the threads awaiting a reply, with author, place, and first line, and the
+  change's actions. The alternative was a dense single column.
+- **A summary strip and lanes.** A strip counts what needs the person by
+  kind: changes requested on their changes, ready to merge, replies owed,
+  and reviews requested. Each count filters the list. "Your turn" splits
+  into lanes in that order: their own changes, then replies owed, then
+  reviews. A row sits in the lane of its most pressing reason. Within a lane
+  the oldest unanswered comes first, so D30's ordering holds inside each
+  lane. The alternative was D30's single list with only the strip.
+- **Dormant.** A change with no human activity for 90 days folds into a
+  "Dormant" group, whoever's turn it is. Bots, system notes, and the
+  change's own updated stamp do not count as activity. The threshold is
+  `inbox.dormant_days` in the config. Any new human event brings the change
+  back. The alternatives were 30 days and no dormant group.
+- **Snooze has three lengths:** until tomorrow morning, for a week, and until
+  something changes. The last has no date, and only a new forge event ends
+  it. The alternative was keeping the fixed day.
+
+"Their turn" and "Dormant" fold by default. Each reason kind gets one line on
+the row, with counts, rather than one line per thread.
