@@ -78,8 +78,8 @@ button.link:hover:not(:disabled) { background: none; text-decoration: underline;
   position: sticky; top: 0; z-index: 2;
 }
 .brand { font-weight: 700; color: var(--ui-heading); font-size: var(--ui-fs-body); }
-.open { display: flex; gap: var(--ui-space-2); flex: 1; }
-.open input { flex: 1; min-width: 0; }
+form.open { display: flex; gap: var(--ui-space-2); flex: 1; }
+form.open input { flex: 1; min-width: 0; }
 
 main { padding: var(--ui-space-4); }
 .home { max-width: 860px; }

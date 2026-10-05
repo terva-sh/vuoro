@@ -53,7 +53,13 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       })
       .catch((e: unknown) => setError(String(e)))
   }, [change]) // a refresh reads the change again, and the runs with it
-  usePoll(selected, setRun)
+  // A run read again replaces its entry in the list too, so the selector's
+  // label follows its status.
+  const update = (r: Run) => {
+    setRun(r)
+    setRuns((rs) => rs.map((x) => (x.id === r.id ? r : x)))
+  }
+  usePoll(selected, update)
   useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
@@ -74,7 +80,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   const close = async () => {
     if (!run) return
     try {
-      setRun(await post<Run>(`/api/runs/${run.id}/close`))
+      update(await post<Run>(`/api/runs/${run.id}/close`))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -115,7 +121,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} onClose={close} onPick={onPick} onRun={setRun} />}
+      {run && <RunView run={run} onClose={close} onPick={onPick} onRun={update} />}
     </div>
   )
 }
@@ -237,7 +243,7 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
   const a = d.anchor
   const decided = d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? '✗ dropped' : ''
   return (
-    <details class={`finding ${d.decision ?? 'open'}`}>
+    <details class={`finding ${d.decision ?? 'undecided'}`}>
       <summary>
         <SeverityBadge severity={d.severity} />
         {mark ? <ConfidenceBadge c={mark} mine={!!d.override} /> : <span class="badge muted">{checking ? '⧗ checking' : '· not checked'}</span>}
