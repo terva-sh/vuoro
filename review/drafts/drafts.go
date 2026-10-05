@@ -128,6 +128,7 @@ const (
 	Verifier                    // lists every draft, and only marks confidence
 	Triage                      // groups existing threads and drafts replies
 	Summary                     // no draft access; receives no MCP server
+	Suggester                   // sets the suggestion of its one Target draft
 )
 
 // Session is an agent session as the store knows it.
@@ -135,6 +136,8 @@ type Session struct {
 	ID      string
 	Role    Role
 	Drafted string // the tool and model, recorded on each draft
+	// Target is the one draft a Suggester may give a suggestion.
+	Target string
 }
 
 // RuleError is a draft that broke a rule. The agent sees Rule and Field, and
@@ -160,6 +163,9 @@ const (
 func Validate(p Proposal, role Role) error {
 	if role == Summary {
 		return &RuleError{"role.summary", "name", "a summary cannot draft"}
+	}
+	if role == Suggester {
+		return suggesterErr
 	}
 	if role == Triage {
 		return validateTriage(p)
@@ -343,6 +349,9 @@ func (st *Store) Withdraw(s Session, id string) (Draft, error) {
 	if s.Role == Verifier {
 		return Draft{}, roleErr
 	}
+	if s.Role == Suggester {
+		return Draft{}, suggesterErr
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	d, err := st.own(s, id)
@@ -355,8 +364,71 @@ func (st *Store) Withdraw(s Session, id string) (Draft, error) {
 	return *d, nil
 }
 
+// Suggest sets the suggestion of s's target draft, the lines that replace
+// its anchor at the head. anchor, when set, widens the draft's anchor to the
+// lines the suggestion replaces: the same file, head side, and covering the
+// lines it had. Nothing else of the draft changes.
+func (st *Store) Suggest(s Session, id string, anchor *Anchor, suggestion string) (Draft, error) {
+	switch {
+	case s.Role != Suggester:
+		return Draft{}, &RuleError{"suggest.role", "name", "only a suggestion session sets a suggestion this way"}
+	case id != s.Target:
+		return Draft{}, &RuleError{"suggest.target", "id", "the draft this session was started for, " + s.Target}
+	case strings.TrimSpace(suggestion) == "":
+		return Draft{}, &RuleError{"suggestion.empty", "suggestion", "the replacement lines; reply instead when none fixes it"}
+	case len(suggestion) > maxText:
+		return Draft{}, &RuleError{"suggestion.length", "suggestion", fmt.Sprintf("at most %d bytes", maxText)}
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	d := st.find(id)
+	switch {
+	case d == nil:
+		return Draft{}, &RuleError{"draft.unknown", "id", "the id of a draft in this run"}
+	case d.Status != Pending:
+		return Draft{}, &RuleError{"draft.withdrawn", "id", "a draft that is still pending"}
+	case d.Decision != "":
+		return Draft{}, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
+	case d.Anchor == nil || d.Anchor.Side != Head:
+		return Draft{}, &RuleError{"suggestion.anchor", "id", "a draft anchored on head-side lines"}
+	}
+	a := *d.Anchor
+	if anchor != nil {
+		w := *anchor
+		if w.Side == "" {
+			w.Side = Head
+		}
+		if w.EndLine == 0 {
+			w.EndLine = w.StartLine
+		}
+		if err := validateAnchor(&w); err != nil {
+			return Draft{}, err
+		}
+		switch {
+		case w.Path != a.Path || w.Side != Head:
+			return Draft{}, &RuleError{"suggestion.anchor", "anchor", "the draft's own file, " + a.Path + ", on the head side"}
+		case w.StartLine > a.StartLine || w.EndLine < a.EndLine:
+			return Draft{}, &RuleError{"suggestion.anchor", "anchor", fmt.Sprintf("a range that still covers lines %d–%d", a.StartLine, a.EndLine)}
+		}
+		if st.CheckAnchor != nil {
+			if err := st.CheckAnchor(w); err != nil {
+				return Draft{}, err
+			}
+		}
+		a = w
+	}
+	text := strings.TrimRight(suggestion, "\n")
+	d.Anchor, d.Suggestion = &a, &text
+	d.Revision++
+	d.Updated = st.now()
+	return *d, nil
+}
+
 // roleErr refuses a verifier anything but marking.
 var roleErr = &RuleError{"role.verifier", "name", "a verifier only lists drafts and rates them"}
+
+// suggesterErr refuses a suggestion session anything but its one suggestion.
+var suggesterErr = &RuleError{"role.suggester", "name", "a suggestion session only sets its draft's suggestion"}
 
 // Rate records a verifier's mark on a pending draft. It changes nothing the
 // person reads as the finding, so it does not count as a revision, and a
@@ -467,7 +539,7 @@ func (st *Store) List(s Session, withdrawn bool) []Draft {
 	defer st.mu.Unlock()
 	var out []Draft
 	for _, d := range st.drafts {
-		if (s.Role == Reviewer || s.Role == Triage) && d.Session != s.ID {
+		if (s.Role == Reviewer || s.Role == Triage) && d.Session != s.ID || s.Role == Suggester && d.ID != s.Target {
 			continue
 		}
 		if d.Status == Withdrawn && !withdrawn {

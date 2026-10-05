@@ -59,6 +59,7 @@ func TestEachRoleListsOnlyItsOwnTools(t *testing.T) {
 		Reviewer:    edit,
 		Synthesizer: edit,
 		Verifier:    {"list_drafts", "rate_draft"},
+		Suggester:   {"read_draft", "set_suggestion"},
 	} {
 		tok := srv.Register(st, Session{ID: "s", Role: role})
 		_, out := rpc(t, url, tok, "tools/list", nil)
@@ -213,5 +214,52 @@ func TestOneServerKeepsEachRunsDraftsApart(t *testing.T) {
 	text, _ := callTool(t, url, ts, "list_drafts", nil)
 	if text != `{"drafts":[]}` || len(other.All()) != 0 || len(st.All()) != 1 {
 		t.Fatalf("another run's synthesizer saw %s", text)
+	}
+}
+
+func TestOverMCPASuggestionSessionSetsOnlyItsDraftsSuggestion(t *testing.T) {
+	st, srv, url := setup(t)
+	ta := srv.Register(st, alice)
+	for _, title := range []string{"Add subtracts", "Other"} {
+		if text, isErr := callTool(t, url, ta, "propose_draft", map[string]any{"severity": "high", "title": title, "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3, "end_line": 4}}); isErr {
+			t.Fatal(text)
+		}
+	}
+	tg := srv.Register(st, Session{ID: "g", Role: Suggester, Drafted: "Claude Code · sonnet", Target: "d1"})
+	if text, isErr := callTool(t, url, tg, "read_draft", map[string]any{}); isErr || !strings.Contains(text, "Add subtracts") || strings.Contains(text, "Other") {
+		t.Fatalf("read_draft: %q", text)
+	}
+	for name, args := range map[string]map[string]any{
+		"propose_draft":  {"severity": "high", "title": "x", "description": "y"},
+		"revise_draft":   {"id": "d1", "severity": "low", "title": "x", "description": "y"},
+		"withdraw_draft": {"id": "d1"},
+		"list_drafts":    {},
+	} {
+		if text, isErr := callTool(t, url, tg, name, args); !isErr || !strings.Contains(text, "tool.unknown") {
+			t.Fatalf("a suggestion session called %s: %q", name, text)
+		}
+	}
+	refused := map[string]map[string]any{
+		"suggest.target":    {"id": "d2", "suggestion": "x"},
+		"suggestion.empty":  {"id": "d1", "suggestion": "  "},
+		"suggestion.anchor": {"id": "d1", "suggestion": "x", "anchor": map[string]any{"path": "calc.go", "start_line": 4, "end_line": 6}},
+	}
+	for rule, args := range refused {
+		if text, isErr := callTool(t, url, tg, "set_suggestion", args); !isErr || !strings.Contains(text, rule) {
+			t.Fatalf("want %s: %q", rule, text)
+		}
+	}
+	if text, isErr := callTool(t, url, tg, "set_suggestion", map[string]any{"id": "d1", "suggestion": "a\nb\nc\n",
+		"anchor": map[string]any{"path": "calc.go", "start_line": 2, "end_line": 4}}); isErr {
+		t.Fatal(text)
+	}
+	d, _ := st.Get("d1")
+	if d.Suggestion == nil || *d.Suggestion != "a\nb\nc" || d.Anchor.StartLine != 2 || d.Anchor.EndLine != 4 ||
+		d.Title != "Add subtracts" || d.Session != alice.ID || d.Revision != 2 {
+		t.Fatalf("after set_suggestion %+v", d)
+	}
+	if other, _ := st.Get("d2"); other.Suggestion != nil {
+		t.Fatal("the other draft got a suggestion")
 	}
 }

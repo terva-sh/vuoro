@@ -66,7 +66,8 @@ export interface Entry {
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; cost_usd: number }
 export interface SessionInfo { tool: string; version: string; model: string; account: string; tools: string[] }
 export interface Session {
-  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage' | 'summary'
+  id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage' | 'summary' | 'suggester'
+  target?: string // a suggester's draft
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {

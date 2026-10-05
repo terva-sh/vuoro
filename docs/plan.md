@@ -571,11 +571,26 @@ which wins, and the verifier's stays beside it. A preset's `verifier` names
 its tool and model, and the default is the synthesizer's, or else the first
 reviewer's.
 
-A reviewer can draft a suggestion (D31). On a finding on head-side lines that
-the person has not yet decided, "Ask for a suggestion" sends the session that
-drafted it a request to revise it with `suggestion`: the exact text that
-replaces the anchor's lines. Validation refuses a suggestion without a
-head-side anchor (`suggestion.anchor`). Keeping the finding puts a GitLab
+A reviewer drafts a suggestion with the finding (D31, D37). On a critical,
+high, or medium finding whose fix is a replacement of the anchored head lines,
+about 20 at most, it sets `suggestion`: the exact text that replaces the
+anchor's lines. It sets none on low or info findings. The synthesizer carries
+a source's suggestion only when its anchor covers exactly those lines, and the
+verifier's reason ends with "suggestion: …" when the suggestion would not fix
+the finding. Validation refuses a suggestion without a head-side anchor
+(`suggestion.anchor`).
+
+On a finding on head-side lines that the person has not yet decided and that
+has none, "Ask for a suggestion" starts a fresh session on the drafting
+session's tool and model. Its first message is the finding and its place, with
+no diff and no transcript, and it reads the file from the worktree. Its drafts
+role, Suggester, lists two tools: `read_draft`, which returns its one draft,
+and `set_suggestion`, which sets that draft's suggestion and may widen its
+anchor within the same file. It cannot propose, revise, withdraw, or rate. The
+session shows in the run as "suggestion d<n>", and it does not count toward
+the review being complete.
+
+Keeping the finding puts a GitLab
 ```` ```suggestion:-N+0 ```` block in the comment, reaching back from the
 anchor's last line, where the comment lands, over the whole range, so the
 author can apply it. Every fence is longer than any run of backticks inside
@@ -795,18 +810,19 @@ drafts MCP server to each agent session) and held in `review/drafts`:
   response and opens no event stream.
 - Each session registers with the run and gets a bearer token of its own,
   which says which session it is and whether it is a reviewer, the
-  synthesizer, or the verifier. The token reaches Claude Code in the MCP config file of mode
+  synthesizer, the verifier, or a suggestion session and its one draft. The token reaches Claude Code in the MCP config file of mode
   0600, never in `argv`.
 - Its tools depend on the role, and none reaches a forge. A reviewer and the
   synthesizer have `list_drafts`, `propose_draft`, `revise_draft`, and
   `withdraw_draft`. A reviewer lists and changes only its own drafts. The
   synthesizer lists every draft, and each draft it proposes names its
-  sources. The verifier has only `list_drafts` and `rate_draft`, and the
-  driver's allowlist is built from the same per-role list, which a test
+  sources. The verifier has only `list_drafts` and `rate_draft`. A
+  suggestion session has only `read_draft` and `set_suggestion`, for its one
+  draft (D37). The driver's allowlist is built from the same per-role list, which a test
   holds.
 - A draft has a severity, a title, a description, optional evidence, an
-  optional anchor (path, side, start and end line), and, from the synthesizer,
-  sources. These follow terva-action-code-review's review-result.v1. A
+  optional anchor (path, side, start and end line), an optional suggestion
+  on head-side lines, and, from the synthesizer, sources. These follow terva-action-code-review's review-result.v1. A
   proposal that breaks a rule comes back as a tool error that names the rule
   and the field, such as `rule anchor.range at anchor/end_line`, and never
   quotes the proposal. A withdrawn draft stays in the store, marked, so the

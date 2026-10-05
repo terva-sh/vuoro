@@ -120,6 +120,8 @@ type Session struct {
 	// nudging is set from the decision to send a verifier back until the
 	// message is sent, so the run does not read as settled in between.
 	nudging bool
+	// Target is the draft a suggestion session writes a suggestion for.
+	Target string
 }
 
 // Entry is one line of a session's transcript, as the person reads it.
@@ -362,7 +364,7 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		s.driver = d
 	}
 	if s.token == "" {
-		s.token = m.Drafts.Register(r.store, drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted()})
+		s.token = m.Drafts.Register(r.store, drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted(), Target: s.Target})
 	}
 	spec := s.spec
 	spec.Dir = r.dir
@@ -646,10 +648,12 @@ func (m *Manager) Decide(runID, id, decision, noteID string, edited bool) error 
 	return nil
 }
 
-// AskSuggestion sends the session that drafted a finding the person's
-// request for a suggestion: the lines that replace the finding's range, added
-// with revise_draft. The draft must still be the person's to decide, on
-// head-side lines.
+// AskSuggestion starts a fresh session to write the suggested change for one
+// finding: the lines that replace its range at the head (D37). It does not
+// resume the session that drafted the finding, whose context holds the whole
+// change. The new session reads only what it needs, and its token may set
+// that one draft's suggestion and nothing else. The draft must still be the
+// person's to decide, on head-side lines.
 func (m *Manager) AskSuggestion(runID, id string) error {
 	r := m.Get(runID)
 	if r == nil {
@@ -664,22 +668,36 @@ func (m *Manager) AskSuggestion(runID, id string) error {
 	case d.Anchor == nil || d.Anchor.Side != drafts.Head:
 		return fmt.Errorf("review: %s is not on lines of the change's head, so there is nothing for a suggestion to replace", id)
 	}
-	_, s, err := m.find(runID, d.Session)
-	if err != nil {
-		return err
+	r.mu.Lock()
+	if r.Status == Closed || r.Status == Preparing || r.Status == Failed {
+		r.mu.Unlock()
+		return fmt.Errorf("review: the run is %s", r.Status)
 	}
-	a := d.Anchor
-	text := fmt.Sprintf(`The person asks for a suggestion on your draft %s, %q, at %s lines %d–%d of the head.
-
-Read those lines, then call revise_draft with id %s, keeping its severity,
-title, description, evidence, and anchor as they are, and adding suggestion:
-the exact text that replaces lines %d–%d, as whole lines with their
-indentation, and no code fence. The author applies it as it stands, so it
-must be correct and complete for those lines. When the fix needs lines
-outside the range, widen the anchor to cover them, keeping to lines the diff
-shows. When no replacement of those lines fixes it, say why, and do not
-revise.`, d.ID, d.Title, a.Path, a.StartLine, a.EndLine, d.ID, a.StartLine, a.EndLine)
-	return m.send(r, s, text, true)
+	var drafter *Session
+	for _, s := range r.sessions {
+		if s.Role == drafts.Suggester && s.Target == id && (s.Status == Working || s.Status == Preparing) {
+			r.mu.Unlock()
+			return fmt.Errorf("review: a suggestion for %s is already being written", id)
+		}
+		if s.ID == d.Session {
+			drafter = s
+		}
+	}
+	if drafter == nil {
+		r.mu.Unlock()
+		return ErrNoRun
+	}
+	s := &Session{
+		ID: fmt.Sprintf("s%d", len(r.sessions)+1), Profile: "suggestion", Tool: drafter.Tool, Model: drafter.Model,
+		Role: drafts.Suggester, Target: id, Status: Preparing,
+		spec: agent.Spec{SystemPrompt: suggestionPrompt(), Model: drafter.Model},
+	}
+	r.sessions = append(r.sessions, s)
+	r.settle()
+	r.mu.Unlock()
+	r.save()
+	go m.begin(r, s, suggestionMessage(d))
+	return nil
 }
 
 // Override records the person's own confidence mark on one of a run's

@@ -152,7 +152,7 @@ function RunView({ run, onClose, onPick, onRun }: {
         {run.sessions.map((s) => (
           <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
             onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
-            <strong>{s.profile}</strong> <StatusBadge status={s.status} />
+            <strong>{s.profile}{s.target ? ` ${s.target}` : ''}</strong> <StatusBadge status={s.status} />
             <span class="muted">{s.info?.model ?? s.model ?? ''} · {usd(s.usage.cost_usd)}</span>
           </button>
         ))}
@@ -338,7 +338,7 @@ export function SessionPane({ run, session }: { run: Run; session: Session }) {
   return (
     <div class="session">
       <header class="session-head">
-        <strong>{session.profile}</strong>
+        <strong>{session.profile}{session.target ? ` for ${session.target}` : ''}</strong>
         <StatusBadge status={session.status} />
         <span class="muted">
           {i ? `${i.tool} ${i.version} · ${i.model}${i.account ? ` · ${i.account}` : ''}` : `${session.tool}${session.model ? ` · ${session.model}` : ''}`}

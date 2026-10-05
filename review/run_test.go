@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -516,14 +517,16 @@ func TestAVerifierMarksEveryFindingAfterTheSynthesizerAndIsSentBackOnce(t *testi
 	m.Close(context.Background(), r.ID)
 }
 
-func TestAskingForASuggestionGoesToTheSessionThatDraftedIt(t *testing.T) {
-	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
-		if strings.HasPrefix(text, "The person asks for a suggestion on your draft d1") {
-			if !strings.Contains(text, "calc.go lines 3–3") {
-				return "the request named no range"
+func TestAskingForASuggestionStartsASmallSessionForThatDraftAlone(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		if strings.HasPrefix(text, "Write the suggested change for draft d1") {
+			if !strings.Contains(text, "calc.go lines 3–3") || strings.Contains(text, "<diff>") {
+				return "the request named no range, or carried the diff"
 			}
-			call("revise_draft", map[string]any{"id": "d1", "severity": "high", "title": "Add subtracts", "description": "d",
-				"anchor": map[string]any{"path": "calc.go", "start_line": 3}, "suggestion": "func Add(a, b int) int { return a + b }"})
+			if out, isErr := call("revise_draft", map[string]any{"id": "d1", "severity": "low", "title": "x", "description": "d"}); !isErr {
+				return "revised: " + out
+			}
+			call("set_suggestion", map[string]any{"id": "d1", "suggestion": "func Add(a, b int) int { return a + b }"})
 			return "Suggested."
 		}
 		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
@@ -532,7 +535,7 @@ func TestAskingForASuggestionGoesToTheSessionThatDraftedIt(t *testing.T) {
 			"anchor": map[string]any{"path": "calc.go", "side": "base", "start_line": 3}})
 		return "done"
 	})
-	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake", Model: "m1"}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,9 +546,35 @@ func TestAskingForASuggestionGoesToTheSessionThatDraftedIt(t *testing.T) {
 	if err := m.AskSuggestion(r.ID, "d1"); err != nil {
 		t.Fatal(err)
 	}
-	v := wait(t, r, func(v RunView) bool { return idle(v) && v.Drafts[0].Suggestion != nil })
-	if *v.Drafts[0].Suggestion != "func Add(a, b int) int { return a + b }" {
-		t.Fatalf("suggestion %q", *v.Drafts[0].Suggestion)
+	v := wait(t, r, func(v RunView) bool { return idle(v) && v.Drafts[0].Suggestion != nil && len(v.Sessions) == 2 })
+	if *v.Drafts[0].Suggestion != "func Add(a, b int) int { return a + b }" || v.Drafts[0].Severity != "high" {
+		t.Fatalf("draft %+v", v.Drafts[0])
+	}
+	g := v.Sessions[1]
+	if g.Role != "suggester" || g.Target != "d1" || g.Model != "m1" || g.Profile != "suggestion" {
+		t.Fatalf("suggestion session %+v", g)
+	}
+	// Nothing was sent to the drafting session.
+	for _, e := range v.Sessions[0].Log {
+		if e.Kind == "user" {
+			t.Fatalf("the drafting session was sent %q", e.Text)
+		}
+	}
+	d.mu.Lock()
+	spec := d.specs[len(d.specs)-1]
+	d.mu.Unlock()
+	if spec.Resume != "" || !slices.Equal(spec.Drafts.Tools, []string{"read_draft", "set_suggestion"}) || !strings.Contains(spec.SystemPrompt, "set_suggestion") {
+		t.Fatalf("suggestion spec resume %q tools %q", spec.Resume, spec.Drafts.Tools)
+	}
+	if !v.ReviewComplete {
+		t.Fatal("a suggestion session made the review incomplete")
+	}
+	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: m.Drivers, Drafts: m.Drafts, MCPURL: m.MCPURL}
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if back := m2.Get(r.ID).View().Sessions[1]; back.Role != "suggester" || back.Target != "d1" {
+		t.Fatalf("reloaded %+v", back)
 	}
 	m.Decide(r.ID, "d1", drafts.Kept, "41", false)
 	if err := m.AskSuggestion(r.ID, "d1"); err == nil {

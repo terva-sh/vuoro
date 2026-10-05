@@ -168,6 +168,9 @@ func instructions(role Role) string {
 	if role == Triage {
 		return "Group each supplied human thread as must_fix, discuss, or nit with a reason. Use propose_draft with thread_id, category, reason and optional description (a reply). You only write local drafts. The person edits, accepts and posts."
 	}
+	if role == Suggester {
+		return "You write the suggested change for one finding. read_draft shows it. Set the replacement lines with set_suggestion, or reply saying why no replacement of those lines fixes it. You cannot change anything else."
+	}
 	if role == Verifier {
 		return "You check the findings other agents drafted. list_drafts shows them. Mark each one with rate_draft: confirmed, plausible, or doubtful, with a one-line reason. You cannot propose, change, or withdraw a draft."
 	}
@@ -192,6 +195,33 @@ func Tools(role Role) []map[string]any {
 		}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	}
+	if role == Suggester {
+		return []map[string]any{{
+			"name":        "read_draft",
+			"description": "Read the finding this session writes a suggestion for.",
+			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+			"annotations": map[string]any{"readOnlyHint": true},
+		}, {
+			"name":        "set_suggestion",
+			"description": "Set the finding's suggested change: the exact text that replaces its anchored head lines. Setting it again replaces it.",
+			"inputSchema": map[string]any{"type": "object", "required": []string{"id", "suggestion"}, "properties": map[string]any{
+				"id":         map[string]any{"type": "string"},
+				"suggestion": map[string]any{"type": "string", "description": "Whole lines with their indentation, with no code fence, replacing every line of the anchor."},
+				"anchor": map[string]any{
+					"type":        "object",
+					"description": "Only to widen the range the suggestion replaces: the same file, head side, still covering the finding's lines, on lines the diff shows.",
+					"required":    []string{"path", "start_line", "end_line"},
+					"properties": map[string]any{
+						"path":       map[string]any{"type": "string"},
+						"side":       map[string]any{"type": "string", "enum": []Side{Head}},
+						"start_line": map[string]any{"type": "integer", "minimum": 1},
+						"end_line":   map[string]any{"type": "integer", "minimum": 1},
+					},
+				},
+			}},
+			"annotations": map[string]any{"readOnlyHint": false, "destructiveHint": false},
+		}}
+	}
 	if role == Verifier {
 		return []map[string]any{list, {
 			"name":        "rate_draft",
@@ -209,7 +239,7 @@ func Tools(role Role) []map[string]any {
 		"title":       map[string]any{"type": "string", "description": "One line, at most 256 bytes."},
 		"description": map[string]any{"type": "string", "description": "What is wrong and why it matters."},
 		"evidence":    map[string]any{"type": "string", "description": "What in the code shows it."},
-		"suggestion":  map[string]any{"type": "string", "description": "Only when the person asks for one: the exact text that replaces the anchor's lines from start_line to end_line at the head, as whole lines with their indentation, with no code fence. Needs a head-side anchor."},
+		"suggestion":  map[string]any{"type": "string", "description": "For a critical, high, or medium finding whose fix is a replacement of the anchored lines: the exact text that replaces them from start_line to end_line at the head, as whole lines with their indentation, with no code fence. Needs a head-side anchor."},
 		"anchor": map[string]any{
 			"type":     "object",
 			"required": []string{"path", "start_line"},
@@ -318,6 +348,24 @@ func (e entry) call(name string, args json.RawMessage) map[string]any {
 		}
 		if err = strictUnmarshal(args, &p); err == nil {
 			out, err = e.store.Withdraw(sess, p.ID)
+		}
+	case "read_draft":
+		if err = strictUnmarshal(args, &struct{}{}); err == nil {
+			list := e.store.List(sess, false)
+			if len(list) != 1 {
+				err = &RuleError{"draft.withdrawn", "id", "a draft that is still pending"}
+			} else {
+				out = list[0]
+			}
+		}
+	case "set_suggestion":
+		var p struct {
+			ID         string  `json:"id"`
+			Suggestion string  `json:"suggestion"`
+			Anchor     *Anchor `json:"anchor"`
+		}
+		if err = strictUnmarshal(args, &p); err == nil {
+			out, err = e.store.Suggest(sess, p.ID, p.Anchor, p.Suggestion)
 		}
 	case "rate_draft":
 		var p struct {

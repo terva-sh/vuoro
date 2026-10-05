@@ -45,6 +45,7 @@ type SessionView struct {
 	Log           []Entry            `json:"log"`
 	FirstComplete bool               `json:"first_turn_complete,omitempty"`
 	FirstReported bool               `json:"first_turn_reported,omitempty"`
+	Target        string             `json:"target,omitempty"` // a suggestion session's draft
 }
 
 // View returns a copy of the run's state.
@@ -65,12 +66,13 @@ func (r *Run) View() RunView {
 		v.Threads = append(v.Threads, cleanThread(t))
 	}
 	for _, s := range r.sessions {
-		v.ReviewComplete = v.ReviewComplete && s.FirstComplete
+		// A suggestion asked for later is not part of the review.
+		v.ReviewComplete = v.ReviewComplete && (s.FirstComplete || s.Role == drafts.Suggester)
 		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
 		v.Sessions = append(v.Sessions, SessionView{
 			ID: s.ID, Profile: s.Profile, Tool: s.Tool, Model: s.Model, Role: role,
-			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, FirstComplete: s.FirstComplete, FirstReported: s.reported,
+			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, FirstComplete: s.FirstComplete, FirstReported: s.reported, Target: s.Target,
 			Log: append([]Entry(nil), s.Log...),
 		})
 	}
@@ -81,7 +83,7 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -150,7 +152,7 @@ func (m *Manager) Load() error {
 			s := &Session{
 				ID: sv.ID, Profile: sv.Profile, Tool: sv.Tool, Model: sv.Model, Role: drafts.Reviewer,
 				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, Log: sv.Log,
-				Ref: rec.Resume[sv.ID], FirstComplete: sv.FirstComplete,
+				Ref: rec.Resume[sv.ID], FirstComplete: sv.FirstComplete, Target: sv.Target,
 				// A legacy ended/failed session is already past its initial turn.
 				reported: sv.FirstReported || sv.FirstComplete || sv.Status != Waiting,
 			}
@@ -169,6 +171,8 @@ func (m *Manager) Load() error {
 				s.spec = agent.Spec{SystemPrompt: synthesisPrompt(), Model: s.Model}
 			case s.Role == drafts.Verifier:
 				s.spec = agent.Spec{SystemPrompt: verificationPrompt(), Model: s.Model}
+			case s.Role == drafts.Suggester:
+				s.spec = agent.Spec{SystemPrompt: suggestionPrompt(), Model: s.Model}
 			case ok:
 				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
 			}

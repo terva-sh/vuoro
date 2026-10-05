@@ -192,7 +192,7 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
               <button onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/drop`, {}).catch(() => undefined)}>Drop</button>
               {a?.side === 'head' && draft.suggestion === undefined && (
                 <button disabled={asked === 'asked'} onClick={ask}
-                  title="The agent that drafted this writes the replacement lines, and keeping it posts a suggestion the author can apply">
+                  title="A small new session reads this finding and its file and writes the replacement lines. Keeping the finding then posts a suggestion the author can apply">
                   {asked === 'asked' ? '⧗ Asked for a suggestion' : 'Ask for a suggestion'}
                 </button>
               )}

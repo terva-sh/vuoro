@@ -419,3 +419,33 @@ cancellation of the whole account still keeps the previous snapshot.
 The alternative was to keep all-or-nothing snapshots and fix each read failure
 as it appears. That hides every other change behind any one forge oddity, and
 the inbox is where the person looks first.
+
+### D37. Reviewers draft suggestions with their findings, and asking for one starts a small session
+
+On 2026-10-05 the owner found "Ask for a suggestion" slow, and saw that each
+ask resumed the drafting session with its whole context. That context was
+about 100k tokens on a real merge request, and an ask took 8 to 18 seconds.
+The owner asked for TKT-01M46PWG2Z425KSDH07BTDRNP6 (Draft suggestions with
+findings, and ask for one in a small session). This supersedes the part of
+D31 that drafts a suggestion only "when the person asks".
+
+- **A reviewer drafts the suggestion with the finding.** On a critical, high,
+  or medium finding whose fix is a replacement of the anchored head lines,
+  about 20 lines at most, the reviewer adds the replacement while it still
+  has the code in mind. It adds none for a low or info finding, or when the
+  fix is elsewhere, spans files, or is a matter of judgement.
+- **The synthesizer carries it** when its merged anchor covers exactly the
+  lines the suggestion replaces, and drops it otherwise. It writes none of
+  its own.
+- **The verifier checks it.** Its reason ends with "suggestion: …" when
+  applying the suggestion would not fix the finding.
+- **Asking starts a fresh, small session.** It gets the finding and where it
+  sits, and reads the file itself. Its drafts role, Suggester, may read that
+  one draft and set its suggestion, widening the anchor in the same file at
+  most, and nothing else. It does not resume the drafting session.
+
+The alternatives were to keep asking the drafting session, which pays for its
+whole context on every ask, and to draft a suggestion on every finding,
+which spends output on low findings the person rarely keeps. A suggestion is
+still text that a read-only agent writes, and keeping it is still the
+person's act, so D17 and "an agent drafts, a person posts" are unchanged.
