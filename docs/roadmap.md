@@ -16,6 +16,7 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 | Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9; the home inbox landed in PR #10 with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed for 24 open PRs. GitLab personal-account comparison passed on 2026-10-03 for an empty inbox (zero requested reviews and zero open memberships); authenticated nonempty GitLab turn facts and pagination remain unexercised live. |
 | Author help | Thread classification and local replies are implemented, with explicit editing, acceptance into pending comments and Submit. [Interaction sketch](author-triage.md) records the flow and stale-thread states; fixture coverage proves posting boundaries. Live GitLab posting is validated above. |
 | Review lifecycle | Token/cost displays and head-SHA flags already exist. Run and draft badges now show verified commit distance, with explicit rewritten/unavailable states and old-head drafts separated from today’s diff. Unknown-cost labeling and retention remain. |
+| Command-line review | `vuoro review` runs a preset on a local range or a change URL and prints its findings, with no forge write path (D35, plan section 6.7). Dogfooded on 2026-10-05 against its own branch and the sandbox MR. |
 | External blockers | Terva reviewers wait for a release whose per-run MCP configuration and lockdown are proven. The editor waits for a sandbox spike. Neither blocks the inbox. |
 
 The shared boundary is deliberately specific: forges use `forge.Provider` and
@@ -102,7 +103,6 @@ it passed separately on 2026-10-05 with the owner's configured token.
 
 | Work | Ticket | What remains |
 |---|---|---|
-| Command-line review | TKT-01M46B3VTQXGGYRG88BX49PJXZ — Run a review from the command line on a range or a change | `vuoro review` on a local range or change URL, for dogfooding (D35, plan section 6.7). |
 | Usage display | TKT-01M3YMSST3CNA34862NNERKMN2 — Show tokens and cost per session and per review run | Audit existing displays and totals, especially tools with no reported cost. |
 | Ticket context | TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM — Decide how a change finds its git-ticket store and ticket; then TKT-01M3W4HX1PHPQ98KX0PE5HW60E — Show a change's ticket, and give it to reviewers as context | Settle linking and store discovery before implementation; no ticket UI or dependency when absent. |
 | Retention | TKT-01M3YMSSX3WH3Q6TW6BCGK7XV7 — Keep review runs until the change closes, then 30 days | Configurable deletion of expired transcripts and preservation of one-line run records. |

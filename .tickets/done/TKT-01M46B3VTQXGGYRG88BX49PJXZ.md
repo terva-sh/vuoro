@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M46B3VTQXGGYRG88BX49PJXZ
 title: Run a review from the command line on a range or a change
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -17,17 +17,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/cli-review-20261005
-  branch: tickets/cli-review
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 6890c242c0798a645b476f273a995e52db0d4eb6
-  session: null
-  claimed_at: 2026-10-05T15:32:30Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-05T15:32:30Z
-updated_at: 2026-10-05T15:34:02Z
+updated_at: 2026-10-05T15:43:33Z
 created_by:
   id: agent:claude-code/cli-review-20261005
   name: ""
@@ -47,13 +40,13 @@ The command has no write path to a forge.
 
 ## Acceptance criteria
 
-- [ ] vuoro review on a local range runs the chosen preset and prints its findings as Markdown
-- [ ] vuoro review on a GitLab or Forgejo change URL reviews that change the same way
-- [ ] -json prints one envelope with schemaVersion and kind, and a test holds its shape
-- [ ] Exit status is 0 with no findings, 1 with findings, 2 for usage, and 3 for a failed run
-- [ ] A test runs the command against a recording forge and proves it sends no write
-- [ ] The drafts MCP server it serves goes through the loopback guard with per-session credentials
-- [ ] vuoro reviews one of its own changes with the command, and the run is recorded
+- [x] vuoro review on a local range runs the chosen preset and prints its findings as Markdown
+- [x] vuoro review on a GitLab or Forgejo change URL reviews that change the same way
+- [x] -json prints one envelope with schemaVersion and kind, and a test holds its shape
+- [x] Exit status is 0 with no findings, 1 with findings, 2 for usage, and 3 for a failed run
+- [x] A test runs the command against a recording forge and proves it sends no write
+- [x] The drafts MCP server it serves goes through the loopback guard with per-session credentials
+- [x] vuoro reviews one of its own changes with the command, and the run is recorded
 
 ## Implementation plan
 
@@ -66,3 +59,21 @@ docs/plan.md section 6.7 is the design. The slices:
 5. **web**: the home run list shows a local run unlinked and marked local, since it has no forge page.
 6. **Tests**: local ranges (`..`, `...`, a single rev, the default, renames, binary, dirty tree, a bad range); `Findings`; the command end to end with the fake driver, on a local range and on a change URL against a recording fake GitLab that refuses any write; the JSON shape; exit statuses.
 7. **Dogfood**: run `vuoro review -preset quick` on this branch's own commits and record the result.
+
+## Notes
+
+**agent:claude-code/cli-review-20261005** at 2026-10-05T15:43:33Z
+
+Built and dogfooded on 2026-10-05.
+
+- **Local range:** `vuoro review -preset quick main..HEAD` on this branch reviewed its own two commits with one Sonnet reviewer plus a verifier, for $1.26 in about four minutes, and exited 1. It found one real problem, confirmed by the verifier: `Settled`'s doc comment had been inserted inside `settle`'s. That is fixed in a6f4c95.
+- **Change URL:** `vuoro review -preset quick -json https://gitlab.com/drewshort/vuoro-sandbox/-/merge_requests/1` returned a `review-result` envelope, outcome clean, exit 0, $0.02. Afterwards the MR's newest note was still the 15:02 write-test note, and it had no pending drafts.
+- **Offline tests:** review/local_test.go (range forms, renames, binary, deletes, dirty tree, refusals, checkout through Repos); review/findings_test.go; review_cmd_test.go (local range, JSON shape, exit statuses, interrupt, the quick default, a recording GitLab that refuses every write, and MCP guard refusals for a foreign Host, a foreign Origin, no credential, and a made-up credential); web/src/runlist.test.tsx.
+
+One change outside the command: `Run.Settled` needed a `nudging` flag. A verifier sent back for unmarked findings is otherwise idle for a moment before the nudge lands, which would read as settled.
+
+Not done here, and kept in TKT-01M3YMSV6BABG7EW1NP8J6W5SR: carrying a local review's findings into the merge request opened later, and reviewing a local range from the window.
+
+## Summary
+
+vuoro review runs a preset or one profile on a local range or a change URL, through the window's own runner, drivers, lockdown, synthesis and verification. It prints Markdown findings or a review-result JSON envelope, exits 0/1/2/3/130, and has no forge write path, which a recording-forge test proves. Its drafts MCP server sits behind the loopback guard. Dogfooded on its own branch (one real finding, fixed) and on the sandbox MR. docs/plan.md section 6.7 and D35 record the design.
