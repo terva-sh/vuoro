@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
-import { DraftCard, FileView } from './diffview'
+import { DraftCard, FileList, fileID, FileView, manyFiles } from './diffview'
 import { HeadBadge, useHead } from './head'
-import type { Change, Draft, EditorDetail, Entry, Level, Run, Session, Setup, StackPreview } from './types'
+import type { Change, Draft, EditorDetail, Entry, FileDiff, Level, Run, Session, Setup, StackPreview } from './types'
 import { refKey } from './types'
 import { WriteContext } from './write'
 import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
@@ -142,43 +142,51 @@ function RunView({ run, url, onClose, onPick, onRun }: {
   const unchecked = shown.filter((d) => !(d.override ?? d.confidence)).length
   return (
     <div class="run">
-      <div class="run-head">
-        <StatusBadge status={run.status} />
-        {headState ? <HeadBadge state={headState} /> : <span>reviewed at <span class="mono">{short(run.head)}</span></span>}
-        <span class="muted">total {usd(run.cost_usd)}</span>
-        {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
-      </div>
-      {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
-      <div class="session-strip">
-        {run.sessions.map((s) => (
-          <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
-            onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
-            <strong>{s.profile}{s.target ? ` ${s.target}` : ''}</strong> <StatusBadge status={s.status} />
-            <span class="muted">{s.info?.model ?? s.model ?? ''} · {usd(s.usage.cost_usd)}</span>
-          </button>
-        ))}
-      </div>
-      {run.sessions.some(isOpen) && (
-        <div class="sessions">
-          {run.sessions.filter(isOpen).map((s) => <SessionPane run={run} session={s} key={s.id} />)}
+      <section class="run-section">
+        <header class="run-section-head">
+          <h3>Agents</h3>
+          <StatusBadge status={run.status} />
+          {headState ? <HeadBadge state={headState} /> : <span>reviewed at <span class="mono">{short(run.head)}</span></span>}
+          <span class="muted">total {usd(run.cost_usd)}</span>
+          {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
+        </header>
+        {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
+        <div class="session-strip">
+          {run.sessions.map((s) => (
+            <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
+              onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
+              <strong>{s.profile}{s.target ? ` ${s.target}` : ''}</strong> <StatusBadge status={s.status} />
+              <span class="muted">{s.info?.model ?? s.model ?? ''} · {usd(s.usage.cost_usd)}</span>
+            </button>
+          ))}
         </div>
-      )}
-      <div class="triage">
-        <h3>Findings: {shown.length}</h3>
-        <span>✓ {kept} kept</span>
-        <span>✗ {dropped} dropped</span>
-        <span>○ {shown.length - kept - dropped} to decide</span>
-        {run.sessions.some((s) => s.role === 'verifier') && (
-          <span class="muted">
-            {(['confirmed', 'plausible', 'doubtful'] as Level[]).map((l) => `${levelMark[l]} ${marked(l)} ${l}`).join(' · ')}
-            {unchecked > 0 && ` · ${unchecked} not checked yet`}
-          </span>
+        {run.sessions.some(isOpen) && (
+          <div class="sessions">
+            {run.sessions.filter(isOpen).map((s) => <SessionPane run={run} session={s} key={s.id} />)}
+          </div>
         )}
-        <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
-      </div>
-      <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />
-      <Editor run={run} url={url} onRun={onRun} />
-      <Drafts run={run} onPick={onPick} onRun={onRun} />
+      </section>
+      <section class="run-section">
+        <header class="run-section-head triage">
+          <h3>Findings · {shown.length}</h3>
+          <span>✓ {kept} kept</span>
+          <span>✗ {dropped} dropped</span>
+          <span>○ {shown.length - kept - dropped} to decide</span>
+          {run.sessions.some((s) => s.role === 'verifier') && (
+            <span class="muted">
+              {(['confirmed', 'plausible', 'doubtful'] as Level[]).map((l) => `${levelMark[l]} ${marked(l)} ${l}`).join(' · ')}
+              {unchecked > 0 && ` · ${unchecked} not checked yet`}
+            </span>
+          )}
+          <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
+        </header>
+        <Drafts run={run} onPick={onPick} onRun={onRun} />
+      </section>
+      <section class="run-section">
+        <header class="run-section-head"><h3>Hand back</h3><span class="muted">the kept findings, as a report or as fixes</span></header>
+        <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />
+        <Editor run={run} url={url} onRun={onRun} />
+      </section>
     </div>
   )
 }
@@ -384,16 +392,42 @@ export function Editor({ run, url, onRun }: { run: Run; url: string; onRun: (r: 
             </p>
           )}
           <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} />
-          {/* The editor's diff is not the change's, so nothing here comments on the forge. */}
-          <WriteContext.Provider value={undefined}>
-            {detail.files.map((f) => <FileView file={f} threads={[]} drafts={[]} key={f.new_path} />)}
-          </WriteContext.Provider>
+          {detail.files.length > 0 && <EditorDiff files={detail.files} />}
         </>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
   )
 }
+
+// EditorDiff is the editor's diff, laid out as the change's is: its files in
+// a column, each picked one opened and scrolled to. It is not the change's
+// diff, so nothing here comments on the forge.
+function EditorDiff({ files }: { files: FileDiff[] }) {
+  const [picked, setPicked] = useState<{ path: string; n: number }>()
+  const pick = (path: string) => {
+    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
+    requestAnimationFrame(() => document.getElementById(editorFiles + fileID(path))?.scrollIntoView({ block: 'start' }))
+  }
+  return (
+    <>
+      <h4 class="editor-diff-head">Changes · {files.length} file{files.length === 1 ? '' : 's'}</h4>
+      <WriteContext.Provider value={undefined}>
+        <div class="changes">
+          <FileList files={files} onPick={pick} />
+          <div class="files">
+            {files.map((f) => (
+              <FileView file={f} threads={[]} drafts={[]} key={f.new_path} idPrefix={editorFiles}
+                collapsed={files.length > manyFiles} picked={picked?.path === f.new_path ? picked.n : undefined} />
+            ))}
+          </div>
+        </div>
+      </WriteContext.Provider>
+    </>
+  )
+}
+
+const editorFiles = 'editor-'
 
 // PushBar offers the push of the editor's work and the stacked draft merge
 // request, and links it once open. The push always asks first: it is the

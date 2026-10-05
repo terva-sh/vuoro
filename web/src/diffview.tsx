@@ -1,4 +1,4 @@
-import { Fragment } from 'preact'
+import { Fragment, type ComponentChildren } from 'preact'
 import { useLayoutEffect, useMemo, useState } from 'preact/hooks'
 import { parsePatch, patchLines, placeAll, type Place, type Row } from './diff'
 import type { Draft, FileDiff, ForgeDraft, Thread } from './types'
@@ -222,6 +222,26 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
   )
 }
 
+// FileList is the column of files beside a diff. badge marks a file, such
+// as with its comments.
+export function FileList({ files, onPick, badge }: {
+  files: FileDiff[]; onPick: (path: string) => void; badge?: (f: FileDiff) => ComponentChildren
+}) {
+  return (
+    <nav class="file-list">
+      {files.map((f) => (
+        <button class="link file-link" key={f.new_path} title={f.new_path} onClick={() => onPick(f.new_path)}>
+          <span class="file-name">
+            {f.new_path.split('/').pop()}
+            {badge?.(f)}
+          </span>
+          <span class="file-dir">{f.new_path.includes('/') ? f.new_path.slice(0, f.new_path.lastIndexOf('/')) : ''}</span>
+        </button>
+      ))}
+    </nav>
+  )
+}
+
 export function fileID(path: string) {
   return 'file-' + path.replace(/[^A-Za-z0-9_-]/g, '_')
 }
@@ -230,9 +250,10 @@ export function fileID(path: string) {
 // picked it from the file list, or is undefined when another file was picked
 // last. A pick opens a collapsed file, and the next pick of another file
 // folds it again, unless the person opened or closed it themselves.
-export function FileView({ file, threads, drafts, mine = [], runID, collapsed = false, picked }: {
+export function FileView({ file, threads, drafts, mine = [], runID, collapsed = false, picked, idPrefix = '' }: {
   file: FileDiff; threads: Thread[]; drafts: Draft[]; mine?: ForgeDraft[]; runID?: string
   collapsed?: boolean; picked?: number
+  idPrefix?: string // keeps a second diff of the same paths, such as the editor's, apart
 }) {
   const lines = useMemo(() => patchLines(file.patch), [file.patch])
   const [open, setOpenState] = useState(!collapsed && lines <= collapseAt)
@@ -252,7 +273,7 @@ export function FileView({ file, threads, drafts, mine = [], runID, collapsed = 
   const tag = file.new ? 'added' : file.deleted ? 'deleted' : file.renamed ? 'renamed' : ''
   const notes = threads.length + drafts.length + mine.length
   return (
-    <div class={`file ${open && !file.omitted ? '' : 'collapsed'}`} id={fileID(file.new_path)}>
+    <div class={`file ${open && !file.omitted ? '' : 'collapsed'}`} id={idPrefix + fileID(file.new_path)}>
       <header class="file-head">
         <button class="link file-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
           {open ? '▾' : '▸'} <span class="mono">{name}</span>

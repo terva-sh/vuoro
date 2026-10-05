@@ -36,7 +36,8 @@ describe('Editor', () => {
   it('shows the commits beside their findings and names the ones left alone', async () => {
     vi.mocked(api).mockResolvedValue({
       session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '',
-      commits: [{ sha: '0123456789', subject: 'Add adds', findings: ['d1'] }], files: [],
+      commits: [{ sha: '0123456789', subject: 'Add adds', findings: ['d1'] }],
+      files: [{ old_path: 'pkg/calc.go', new_path: 'pkg/calc.go', patch: '@@ -1 +1 @@\n-a\n+b\n' }],
     })
     const session = { id: 's2', profile: 'editor', tool: 'claude', role: 'editor', status: 'idle', usage: { cost_usd: 0 }, log: [] } as unknown as Session
     const r = run({ editor: { session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '' }, sessions: [session] })
@@ -47,6 +48,9 @@ describe('Editor', () => {
     expect(root.textContent).toContain('answers d1 Finding d1')
     expect(root.textContent).toContain('No commit names d2 Finding d2')
     expect(root.textContent).not.toContain('d3')
+    // The editor's files are listed beside its diff, as the change's are.
+    expect(root.querySelector('.file-list .file-link')?.textContent).toBe('calc.gopkg')
+    expect(root.querySelector('#editor-file-pkg_calc_go')).not.toBeNull()
     act(() => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Discard…')!.click())
     expect(root.textContent).toContain('Delete the branch')
   })

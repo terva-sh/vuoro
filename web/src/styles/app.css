@@ -200,6 +200,16 @@ main { padding: var(--ui-space-4); }
 /* Findings: one row each, opened in place. */
 .triage { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); align-items: baseline; margin: var(--ui-space-4) 0 var(--ui-space-2); }
 .triage h3 { margin: 0; }
+/* The review tab's parts, each a card with a labelled header, so the dense
+   run reads as agents, findings, and the hand-back. */
+.run-section { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); padding: var(--ui-space-3) var(--ui-space-4) var(--ui-space-4); margin-bottom: var(--ui-space-4); }
+.run-section-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); align-items: center; margin: 0 calc(-1 * var(--ui-space-4)) var(--ui-space-3); padding: 0 var(--ui-space-4) var(--ui-space-2); border-bottom: 1px solid var(--ui-line); }
+.run-section-head h3 { margin: 0; font-size: var(--ui-fs-note); text-transform: uppercase; letter-spacing: .04em; color: var(--ui-heading); font-weight: 600; }
+.run-section-head .push { margin-left: auto; }
+.run-section .session-strip { margin-bottom: 0; }
+.run-section .sessions { margin-top: var(--ui-space-3); }
+.editor-panel { border-top: 1px dashed var(--ui-line); padding-top: var(--ui-space-3); }
+.editor-diff-head { margin: var(--ui-space-3) 0 var(--ui-space-2); font-size: var(--ui-fs-detail); color: var(--ui-heading); }
 .findings { display: flex; flex-direction: column; gap: var(--ui-space-1); }
 .finding { border: 1px solid var(--ui-line); border-left: 3px solid var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-surface); }
 .finding.kept { border-left-color: var(--ui-ok); }
@@ -246,7 +256,6 @@ main { padding: var(--ui-space-4); }
 /* The hand-off report. */
 .handoff { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-3); }
 .handoff .report-text { width: 100%; min-height: 12em; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
-.editor-panel { margin-bottom: var(--ui-space-3); }
 .editor-panel .editor-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
 .editor-panel .editor-head .push { margin-left: auto; }
 .editor-commits { margin: 0 0 var(--ui-space-2); padding-left: 1.5em; }

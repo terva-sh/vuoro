@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks'
-import { DraftCard, fileID, FileView, manyFiles, MyDraft, ThreadView } from './diffview'
+import { DraftCard, FileList, fileID, FileView, manyFiles, MyDraft, ThreadView } from './diffview'
 import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
@@ -145,19 +145,10 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           {drafts.map((d) => <DraftCard key={d.id} draft={d} runID={runID} />)}
         </section>}
         <div class="changes">
-          <nav class="file-list">
-            {files.map((f) => (
-              <button class="link file-link" key={f.new_path} title={f.new_path} onClick={() => pick(f.new_path)}>
-                <span class="file-name">
-                  {f.new_path.split('/').pop()}
-                  {(byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && (
-                    <> <CommentBubble severity={worstSeverity(drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path))} /></>
-                  )}
-                </span>
-                <span class="file-dir">{f.new_path.includes('/') ? f.new_path.slice(0, f.new_path.lastIndexOf('/')) : ''}</span>
-              </button>
-            ))}
-          </nav>
+          <FileList files={files} onPick={pick} badge={(f) =>
+            (byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && (
+              <> <CommentBubble severity={worstSeverity(drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path))} /></>
+            )} />
           <div class="files">
             {files.map((f) => (
               <FileView
