@@ -9,7 +9,7 @@ query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
       reviewers(first: 100) { pageInfo { hasNextPage } nodes { username bot mergeRequestInteraction { reviewState canMerge } } }
       assignees(first: 100) { pageInfo { hasNextPage } nodes { username bot } }
       participants(first: 100) { pageInfo { hasNextPage } nodes { username bot } }
-      mergeRequestDiffs(first: 100) { pageInfo { hasNextPage } nodes { createdAt } }
+      mergeRequestDiffs(first: 100) { pageInfo { hasNextPage endCursor } nodes { createdAt } }
       discussions(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
         nodes {

@@ -157,6 +157,12 @@ func projectPath(project string) string {
 //go:embed query.graphql
 var mergeRequestQuery string
 
+// mergeRequestDiffsQuery pages through a merge request's diff versions, one
+// per push, past the first page that mergeRequestQuery reads.
+//
+//go:embed diffs.graphql
+var mergeRequestDiffsQuery string
+
 type gqlUser struct {
 	Username string `json:"username"`
 	Bot      bool   `json:"bot"`
@@ -330,7 +336,7 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		if got.IID != strconv.Itoa(ref.Number) {
 			return nil, errors.New("gitlab: mismatched merge request identity")
 		}
-		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage || got.Diffs.PageInfo.HasNextPage {
+		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage {
 			return nil, errors.New("gitlab: review facts exceed connection limit")
 		}
 		for _, d := range got.Discussions.Nodes {
@@ -348,6 +354,9 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		}
 		pi := got.Discussions.PageInfo
 		if !pi.HasNextPage {
+			if err := c.readDiffPages(ctx, ref, mr); err != nil {
+				return nil, err
+			}
 			return mr, nil
 		}
 		if pi.EndCursor == "" || seen[pi.EndCursor] || page >= 49 {
@@ -356,6 +365,45 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		seen[pi.EndCursor] = true
 		after = pi.EndCursor
 	}
+}
+
+// readDiffPages follows mr's diff versions past the first page. A merge
+// request pushed more than a hundred times has more, and each is a push the
+// turn rules read.
+func (c *Client) readDiffPages(ctx context.Context, ref forge.Ref, mr *gqlMR) error {
+	pi := mr.Diffs.PageInfo
+	seen := map[string]bool{}
+	for page := 0; pi.HasNextPage; page++ {
+		if pi.EndCursor == "" || seen[pi.EndCursor] || page >= 49 {
+			return errors.New("gitlab: incomplete diff version pagination")
+		}
+		seen[pi.EndCursor] = true
+		vars := map[string]any{"fullPath": ref.Project, "iid": strconv.Itoa(ref.Number), "after": pi.EndCursor}
+		b, _, err := c.do(ctx, "POST", "/api/graphql", nil, map[string]any{"query": mergeRequestDiffsQuery, "variables": vars})
+		if err != nil {
+			return err
+		}
+		var r gqlResponse
+		if err := json.Unmarshal(b, &r); err != nil {
+			return errors.New("gitlab: invalid GraphQL response")
+		}
+		if len(r.Errors) > 0 {
+			return fmt.Errorf("gitlab: graphql: %s", c.scrub(r.Errors[0].Message))
+		}
+		if r.Data.Project == nil || r.Data.Project.MergeRequest == nil {
+			return fmt.Errorf("%s: %w", ref, ErrNotFound)
+		}
+		got := r.Data.Project.MergeRequest
+		if got.IID != strconv.Itoa(ref.Number) {
+			return errors.New("gitlab: mismatched merge request identity")
+		}
+		if !mr.UpdatedAt.Equal(got.UpdatedAt) {
+			return errors.New("gitlab: merge request changed while reading pages; refresh again")
+		}
+		mr.Diffs.Nodes = append(mr.Diffs.Nodes, got.Diffs.Nodes...)
+		pi = got.Diffs.PageInfo
+	}
+	return nil
 }
 
 func sameDiff(a, b *gqlMR) bool {

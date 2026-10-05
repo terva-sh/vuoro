@@ -1,0 +1,8 @@
+query mergeRequestDiffs($fullPath: ID!, $iid: String!, $after: String) {
+  project(fullPath: $fullPath) {
+    mergeRequest(iid: $iid) {
+      iid updatedAt
+      mergeRequestDiffs(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { createdAt } }
+    }
+  }
+}
