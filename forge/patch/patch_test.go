@@ -14,6 +14,24 @@ func TestIdenticalFilesHaveNoHunks(t *testing.T) {
 	}
 }
 
+// TestEmptyFiles holds the empty file GitLab sends no diff for, as in
+// flywheel-io/infrastructure/terraform!2487 on 2026-10-05, which crashed the
+// open: two empty versions compare to no hunks, and never index past the
+// search's bounds.
+func TestEmptyFiles(t *testing.T) {
+	for _, c := range [][2]string{{"", ""}, {"\n", "\n"}} {
+		if got := Unified(c[0], c[1]); got != "" {
+			t.Errorf("%q to %q: %q", c[0], c[1], got)
+		}
+	}
+	if ops := diff(nil, nil); len(ops) != 0 {
+		t.Fatalf("diff of nothing: %v", ops)
+	}
+	if got := Unified("", "\n"); got != "@@ -0,0 +1 @@\n+\n" {
+		t.Fatalf("an empty file gains a blank line: %q", got)
+	}
+}
+
 func TestAOneLineChange(t *testing.T) {
 	a := "1\n2\n3\n4\n5\n6\n7\n8\n9\n"
 	b := "1\n2\n3\n4\nfive\n6\n7\n8\n9\n"

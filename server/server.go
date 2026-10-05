@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"net/netip"
+	"runtime/debug"
 	"time"
 )
 
@@ -66,7 +68,30 @@ func New(c Config) http.Handler {
 			mux.Handle(m+" /mcp/", c.MCP)
 		}
 	}
-	return &guard{host: c.Addr, origin: "http://" + c.Addr, token: []byte(c.Token), next: mux}
+	return &guard{host: c.Addr, origin: "http://" + c.Addr, token: []byte(c.Token), next: recovered{mux}}
+}
+
+// recovered answers a request whose handler panicked with a fixed error, so
+// the window shows that something failed rather than a dropped connection.
+// What panicked, and where, goes only to vuoro's own log, because a panic's
+// value can hold anything the handler was holding.
+type recovered struct{ next http.Handler }
+
+func (h recovered) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		v := recover()
+		if v == nil || v == http.ErrAbortHandler {
+			if v != nil {
+				panic(v)
+			}
+			return
+		}
+		log.Printf("vuoro: panic serving %s %s: %v\n%s", r.Method, r.URL.Path, v, debug.Stack())
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "vuoro hit an internal error and logged it. This is a bug; the request did not complete."})
+	}()
+	h.next.ServeHTTP(w, r)
 }
 
 // HTTPServer wraps h with the timeouts every vuoro server uses.

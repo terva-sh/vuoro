@@ -3,9 +3,13 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -209,5 +213,34 @@ func TestTheMCPRouteHasItsOwnCredentialBehindTheGuard(t *testing.T) {
 	// The guard still stands in front of it.
 	if res := get(t, addr, "/mcp/", func(r *http.Request) { r.Host = "evil.example:" + portOf(addr) }); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("GET /mcp/ with a foreign host: %s", res.Status)
+	}
+}
+
+// TestAPanicAnswersWithAnError serves an API whose handler panics, as the
+// diff of two empty files once did, and gets a JSON error rather than a
+// dropped connection. The panic's value stays out of the answer.
+func TestAPanicAnswersWithAnError(t *testing.T) {
+	ln, err := Listen("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	api := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("secret-in-panic") })
+	srv := &httptest.Server{Listener: ln, Config: HTTPServer(New(Config{Addr: addr, Token: testToken, Dist: fstest.MapFS{}, API: api}))}
+	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	log.SetOutput(io.Discard)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	srv.Start()
+	t.Cleanup(srv.Close)
+	res := get(t, addr, "/api/changes", withToken(testToken))
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("status %s", res.Status)
+	}
+	var body struct{ Error string }
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body.Error, "internal error") || strings.Contains(body.Error, "secret") {
+		t.Fatalf("error %q", body.Error)
 	}
 }

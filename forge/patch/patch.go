@@ -15,6 +15,9 @@ const Context = 3
 // and +++ header, in the form a forge's diff field uses. Identical inputs give
 // "".
 func Unified(a, b string) string {
+	if a == b {
+		return ""
+	}
 	x, y := lines(a), lines(b)
 	ops := diff(x, y)
 
@@ -105,6 +108,11 @@ func lines(s string) []string {
 func diff(a, b []string) []op {
 	n, m := len(a), len(b)
 	maxD := n + m
+	if maxD == 0 {
+		// Nothing to compare. The search below reads v[off+1], which needs at
+		// least one line on some side.
+		return nil
+	}
 	v := make([]int, 2*maxD+2)
 	var trace [][]int
 	off := maxD + 1
