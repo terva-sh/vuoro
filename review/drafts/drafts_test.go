@@ -234,3 +234,47 @@ func TestASuggestionIsOnlyEverOnHeadSideLines(t *testing.T) {
 		t.Fatal("a base-side draft made a suggestion block")
 	}
 }
+
+func TestASuggestionThatRepeatsALineOutsideItsRangeIsRefused(t *testing.T) {
+	file := strings.Split("// Last returns the last n.\nfunc Last(s []int, n int) []int {\n\treturn s[len(s)-n-1:]\n}\n", "\n")
+	at := Anchor{Path: "f.go", Side: Head, StartLine: 2, EndLine: 3}
+	for name, c := range map[string]struct {
+		a    Anchor
+		sugg string
+		rule bool
+	}{
+		"exact":          {at, "func Last(s []int, n int) []int {\n\treturn s[len(s)-n:]", false},
+		"brace after":    {at, "func Last(s []int, n int) []int {\n\treturn s[len(s)-n:]\n}", true},
+		"comment before": {at, "// Last returns the last n.\nfunc Last(s []int, n int) []int {\n\treturn s[len(s)-n:]", true},
+		"widened":        {Anchor{Path: "f.go", Side: Head, StartLine: 2, EndLine: 4}, "func Last(s []int, n int) []int {\n\treturn s[len(s)-n:]\n}", false},
+		"blank after":    {Anchor{Path: "f.go", Side: Head, StartLine: 4, EndLine: 4}, "}\n", false},
+	} {
+		err := Boundary(file, c.a, c.sugg)
+		var re *RuleError
+		if c.rule != (errors.As(err, &re) && re.Rule == "suggestion.boundary") {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err != nil && strings.Contains(err.Error(), "return") {
+			t.Fatalf("%s: the rule quotes the code: %v", name, err)
+		}
+	}
+
+	st := NewStore()
+	st.CheckSuggestion = func(a Anchor, s string) error { return Boundary(file, a, s) }
+	bad := "func Last(s []int, n int) []int {\n\treturn s[len(s)-n:]\n}"
+	_, err := st.Propose(alice, Proposal{Severity: "high", Title: "t", Description: "d", Anchor: &at, Suggestion: &bad})
+	var re *RuleError
+	if !errors.As(err, &re) || re.Rule != "suggestion.boundary" {
+		t.Fatalf("propose: %v", err)
+	}
+	if _, err := st.Propose(alice, Proposal{Severity: "high", Title: "t", Description: "d", Anchor: &at}); err != nil {
+		t.Fatal(err)
+	}
+	g := Session{ID: "g", Role: Suggester, Target: "d1"}
+	if _, err := st.Suggest(g, "d1", nil, bad); !errors.As(err, &re) || re.Rule != "suggestion.boundary" {
+		t.Fatalf("suggest: %v", err)
+	}
+	if d, err := st.Suggest(g, "d1", &Anchor{Path: "f.go", StartLine: 2, EndLine: 4}, bad); err != nil || d.Anchor.EndLine != 4 {
+		t.Fatalf("widened: %v %+v", err, d.Anchor)
+	}
+}

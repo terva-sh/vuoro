@@ -148,6 +148,7 @@ func (m *Manager) Load() error {
 		if r.anchors != nil {
 			r.store.CheckAnchor = r.anchors.check
 		}
+		r.store.CheckSuggestion = r.checkSuggestion
 		for _, sv := range rec.Sessions {
 			s := &Session{
 				ID: sv.ID, Profile: sv.Profile, Tool: sv.Tool, Model: sv.Model, Role: drafts.Reviewer,

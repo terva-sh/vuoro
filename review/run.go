@@ -205,6 +205,7 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	}
 	r.anchors = indexLines(ch.Files)
 	r.store.CheckAnchor = r.anchors.check
+	r.store.CheckSuggestion = r.checkSuggestion
 	if mode == "triage" {
 		r.bindThreads()
 	}
@@ -335,6 +336,22 @@ func shownDrafts(all []drafts.Draft, synth map[string]bool) []drafts.Draft {
 		return merged
 	}
 	return pending
+}
+
+// checkSuggestion checks a suggestion against the file it replaces lines of,
+// in the worktree, which is the head. A file it cannot read is not checked;
+// the anchor check has already placed the lines in the diff.
+func (r *Run) checkSuggestion(a drafts.Anchor, suggestion string) error {
+	root, err := os.OpenRoot(r.dir)
+	if err != nil {
+		return nil
+	}
+	defer root.Close()
+	b, err := root.ReadFile(a.Path)
+	if err != nil {
+		return nil
+	}
+	return drafts.Boundary(strings.Split(string(b), "\n"), a, suggestion)
 }
 
 // unmarked are the shown findings no verifier has marked. r.mu is held.

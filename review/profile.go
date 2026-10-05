@@ -68,7 +68,10 @@ Report each finding with the propose_draft tool, one finding per draft:
   anchored head lines fixes it, the exact text that replaces them: whole
   lines with their indentation, and no code fence. Widen the anchor to cover
   every line the fix changes, keeping to lines the diff shows and to about
-  20 lines. The author applies it as it stands, so it must be correct and
+  20 lines. It replaces start_line through end_line inclusive, so Read the
+  file for the exact numbers: write every line of the range, unchanged ones
+  such as a comment too, and none outside it, such as a closing brace that
+  stays. The author applies it as it stands, so it must be correct and
   complete. Leave it out when the fix is elsewhere, spans files, is larger
   than that, or is a matter of judgement, and leave it out for low and info
   findings.
@@ -252,9 +255,11 @@ on, then mark it with rate_draft:
 The reason is one line that names what settled it, with a file and line
 where there is one. Judge whether the finding is true, not whether it is
 important; its severity is the reviewer's call. When a finding carries a
-suggested change, check it too: if applying it would not fix the problem,
-or would break something, end the reason with "suggestion: " and what is
-wrong with it.
+suggested change, check it too. Read the lines of its range: it replaces
+every one of them, so applying it must leave no line twice, such as a
+closing brace, and drop none it should keep, such as a comment. If applying
+it would not fix the problem, or would break something, end the reason with
+"suggestion: " and what is wrong with it.
 
 Mark every finding listed. When you have finished, reply with a short summary:
 how many you marked of each kind, and the doubtful ones by id.
@@ -305,7 +310,8 @@ and read_draft returns it too.
 Read the file around the finding's lines, and what they depend on, then call
 set_suggestion with the exact text that replaces those lines: whole lines
 with their indentation, and no code fence. A suggestion replaces every line
-of the range. When the fix needs nearby lines too, pass an anchor that
+of the range, inclusive, so write the unchanged lines in it too, such as a
+comment, and none outside it, such as a closing brace that stays. When the fix needs nearby lines too, pass an anchor that
 widens the range to cover them, in the same file, on lines the diff shows.
 
 When no replacement of those lines fixes the finding, such as when the fix

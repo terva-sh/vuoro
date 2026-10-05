@@ -439,6 +439,11 @@ D31 that drafts a suggestion only "when the person asks".
   its own.
 - **The verifier checks it.** Its reason ends with "suggestion: …" when
   applying the suggestion would not fix the finding.
+- **A suggestion must fit its range.** A suggestion replaces every line of
+  its range, so one that repeats the line just before or after the range is
+  refused with a rule the agent can correct. The first live run, before
+  this rule, drafted two suggestions that would each have left a closing
+  brace twice, and the verifier passed one of them.
 - **Asking starts a fresh, small session.** It gets the finding and where it
   sits, and reads the file itself. Its drafts role, Suggester, may read that
   one draft and set its suggestion, widening the anchor in the same file at

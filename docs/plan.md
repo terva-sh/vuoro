@@ -578,7 +578,10 @@ anchor's lines. It sets none on low or info findings. The synthesizer carries
 a source's suggestion only when its anchor covers exactly those lines, and the
 verifier's reason ends with "suggestion: …" when the suggestion would not fix
 the finding. Validation refuses a suggestion without a head-side anchor
-(`suggestion.anchor`).
+(`suggestion.anchor`), and one whose first or last line repeats the
+non-blank line just outside its range at the head (`suggestion.boundary`),
+because applying it would leave that line twice. The first live run drafted
+two suggestions whose ranges stopped one line short of a closing brace.
 
 On a finding on head-side lines that the person has not yet decided and that
 has none, "Ask for a suggestion" starts a fresh session on the drafting

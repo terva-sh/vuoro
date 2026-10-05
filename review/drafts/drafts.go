@@ -235,6 +235,9 @@ type Store struct {
 	// that its lines are in the diff. It returns a *RuleError. Set it before
 	// any session starts.
 	CheckAnchor func(Anchor) error
+	// CheckSuggestion, when set, checks a suggestion against the lines it
+	// replaces, such as with Boundary. It returns a *RuleError.
+	CheckSuggestion func(a Anchor, suggestion string) error
 	// CheckThread binds a triage proposal to the run's immutable snapshot.
 	CheckThread func(string) (string, error)
 
@@ -327,15 +330,47 @@ func (st *Store) validate(p Proposal, role Role) error {
 		_, err := st.CheckThread(p.ThreadID)
 		return err
 	}
-	if p.Anchor != nil && st.CheckAnchor != nil {
-		a := *p.Anchor
-		if a.Side == "" {
-			a.Side = Head
+	if p.Anchor == nil {
+		return nil
+	}
+	a := *p.Anchor
+	if a.Side == "" {
+		a.Side = Head
+	}
+	if a.EndLine == 0 {
+		a.EndLine = a.StartLine
+	}
+	if st.CheckAnchor != nil {
+		if err := st.CheckAnchor(a); err != nil {
+			return err
 		}
-		if a.EndLine == 0 {
-			a.EndLine = a.StartLine
+	}
+	if p.Suggestion != nil && st.CheckSuggestion != nil {
+		return st.CheckSuggestion(a, *p.Suggestion)
+	}
+	return nil
+}
+
+// Boundary refuses a suggestion that repeats the line just before or just
+// after the range it replaces. Applying it would leave that line twice, the
+// commonest way a suggestion breaks the code, as when the range stops short
+// of a closing brace that the suggestion also writes. lines is the file at
+// the head, and a blank or missing neighbour is not checked.
+func Boundary(lines []string, a Anchor, suggestion string) error {
+	sl := strings.Split(strings.TrimRight(suggestion, "\n"), "\n")
+	near := func(n int) string { // line n, from 1, or "" past either end
+		if n < 1 || n > len(lines) {
+			return ""
 		}
-		return st.CheckAnchor(a)
+		return strings.TrimRight(lines[n-1], "\r")
+	}
+	if prev := near(a.StartLine - 1); strings.TrimSpace(prev) != "" && strings.TrimRight(sl[0], "\r") == prev {
+		return &RuleError{"suggestion.boundary", "suggestion", fmt.Sprintf(
+			"replacement lines for %d–%d only: its first line repeats line %d, which stays; start the range at line %d, or leave that line out", a.StartLine, a.EndLine, a.StartLine-1, a.StartLine-1)}
+	}
+	if next := near(a.EndLine + 1); strings.TrimSpace(next) != "" && strings.TrimRight(sl[len(sl)-1], "\r") == next {
+		return &RuleError{"suggestion.boundary", "suggestion", fmt.Sprintf(
+			"replacement lines for %d–%d only: its last line repeats line %d, which stays; end the range at line %d, or leave that line out", a.StartLine, a.EndLine, a.EndLine+1, a.EndLine+1)}
 	}
 	return nil
 }
@@ -416,6 +451,11 @@ func (st *Store) Suggest(s Session, id string, anchor *Anchor, suggestion string
 			}
 		}
 		a = w
+	}
+	if st.CheckSuggestion != nil {
+		if err := st.CheckSuggestion(a, suggestion); err != nil {
+			return Draft{}, err
+		}
 	}
 	text := strings.TrimRight(suggestion, "\n")
 	d.Anchor, d.Suggestion = &a, &text
