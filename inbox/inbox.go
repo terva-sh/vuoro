@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +25,12 @@ import (
 type Item struct {
 	Change forge.Change `json:"change"`
 	Roles  []forge.Role `json:"roles"`
+	// Error says, in a fixed credential-free message, why the last refresh
+	// could not read this change. Its facts are then the last ones read.
+	Error string `json:"error,omitempty"`
+	// Unread is a discovered change that has never been read, so it has no
+	// facts beyond its identity and roles.
+	Unread bool `json:"unread,omitempty"`
 }
 
 type AccountSnapshot struct {
@@ -37,6 +44,8 @@ type AccountSnapshot struct {
 	LastSuccess time.Time `json:"last_success"`
 	// Error is a fixed, credential-free message, never an adapter's raw error.
 	Error string `json:"error,omitempty"`
+	// Warning says that a successful refresh could not read some changes.
+	Warning string `json:"warning,omitempty"`
 }
 
 type Annotation struct {
@@ -175,7 +184,18 @@ func (s *Service) refreshAccount(ctx context.Context, i int) {
 	} else {
 		next.Items = items
 		next.LastSuccess = time.Now().UTC()
-		next.Error = ""
+		next.Error, next.Warning = "", ""
+		failed := 0
+		for _, item := range items {
+			if item.Error != "" {
+				failed++
+			}
+		}
+		if failed == 1 {
+			next.Warning = "1 change could not be read; it shows its last known state."
+		} else if failed > 1 {
+			next.Warning = strconv.Itoa(failed) + " changes could not be read; they show their last known state."
+		}
 	}
 	if s.dir != "" {
 		if err := state.WriteJSON(s.cachePath(next.Key), next); err != nil {
@@ -234,39 +254,93 @@ func (s *Service) readAccount(ctx context.Context, a config.Forge, previous Acco
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+	// Reads run a few at a time. One change that cannot be read keeps its
+	// last known facts, or its identity alone, and does not fail the account:
+	// membership is complete, so the rest of the snapshot is still current.
+	results := make([]Item, len(keys))
+	keep := make([]bool, len(keys))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range min(readWorkers, len(keys)) {
+		wg.Go(func() {
+			for i := range jobs {
+				results[i], keep[i] = s.readItem(ctx, p, a, members[keys[i]], cached)
+			}
+		})
+	}
+	for i := range keys {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	items := make([]Item, 0, len(keys))
-	for _, key := range keys {
-		if err := ctx.Err(); err != nil {
-			return nil, err
+	for i, item := range results {
+		if keep[i] {
+			items = append(items, item)
 		}
-		m := members[key]
-		item, exists := cached[key]
-		facts, freshFacts := p.(forge.FactsReader)
-		if freshFacts || !exists || m.Updated.IsZero() || item.Change.Updated.IsZero() || !m.Updated.Equal(item.Change.Updated) {
-			var ch *forge.Change
-			var err error
-			if freshFacts {
-				ch, err = facts.ReadFacts(ctx, m.Ref)
-			} else {
-				ch, err = p.Open(ctx, m.Ref)
-			}
-			if err != nil {
-				return nil, err
-			}
-			if ch == nil || ch.Ref != m.Ref || ch.Kind != a.Kind {
-				return nil, errors.New("invalid opened identity")
-			}
-			item.Change = clone(*ch)
-		}
-		// A change may close between discovery and reading; do not keep it open.
-		if item.Change.State != forge.Open {
-			continue
-		}
-		item.Roles = m.Roles
-		item.Change.Capabilities = p.Capabilities()
-		items = append(items, item)
 	}
 	return items, nil
+}
+
+// readWorkers bounds the concurrent change reads of one account.
+const readWorkers = 6
+
+// readItem reads one discovered change. It reports false for a change that
+// closed after discovery, which leaves the inbox.
+func (s *Service) readItem(ctx context.Context, p forge.Provider, a config.Forge, m forge.Discovered, cached map[string]Item) (Item, bool) {
+	key := m.Ref.String()
+	item, exists := cached[key]
+	item.Error = ""
+	facts, freshFacts := p.(forge.FactsReader)
+	if freshFacts || !exists || item.Unread || m.Updated.IsZero() || item.Change.Updated.IsZero() || !m.Updated.Equal(item.Change.Updated) {
+		var ch *forge.Change
+		var err error
+		if freshFacts {
+			ch, err = facts.ReadFacts(ctx, m.Ref)
+		} else {
+			ch, err = p.Open(ctx, m.Ref)
+		}
+		if err == nil && (ch == nil || ch.Ref != m.Ref || ch.Kind != a.Kind) {
+			err = errors.New("invalid opened identity")
+		}
+		if err != nil {
+			if !exists {
+				item = Item{Change: forge.Change{Kind: a.Kind, Ref: m.Ref, State: forge.Open}, Unread: true}
+			}
+			item.Error = changeError(err)
+			item.Roles = m.Roles
+			item.Change.Capabilities = p.Capabilities()
+			return item, true
+		}
+		item.Change = clone(*ch)
+		item.Unread = false
+	}
+	// A change may close between discovery and reading; do not keep it open.
+	if item.Change.State != forge.Open {
+		return Item{}, false
+	}
+	item.Roles = m.Roles
+	item.Change.Capabilities = p.Capabilities()
+	return item, true
+}
+
+// changeError is the fixed message for one change that could not be read.
+func changeError(err error) string {
+	var api *forge.APIError
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Reading this change timed out."
+	case errors.Is(err, forge.ErrNotFound):
+		return "The forge no longer shows this change to the account."
+	case errors.As(err, &api) && (api.Status == 401 || api.Status == 403):
+		return "The account may not read this change."
+	case errors.As(err, &api) && api.Status == 429:
+		return "The forge rate limited reading this change."
+	}
+	return "The forge's answer for this change could not be read."
 }
 
 func uniqueRoles(roles []forge.Role) []forge.Role {

@@ -8,10 +8,12 @@ export interface InboxRow {
   roles: string[]
   turn: { owner: 'mine' | 'theirs'; since: string | null; reasons: { rule: string; text: string; since: string | null }[]; last_activity: string | null }
   snoozed_until?: string
+  error?: string // the last refresh could not read it; its facts are the last ones read
 }
 export interface InboxView {
-  accounts: { key: string; name: string; kind: string; host: string; username: string; last_attempt: string; last_success: string; error?: string }[]
+  accounts: { key: string; name: string; kind: string; host: string; username: string; last_attempt: string; last_success: string; error?: string; warning?: string }[]
   mine: InboxRow[]; theirs: InboxRow[]; snoozed: InboxRow[]
+  unread?: InboxRow[] // discovered, never read: no title, link or turn yet
 }
 const knownTime = (value: string) => !value.startsWith('0001-') && Number.isFinite(Date.parse(value))
 
@@ -73,6 +75,7 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
             <div class="inbox-meta"><span>{row.kind === 'forgejo' ? 'Forgejo' : 'GitLab'} · {row.account}</span><span>{row.ref.project}{changeNumber(row.kind, row.ref.number)}</span>{row.draft && <span class="badge">Draft</span>}</div>
             <button class="link inbox-title" disabled={opening} onClick={() => onOpen(row.web_url)}>{row.title}</button>
             <div class="inbox-reasons">{row.turn.reasons.map((reason) => <p key={`${reason.rule}:${reason.text}`}>{reason.text}</p>)}</div>
+            {row.error && <p class="inbox-stale" role="status">⚠ Last known state. {row.error}</p>}
             <div class="inbox-meta"><span>{row.roles.map((role) => role.charAt(0).toUpperCase() + role.slice(1)).join(' · ')}</span><span title={row.turn.since ? new Date(row.turn.since).toLocaleString() : undefined}>{row.turn.since ? `Waiting ${ago(row.turn.since).replace(/ ago$/, '')}` : 'Age unknown'}</span></div>
             {sleeping && row.snoozed_until && <p class="muted">Snoozed until {new Date(row.snoozed_until).toLocaleString()}</p>}
           </div>
@@ -96,12 +99,23 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
             <strong>{account.name}</strong> <span class="muted">{account.host} · @{account.username}</span>
             <span class="muted">{knownTime(account.last_success) ? `Last refreshed ${ago(account.last_success)}` : 'No successful refresh yet'}</span>
             {account.error && <span class="alert" role="status">Cached results · {account.error}</span>}
+            {!account.error && account.warning && <span class="alert" role="status">⚠ {account.warning}</span>}
           </li>)}
         </ul>}
         {view.accounts.length > 0 && <div class="inbox-groups">
           <section aria-label="Your turn"><h2>Your turn <span class="badge">{view.mine.length}</span></h2>{view.mine.length ? rows(view.mine) : <p class="muted">{view.accounts.some((a) => a.error) ? 'No actions in the available snapshot. Check account refresh errors above.' : 'No unanswered action is recorded for you.'}</p>}</section>
           <section aria-label="Their turn"><h2>Their turn <span class="badge">{view.theirs.length}</span></h2>{view.theirs.length ? rows(view.theirs) : <p class="muted">No changes are waiting on others in the available snapshot.</p>}</section>
         </div>}
+        {(view.unread?.length ?? 0) > 0 && <section class="inbox-unread" aria-label="Could not read">
+          <h2>Could not read <span class="badge">{view.unread!.length}</span></h2>
+          <p class="muted">Found on the forge, but not read yet, so whose turn it is is unknown.</p>
+          <ul class="inbox-rows">{view.unread!.map((row) => <li key={refKey(row.ref)} class="inbox-row">
+            <div class="inbox-content">
+              <div class="inbox-meta"><span>{row.kind === 'forgejo' ? 'Forgejo' : 'GitLab'} · {row.account}</span><span>{row.ref.project}{changeNumber(row.kind, row.ref.number)}</span><span>{row.roles.map((role) => role.charAt(0).toUpperCase() + role.slice(1)).join(' · ')}</span></div>
+              <p class="inbox-stale">⚠ {row.error}</p>
+            </div>
+          </li>)}</ul>
+        </section>}
         {view.snoozed.length > 0 && <details class="inbox-snoozed"><summary>Snoozed ({view.snoozed.length})</summary><p class="muted">A new forge event or the snooze date brings these back.</p>{rows(view.snoozed, true)}</details>}
       </>}
     </section>

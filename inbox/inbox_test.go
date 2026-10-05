@@ -21,6 +21,11 @@ type fixture struct {
 	err     error
 	wait    bool
 	opens   atomic.Int32
+	// failing makes reading one change fail; delay slows every read.
+	failing map[string]error
+	delay   time.Duration
+	live    atomic.Int32
+	peak    atomic.Int32
 }
 
 func (f *fixture) Capabilities() forge.Capabilities { return forge.Capabilities{} }
@@ -33,6 +38,14 @@ func (f *fixture) Discover(ctx context.Context, _ string) ([]forge.Discovered, e
 }
 func (f *fixture) Open(_ context.Context, r forge.Ref) (*forge.Change, error) {
 	f.opens.Add(1)
+	n := f.live.Add(1)
+	defer f.live.Add(-1)
+	for p := f.peak.Load(); n > p && !f.peak.CompareAndSwap(p, n); p = f.peak.Load() {
+	}
+	time.Sleep(f.delay)
+	if err := f.failing[r.String()]; err != nil {
+		return nil, err
+	}
 	return f.changes[r.String()], nil
 }
 
@@ -178,16 +191,99 @@ func TestBotConfigRemovalAndPrivateCache(t *testing.T) {
 	}
 }
 
-func TestFailedReadIsAtomic(t *testing.T) {
+// TestOneUnreadableChangeKeepsTheRest holds decision D36: discovery is
+// complete, so a change that cannot be read does not fail the account.
+func TestOneUnreadableChangeKeepsTheRest(t *testing.T) {
 	a := account("lab.test", forge.GitLab)
 	p := provider(a)
 	s, _ := New("", []config.Forge{a}, func(context.Context, config.Forge) (forge.Provider, error) { return p, nil })
 	s.Refresh(context.Background())
-	r := forge.Ref{Host: "lab.test", Project: "team/repo", Number: 2}
-	p.members = append(p.members, forge.Discovered{Ref: r})
+	first := forge.Ref{Host: "lab.test", Project: "team/repo", Number: 1}
+	never := forge.Ref{Host: "lab.test", Project: "team/repo", Number: 2}
+	p.members = append(p.members, forge.Discovered{Ref: never, Roles: []forge.Role{forge.AuthorRole}})
+	p.failing = map[string]error{never.String(): errors.New("sensitive-value")}
+
 	got := s.Refresh(context.Background()).Accounts[0]
-	if got.Error == "" || len(got.Items) != 1 {
-		t.Fatal("partial reads replaced complete snapshot")
+	if got.Error != "" || got.LastSuccess.IsZero() || len(got.Items) != 2 {
+		t.Fatalf("error %q, %d items", got.Error, len(got.Items))
+	}
+	if !strings.Contains(got.Warning, "1 change could not be read") {
+		t.Fatalf("warning %q", got.Warning)
+	}
+	d := s.Display(time.Now())
+	if len(d.Unread) != 1 || d.Unread[0].Ref != never || d.Unread[0].Error == "" || strings.Contains(d.Unread[0].Error, "sensitive") {
+		t.Fatalf("unread %+v", d.Unread)
+	}
+	if len(d.Mine)+len(d.Theirs) != 1 || d.Accounts[0].Warning == "" {
+		t.Fatalf("the readable change is missing: %+v %+v", d.Mine, d.Theirs)
+	}
+
+	// A change read before keeps its last facts, marked, when a read fails.
+	// It moved on the forge, so the cached copy cannot be reused unread.
+	for i := range p.members {
+		if p.members[i].Ref == first {
+			p.members[i].Updated = p.members[i].Updated.Add(time.Hour)
+		}
+	}
+	p.failing = map[string]error{first.String(): &forge.APIError{Status: 403, Message: "sensitive-value"}}
+	delete(p.changes, never.String())
+	p.changes[never.String()] = &forge.Change{Kind: a.Kind, Ref: never, State: forge.Open, Title: "Now readable", Author: forge.User{Username: "me"}}
+	got = s.Refresh(context.Background()).Accounts[0]
+	d = s.Display(time.Now())
+	var stale *Row
+	for _, rows := range [][]Row{d.Mine, d.Theirs} {
+		for i := range rows {
+			if rows[i].Ref == first {
+				stale = &rows[i]
+			}
+		}
+	}
+	if stale == nil || stale.Error != "The account may not read this change." || len(d.Unread) != 0 {
+		t.Fatalf("stale %+v unread %+v", stale, d.Unread)
+	}
+	if got.Error != "" || got.Warning == "" {
+		t.Fatalf("account error %q warning %q", got.Error, got.Warning)
+	}
+
+	// The next good read clears the mark and the warning.
+	p.failing = nil
+	got = s.Refresh(context.Background()).Accounts[0]
+	if got.Warning != "" {
+		t.Fatalf("warning %q after a clean refresh", got.Warning)
+	}
+	for _, item := range got.Items {
+		if item.Error != "" || item.Unread {
+			t.Fatalf("item %s still marked", item.Change.Ref)
+		}
+	}
+}
+
+// TestChangesAreReadConcurrently refreshes sixty changes that each take 50ms
+// to read, in well under the three seconds a serial read would take.
+func TestChangesAreReadConcurrently(t *testing.T) {
+	a := account("lab.test", forge.GitLab)
+	p := &fixture{changes: map[string]*forge.Change{}, delay: 50 * time.Millisecond}
+	for n := 1; n <= 60; n++ {
+		r := forge.Ref{Host: "lab.test", Project: "team/repo", Number: n}
+		p.members = append(p.members, forge.Discovered{Ref: r, Roles: []forge.Role{forge.ReviewerRole}})
+		p.changes[r.String()] = &forge.Change{Kind: a.Kind, Ref: r, State: forge.Open}
+	}
+	s, _ := New("", []config.Forge{a}, func(context.Context, config.Forge) (forge.Provider, error) { return p, nil })
+	start := time.Now()
+	got := s.Refresh(context.Background()).Accounts[0]
+	if got.Error != "" || len(got.Items) != 60 {
+		t.Fatalf("error %q, %d items", got.Error, len(got.Items))
+	}
+	if peak := p.peak.Load(); peak < 2 || peak > readWorkers {
+		t.Fatalf("peak concurrency %d, want 2..%d", peak, readWorkers)
+	}
+	if took := time.Since(start); took > 2*time.Second {
+		t.Fatalf("refresh took %s", took)
+	}
+	for i := 1; i < len(got.Items); i++ {
+		if got.Items[i-1].Change.Ref.String() >= got.Items[i].Change.Ref.String() {
+			t.Fatal("items are not in a stable order")
+		}
 	}
 }
 

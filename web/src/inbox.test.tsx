@@ -73,4 +73,23 @@ describe('the combined inbox', () => {
     expect(root.textContent).toContain('Refresh unavailable')
     expect(button('Refresh inbox').disabled).toBe(false)
   })
+  it('shows a partial refresh: the account warning, a stale row, and a change it could not read', async () => {
+    const partial: InboxView = {
+      ...view,
+      accounts: [{ ...view.accounts[0], warning: '2 changes could not be read; they show their last known state.' }],
+      mine: [{ ...view.mine[0], error: 'The account may not read this change.' }],
+      theirs: [],
+      unread: [{ ...view.mine[0], ref: { host: 'gitlab.example', project: 'team/other', number: 9 }, title: '', web_url: '', roles: ['author'], error: 'The forge\'s answer for this change could not be read.' }],
+    }
+    vi.mocked(api).mockResolvedValue(partial)
+    await act(async () => render(<Inbox onOpen={() => {}} />, root))
+    await act(async () => { await Promise.resolve() })
+    expect(root.textContent).toContain('2 changes could not be read')
+    expect(root.textContent).not.toContain('Cached results')
+    expect(root.querySelector('[aria-label="Your turn"]')?.textContent).toContain('Last known state. The account may not read this change.')
+    const unread = root.querySelector('[aria-label="Could not read"]')!
+    expect(unread.textContent).toContain('team/other!9')
+    expect(unread.textContent).toContain('could not be read')
+    expect(unread.querySelectorAll('a, button').length).toBe(0)
+  })
 })

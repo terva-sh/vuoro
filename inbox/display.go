@@ -21,6 +21,7 @@ type AccountStatus struct {
 	LastAttempt time.Time `json:"last_attempt"`
 	LastSuccess time.Time `json:"last_success"`
 	Error       string    `json:"error,omitempty"`
+	Warning     string    `json:"warning,omitempty"`
 }
 
 type Row struct {
@@ -34,6 +35,9 @@ type Row struct {
 	Roles        []forge.Role `json:"roles"`
 	Turn         turn.Turn    `json:"turn"`
 	SnoozedUntil *time.Time   `json:"snoozed_until,omitempty"`
+	// Error says why the last refresh could not read this change, whose
+	// facts are then the last ones read.
+	Error string `json:"error,omitempty"`
 }
 
 // Display is the window's lightweight inbox, without patches or private drafts.
@@ -42,22 +46,29 @@ type Display struct {
 	Mine     []Row           `json:"mine"`
 	Theirs   []Row           `json:"theirs"`
 	Snoozed  []Row           `json:"snoozed"`
+	// Unread are discovered changes never read, so whose turn it is is
+	// unknown. Each carries its Error.
+	Unread []Row `json:"unread"`
 }
 
 func (s *Service) Display(now time.Time) Display {
 	view := s.rawSnapshot()
-	out := Display{Accounts: []AccountStatus{}, Mine: []Row{}, Theirs: []Row{}, Snoozed: []Row{}}
+	out := Display{Accounts: []AccountStatus{}, Mine: []Row{}, Theirs: []Row{}, Snoozed: []Row{}, Unread: []Row{}}
 	for i, a := range view.Accounts {
-		out.Accounts = append(out.Accounts, AccountStatus{a.Key, a.Name, a.Kind, a.Host, a.Username, a.LastAttempt, a.LastSuccess, a.Error})
+		out.Accounts = append(out.Accounts, AccountStatus{a.Key, a.Name, a.Kind, a.Host, a.Username, a.LastAttempt, a.LastSuccess, a.Error, a.Warning})
 		for _, item := range a.Items {
 			ch := item.Change
 			if ch.State != forge.Open {
 				continue
 			}
+			if item.Unread {
+				out.Unread = append(out.Unread, Row{Ref: ch.Ref, Kind: ch.Kind, AccountKey: a.Key, Account: a.Name, Roles: item.Roles, Error: item.Error})
+				continue
+			}
 			annotation := view.Annotations[ch.Ref.String()]
 			snoozed := annotation.SnoozedUntil.After(now) && (annotation.EventKey == "" || annotation.EventKey == eventKey(ch))
 			classify(&ch, s.accounts[i].Bots)
-			row := Row{Ref: ch.Ref, Kind: ch.Kind, AccountKey: a.Key, Account: a.Name, Title: ch.Title, WebURL: ch.WebURL, Draft: ch.Draft, Roles: item.Roles, Turn: turn.Derive(ch, a.Username, item.Roles)}
+			row := Row{Ref: ch.Ref, Kind: ch.Kind, AccountKey: a.Key, Account: a.Name, Title: ch.Title, WebURL: ch.WebURL, Draft: ch.Draft, Roles: item.Roles, Turn: turn.Derive(ch, a.Username, item.Roles), Error: item.Error}
 			if snoozed {
 				until := annotation.SnoozedUntil
 				row.SnoozedUntil = &until
@@ -69,7 +80,7 @@ func (s *Service) Display(now time.Time) Display {
 			}
 		}
 	}
-	for _, rows := range [][]Row{out.Mine, out.Theirs, out.Snoozed} {
+	for _, rows := range [][]Row{out.Mine, out.Theirs, out.Snoozed, out.Unread} {
 		slices.SortFunc(rows, compareRows)
 	}
 	return out

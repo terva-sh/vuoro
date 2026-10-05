@@ -3,12 +3,12 @@ query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
     mergeRequest(iid: $iid) {
       iid title description state draft detailedMergeStatus
       sourceBranch targetBranch webUrl createdAt updatedAt
-      author { username bot }
+      author { username bot type }
       userPermissions { canMerge }
       diffRefs { baseSha headSha startSha }
-      reviewers(first: 100) { pageInfo { hasNextPage } nodes { username bot mergeRequestInteraction { reviewState canMerge } } }
-      assignees(first: 100) { pageInfo { hasNextPage } nodes { username bot } }
-      participants(first: 100) { pageInfo { hasNextPage } nodes { username bot } }
+      reviewers(first: 100) { pageInfo { hasNextPage } nodes { username bot type mergeRequestInteraction { reviewState canMerge } } }
+      assignees(first: 100) { pageInfo { hasNextPage } nodes { username bot type } }
+      participants(first: 100) { pageInfo { hasNextPage } nodes { username bot type } }
       mergeRequestDiffs(first: 100) { pageInfo { hasNextPage endCursor } nodes { createdAt } }
       discussions(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
@@ -17,7 +17,7 @@ query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
           notes(first: 100) {
             pageInfo { hasNextPage }
             nodes {
-              id author { username bot } createdAt system body resolvable resolved
+              id author { username bot type } createdAt system body resolvable resolved
               position { filePath oldPath newLine oldLine diffRefs { baseSha headSha startSha } }
             }
           }

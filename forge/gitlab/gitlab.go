@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/terva-sh/vuoro/config"
@@ -30,6 +31,9 @@ type Client struct {
 	base  *url.URL
 	token config.Secret
 	http  *http.Client
+	// noUserType is set once this GitLab has refused UserCore.type, which
+	// older versions lack, so later reads ask without it.
+	noUserType atomic.Bool
 }
 
 // New returns a client for the GitLab at base, such as https://gitlab.com.
@@ -166,6 +170,10 @@ var mergeRequestDiffsQuery string
 type gqlUser struct {
 	Username string `json:"username"`
 	Bot      bool   `json:"bot"`
+	// Type is GitLab's kind of account, such as HUMAN, PROJECT_BOT, or
+	// GHOST for the user that deleted accounts' notes are moved to. It is
+	// empty on a GitLab too old to say.
+	Type string `json:"type"`
 }
 
 type gqlPosition struct {
@@ -318,13 +326,22 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		if after != "" {
 			vars["after"] = after
 		}
-		b, _, err := c.do(ctx, "POST", "/api/graphql", nil, map[string]any{"query": mergeRequestQuery, "variables": vars})
+		query := mergeRequestQuery
+		if c.noUserType.Load() {
+			query = legacyMergeRequestQuery
+		}
+		b, _, err := c.do(ctx, "POST", "/api/graphql", nil, map[string]any{"query": query, "variables": vars})
 		if err != nil {
 			return nil, err
 		}
 		var r gqlResponse
 		if err := json.Unmarshal(b, &r); err != nil {
 			return nil, errors.New("gitlab: invalid GraphQL response")
+		}
+		if len(r.Errors) > 0 && !c.noUserType.Load() && strings.Contains(r.Errors[0].Message, "Field 'type' doesn't exist on type 'UserCore'") {
+			c.noUserType.Store(true)
+			page-- // ask for the same page again, without the field
+			continue
 		}
 		if len(r.Errors) > 0 {
 			return nil, fmt.Errorf("gitlab: graphql: %s", c.scrub(r.Errors[0].Message))
@@ -424,7 +441,16 @@ var reviewStates = map[string]forge.ReviewState{
 
 var states = map[string]forge.State{"opened": forge.Open, "merged": forge.Merged, "closed": forge.Closed, "locked": forge.Closed}
 
-func user(u gqlUser) forge.User { return forge.User{Username: u.Username, Bot: u.Bot} }
+// user marks every account that is not a person as automated, so that it
+// never hands over the turn: bots, and GitLab's ghost user, which holds the
+// notes of deleted accounts and can never answer.
+func user(u gqlUser) forge.User {
+	return forge.User{Username: u.Username, Bot: u.Bot || (u.Type != "" && u.Type != "HUMAN")}
+}
+
+// legacyMergeRequestQuery is mergeRequestQuery for a GitLab without
+// UserCore.type.
+var legacyMergeRequestQuery = strings.ReplaceAll(mergeRequestQuery, "username bot type", "username bot")
 
 func users(us []gqlUser) []forge.User {
 	out := make([]forge.User, 0, len(us))

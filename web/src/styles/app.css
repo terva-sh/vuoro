@@ -274,7 +274,9 @@ main { padding: var(--ui-space-4); }
 .inbox-title { text-align: left; font-weight: 600; font-size: var(--ui-fs-body); margin: var(--ui-space-2) 0; overflow-wrap: anywhere; }
 .inbox-reasons p { margin: 0 0 var(--ui-space-1); }
 .inbox-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: var(--ui-space-2); flex-shrink: 0; font-size: var(--ui-fs-note); }
-.inbox-snoozed, .inbox-setup { margin-top: var(--ui-space-5); }
+.inbox-snoozed, .inbox-setup, .inbox-unread { margin-top: var(--ui-space-5); }
+.inbox-unread h2 { display: flex; gap: var(--ui-space-2); align-items: center; font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.inbox-stale { margin: var(--ui-space-1) 0 0; color: var(--ui-warn); font-size: var(--ui-fs-note); }
 .inbox-snoozed summary, .inbox-setup summary { cursor: pointer; color: var(--ui-muted); }
 @media (max-width: 640px) {
   .inbox-row { flex-direction: column; gap: var(--ui-space-2); }

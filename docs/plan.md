@@ -295,7 +295,9 @@ timeline representation, JSON null, is accepted only for timeline pages.
 The current Forgejo API supplies no bot-user marker. Vuoro does not infer bot
 status from account names. Each configured forge may name automated accounts
 in `bots`; the inbox applies those names and native bot markers to users and
-reviews before turn derivation. Configured marks are applied to copies of raw
+reviews before turn derivation. GitLab marks every account whose `type` is
+not `HUMAN` as automated, including the ghost user that holds deleted
+accounts' notes. Configured marks are applied to copies of raw
 cached facts, so removing a configured bot does not leave a permanent mark.
 If a forge does not fit the contracts, revise the model rather than leaking its
 API details through the application. Agent and ticket integrations keep their
@@ -309,9 +311,12 @@ and uses optional `forge.FactsReader` for fresh turn facts on each refresh,
 without downloading patches or personal drafts. Permissions and merge readiness
 can change without a membership update stamp. For providers without that
 contract, it reuses a cached change only when its update stamp matches a nonzero
-membership stamp. Missing stamps always cause a new read. Discovery and all
-reads must succeed before replacing an account snapshot. A change that closes
-between discovery and reading drops out of that successful snapshot.
+membership stamp. Missing stamps always cause a new read. Discovery must
+succeed before an account snapshot is replaced. Reading a change may fail on
+its own (D36): a change read before keeps its last facts with a fixed reason,
+one never read is listed by reference under "could not read", and the account
+carries a warning naming how many. A change that closes between discovery and
+reading drops out of the snapshot. Reads of one account run six at a time.
 
 Refresh runs only when called by the window, with at most four accounts in
 parallel and a two-minute context per account. Calls are serialized. Failed,

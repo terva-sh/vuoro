@@ -399,3 +399,23 @@ guard, with a per-session credential.
 The alternatives were waiting for v1.0, and leaving dogfooding to the
 terva-review Forgejo workflow alone. The command complements that workflow: it
 reviews before a push, and the workflow reviews the pull request.
+
+### D36. One unreadable change does not fail an account's refresh
+
+On 2026-10-05 the owner's GitLab inbox stayed empty: discovery found 51
+changes, but one could not be read, and the plan's rule that "discovery and all
+reads must succeed before replacing an account snapshot" discarded the other
+fifty. The owner asked for the filed fix, TKT-01M46M51GK4WQT7SZSDFA5BWJA (One
+unreadable change blanks an account's whole inbox refresh).
+
+Discovery must still succeed, because complete membership is what makes a
+removal safe. Reading each discovered change may fail on its own. A change read
+before keeps its last facts, marked with a fixed credential-free reason. One
+never read is listed by its reference in a "could not read" group, with no turn,
+because nothing about it is known. The snapshot is replaced, and the account
+carries a warning that names how many changes could not be read. A timeout or
+cancellation of the whole account still keeps the previous snapshot.
+
+The alternative was to keep all-or-nothing snapshots and fix each read failure
+as it appears. That hides every other change behind any one forge oddity, and
+the inbox is where the person looks first.
