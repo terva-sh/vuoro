@@ -300,21 +300,12 @@ func (a *App) source(ch *forge.Change) (review.Source, error) {
 		Refspecs: []string{"+" + meta.HeadRef + ":refs/vuoro/head", "+refs/heads/" + t + ":refs/vuoro/target/" + t}, Head: ch.Diff.Head, Base: ch.Diff.Base}, nil
 }
 
-func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		URL         string            `json:"url"`
-		Preset      string            `json:"preset,omitempty"`
-		Reviewers   []review.Reviewer `json:"reviewers,omitempty"`
-		Synthesizer *review.Reviewer  `json:"synthesizer,omitempty"`
-		Verifier    *review.Reviewer  `json:"verifier,omitempty"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	a.probeTools()
-	reviewers, synth, verifier := req.Reviewers, req.Synthesizer, req.Verifier
+// Plan resolves who a run starts: the reviewers given, or else the named
+// preset's, or the first preset's when name is empty. More than one reviewer
+// gets a synthesizer (D11), and every run gets a verifier (D31), by default on
+// the model that merged the findings, or else the one that drafted them.
+func (a *App) Plan(name string, reviewers []review.Reviewer, synth, verifier *review.Reviewer) ([]review.Reviewer, *review.Reviewer, *review.Reviewer, error) {
 	if len(reviewers) == 0 {
-		name := req.Preset
 		ps := a.presets()
 		if name == "" {
 			name = ps[0].Name
@@ -335,9 +326,50 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if len(reviewers) == 0 {
-			writeError(w, fmt.Errorf("no preset named %q", name))
-			return
+			return nil, nil, nil, fmt.Errorf("no preset named %q", name)
 		}
+	}
+	if len(reviewers) > 1 && synth == nil {
+		synth = &review.Reviewer{Tool: reviewers[0].Tool}
+	}
+	if len(reviewers) < 2 {
+		synth = nil
+	}
+	if verifier == nil {
+		from := reviewers[0]
+		if synth != nil {
+			from = *synth
+		}
+		verifier = &review.Reviewer{Tool: from.Tool, Model: from.Model}
+	}
+	return reviewers, synth, verifier, nil
+}
+
+// Open reads a change by its URL, as the window opens one.
+func (a *App) Open(ctx context.Context, raw string) (*forge.Change, error) { return a.open(ctx, raw) }
+
+// Source is what a review of ch fetches.
+func (a *App) Source(ch *forge.Change) (review.Source, error) { return a.source(ch) }
+
+// ProbeTools finds which agent tools can run reviewers, once.
+func (a *App) ProbeTools() { a.probeTools() }
+
+func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL         string            `json:"url"`
+		Preset      string            `json:"preset,omitempty"`
+		Reviewers   []review.Reviewer `json:"reviewers,omitempty"`
+		Synthesizer *review.Reviewer  `json:"synthesizer,omitempty"`
+		Verifier    *review.Reviewer  `json:"verifier,omitempty"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	a.probeTools()
+	reviewers, synth, verifier, err := a.Plan(req.Preset, req.Reviewers, req.Synthesizer, req.Verifier)
+	if err != nil {
+		writeError(w, err)
+		return
 	}
 	// Review what the forge says now, so the run is pinned to today's head.
 	ch, err := a.open(r.Context(), req.URL)
@@ -349,22 +381,6 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, err)
 		return
-	}
-	// More than one reviewer means their drafts are merged (D11).
-	if len(reviewers) > 1 && synth == nil {
-		synth = &review.Reviewer{Tool: reviewers[0].Tool}
-	}
-	if len(reviewers) < 2 {
-		synth = nil
-	}
-	// Every run checks its findings (D31), by default on the model that
-	// merged them, or else the one that drafted them.
-	if verifier == nil {
-		from := reviewers[0]
-		if synth != nil {
-			from = *synth
-		}
-		verifier = &review.Reviewer{Tool: from.Tool, Model: from.Model}
 	}
 	run, err := a.Runs.Start(ch, src, reviewers, synth, verifier)
 	if err != nil {

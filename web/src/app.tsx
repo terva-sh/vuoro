@@ -107,20 +107,29 @@ function Home({ setup, onSetup, runs, onOpen, opening }: { setup?: Setup; onSetu
         </ul>
         </details>
       )}
-      {runs.length > 0 && (
-        <>
-          <h2>Runs</h2>
-          <ul class="runs">
-            {runs.map((r) => (
-              <li key={r.id}>
-                <button class="link" onClick={() => onOpen(r.web_url)}>{r.title}</button>{' '}
-                <span class="muted">{r.ref.project}{changeNumber(r.kind, r.ref.number)} at {short(r.head)}, {ago(r.created)}, {r.drafts.filter((d) => d.status === 'pending').length} drafts, {usd(r.cost_usd)}</span>{' '}
-                <StatusBadge status={r.status} />
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <RunList runs={runs} onOpen={onOpen} />
     </div>
+  )
+}
+
+// RunList is the runs so far. A run of local commits, from vuoro review, has
+// no forge page to open, so it is listed without a link.
+export function RunList({ runs, onOpen }: { runs: Run[]; onOpen: (url: string) => void }) {
+  if (runs.length === 0) return null
+  return (
+    <>
+      <h2>Runs</h2>
+      <ul class="runs">
+        {runs.map((r) => (
+          <li key={r.id}>
+            {r.kind === 'local' ? <span>{r.title}</span> : <button class="link" onClick={() => onOpen(r.web_url)}>{r.title}</button>}{' '}
+            <span class="muted">
+              {r.kind === 'local' ? `local commits of ${r.ref.project}` : `${r.ref.project}${changeNumber(r.kind, r.ref.number)}`} at {short(r.head)}, {ago(r.created)}, {r.drafts.filter((d) => d.status === 'pending').length} drafts, {usd(r.cost_usd)}
+            </span>{' '}
+            <StatusBadge status={r.status} />
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }

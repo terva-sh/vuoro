@@ -117,6 +117,9 @@ type Session struct {
 	// nudged is set once a verifier has been sent back for findings it
 	// left unmarked, so it is sent back once at most.
 	nudged bool
+	// nudging is set from the decision to send a verifier back until the
+	// message is sent, so the run does not read as settled in between.
+	nudging bool
 }
 
 // Entry is one line of a session's transcript, as the person reads it.
@@ -298,8 +301,26 @@ func (r *Run) shown() []drafts.Draft {
 			synth[s.ID] = true
 		}
 	}
+	return shownDrafts(r.store.All(), synth)
+}
+
+// Shown are the findings the person works from in v, as the window picks
+// them.
+func Shown(v RunView) []drafts.Draft {
+	synth := map[string]bool{}
+	for _, s := range v.Sessions {
+		if s.Role == roleNames[drafts.Synthesizer] {
+			synth[s.ID] = true
+		}
+	}
+	return shownDrafts(v.Drafts, synth)
+}
+
+// shownDrafts are the pending drafts of the synthesizer sessions in synth
+// when there are any, and otherwise every pending draft.
+func shownDrafts(all []drafts.Draft, synth map[string]bool) []drafts.Draft {
 	var pending, merged []drafts.Draft
-	for _, d := range r.store.All() {
+	for _, d := range all {
 		if d.Status != drafts.Pending {
 			continue
 		}
@@ -477,7 +498,7 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 			next = r.ready()
 			// A verifier that stopped short is sent back once for the rest.
 			if missing := r.unmarked(); s.Role == drafts.Verifier && !s.nudged && !ev.Cancelled && len(missing) > 0 {
-				s.nudged = true
+				s.nudged, s.nudging = true, true
 				nudge = "These findings have no mark yet. Check each against the code and mark it with rate_draft: " + strings.Join(missing, ", ")
 			}
 			r.settle()
@@ -490,7 +511,12 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		m.advance(r, next)
 		next = nil
 		if nudge != "" {
-			go m.send(r, s, nudge, false)
+			go func(text string) {
+				_ = m.send(r, s, text, false)
+				r.mu.Lock()
+				s.nudging = false
+				r.mu.Unlock()
+			}(nudge)
 		}
 	}
 	r.mu.Lock()
@@ -509,6 +535,26 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 }
 
 // settle sets the run's status from its sessions'. r.mu is held.
+// Settled says the run has nothing left to do without the person: it
+// failed or closed, or every session has reported its first turn and none
+// is working or waiting for its stage.
+func (r *Run) Settled() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch r.Status {
+	case Failed, Closed, Cancelled:
+		return true
+	case Preparing:
+		return false
+	}
+	for _, s := range r.sessions {
+		if !s.reported || s.nudging || s.Status == Working || s.Status == Preparing || s.Status == Waiting {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Run) settle() {
 	if r.Status == Closed || r.Status == Failed || r.Status == Preparing {
 		return

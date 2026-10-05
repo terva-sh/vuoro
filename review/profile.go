@@ -89,7 +89,11 @@ const maxDiffPrompt = 400 << 10
 // firstMessage is the change as the reviewer first sees it.
 func firstMessage(ch *forge.Change) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Review merge request %s, from %s into %s.\n", ch.Ref, ch.SourceBranch, ch.TargetBranch)
+	if ch.Kind == Local {
+		fmt.Fprintf(&b, "Review the local commits of %s, from %s against %s. They are not pushed, and there is no merge request yet.\n", ch.Ref.Project, ch.SourceBranch, ch.TargetBranch)
+	} else {
+		fmt.Fprintf(&b, "Review merge request %s, from %s into %s.\n", ch.Ref, ch.SourceBranch, ch.TargetBranch)
+	}
 	fmt.Fprintf(&b, "Its head is %s and its merge base is %s.\n\n", ch.Diff.Head, ch.Diff.Base)
 	b.WriteString("<title author-written=\"true\">\n" + ch.Title + "\n</title>\n\n")
 	if d := strings.TrimSpace(ch.Description); d != "" {

@@ -855,14 +855,17 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   no keep or drop step in a terminal. `-json` prints one envelope with a
   `schemaVersion` and a `kind` of `review-result`. Progress goes to stderr.
 - **Exit status** is 0 with no findings, 1 with findings, 2 for a usage
-  error, and 3 when the run failed or timed out. An interrupt stops every
-  session and exits 130.
+  error or a range with nothing to review, and 3 when the run or any of its
+  sessions failed, or it timed out. The findings are printed in every case.
+  An interrupt stops every session and exits 130. Flags may follow the
+  target.
 - **Nothing posts.** The command holds no forge writer, and a test runs it
   against a recording forge and refuses any write. Its drafts MCP server is
   a loopback server of its own, behind the guard of section 5.2, and each
   session has its own bearer credential as in the window.
 - **The run is kept** under `runs/<id>/` with the same retention (section 8),
-  and the window lists it after its next start. A window that is already
+  closed, so its worktree is removed and its record stays. The window lists
+  it after its next start, without a link when it has no forge page. A window that is already
   open does not see it. Two processes can fetch into the same bare clone of
   a forge project. git's own ref locks refuse the second fetch rather than
   corrupt the clone, and the command reports that.

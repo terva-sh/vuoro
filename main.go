@@ -8,6 +8,8 @@
 //	vuoro -browser   serve on loopback and print the URL, until interrupted
 //	vuoro -check     load the page, check it reached the server and Go, and
 //	                 exit 0 or 1
+//	vuoro review     review a local range or a change headless, and print
+//	                 the findings (docs/plan.md section 6.7)
 package main
 
 import (
@@ -46,6 +48,9 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "review" {
+		return runReview(args[1:], stdout, stderr)
+	}
 	fs := flag.NewFlagSet("vuoro", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "print the version and exit")
