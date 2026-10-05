@@ -69,6 +69,9 @@ type Draft struct {
 	Category  Category `json:"category,omitempty"`
 	Reason    string   `json:"reason,omitempty"`
 	ThreadKey string   `json:"thread_key,omitempty"`
+	// FixedIn is the pushed commit that fixes the thread, which vuoro, not an
+	// agent, records (D41).
+	FixedIn string `json:"fixed_in,omitempty"`
 
 	Status   Status `json:"status"`
 	Revision int    `json:"revision"`
@@ -673,6 +676,8 @@ func (st *Store) own(s Session, id string) (*Draft, error) {
 			return nil, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
 		case d.ThreadID != "" && d.Edited:
 			return nil, &RuleError{"draft.edited", "id", "a reply the person has not edited"}
+		case d.FixedIn != "":
+			return nil, &RuleError{"draft.fixed", "id", "a reply whose thread is not yet fixed by a pushed commit"}
 		case st.keeping[d.ID]:
 			return nil, keepingErr
 		}

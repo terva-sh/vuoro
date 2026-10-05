@@ -44,7 +44,7 @@ export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 export interface DraftAnchor { path: string; side: 'head' | 'base'; start_line: number; end_line: number }
 export type TriageCategory = "must_fix" | "discuss" | "nit"
 export interface Draft {
-  thread_id?: string; category?: TriageCategory; reason?: string; thread_key?: string
+  thread_id?: string; category?: TriageCategory; reason?: string; thread_key?: string; fixed_in?: string
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
   suggestion?: string // replaces the anchor's head-side lines
@@ -83,13 +83,14 @@ export interface Run {
 // branch (D39).
 export interface EditorState {
   session: string; branch: string; base: string; started: string; discarded?: boolean
+  own?: boolean; items?: string[] // a fix of the person's own change, and the threads it was given (D41)
   pushed?: { branch: string; sha: string; target: string; url?: string; at: string }
 }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.
 export interface StackPreview {
   branch: string; target: string; sha: string; commits: number; files: string[]; ci?: string[]
-  moved?: boolean; title: string; description: string; opened?: string
+  moved?: boolean; own?: boolean; title?: string; description?: string; opened?: string
 }
 export interface EditorCommit { sha: string; subject: string; findings: string[] }
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }

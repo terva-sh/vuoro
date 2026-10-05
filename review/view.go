@@ -193,7 +193,7 @@ func (m *Manager) Load() error {
 			case s.Role == drafts.Suggester:
 				s.spec = agent.Spec{SystemPrompt: suggestionPrompt(), Model: s.Model}
 			case s.Role == drafts.Editor:
-				s.spec = agent.Spec{SystemPrompt: editorPrompt(), Model: s.Model}
+				s.spec = agent.Spec{SystemPrompt: editorPrompt(r.editor != nil && r.editor.Own), Model: s.Model}
 			case ok:
 				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
 			}

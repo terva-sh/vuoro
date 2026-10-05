@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -134,6 +135,9 @@ func TestTriageLocalDiscardAndAuthorRouteChecks(t *testing.T) {
 	if code, _ := call(t, a.Handler(), "/api/triage", map[string]any{"url": url}); code == 200 || code == 201 {
 		t.Fatal("triaged another author's change")
 	}
+	if code, out := call(t, a.Handler(), "/api/runs/triage-run/editor", map[string]any{"url": url, "items": []string{"d1"}}); code == 200 || !strings.Contains(fmt.Sprint(out["error"]), "your own change") {
+		t.Fatalf("an editor on another author's change: %d %v", code, out)
+	}
 }
 
 func TestTriageNormalizesConfiguredBotsWithoutMutatingProvider(t *testing.T) {
@@ -184,7 +188,7 @@ func TestAuthorReplyRequiresSavedLocalEditsBeforeAcceptance(t *testing.T) {
 func TestTriageRoutesRequireTheWindowCredential(t *testing.T) {
 	a, _, _ := triageApp(t)
 	h := server.New(server.Config{Addr: "127.0.0.1:9123", Token: "synthetic-window-token", Dist: fstest.MapFS{}, API: a.Handler()})
-	for _, path := range []string{"/api/triage", "/api/runs/triage-run/drafts/d1/edit-reply", "/api/runs/triage-run/drafts/d1/discard-reply", "/api/runs/triage-run/drafts/d1/keep"} {
+	for _, path := range []string{"/api/triage", "/api/runs/triage-run/editor", "/api/runs/triage-run/editor/push", "/api/runs/triage-run/drafts/d1/edit-reply", "/api/runs/triage-run/drafts/d1/discard-reply", "/api/runs/triage-run/drafts/d1/keep"} {
 		for _, mode := range []string{"missing", "agent", "origin", "host"} {
 			r := httptest.NewRequest("POST", "http://127.0.0.1:9123"+path, strings.NewReader(`{}`))
 			switch mode {

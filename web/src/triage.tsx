@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
 import { MyDraft, ThreadView } from './diffview'
-import { SessionPane } from './run'
+import { Editor, SessionPane } from './run'
 import { HeadBadge, useRunHead, type HeadState } from './head'
 import { ago, Prose, short, StatusBadge } from './ui'
 import { useWriter, WriteContext } from './write'
@@ -98,10 +98,19 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
   const threads = [...openThreads, ...history]
   const stale = (t: Thread) => change.state !== 'open' || moved || !openIDs.has(t.id) || (!!drafts.get(t.id) && (!snapshots.get(t.id) || threadStamp(t) !== threadStamp(snapshots.get(t.id)!)))
   const group = (category?: TriageCategory) => threads.filter((t) => drafts.get(t.id)?.category === category)
+  // The threads to hand the editor (D41): must fix by default, until the
+  // person changes the picks. A thread already fixed, decided, or changed
+  // since triage cannot be picked.
+  const editing = !!current?.editor && !current.editor.discarded
+  const pickable = (t: Thread) => { const d = drafts.get(t.id); return !!d && !d.decision && !d.fixed_in && !stale(t) }
+  const [picks, setPicks] = useState<Record<string, boolean>>({})
+  const isPicked = (t: Thread) => pickable(t) && (picks[t.id] ?? drafts.get(t.id)?.category === 'must_fix')
+  const picked = threads.filter(isPicked).map((t) => drafts.get(t.id)!)
+  const where = (d: Draft) => { const t = snapshots.get(d.thread_id ?? ''); return t?.anchor ? `${t.anchor.path.split('/').pop()}:${t.anchor.new_line || t.anchor.old_line}` : 'general discussion' }
   const show = (items: Thread[]) => <div class="author-threads">{items.map((t) => {
     const d = drafts.get(t.id)
     return <article class="author-thread" key={t.id}>
-      <div class="author-thread-heading"><strong>{t.anchor ? `${t.anchor.path}:${t.anchor.new_line || t.anchor.old_line}` : 'General discussion'}</strong>{t.anchor && <button class="link" onClick={() => onPick(t.anchor!.path)}>Open in Changes</button>}</div>
+      <div class="author-thread-heading">{!editing && pickable(t) && <label class="pick" title="Hand this thread to the editor"><input type="checkbox" checked={isPicked(t)} onChange={(e) => setPicks({ ...picks, [t.id]: e.currentTarget.checked })} /> fix</label>}<strong>{t.anchor ? `${t.anchor.path}:${t.anchor.new_line || t.anchor.old_line}` : 'General discussion'}</strong>{d?.fixed_in && <span class="badge">✓ fixed in <span class="mono">{short(d.fixed_in)}</span></span>}{t.anchor && <button class="link" onClick={() => onPick(t.anchor!.path)}>Open in Changes</button>}</div>
       {d && <div class="triage-reason"><span class="badge">Agent suggestion{d.edited ? ' · edited by you' : ''}</span><p>{d.reason}</p></div>}
       {openIDs.has(t.id) ? <ThreadView thread={t} /> : <>
         <p class="alert" role="status">This thread is no longer open in the current snapshot. Its saved discussion and reply remain here for reference.</p>
@@ -125,6 +134,10 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
     {current && <div class="triage-run"><StatusBadge status={current.status} /><HeadBadge state={headState} label="triaged" />{current.error && <p class="alert">{current.error}</p>}{moved && <p class="alert" role="status">The head changed. Refresh and run triage again before accepting replies.</p>}
       <details><summary>Talk to the agent · progress and reasoning</summary>{current.sessions.map((s) => <SessionPane run={current} session={s} key={s.id} />)}</details>
     </div>}
+    {current && current.drafts.some((d) => d.thread_id) && <section class="run-section author-editor">
+      <header class="run-section-head"><h3>Fix in a branch</h3><span class="muted">{editing ? 'the editor works from the threads you picked' : `${picked.length} picked · must fix threads are picked by default`}</span></header>
+      <Editor run={current} url={change.web_url} onRun={(r) => { setRun(r) }} picked={picked} describe={where} />
+    </section>}
     {threads.length === 0 ? <p>No open human review threads to triage.</p> : <>
       <nav class="triage-groups" aria-label="Thread categories">{categories.map(([c, label]) => <a key={c} href={`#triage-${c}`}>{label} <span class="badge">{group(c).length}</span></a>)}<a href="#triage-untriaged">Untriaged <span class="badge">{group().length}</span></a></nav>
       {categories.map(([c, label, explanation]) => <section id={`triage-${c}`} class="triage-group" key={c}><h3>{label} <span class="badge">{group(c).length}</span></h3><p class="muted">{explanation}</p>{show(group(c))}</section>)}

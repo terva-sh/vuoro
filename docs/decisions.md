@@ -544,3 +544,26 @@ This supersedes D20's container default.
 
 The alternatives were D20's container, and `srt` for everyone, which needs
 a separate long-lived token from `claude setup-token`.
+
+### D41. On the person's own change, the editor fixes triaged threads and pushes to the change's branch
+
+Decided by the owner on 2026-10-05, after the reviewer-side editor (D39) was
+used to hand back terraform!2487. This is D18's author side, and it keeps
+D19's push target, which D39 set aside only for other people's changes.
+
+- **The editor fixes the threads the person picks** from a triage run. Must
+  fix threads are picked by default, and discuss and nit threads are not. It
+  gets each thread's discussion and the triage reason, makes one commit per
+  thread, and may decline a thread and say why.
+- **vuoro pushes to the change's own branch**, fast-forward only, on the
+  person's confirmed action after they review the commits as a diff. A branch
+  that moved since triage is refused, never forced. The alternatives were a
+  stacked draft merge request as on others' changes, and asking each time.
+- **A fixed thread's reply cites its commit.** Once pushed, vuoro sets the
+  thread's drafted reply to name the pushed commit, unless the person edited
+  the reply. The commit ID comes from vuoro, never from the agent. The reply
+  stays a local draft until the person adds it to pending comments and
+  submits, and vuoro does not resolve the thread. The alternatives were
+  replying and resolving on submit, and leaving replies to the person.
+- **Editor fixes come before applying reviewers' suggestion blocks**, which
+  needs no agent and stays a later slice.

@@ -72,4 +72,16 @@ describe('Editor', () => {
     expect(closed).toHaveBeenCalled()
     root.remove()
   })
+
+  it('hands the picked threads of the person\'s own change to the editor', async () => {
+    vi.mocked(post).mockResolvedValue(run())
+    const thread = (id: string) => ({ ...draft(id), thread_id: `t-${id}`, category: 'must_fix' }) as Draft
+    const own = run({ mode: 'triage', drafts: [thread('d1'), thread('d2')] })
+    const root = document.createElement('div')
+    act(() => render(<Editor run={own} url="u" onRun={() => {}} picked={[thread('d2')]} describe={() => 'x'} />, root))
+    const b = root.querySelector('button')!
+    expect(b.textContent).toContain('Fix the picked threads in a branch (1)')
+    await act(async () => b.click())
+    expect(post).toHaveBeenCalledWith('/api/runs/r1/editor', { url: 'u', items: ['d2'] })
+  })
 })

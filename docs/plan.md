@@ -730,6 +730,17 @@ hand-off report lists, become the editor's task:
    creation, and a test holds that. GitLab is supported first; Forgejo
    answers that it is not supported yet.
 
+**Fixing the person's own change from its threads** (D41). On the Threads
+tab, the person picks triaged threads, must fix ones by default, and
+"Fix the picked threads in a branch" starts the same editor with each
+thread's discussion and the triage's reading of it. Its commits carry a
+`Vuoro-Thread` trailer. "Push to your branch" pushes them to the merge
+request's own source branch, fast-forward only, and refuses when that
+branch moved since triage, other than by the editor's own last push. Each
+thread a pushed commit names then has its reply cite the commit, unless the
+person wrote the reply, and the agent can no longer revise it. Nothing is
+resolved, and replies stay local until the person adds and submits them.
+
 ### 6.4 Other actions
 
 Summarising a change, summarising what changed since my last review, and the

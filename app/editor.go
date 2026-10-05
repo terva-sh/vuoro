@@ -13,11 +13,13 @@ import (
 	"github.com/terva-sh/vuoro/review"
 )
 
-// startEditor starts a run's editor on the findings the person kept (D39),
-// once the change is still at the head the run reviewed.
+// startEditor starts a run's editor: on a review, on the findings the person
+// kept (D39); on a triage of their own change, on the threads they picked
+// (D41). The change must still be at the head the run read.
 func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		URL string `json:"url"`
+		URL   string   `json:"url"`
+		Items []string `json:"items,omitempty"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -34,16 +36,22 @@ func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	if run.Ref != ch.Ref || run.Kind != ch.Kind {
-		writeError(w, errors.New("This run belongs to another change."))
+	if run.Mode == "triage" && !a.isAuthor(ch) {
+		writeError(w, errors.New("The editor fixes threads on your own change only."))
 		return
 	}
 	a.probeTools() // a run reloaded after a restart starts on a probed tool
-	if _, err := a.Runs.StartEditor(ctx, run.ID, ch.Diff.Head, a.identity(ctx)); err != nil {
+	if _, err := a.Runs.StartEditor(ctx, run.ID, ch, a.identity(ctx), req.Items); err != nil {
 		writeError(w, err)
 		return
 	}
 	a.getRun(w, r)
+}
+
+// isAuthor says the signed-in person wrote the change.
+func (a *App) isAuthor(ch *forge.Change) bool {
+	f := a.forgeFor(ch.Ref.Host)
+	return f != nil && f.Username != "" && strings.EqualFold(f.Username, ch.Author.Username)
 }
 
 // getEditor answers with the editor's commits and their diff.
@@ -91,9 +99,12 @@ type stackPreview struct {
 	Files       []string `json:"files"`
 	CI          []string `json:"ci,omitempty"` // files that change what CI runs
 	Moved       bool     `json:"moved,omitempty"`
+	Own         bool     `json:"own,omitempty"` // pushes to the change's own branch (D41)
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Opened      string   `json:"opened,omitempty"` // the draft change already open
+
+	head string // the source branch's head as the forge reported it
 }
 
 // stack reads where the editor's work would go, for the person to confirm.
@@ -132,15 +143,23 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 	}
 	v := run.View()
 	p = stackPreview{Branch: d.Branch, Target: target.Branch, SHA: d.Commits[len(d.Commits)-1].SHA, Commits: len(d.Commits),
-		Moved: target.Head != d.Base, Title: review.StackTitle(v),
-		Description: review.StackDescription(v, d, a.identity(ctx).Name), Files: []string{}}
+		Moved: target.Head != d.Base, Own: d.Own, Files: []string{}, head: target.Head}
+	if d.Own {
+		if !a.isAuthor(ch) {
+			return nil, nil, p, errors.New("The editor pushes to your own change only.")
+		}
+		// The branch may have moved only by the editor's own last push.
+		p.Moved = target.Head != d.Base && (d.Pushed == nil || target.Head != d.Pushed.SHA)
+	} else {
+		p.Title, p.Description = review.StackTitle(v), review.StackDescription(v, d, a.identity(ctx).Name)
+	}
 	for _, f := range d.Files {
 		p.Files = append(p.Files, f.NewPath)
 		if ciFile(f.NewPath) || ciFile(f.OldPath) {
 			p.CI = append(p.CI, f.NewPath)
 		}
 	}
-	if d.Pushed != nil {
+	if d.Pushed != nil && !d.Own {
 		p.Opened = d.Pushed.URL
 	}
 	return ch, st, p, nil
@@ -187,10 +206,6 @@ func (a *App) pushEditor(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errors.New("Pushing needs your confirmation."))
 		return
 	}
-	if strings.TrimSpace(req.Title) == "" {
-		writeError(w, errors.New("The merge request needs a title."))
-		return
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 	ch, st, p, err := a.stack(ctx, r.PathValue("id"), req.URL)
@@ -198,14 +213,26 @@ func (a *App) pushEditor(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	if p.Own && p.Moved {
+		writeError(w, fmt.Errorf("%s has moved since triage. vuoro does not force a push, so run triage again on the new head.", p.Target))
+		return
+	}
+	if !p.Own && strings.TrimSpace(req.Title) == "" {
+		writeError(w, errors.New("The merge request needs a title."))
+		return
+	}
 	src, err := a.source(ch)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	_, err = a.Runs.PushEditor(ctx, r.PathValue("id"), src.Remote, p.Target, req.SHA, func() (string, error) {
+	open := func() (string, error) {
 		return st.OpenStacked(ctx, ch.Ref, forge.NewStacked{Branch: p.Branch, Target: p.Target, Title: req.Title, Description: req.Description})
-	})
+	}
+	if p.Own {
+		open = nil // the change's own branch needs no new merge request
+	}
+	_, err = a.Runs.PushEditor(ctx, r.PathValue("id"), src.Remote, forge.StackTarget{Branch: p.Target, Head: p.head}, req.SHA, open)
 	if err != nil {
 		writeError(w, err)
 		return
