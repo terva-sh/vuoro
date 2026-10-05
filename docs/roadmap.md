@@ -12,9 +12,9 @@ implementation tickets stay in draft until selected. D34 brings Forgejo discover
 | Desktop foundation | Loopback protection, tuohi, embedded Preact UI, shared violet styling, cgo-free cross-builds, and the internal PR review workflow are implemented. Merged PR #4 passes the complete Windows/Linux/macOS gate, including the macOS window check. |
 | Reviews | Parallel Claude Code reviewers, synthesis, verification, conversations, editable local drafts, suggestions, and a kept-findings report are implemented. Local summaries stream for the whole change or an exact range since a completed Vuoro review, with history and cancellation. |
 | Forges | GitLab and Forgejo open by URL through shared contracts. Both provide review checkout; Forgejo remains read-only. GitHub is not supported yet. |
-| GitLab posting | Implemented with offline coverage; real comment/reply/resolve/approve round-trips remain blocked on an owner-writable MR and configured credentials. The turn-update acceptance criterion also needs the inbox. |
+| GitLab posting | Implemented and validated live on 2026-10-05 against a private sandbox merge request (`drewshort/vuoro-sandbox!1`) with the opt-in `TestLiveWrite`: inline and general drafts publish as one batch, a reply lands in its thread, resolve and unresolve round-trip, and approve then revoke move the derived turn from R1 to waiting and back. The test drives `forge.Writer` directly; the window's controls over it have offline coverage. |
 | Inbox | Shared discovery/cache/refresh, the pure turn engine and both discovery adapters are merged in PRs #6–#9; the home inbox landed in PR #10 with reasons, ages, account status, snooze and workspace opening. Forgejo live comparison passed for 24 open PRs. GitLab personal-account comparison passed on 2026-10-03 for an empty inbox (zero requested reviews and zero open memberships); authenticated nonempty GitLab turn facts and pagination remain unexercised live. |
-| Author help | Thread classification and local replies are implemented, with explicit editing, acceptance into pending comments and Submit. [Interaction sketch](author-triage.md) records the flow and stale-thread states; fixture coverage proves posting boundaries. Live GitLab posting remains the separate gate above. |
+| Author help | Thread classification and local replies are implemented, with explicit editing, acceptance into pending comments and Submit. [Interaction sketch](author-triage.md) records the flow and stale-thread states; fixture coverage proves posting boundaries. Live GitLab posting is validated above. |
 | Review lifecycle | Token/cost displays and head-SHA flags already exist. Run and draft badges now show verified commit distance, with explicit rewritten/unavailable states and old-head drafts separated from today’s diff. Unknown-cost labeling and retention remain. |
 | External blockers | Terva reviewers wait for a release whose per-run MCP configuration and lockdown are proven. The editor waits for a sandbox spike. Neither blocks the inbox. |
 
@@ -95,14 +95,13 @@ the five selected implementation tickets. It proves empty-inbox parity;
 offline fixtures cover nonempty facts and pagination, with an additional
 anonymous live facts check. Authenticated nonempty GitLab coverage is still
 to obtain. The separate
-GitLab write validation remains blocked and was not attempted with this
-read-only credential.
+GitLab write validation was not attempted with this read-only credential;
+it passed separately on 2026-10-05 with the owner's configured token.
 
 ## Remaining MVP work
 
 | Work | Ticket | What remains |
 |---|---|---|
-| Live GitLab posting | TKT-01M3W4HWTXC6EM9SS84A4WMEPG — Comment, reply, resolve, approve, and submit on GitLab | Owner-writable MR and configured token source; validate writes, then turn refresh when the inbox exists. Never request the token's value. |
 | Usage display | TKT-01M3YMSST3CNA34862NNERKMN2 — Show tokens and cost per session and per review run | Audit existing displays and totals, especially tools with no reported cost. |
 | Ticket context | TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM — Decide how a change finds its git-ticket store and ticket; then TKT-01M3W4HX1PHPQ98KX0PE5HW60E — Show a change's ticket, and give it to reviewers as context | Settle linking and store discovery before implementation; no ticket UI or dependency when absent. |
 | Retention | TKT-01M3YMSSX3WH3Q6TW6BCGK7XV7 — Keep review runs until the change closes, then 30 days | Configurable deletion of expired transcripts and preservation of one-line run records. |
