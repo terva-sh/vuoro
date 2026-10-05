@@ -71,6 +71,7 @@ terva-sh release is.
 ```text
 vuoro            opens the desktop window (tuohi) over the loopback server
 vuoro -browser   serves on loopback and prints the URL, for a browser or debugging
+vuoro review     runs one review headless and prints its findings (section 6.7)
 ```
 
 The process runs a `net/http` server on `127.0.0.1` and points a tuohi window at
@@ -823,6 +824,49 @@ agent outlives it.
 `~/.claude/projects/`, keyed by the working directory. Section 8's retention
 deletes it with the run's, or day-job code lingers there.
 
+### 6.7 Reviews from the command line
+
+Decided on 2026-10-05 (D35), so that vuoro reviews its own development.
+
+```text
+vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [target]
+```
+
+- **The target** is a change URL, opened through the same adapters as the
+  window, or a git range in the checkout at `-C`, which defaults to the
+  working directory. `A..B` and `A...B` both review `B` against its merge base
+  with `A`, as a merge request does. A single revision `A` means `A...HEAD`.
+  No target means the checkout's upstream, then `origin/HEAD`, then
+  `origin/main`, against `HEAD`.
+- **A local range reviews commits only.** The runner fetches the range's
+  commits from the checkout into its own bare clone, under the key
+  `local/<name>-<hash of the absolute path>`, and checks out a worktree there
+  as for a forge change. Uncommitted changes are not reviewed, and a dirty
+  tree is reported on stderr. The change is forge-less: it has a title from
+  the newest commit, the commit messages as its description, and per-file
+  patches from `git diff` with external diff programs and textconv disabled.
+  It has no threads.
+- **The reviewers** come from `-preset`, or one reviewer from `-profile` and
+  `-model`. The default preset is `quick` when the config file defines it,
+  and otherwise the first preset, as in the window. Synthesis and
+  verification follow the same rules as the window (D11, D31).
+- **The output** is the findings report, as Markdown on stdout, with every
+  pending finding the person would work from and its verifier mark. There is
+  no keep or drop step in a terminal. `-json` prints one envelope with a
+  `schemaVersion` and a `kind` of `review-result`. Progress goes to stderr.
+- **Exit status** is 0 with no findings, 1 with findings, 2 for a usage
+  error, and 3 when the run failed or timed out. An interrupt stops every
+  session and exits 130.
+- **Nothing posts.** The command holds no forge writer, and a test runs it
+  against a recording forge and refuses any write. Its drafts MCP server is
+  a loopback server of its own, behind the guard of section 5.2, and each
+  session has its own bearer credential as in the window.
+- **The run is kept** under `runs/<id>/` with the same retention (section 8),
+  and the window lists it after its next start. A window that is already
+  open does not see it. Two processes can fetch into the same bare clone of
+  a forge project. git's own ref locks refuse the second fetch rather than
+  corrupt the clone, and the command reports that.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -930,6 +974,9 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    acceptance criteria to the reviewers.
 6. **History.** Keep runs until the change closes, then 30 days, then one line
    per run.
+7. **Reviews from the command line (D35).** `vuoro review` runs a preset on a
+   local range or a change URL and prints its findings, so vuoro reviews its
+   own development (section 6.7). It never posts.
 
 ### 10.2 v1.0.0
 
@@ -942,8 +989,9 @@ and a terva-sh release).
   6.6, D28).
 - **The editor agent** (section 6.3), on the author's side, with its sandbox
   decided by a spike first.
-- **Reviews before a push.** Review a local branch or range with no forge, and
-  carry the findings into the merge request.
+- **Reviews before a push.** Review a local branch or range in the window, and
+  carry the findings into the merge request. The headless command arrives in
+  the MVP (D35).
 - **Repositories add instructions.** A checklist and conventions, read at the
   base commit, layered on the person's preset. A repository never picks the
   reviewers.

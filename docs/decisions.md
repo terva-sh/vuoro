@@ -374,3 +374,28 @@ more agent review tools and workflows first. The owner selected the inbox,
 which delivers Vuoro’s remaining core promise across both forges already read.
 Agent tools and ticket stores keep their separate interfaces. No implementation
 ticket is promoted merely by recording this execution plan.
+
+### D35. A command-line review joins the MVP, for dogfooding
+
+On 2026-10-05 the owner asked for a way to run a review from the command line
+against whatever they name, so that vuoro reviews its own development. This
+brings a headless first slice of "reviews before a push" forward from the
+v1.0 list (section 10.2) into the MVP. Carrying a local review's findings
+into the merge request opened later stays in v1.0.
+
+`vuoro review` takes a git range in a local checkout or a change URL. It runs
+a preset, or one profile, through the same runner, drivers, lockdown,
+synthesis and verification as the window. It prints the findings as Markdown,
+or as one JSON envelope with `-json`. The default preset is `quick` when the
+config file defines it. The run is saved like any other, under the same
+retention (D26).
+
+The command has no write path to a forge. A headless process has no person in
+the loop to post, so "an agent drafts, a person posts" holds here because
+nothing posts. A test proves that a run against a recording forge sends no
+write. Its drafts MCP server is a loopback server of its own, behind the same
+guard, with a per-session credential.
+
+The alternatives were waiting for v1.0, and leaving dogfooding to the
+terva-review Forgejo workflow alone. The command complements that workflow: it
+reviews before a push, and the workflow reviews the pull request.

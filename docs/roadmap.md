@@ -102,6 +102,7 @@ it passed separately on 2026-10-05 with the owner's configured token.
 
 | Work | Ticket | What remains |
 |---|---|---|
+| Command-line review | TKT-01M46B3VTQXGGYRG88BX49PJXZ — Run a review from the command line on a range or a change | `vuoro review` on a local range or change URL, for dogfooding (D35, plan section 6.7). |
 | Usage display | TKT-01M3YMSST3CNA34862NNERKMN2 — Show tokens and cost per session and per review run | Audit existing displays and totals, especially tools with no reported cost. |
 | Ticket context | TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM — Decide how a change finds its git-ticket store and ticket; then TKT-01M3W4HX1PHPQ98KX0PE5HW60E — Show a change's ticket, and give it to reviewers as context | Settle linking and store discovery before implementation; no ticket UI or dependency when absent. |
 | Retention | TKT-01M3YMSSX3WH3Q6TW6BCGK7XV7 — Keep review runs until the change closes, then 30 days | Configurable deletion of expired transcripts and preservation of one-line run records. |
