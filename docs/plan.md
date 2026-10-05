@@ -520,7 +520,14 @@ others will see and as whom, with Cancel focused, because one stray click
 otherwise reaches the forge. The person can waive asking for submitting or for
 approving. The waiver is kept in `prefs.json` in the state directory, not the
 config file, and the home page can take it back. A
-kept or dropped draft can no longer be changed by its agent. An inline
+kept or dropped draft can no longer be changed by its agent. While a Keep is
+writing to the forge, the store holds the draft: a second Keep or a drop is
+refused, an agent cannot revise it, and the button reads "Keeping…", so a
+quick second click never writes the comment twice. A write's reply does not
+wait for the inbox, which catches up in the background. The GitLab adapter
+keeps the patches of the last few changes it read, by diff version, because
+reading them is most of the cost of opening a large change, and a Keep
+opens the change again to place the comment on today's head. An inline
 comment lands on the last line of the draft's range, because GitLab's
 multi-line positions need a line code that vuoro does not build yet. A draft
 anchored on a head that has since moved is refused rather than placed on the

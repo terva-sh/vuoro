@@ -278,3 +278,47 @@ func TestASuggestionThatRepeatsALineOutsideItsRangeIsRefused(t *testing.T) {
 		t.Fatalf("widened: %v %+v", err, d.Anchor)
 	}
 }
+
+func TestADraftBeingKeptCannotBeKeptAgainOrChanged(t *testing.T) {
+	st := NewStore()
+	if _, err := st.Propose(alice, Proposal{Severity: "high", Title: "t", Description: "d"}); err != nil {
+		t.Fatal(err)
+	}
+	writing, finish := make(chan struct{}), make(chan struct{})
+	done := make(chan error)
+	go func() {
+		_, err := st.Keep("d1", func(Draft) (string, bool, error) {
+			close(writing)
+			<-finish
+			return "77", false, nil
+		})
+		done <- err
+	}()
+	<-writing
+	if _, err := st.Keep("d1", func(Draft) (string, bool, error) { t.Fatal("wrote twice"); return "", false, nil }); !errors.Is(err, ErrKeeping) {
+		t.Fatalf("a second keep: %v", err)
+	}
+	if _, err := st.Decide("d1", Dropped, "", false); !errors.Is(err, ErrKeeping) {
+		t.Fatalf("a drop while keeping: %v", err)
+	}
+	var re *RuleError
+	if _, err := st.Revise(alice, "d1", Proposal{Severity: "low", Title: "t", Description: "d"}); !errors.As(err, &re) || re.Rule != "draft.keeping" {
+		t.Fatalf("a revision while keeping: %v", err)
+	}
+	close(finish)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := st.Get("d1"); d.Decision != Kept || d.NoteID != "77" || d.Severity != "high" {
+		t.Fatalf("kept %+v", d)
+	}
+
+	// A failed write leaves the draft to decide again.
+	st.Propose(alice, Proposal{Severity: "high", Title: "t2", Description: "d"})
+	if _, err := st.Keep("d2", func(Draft) (string, bool, error) { return "", false, errors.New("forge down") }); err == nil {
+		t.Fatal("a failed write kept the draft")
+	}
+	if _, err := st.Keep("d2", func(Draft) (string, bool, error) { return "78", true, nil }); err != nil {
+		t.Fatalf("keep after a failure: %v", err)
+	}
+}

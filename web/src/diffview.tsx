@@ -1,5 +1,5 @@
 import { Fragment } from 'preact'
-import { useMemo, useState } from 'preact/hooks'
+import { useLayoutEffect, useMemo, useState } from 'preact/hooks'
 import { parsePatch, patchLines, placeAll, type Place, type Row } from './diff'
 import type { Draft, FileDiff, ForgeDraft, Thread } from './types'
 import { ago, CommentBubble, Prose, SeverityBadge, worstSeverity } from './ui'
@@ -10,6 +10,10 @@ import { Composer, useWriter } from './write'
 // A file past this many lines starts collapsed, and its rows are built only
 // when the person opens it, so a large change stays responsive.
 export const collapseAt = 400
+
+// manyFiles is the file count past which a change opens with every file
+// collapsed, and the file list opens the one the person picks.
+export const manyFiles = 25
 
 const threadPlace = (t: Thread): Place | undefined => {
   const a = t.anchor
@@ -135,6 +139,17 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
   const staleAnchor = !!draft.anchor && !!head && head.reviewed_head !== head.current_head
   const a = draft.anchor
   const open = draft.status === 'pending' && !draft.decision
+  // busy is the decision being written. Keep reads the change and writes to
+  // the forge, which takes seconds on a large change, and a second click
+  // must not write the comment twice. After a success the buttons stay off
+  // until the run shows the decision.
+  const [busy, setBusy] = useState<'keep' | 'drop' | 'done'>()
+  const decide = (kind: 'keep' | 'drop') => {
+    if (busy) return
+    setBusy(kind)
+    w?.act(`/api/runs/${runID}/drafts/${draft.id}/${kind}`, {})
+      .then(() => setBusy('done'), () => setBusy(undefined))
+  }
   const ask = () => {
     setAsked('asked')
     post(`/api/runs/${runID}/drafts/${draft.id}/suggest`).catch((e: unknown) => setAsked(`⚠ ${e instanceof Error ? e.message : String(e)}`))
@@ -187,9 +202,11 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
           )}
           {open && w && runID && (
             <div class="actions">
-              <button class="primary" disabled={staleAnchor} onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, {}).catch(() => undefined)}>Keep</button>
-              <button disabled={staleAnchor} onClick={() => setEditing(true)}>Edit and keep</button>
-              <button onClick={() => void w.act(`/api/runs/${runID}/drafts/${draft.id}/drop`, {}).catch(() => undefined)}>Drop</button>
+              <button class="primary" disabled={staleAnchor || !!busy} aria-busy={busy === 'keep'} onClick={() => decide('keep')}>
+                {busy === 'keep' ? '⧗ Keeping…' : 'Keep'}
+              </button>
+              <button disabled={staleAnchor || !!busy} onClick={() => setEditing(true)}>Edit and keep</button>
+              <button disabled={!!busy} aria-busy={busy === 'drop'} onClick={() => decide('drop')}>{busy === 'drop' ? '⧗ Dropping…' : 'Drop'}</button>
               {a?.side === 'head' && draft.suggestion === undefined && (
                 <button disabled={asked === 'asked'} onClick={ask}
                   title="A small new session reads this finding and its file and writes the replacement lines. Keeping the finding then posts a suggestion the author can apply">
@@ -209,11 +226,28 @@ export function fileID(path: string) {
   return 'file-' + path.replace(/[^A-Za-z0-9_-]/g, '_')
 }
 
-export function FileView({ file, threads, drafts, mine = [], runID }: {
+// FileView is one file of the diff. picked counts the times the person has
+// picked it from the file list, or is undefined when another file was picked
+// last. A pick opens a collapsed file, and the next pick of another file
+// folds it again, unless the person opened or closed it themselves.
+export function FileView({ file, threads, drafts, mine = [], runID, collapsed = false, picked }: {
   file: FileDiff; threads: Thread[]; drafts: Draft[]; mine?: ForgeDraft[]; runID?: string
+  collapsed?: boolean; picked?: number
 }) {
   const lines = useMemo(() => patchLines(file.patch), [file.patch])
-  const [open, setOpen] = useState(lines <= collapseAt)
+  const [open, setOpenState] = useState(!collapsed && lines <= collapseAt)
+  const [opened, setOpened] = useState(false) // opened by a pick, not by hand
+  const setOpen = (v: boolean) => { setOpened(false); setOpenState(v) }
+  // A layout effect, so the file is open before the list scrolls to it.
+  useLayoutEffect(() => {
+    if (picked !== undefined && !open) {
+      setOpenState(true)
+      setOpened(true)
+    } else if (picked === undefined && opened) {
+      setOpenState(false)
+      setOpened(false)
+    }
+  }, [picked])
   const name = file.renamed ? `${file.old_path} → ${file.new_path}` : file.new_path
   const tag = file.new ? 'added' : file.deleted ? 'deleted' : file.renamed ? 'renamed' : ''
   const notes = threads.length + drafts.length + mine.length

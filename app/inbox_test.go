@@ -106,6 +106,7 @@ func TestInboxWithoutToolsTicketsOrRunsAndHumanWriteRefresh(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("human approval %d", code)
 	}
+	a.background.Wait() // the inbox catches up after the reply
 	got = inboxResult(t, a, "GET", "/api/inbox", "")
 	if len(got.Mine) != 1 || len(got.Theirs) != 1 || got.Theirs[0].Kind != forge.GitLab {
 		t.Fatal("human action did not refresh derived turn")

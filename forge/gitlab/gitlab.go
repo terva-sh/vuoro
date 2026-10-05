@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -34,6 +35,45 @@ type Client struct {
 	// noUserType is set once this GitLab has refused UserCore.type, which
 	// older versions lack, so later reads ask without it.
 	noUserType atomic.Bool
+
+	// patches keeps the files of the changes read most recently, by diff
+	// version. A diff version's patches never change, and reading them is
+	// most of the cost of opening a large change, which a write repeats.
+	patchMu sync.Mutex
+	patches []cachedPatches
+}
+
+type cachedPatches struct {
+	ref   forge.Ref
+	refs  forge.DiffRefs
+	files []forge.FileDiff
+}
+
+// maxCachedPatches bounds the cache to a few changes.
+const maxCachedPatches = 8
+
+func (c *Client) cachedFiles(ref forge.Ref, refs forge.DiffRefs) ([]forge.FileDiff, bool) {
+	c.patchMu.Lock()
+	defer c.patchMu.Unlock()
+	for _, p := range c.patches {
+		if p.ref == ref && p.refs == refs {
+			return slices.Clone(p.files), true
+		}
+	}
+	return nil, false
+}
+
+func (c *Client) cacheFiles(ref forge.Ref, refs forge.DiffRefs, files []forge.FileDiff) {
+	if refs.Head == "" {
+		return
+	}
+	c.patchMu.Lock()
+	defer c.patchMu.Unlock()
+	c.patches = slices.DeleteFunc(c.patches, func(p cachedPatches) bool { return p.ref == ref })
+	c.patches = append(c.patches, cachedPatches{ref, refs, slices.Clone(files)})
+	if len(c.patches) > maxCachedPatches {
+		c.patches = c.patches[len(c.patches)-maxCachedPatches:]
+	}
 }
 
 // New returns a client for the GitLab at base, such as https://gitlab.com.
@@ -288,8 +328,13 @@ func (c *Client) Open(ctx context.Context, ref forge.Ref) (*forge.Change, error)
 	if err != nil {
 		return nil, err
 	}
-	if ch.Files, err = c.diffs(ctx, ref, ch.Diff); err != nil {
-		return nil, err
+	if files, ok := c.cachedFiles(ref, ch.Diff); ok {
+		ch.Files = files
+	} else {
+		if ch.Files, err = c.diffs(ctx, ref, ch.Diff); err != nil {
+			return nil, err
+		}
+		c.cacheFiles(ref, ch.Diff, ch.Files)
 	}
 	if c.token.Empty() {
 		return ch, nil

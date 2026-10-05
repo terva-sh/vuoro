@@ -665,6 +665,21 @@ func (m *Manager) Decide(runID, id, decision, noteID string, edited bool) error 
 	return nil
 }
 
+// Keep records the person's Keep of one of a run's drafts around write,
+// which puts it on the forge. A second Keep of the same draft while the
+// first is writing is refused with drafts.ErrKeeping.
+func (m *Manager) Keep(runID, id string, write func(drafts.Draft) (string, bool, error)) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	if _, err := r.store.Keep(id, write); err != nil {
+		return err
+	}
+	r.save()
+	return nil
+}
+
 // AskSuggestion starts a fresh session to write the suggested change for one
 // finding: the lines that replace its range at the head (D37). It does not
 // resume the session that drafted the finding, whose context holds the whole

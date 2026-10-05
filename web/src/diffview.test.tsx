@@ -22,6 +22,35 @@ describe('FileView', () => {
     expect(root.querySelectorAll('.diff tr').length).toBe(5001)
   })
 
+  it('starts collapsed in a large change, opens when picked, and folds when another is picked', () => {
+    const root = document.createElement('div')
+    const view = (picked?: number) => act(() => render(<FileView file={big(10)} threads={[]} drafts={[]} collapsed picked={picked} />, root))
+    const rows = () => root.querySelectorAll('.diff tr').length
+    view()
+    expect(rows()).toBe(0)
+    view(1)
+    expect(rows()).toBe(11)
+    view(undefined)
+    expect(rows()).toBe(0)
+  })
+
+  it('leaves a file the person opened by hand open when another is picked', () => {
+    const root = document.createElement('div')
+    const view = (picked?: number) => act(() => render(<FileView file={big(10)} threads={[]} drafts={[]} collapsed picked={picked} />, root))
+    const rows = () => root.querySelectorAll('.diff tr').length
+    view()
+    act(() => (root.querySelector('.file-head .show-lines') as HTMLButtonElement).click())
+    view(1)
+    view(undefined)
+    expect(rows()).toBe(11)
+    // Picked, then closed by hand, a second pick opens it again.
+    view(2)
+    act(() => (root.querySelector('.file-toggle') as HTMLButtonElement).click())
+    expect(rows()).toBe(0)
+    view(3)
+    expect(rows()).toBe(11)
+  })
+
   it('opens a small file at once', () => {
     const root = document.createElement('div')
     act(() => render(<FileView file={big(collapseAt - 10)} threads={[]} drafts={[]} />, root))

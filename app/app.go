@@ -45,9 +45,12 @@ type App struct {
 	// none, and every action asks first.
 	StateDir string
 
-	prefsMu   sync.Mutex
-	probeOnce sync.Once
-	probes    map[string]probe
+	prefsMu sync.Mutex
+	// background holds work a reply does not wait for, such as the inbox
+	// catching up after a write.
+	background sync.WaitGroup
+	probeOnce  sync.Once
+	probes     map[string]probe
 
 	clientMu     sync.Mutex
 	mu           sync.Mutex

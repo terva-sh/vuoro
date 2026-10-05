@@ -29,6 +29,8 @@ type fakeGitLab struct {
 	mu     sync.Mutex
 	writes []string
 	bodies []map[string]any
+	// slow holds each write back this long, as a busy forge does.
+	slow time.Duration
 }
 
 func (g *fakeGitLab) handler(t *testing.T) http.Handler {
@@ -54,7 +56,9 @@ func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 			g.mu.Lock()
 			g.writes = append(g.writes, r.Method+" "+r.URL.EscapedPath())
 			g.bodies = append(g.bodies, body)
+			slow := g.slow
 			g.mu.Unlock()
+			time.Sleep(slow)
 			w.Write([]byte(`{"id": 77, "note": "x"}`))
 		}
 	})
@@ -183,10 +187,25 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 		t.Fatalf("the agent's run wrote to the forge: %q", w)
 	}
 
-	// The person keeps one, and it becomes their own pending draft note.
-	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/drafts/d1/keep", run.ID), map[string]any{"url": mrURL}); code != 200 {
-		t.Fatalf("keep: %d %v", code, out)
+	// The person keeps one, twice in quick succession, and it becomes one
+	// pending draft note of theirs.
+	g.mu.Lock()
+	g.slow = 300 * time.Millisecond
+	g.mu.Unlock()
+	codes := make(chan int, 2)
+	for range 2 {
+		go func() {
+			code, _ := call(t, h, fmt.Sprintf("/api/runs/%s/drafts/d1/keep", run.ID), map[string]any{"url": mrURL})
+			codes <- code
+		}()
+		time.Sleep(50 * time.Millisecond)
 	}
+	if a, b := <-codes, <-codes; a+b != 200+400 {
+		t.Fatalf("two keeps answered %d and %d, want one 200 and one 400", a, b)
+	}
+	g.mu.Lock()
+	g.slow = 0
+	g.mu.Unlock()
 	w := g.seen()
 	if len(w) != 1 || !strings.HasSuffix(w[0], "/merge_requests/3991/draft_notes") || !strings.HasPrefix(w[0], "POST ") {
 		t.Fatalf("keep wrote %q", w)

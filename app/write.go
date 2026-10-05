@@ -76,8 +76,11 @@ func (a *App) reply(w http.ResponseWriter, r *http.Request, url string) {
 		return
 	}
 	if service, err := a.inbox(); err == nil {
-		// Its own error/status preserves stale facts if the targeted read fails.
-		_ = service.RefreshChange(r.Context(), ch.Ref)
+		// The inbox catches up in the background: its refresh reads the change
+		// again and can wait behind a whole inbox refresh, and the person is
+		// waiting on this reply. Its own error/status preserves stale facts if
+		// the targeted read fails.
+		a.background.Go(func() { _ = service.RefreshChange(context.WithoutCancel(r.Context()), ch.Ref) })
 	}
 	writeJSON(w, http.StatusOK, ch)
 }
@@ -254,41 +257,41 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 		a.keepReply(w, r, req.URL, req.Body)
 		return
 	}
-	ch, wr, err := a.writer(r.Context(), req.URL)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	run := a.Runs.Get(runID)
-	if run.Ref != ch.Ref || run.Kind != ch.Kind {
-		writeError(w, errors.New("This draft belongs to another change."))
-		return
-	}
-	body, edited := keepBody(d), false
-	if req.Body != nil && *req.Body != body {
-		body, edited = *req.Body, true
-	}
-	if strings.TrimSpace(body) == "" {
-		writeError(w, errors.New("the comment is empty"))
-		return
-	}
-	nd := forge.NewDraft{Body: body}
-	if d.Anchor != nil {
-		if ch.Diff.Head != head {
-			writeError(w, fmt.Errorf("the change has moved since this run reviewed %.8s; run the review again before keeping an anchored finding", head))
-			return
+	// The forge write runs while the store holds the draft, so a second
+	// click is refused instead of writing the comment twice.
+	err = a.Runs.Keep(runID, id, func(d drafts.Draft) (string, bool, error) {
+		ch, wr, err := a.writer(r.Context(), req.URL)
+		if err != nil {
+			return "", false, err
 		}
-		if nd.Anchor, err = anchor(ch, place{Path: d.Anchor.Path, Side: d.Anchor.Side, Line: d.Anchor.EndLine}); err != nil {
-			writeError(w, err)
-			return
+		run := a.Runs.Get(runID)
+		if run.Ref != ch.Ref || run.Kind != ch.Kind {
+			return "", false, errors.New("This draft belongs to another change.")
 		}
-	}
-	note, err := wr.CreateDraft(r.Context(), ch.Ref, nd)
-	if err != nil {
-		writeError(w, err)
+		body, edited := keepBody(d), false
+		if req.Body != nil && *req.Body != body {
+			body, edited = *req.Body, true
+		}
+		if strings.TrimSpace(body) == "" {
+			return "", false, errors.New("the comment is empty")
+		}
+		nd := forge.NewDraft{Body: body}
+		if d.Anchor != nil {
+			if ch.Diff.Head != head {
+				return "", false, fmt.Errorf("the change has moved since this run reviewed %.8s; run the review again before keeping an anchored finding", head)
+			}
+			if nd.Anchor, err = anchor(ch, place{Path: d.Anchor.Path, Side: d.Anchor.Side, Line: d.Anchor.EndLine}); err != nil {
+				return "", false, err
+			}
+		}
+		note, err := wr.CreateDraft(r.Context(), ch.Ref, nd)
+		return note.ID, edited, err
+	})
+	if errors.Is(err, drafts.ErrKeeping) {
+		writeError(w, errors.New("This finding is already being kept; wait for that to finish."))
 		return
 	}
-	if err := a.Runs.Decide(runID, id, drafts.Kept, note.ID, edited); err != nil {
+	if err != nil {
 		writeError(w, err)
 		return
 	}

@@ -107,7 +107,7 @@ main { padding: var(--ui-space-4); }
   font-size: var(--ui-fs-detail);
 }
 .files { min-width: 0; }
-.file { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); margin-bottom: var(--ui-space-3); background: var(--ui-surface); overflow: hidden; }
+.file { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); margin-bottom: var(--ui-space-3); background: var(--ui-surface); overflow: hidden; scroll-margin-top: 64px; /* clear of the sticky top bar */ }
 .file-head { display: flex; gap: var(--ui-space-2); align-items: center; padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); border-bottom: 1px solid var(--ui-line); }
 .file-toggle { color: var(--ui-heading); }
 /* A collapsed file is its header alone, one line, so a large change scans. */

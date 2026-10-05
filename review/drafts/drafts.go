@@ -12,6 +12,7 @@
 package drafts
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"slices"
@@ -243,8 +244,11 @@ type Store struct {
 
 	mu     sync.Mutex
 	drafts []*Draft
-	next   int
-	now    func() time.Time
+	// keeping holds the drafts whose Keep is writing to the forge, so a
+	// second Keep, a drop, or an agent's change waits for the outcome.
+	keeping map[string]bool
+	next    int
+	now     func() time.Time
 }
 
 // NewStore returns an empty store.
@@ -426,6 +430,8 @@ func (st *Store) Suggest(s Session, id string, anchor *Anchor, suggestion string
 		return Draft{}, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
 	case d.Anchor == nil || d.Anchor.Side != Head:
 		return Draft{}, &RuleError{"suggestion.anchor", "id", "a draft anchored on head-side lines"}
+	case st.keeping[d.ID]:
+		return Draft{}, keepingErr
 	}
 	a := *d.Anchor
 	if anchor != nil {
@@ -535,6 +541,55 @@ const (
 	Dropped = "dropped"
 )
 
+// keepingErr refuses a change to a draft while the person's Keep of it is
+// writing to the forge.
+var keepingErr = &RuleError{"draft.keeping", "id", "a draft the person is not keeping right now"}
+
+// ErrKeeping means a Keep of the draft is already writing to the forge.
+var ErrKeeping = errors.New("drafts: this draft is already being kept")
+
+// Keep records the person's Keep of a pending draft, around write, which
+// puts it on the forge and returns the note's ID. The draft is held while
+// write runs, without holding the store, so a second Keep is refused rather
+// than writing the comment twice, and agents carry on meanwhile. It is
+// vuoro's call, made from the UI, and no MCP tool reaches it.
+func (st *Store) Keep(id string, write func(Draft) (noteID string, edited bool, err error)) (Draft, error) {
+	st.mu.Lock()
+	d := st.find(id)
+	switch {
+	case d == nil:
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: no draft %s", id)
+	case st.keeping[id]:
+		st.mu.Unlock()
+		return Draft{}, ErrKeeping
+	case d.Status != Pending:
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: %s was withdrawn", id)
+	case d.Decision != "":
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: %s is already %s", id, d.Decision)
+	}
+	if st.keeping == nil {
+		st.keeping = map[string]bool{}
+	}
+	st.keeping[id] = true
+	snapshot := *d
+	st.mu.Unlock()
+
+	noteID, edited, err := write(snapshot)
+
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	delete(st.keeping, id)
+	if err != nil {
+		return Draft{}, err
+	}
+	d.Decision, d.NoteID, d.Edited = Kept, noteID, edited || d.Edited
+	d.Updated = st.now()
+	return *d, nil
+}
+
 // Decide records the person's decision on a pending draft. It is vuoro's
 // call, made from the UI, and no MCP tool reaches it.
 func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error) {
@@ -545,6 +600,8 @@ func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error)
 			continue
 		}
 		switch {
+		case st.keeping[id]:
+			return Draft{}, ErrKeeping
 		case d.Status != Pending:
 			return Draft{}, fmt.Errorf("drafts: %s was withdrawn", id)
 		case d.Decision != "":
@@ -615,6 +672,8 @@ func (st *Store) own(s Session, id string) (*Draft, error) {
 			return nil, &RuleError{"draft.decided", "id", "a draft the person has not yet kept or dropped"}
 		case d.ThreadID != "" && d.Edited:
 			return nil, &RuleError{"draft.edited", "id", "a reply the person has not edited"}
+		case st.keeping[d.ID]:
+			return nil, keepingErr
 		}
 		return d, nil
 	}

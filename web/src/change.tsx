@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks'
-import { DraftCard, fileID, FileView, MyDraft, ThreadView } from './diffview'
+import { DraftCard, fileID, FileView, manyFiles, MyDraft, ThreadView } from './diffview'
 import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
@@ -52,8 +52,12 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
     return m
   }, [threads])
 
+  // picked is the file last picked from the list or a finding, and how many
+  // picks there have been, so picking it again opens it again.
+  const [picked, setPicked] = useState<{ path: string; n: number }>()
   const pick = (path: string) => {
     setTab('changes')
+    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
     requestAnimationFrame(() => document.getElementById(fileID(path))?.scrollIntoView({ block: 'start' }))
   }
 
@@ -163,6 +167,8 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
                 drafts={moved ? [] : drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path)}
                 mine={mine.filter((d) => d.anchor?.path === f.new_path && !d.thread_id)}
                 runID={runID}
+                collapsed={files.length > manyFiles}
+                picked={picked?.path === f.new_path ? picked.n : undefined}
               />
             ))}
           </div>
