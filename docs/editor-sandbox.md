@@ -83,7 +83,47 @@ writes to the worktree and a per-run cache, and allowed
   `~/.claude` holds every other session's transcripts, so it is not
   re-allowed. `CLAUDE_CONFIG_DIR` points at a per-run directory instead.
 
+## Follow-up: Claude Code on the local machine, as vuoro already runs it
+
+The owner asked whether the editor can run on the local machine like a normal
+session. It can. The test launched Claude Code the way vuoro launches
+reviewers: no user settings, no MCP servers, `dontAsk`, and `--restricted`.
+It added Edit, Write and Bash, and its own sandbox for Bash, with
+`allowUnsandboxedCommands: false`, `failIfUnavailable: true`, reads of `~/`
+denied, and only the Go module proxy on the network. It used the person's
+normal login, so no token was needed. Each probe below is Claude using its
+tools against fake canaries.
+
+| Probe | Outcome |
+|---|---|
+| Read a home-directory file with the Read tool | refused |
+| Read it from Bash | `Operation not permitted` |
+| Grep (content mode) or Glob outside the worktree | refused: "--restricted confines the file tools to the working directory" |
+| Read through a symlink in the worktree that points at a home-directory file | refused: "resolves through a symlink … outside" |
+| `cat` the same symlink from Bash | `Operation not permitted` |
+| Write to the home directory from Bash | `Operation not permitted` |
+| Reach gitlab.com from Bash | proxy refused, 403 |
+| Fix the bug, `go test`, commit | all ran |
+| A token in the inherited environment | **seen**. vuoro must build the environment, as with `srt` |
+
+One trap found on the way: **without `--restricted`, Grep and Glob ignore
+the sandbox's `denyRead` and search anywhere**, even when Read is scoped to
+the worktree by permission rules. vuoro's reviewers already pass
+`--restricted`. A test there checked that Read, Grep and Glob are confined,
+and they are.
+
+The trade against `srt`: here the file tools are confined by Claude Code
+itself, which resolves symlinks before checking. Shell commands are
+confined by the operating system. Under `srt`, the operating system confines
+both, but it needs an npm beta, a separate token, and its own config
+directory. The local mode needs nothing new installed on macOS. On Linux,
+Claude Code's sandbox needs `bubblewrap` and `socat`.
+
 ## Recommendation
+
+**Superseded by the follow-up above.** The local mode above is now the
+recommendation, and `srt` becomes the stronger option. This section
+describes `srt` as it would be used.
 
 Use **`srt`** for the editor, with the boundary written by vuoro for each run:
 
