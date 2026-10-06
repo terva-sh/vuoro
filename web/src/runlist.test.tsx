@@ -2,7 +2,7 @@
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { RunList } from './app'
+import { groupRuns, RunList } from './runs'
 import type { Run } from './types'
 
 const base: Run = {
@@ -30,5 +30,39 @@ describe('the run list', () => {
   it('shows nothing with no runs', () => {
     act(() => render(<RunList runs={[]} onOpen={() => {}} />, root))
     expect(root.textContent).toBe('')
+  })
+})
+
+describe('the runs card', () => {
+  const again = { ...base, id: 'r3', created: '2026-10-06T00:00:00Z', head: 'fedcba9876', status: 'closed' as const, cost_usd: 0.25 }
+  const other = { ...base, id: 'r4', ref: { ...base.ref, number: 8 }, title: 'Other change', web_url: 'u8', created: '2026-10-04T00:00:00Z' }
+
+  it('groups runs by change, newest first, and local runs by repository and title', () => {
+    const groups = groupRuns([base, other, again, local, { ...local, id: 'r5' }])
+    expect(groups.map((g) => g.runs.map((r) => r.id))).toEqual([['r3', 'r1'], ['r2', 'r5'], ['r4']])
+  })
+
+  it('starts folded, and its header says what it holds', () => {
+    act(() => render(<RunList runs={[base, other, again]} onOpen={() => {}} />, root))
+    const card = root.querySelector('details.runs-card') as HTMLDetailsElement
+    expect(card.open).toBe(false)
+    expect(card.querySelector('summary')!.textContent).toBe('Runs3across 2 changes · 2 not closed · $0.45')
+  })
+
+  it("shows one row per change, and a change's earlier runs on demand", () => {
+    const opened: string[] = []
+    act(() => render(<RunList runs={[base, again, local, { ...local, id: 'r5' }]} onOpen={() => {}} onOpenRun={(id) => opened.push(id)} />, root))
+    expect(root.querySelectorAll('tr.run-group').length).toBe(2)
+    expect(root.querySelectorAll('tr.run-earlier').length).toBe(0)
+    const toggle = [...root.querySelectorAll('button')].find((b) => b.getAttribute('aria-expanded') === 'false')!
+    act(() => toggle.click())
+    expect(root.querySelectorAll('tr.run-earlier').length).toBe(2)
+    expect(root.querySelector('tr.run-earlier')!.textContent).toContain('fedcba98')
+    // A local run's earlier runs open by their own id.
+    const localToggle = [...root.querySelectorAll('button')].find((b) => b.getAttribute('aria-expanded') === 'false')!
+    act(() => localToggle.click())
+    const earlierLocal = [...root.querySelectorAll('tr.run-earlier button')].at(-1) as HTMLButtonElement
+    act(() => earlierLocal.click())
+    expect(opened).toEqual(['r5'])
   })
 })

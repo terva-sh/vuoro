@@ -88,8 +88,28 @@ form.open input { flex: 1; min-width: 0; }
 
 main { padding: var(--ui-space-4); }
 .home > :not(.inbox) { max-width: 860px; }
-.setup, .runs { padding-left: var(--ui-space-5); }
-.runs li { margin: var(--ui-space-1) 0; }
+.setup { padding-left: var(--ui-space-5); }
+
+/* The runs so far: a folded card under the inbox, one row per change, which
+   scrolls inside itself so the page does not grow with every run. */
+.home > .runs-card { max-width: none; }
+.runs-card { margin-top: var(--ui-space-4); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+.runs-card > summary { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; padding: var(--ui-space-2) var(--ui-space-4); cursor: pointer; list-style: none; }
+.runs-card > summary::-webkit-details-marker { display: none; }
+.runs-card > summary::before { content: '▸'; color: var(--ui-muted); }
+.runs-card[open] > summary::before { content: '▾'; }
+.runs-card[open] > summary { border-bottom: 1px solid var(--ui-line); }
+.runs-card > summary h2 { margin: 0; font-size: var(--ui-fs-body); }
+.runs-scroll { max-height: min(45vh, 420px); overflow: auto; }
+.runs-table { width: 100%; border-collapse: collapse; }
+.runs-table th { position: sticky; top: 0; z-index: 1; background: var(--ui-raised); text-align: left; font-size: var(--ui-fs-note); text-transform: uppercase; letter-spacing: .04em; color: var(--ui-muted); font-weight: 600; padding: var(--ui-space-1) var(--ui-space-3); border-bottom: 1px solid var(--ui-line); white-space: nowrap; }
+.runs-table td { padding: var(--ui-space-2) var(--ui-space-3); border-bottom: 1px solid var(--ui-line); vertical-align: top; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.runs-table tr:last-child td { border-bottom: none; }
+.runs-table .run-change { white-space: normal; width: 100%; overflow-wrap: anywhere; }
+.runs-table .run-change .mono { font-size: var(--ui-fs-note); }
+.runs-table .run-group:hover td { background: var(--ui-hover); }
+.runs-table .run-earlier td { background: var(--ui-bg); font-size: var(--ui-fs-detail); padding-top: var(--ui-space-1); padding-bottom: var(--ui-space-1); }
+.runs-table .run-earlier td:nth-child(2) { padding-left: var(--ui-space-5); }
 
 .change-head { margin-bottom: var(--ui-space-3); }
 .change-meta { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); align-items: center; margin-top: var(--ui-space-2); }

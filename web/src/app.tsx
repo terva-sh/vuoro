@@ -4,11 +4,11 @@ import { api, bindings, post } from './api'
 import { ChangeView } from './change'
 import { LocalRun } from './run'
 import { Inbox } from './inbox'
+import { RunList } from './runs'
 import { waive } from './confirm'
 import { FirstRun, Forges, Tools } from './setup'
 import { applyScheme, SchemePicker } from './scheme'
-import { changeNumber, type Change, type Run, type Scheme, type Setup } from './types'
-import { ago, short, StatusBadge, usd } from './ui'
+import type { Change, Run, Scheme, Setup } from './types'
 
 interface Hello {
   version: string
@@ -137,27 +137,5 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
       )}
       <RunList runs={runs} onOpen={onOpen} onOpenRun={onOpenRun} />
     </div>
-  )
-}
-
-// RunList is the runs so far. A run of local commits, from vuoro review, has
-// no forge page to open, so it is listed without a link.
-export function RunList({ runs, onOpen, onOpenRun }: { runs: Run[]; onOpen: (url: string) => void; onOpenRun?: (id: string) => void }) {
-  if (runs.length === 0) return null
-  return (
-    <>
-      <h2>Runs</h2>
-      <ul class="runs">
-        {runs.map((r) => (
-          <li key={r.id}>
-            {r.kind === 'local' ? (onOpenRun ? <button class="link" onClick={() => onOpenRun(r.id)}>{r.title}</button> : <span>{r.title}</span>) : <button class="link" onClick={() => onOpen(r.web_url)}>{r.title}</button>}{' '}
-            <span class="muted">
-              {r.kind === 'local' ? `local commits of ${r.ref.project}` : `${r.ref.project}${changeNumber(r.kind, r.ref.number)}`} at {short(r.head)}, {ago(r.created)}, {r.drafts.filter((d) => d.status === 'pending').length} drafts, {usd(r.cost_usd)}
-            </span>{' '}
-            <StatusBadge status={r.status} />
-          </li>
-        ))}
-      </ul>
-    </>
   )
 }
