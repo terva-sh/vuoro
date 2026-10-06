@@ -3,7 +3,8 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, post } from './api'
-import { Editor, PushBar, PushDialog, RunView } from './run'
+import { Editor, PushBar, PushDialog } from './editor'
+import { RunView } from './run'
 import type { Draft, Run, Session } from './types'
 
 const draft = (id: string, decision?: 'kept' | 'dropped') =>
@@ -49,8 +50,11 @@ describe('Editor', () => {
     expect(root.textContent).toContain('No commit names d2 Finding d2')
     expect(root.textContent).not.toContain('d3')
     // The editor's files are listed beside its diff, as the change's are.
-    expect(root.querySelector('.file-list .file-link')?.textContent).toBe('calc.gopkg')
+    expect(root.querySelector('.file-list .file-link')?.textContent).toBe('calc.gopkg+1 −1')
     expect(root.querySelector('#editor-file-pkg_calc_go')).not.toBeNull()
+    // The file picked last is marked in the list.
+    act(() => (root.querySelector('.file-list .file-link') as HTMLButtonElement).click())
+    expect(root.querySelector('.file-list .file-link')?.getAttribute('aria-current')).toBe('location')
     act(() => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Discard…')!.click())
     expect(root.textContent).toContain('Delete the branch')
   })

@@ -133,8 +133,11 @@ func (a *App) setupView() any {
 		Presets     []config.Preset  `json:"presets"`
 		Profiles    []review.Profile `json:"profiles"`
 		Waived      []string         `json:"waived"` // confirmations the person turned off
+		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
 	}{ConfigPath: path, Editable: path != "" && cfgErr == nil, Base: base, Forges: []forgeView{}, Tools: []toolView{},
-		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetsOf(cfg), Profiles: review.Builtin, Waived: a.loadPrefs().Waived}
+		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetsOf(cfg), Profiles: review.Builtin}
+	prefs := a.loadPrefs()
+	out.Waived, out.Scheme = prefs.Waived, prefs.Scheme
 	if cfgErr != nil {
 		out.ConfigError = cfgErr.Error()
 	}

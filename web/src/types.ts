@@ -114,6 +114,9 @@ export interface ForgeForm {
 export interface TokenSource { id: string; label: string; read?: string[]; store?: string[]; note?: string }
 export type ToolState = 'ok' | 'missing' | 'too_old' | 'signed_out' | 'broken'
 export interface Tool { name: string; tool: string; version?: string; account?: string; error?: string; state: ToolState }
+// Scheme is a colour scheme. The empty one follows the system's.
+export type Scheme = '' | 'light' | 'dark'
+
 export interface Setup {
   config_error?: string
   config_path?: string
@@ -125,6 +128,7 @@ export interface Setup {
   presets: Preset[]
   profiles: { name: string; title: string; prompt: string }[]
   waived: string[] // confirmations the person turned off
+  scheme: Scheme // the pinned colour scheme, or empty for the system's
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`

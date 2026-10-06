@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shownDrafts, sourceLabel } from './run'
+import { shownDrafts, sourceLabel } from './findings'
 import type { Draft, Run } from './types'
 
 const draft = (id: string, session: string, sources?: string[]): Draft => ({

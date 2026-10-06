@@ -2,7 +2,7 @@
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { DraftCard } from './diffview'
+import { DraftCard } from './comments'
 import { WriteContext, type Writer } from './write'
 import type { Draft } from './types'
 

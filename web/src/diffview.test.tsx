@@ -60,7 +60,7 @@ describe('FileView', () => {
 
 describe('keepText', () => {
   it('matches the server: fenced evidence, then a suggestion block over the range', async () => {
-    const { keepText } = await import('./diffview')
+    const { keepText } = await import('./comments')
     const d = {
       id: 'd1', severity: 'high', title: 'Add subtracts', description: 'It returns a - b.', evidence: 'return a - b',
       anchor: { path: 'calc.go', side: 'head', start_line: 3, end_line: 4 }, suggestion: '\treturn a + b\n\t// sums',
