@@ -29,7 +29,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   const headState = useRunHead(runID, reviewedHead, change)
   const moved = !!reviewedHead && reviewedHead !== change.diff.head
   const [commenting, setCommenting] = useState(false)
-  const writer = useMemo(() => makeWriter(change.web_url, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, onChange])
+  const writer = useMemo(() => makeWriter(change.web_url, change.capabilities, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, change.capabilities, onChange])
   // Writing needs the person's token: a forge in the config with this host.
   const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
   const isAuthor = !!me && me.username.toLowerCase() === change.author.username.toLowerCase()
@@ -95,7 +95,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           <SubmitBar change={change} me={me.username} pending={mine.length} approved={approved} waived={setup?.waived ?? []} act={act}
             onWaive={(actions) => void waive(actions, false).then(onSetup).catch(() => undefined)} />
         ) : (
-          <p class="muted">{change.kind === 'forgejo' ? 'Forgejo posting is not available yet. You can read the change and run agent reviews.' : 'Read-only: add this forge with a token_command to the config file to comment and approve.'}</p>
+          <p class="muted">{me ? 'vuoro cannot post on this forge yet. You can read the change and run agent reviews.' : 'Read-only: add this forge with a token_command to the config file to comment and approve.'}</p>
         )}
         {error && <p class="alert" role="alert">⚠ {error}</p>}
       </header>

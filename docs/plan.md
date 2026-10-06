@@ -245,6 +245,25 @@ The UI uses these flags, so configuring a Forgejo account enables private reads
 without enabling posting, keeping findings on the forge, or inline suggestions
 that would post there. Agent findings remain local drafts.
 
+The flags are `drafts`, `reply`, `resolve`, `approve`, `unapprove` (withdrawing
+the person's own approval), `request_changes`, and `suggestions`. The last means
+the forge applies a suggestion block; without it, a kept suggestion posts as a
+plain fenced replacement under a line naming the lines it replaces (D43). The UI
+offers a control only when its flag is set, and never decides what can be
+written from the forge's kind. The application refuses a write whose flag is
+unset with `forge.ErrUnsupported` before the adapter is called, so a hidden
+control cannot be reached by a request either (D44).
+
+`forge.Writer.Submit` takes the person's verdict: commented, approved, or
+changes requested, the `forge.Verdict` values the readers already use. The
+adapter publishes the pending comments and the verdict as one review. On GitLab,
+changes requested is the bulk publish's `reviewer_state=requested_changes`, and
+approved is the bulk publish followed by `/approve`. `Approve` remains for a
+standalone approval or its withdrawal. The submit control offers comment always,
+"Submit and approve" with `approve`, and "Request changes" with
+`request_changes`. Requesting changes asks first, as submitting and approving
+do, unless the person waived it.
+
 `forge/adapters` owns the parser/factory registry. A configured host's kind wins;
 unconfigured URLs use the GitLab `/-/merge_requests/` or Forgejo `/pulls/` path
 shape and read anonymously. GitHub's public host is refused until its adapter

@@ -12,7 +12,7 @@ describe('DraftCard', () => {
   it('keeps once however often Keep is pressed, and says it is keeping', async () => {
     let finish!: () => void
     const act_ = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
-    const w: Writer = { url: 'u', act: act_ }
+    const w: Writer = { url: 'u', caps: { drafts: true, reply: true, resolve: true, approve: true, unapprove: true, request_changes: true, suggestions: true }, act: act_ }
     const root = document.createElement('div')
     act(() => render(<WriteContext.Provider value={w}><DraftCard draft={draft} runID="r1" /></WriteContext.Provider>, root))
     const keep = () => [...root.querySelectorAll('button')].find((b) => /Keep/.test(b.textContent!) && !/Edit/.test(b.textContent!))!
@@ -28,7 +28,7 @@ describe('DraftCard', () => {
   })
 
   it('lets the person try again after a failed Keep', async () => {
-    const w: Writer = { url: 'u', act: vi.fn(() => Promise.reject(new Error('forge down'))) }
+    const w: Writer = { url: 'u', caps: { drafts: true, reply: true, resolve: true, approve: true, unapprove: true, request_changes: true, suggestions: true }, act: vi.fn(() => Promise.reject(new Error('forge down'))) }
     const root = document.createElement('div')
     act(() => render(<WriteContext.Provider value={w}><DraftCard draft={draft} runID="r1" /></WriteContext.Provider>, root))
     const keep = () => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Keep')!

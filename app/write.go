@@ -50,6 +50,15 @@ func anchor(ch *forge.Change, p place) (*forge.Anchor, error) {
 	return nil, fmt.Errorf("%s is not in the change", p.Path)
 }
 
+// allowed refuses a write the change's forge cannot do, so an action the UI
+// hides cannot be reached by a request either.
+func allowed(ok bool, what string) error {
+	if ok {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, forge.ErrUnsupported)
+}
+
 // writer opens the change again, so a write lands on today's head, and
 // returns it with the client that writes to it.
 func (a *App) writer(ctx context.Context, url string) (*forge.Change, forge.Writer, error) {
@@ -100,6 +109,12 @@ func (a *App) createDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
+	if err == nil {
+		err = allowed(ch.Capabilities.Drafts, "pending comments")
+	}
+	if err == nil && req.ThreadID != "" {
+		err = allowed(ch.Capabilities.Reply, "replying to a thread")
+	}
 	if err != nil {
 		writeError(w, err)
 		return
@@ -130,6 +145,9 @@ func (a *App) updateDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
 	if err == nil {
+		err = allowed(ch.Capabilities.Drafts, "pending comments")
+	}
+	if err == nil {
 		err = wr.UpdateDraft(r.Context(), ch.Ref, r.PathValue("id"), req.Body)
 	}
 	if err != nil {
@@ -146,6 +164,9 @@ func (a *App) deleteDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
 	if err == nil {
+		err = allowed(ch.Capabilities.Drafts, "pending comments")
+	}
+	if err == nil {
 		err = wr.DeleteDraft(r.Context(), ch.Ref, r.PathValue("id"))
 	}
 	if err != nil {
@@ -157,18 +178,32 @@ func (a *App) deleteDraft(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) submit(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		URL     string `json:"url"`
-		Approve bool   `json:"approve,omitempty"`
+		URL     string        `json:"url"`
+		Verdict forge.Verdict `json:"verdict,omitempty"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
+	if req.Verdict == "" {
+		req.Verdict = forge.VerdictCommented
+	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
 	if err == nil {
-		err = wr.Submit(r.Context(), ch.Ref)
+		err = allowed(ch.Capabilities.Drafts, "submitting a review")
 	}
-	if err == nil && req.Approve {
-		err = wr.Approve(r.Context(), ch.Ref, true)
+	if err == nil {
+		switch req.Verdict {
+		case forge.VerdictCommented:
+		case forge.VerdictApproved:
+			err = allowed(ch.Capabilities.Approve, "approving")
+		case forge.VerdictChangesRequested:
+			err = allowed(ch.Capabilities.RequestChanges, "requesting changes")
+		default:
+			err = fmt.Errorf("unknown verdict %q", req.Verdict)
+		}
+	}
+	if err == nil {
+		err = wr.Submit(r.Context(), ch.Ref, req.Verdict)
 	}
 	if err != nil {
 		writeError(w, err)
@@ -188,6 +223,9 @@ func (a *App) resolve(w http.ResponseWriter, r *http.Request) {
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
 	if err == nil {
+		err = allowed(ch.Capabilities.Resolve, "resolving a thread")
+	}
+	if err == nil {
 		err = wr.Resolve(r.Context(), ch.Ref, req.ThreadID, req.Resolved)
 	}
 	if err != nil {
@@ -206,6 +244,11 @@ func (a *App) approve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ch, wr, err := a.writer(r.Context(), req.URL)
+	if err == nil && req.Approve {
+		err = allowed(ch.Capabilities.Approve, "approving")
+	} else if err == nil {
+		err = allowed(ch.Capabilities.Unapprove, "withdrawing an approval")
+	}
 	if err == nil {
 		err = wr.Approve(r.Context(), ch.Ref, req.Approve)
 	}
@@ -217,8 +260,9 @@ func (a *App) approve(w http.ResponseWriter, r *http.Request) {
 }
 
 // keepBody is the comment an agent's draft becomes when the person keeps it
-// unedited.
-func keepBody(d drafts.Draft) string {
+// unedited. A suggestion is the forge's suggestion block where it can apply
+// one, and a plain replacement where it cannot.
+func keepBody(d drafts.Draft, caps forge.Capabilities) string {
 	if d.ThreadID != "" {
 		return strings.TrimSpace(d.Description)
 	}
@@ -227,7 +271,11 @@ func keepBody(d drafts.Draft) string {
 		f := drafts.Fence(e)
 		b += "\n\n" + f + "\n" + e + "\n" + f
 	}
-	if s := drafts.SuggestionBlock(d); s != "" {
+	s := drafts.ReplacementBlock(d)
+	if caps.Suggestions {
+		s = drafts.SuggestionBlock(d)
+	}
+	if s != "" {
 		b += "\n\n" + s
 	}
 	return b
@@ -261,6 +309,9 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 	// click is refused instead of writing the comment twice.
 	err = a.Runs.Keep(runID, id, func(d drafts.Draft) (string, bool, error) {
 		ch, wr, err := a.writer(r.Context(), req.URL)
+		if err == nil {
+			err = allowed(ch.Capabilities.Drafts, "pending comments")
+		}
 		if err != nil {
 			return "", false, err
 		}
@@ -273,7 +324,7 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 		if run.Mode == "" && a.isAuthor(ch) {
 			return "", false, errors.New("This is your own change, so its findings are not posted. Pick a finding for the editor, or dismiss it.")
 		}
-		body, edited := keepBody(d), false
+		body, edited := keepBody(d, ch.Capabilities), false
 		if req.Body != nil && *req.Body != body {
 			body, edited = *req.Body, true
 		}

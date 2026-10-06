@@ -9,13 +9,13 @@ import type { Change, Run, Setup } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 const thread = { id: 't1', anchor: null, resolvable: true, resolved: false, notes: [{ id: 'n1', author: { username: 'reviewer', bot: false }, body: 'Could this race?', system: false, at: '2026-10-01T00:00:00Z' }] }
-const change: Change = { kind: 'gitlab', capabilities: { drafts: true, resolve: true, approve: true }, ref: { host: 'lab.test', project: 'team/repo', number: 1 }, web_url: 'https://lab.test/team/repo/-/merge_requests/1', title: 'My change', description: '', author: { username: 'me', bot: false }, diff: { head: 'head', base: 'base', start: 'base' }, source_branch: 'feature', target_branch: 'main', state: 'open', draft: false, mergeability: '', created: '', updated: '', reviewers: [], assignees: [], participants: [], requests: [], reviews: [], pushes: [], files: [], drafts: [], threads: [thread] }
+const change: Change = { kind: 'gitlab', capabilities: { drafts: true, reply: true, resolve: true, approve: true, unapprove: true, request_changes: true, suggestions: true }, ref: { host: 'lab.test', project: 'team/repo', number: 1 }, web_url: 'https://lab.test/team/repo/-/merge_requests/1', title: 'My change', description: '', author: { username: 'me', bot: false }, diff: { head: 'head', base: 'base', start: 'base' }, source_branch: 'feature', target_branch: 'main', state: 'open', draft: false, mergeability: '', created: '', updated: '', reviewers: [], assignees: [], participants: [], requests: [], reviews: [], pushes: [], files: [], drafts: [], threads: [thread] }
 const run: Run = { id: 'r1', mode: 'triage', kind: 'gitlab', ref: change.ref, title: 'My change', web_url: change.web_url, head: 'head', base: 'base', status: 'idle', cost_usd: 0, created: '2026-10-01T00:00:00Z', triage_threads: [thread], sessions: [], drafts: [{ id: 'd1', thread_id: 't1', category: 'discuss', reason: 'Need reproduction evidence', description: 'Could you share an example?', title: '', severity: 'info', status: 'pending', revision: 1, session: 's1', drafted_by: 'Fake agent', updated: '' }] }
 const setup: Setup = { forges: [{ name: 'Work', url: 'https://lab.test', username: 'me' }], tools: [{ name: 'fake', tool: 'Fake tool' }], presets: [], profiles: [], waived: [] }
 let root: HTMLDivElement
 const mount = async (c = change, writable = true, available = setup) => {
   root = document.createElement('div')
-  await act(async () => render(<WriteContext.Provider value={writable ? { url: c.web_url, act: vi.fn(async () => {}) } : undefined}><TriagePanel change={c} setup={available} onPick={() => {}} /></WriteContext.Provider>, root))
+  await act(async () => render(<WriteContext.Provider value={writable ? { url: c.web_url, caps: c.capabilities, act: vi.fn(async () => {}) } : undefined}><TriagePanel change={c} setup={available} onPick={() => {}} /></WriteContext.Provider>, root))
   await act(async () => {})
   await act(async () => {})
 }
@@ -48,7 +48,7 @@ describe('author triage interactions', () => {
     expect(post).not.toHaveBeenCalled()
   })
   it('supports local read-only replies and absent tools without exposing posting', async () => {
-    serve(); await mount({ ...change, kind: 'forgejo', capabilities: { drafts: false, resolve: false, approve: false } }, false, { ...setup, tools: [] })
+    serve(); await mount({ ...change, kind: 'forgejo', capabilities: { drafts: false, reply: false, resolve: false, approve: false, unapprove: false, request_changes: false, suggestions: false } }, false, { ...setup, tools: [] })
     expect(root.textContent).toContain('No agent tool is available')
     expect([...root.querySelectorAll('button')].find((b) => b.textContent === 'Run triage again')?.disabled).toBe(true)
     expect(root.textContent).toContain('Posting on this forge is unavailable')
@@ -88,7 +88,7 @@ describe('author triage interactions', () => {
     vi.mocked(post).mockImplementationOnce(() => new Promise((resolve) => { finishEdit = resolve as typeof finishEdit }))
     await click('Edit reply and category')
     await act(async () => { root.querySelector('.composer')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
-    await act(async () => render(<WriteContext.Provider value={{ url: otherChange.web_url, act: vi.fn(async () => {}) }}><TriagePanel change={otherChange} setup={setup} onPick={() => {}} /></WriteContext.Provider>, root))
+    await act(async () => render(<WriteContext.Provider value={{ url: otherChange.web_url, caps: otherChange.capabilities, act: vi.fn(async () => {}) }}><TriagePanel change={otherChange} setup={setup} onPick={() => {}} /></WriteContext.Provider>, root))
     await act(async () => {})
     await act(async () => {})
     expect(previousPoll[1]?.signal?.aborted).toBe(true)

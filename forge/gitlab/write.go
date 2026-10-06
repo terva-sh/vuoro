@@ -97,10 +97,63 @@ func (c *Client) DeleteDraft(ctx context.Context, ref forge.Ref, id string) erro
 	return err
 }
 
-// Submit publishes every draft note of the person's in one batch.
-func (c *Client) Submit(ctx context.Context, ref forge.Ref) error {
-	_, err := c.write(ctx, "POST", mrPath(ref)+"/draft_notes/bulk_publish", nil)
-	return err
+// Submit publishes every draft note of the person's in one batch. Asking for
+// changes is the batch's reviewer_state; approving is a second call, after the
+// comments it answers are published.
+func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdict) error {
+	var body map[string]any
+	switch verdict {
+	case forge.VerdictCommented, forge.VerdictApproved:
+	case forge.VerdictChangesRequested:
+		body = map[string]any{"reviewer_state": "requested_changes"}
+	default:
+		return fmt.Errorf("gitlab: unknown verdict %q", verdict)
+	}
+	if _, err := c.write(ctx, "POST", mrPath(ref)+"/draft_notes/bulk_publish", body); err != nil {
+		return err
+	}
+	switch verdict {
+	case forge.VerdictApproved:
+		return c.Approve(ctx, ref, true)
+	case forge.VerdictChangesRequested:
+		return c.requestedChanges(ctx, ref)
+	}
+	return nil
+}
+
+// errChangesNotRecorded is a bulk publish that succeeded without recording
+// the person's request for changes.
+var errChangesNotRecorded = errors.New("gitlab: your comments were published, but GitLab did not record that you requested changes. It records that only for the merge request's reviewers, and a GitLab older than this feature ignores it. Request changes in GitLab")
+
+// requestedChanges reads the merge request back and confirms the person's
+// reviewer state, because GitLab answers a bulk publish with success whether
+// or not it understood reviewer_state, and a verdict the person chose must
+// not be lost without their knowing.
+func (c *Client) requestedChanges(ctx context.Context, ref forge.Ref) error {
+	// The comments are already published, so every failure here says so.
+	unconfirmed := func(err error) error {
+		return fmt.Errorf("gitlab: your comments were published, but vuoro could not confirm that GitLab recorded your request for changes; check the merge request: %w", err)
+	}
+	b, _, err := c.do(ctx, "GET", "/api/v4/user", nil, nil)
+	if err != nil {
+		return unconfirmed(err)
+	}
+	var me struct {
+		Username string `json:"username"`
+	}
+	if json.Unmarshal(b, &me) != nil || me.Username == "" {
+		return unconfirmed(errors.New("GitLab did not say who you are"))
+	}
+	ch, err := c.ReadFacts(ctx, ref)
+	if err != nil {
+		return unconfirmed(err)
+	}
+	for _, r := range ch.Reviewers {
+		if strings.EqualFold(r.Username, me.Username) && r.State == forge.RequestedChanges {
+			return nil
+		}
+	}
+	return errChangesNotRecorded
 }
 
 func (c *Client) Resolve(ctx context.Context, ref forge.Ref, threadID string, resolved bool) error {

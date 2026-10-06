@@ -743,3 +743,18 @@ func SuggestionBlock(d Draft) string {
 	f := Fence(*d.Suggestion)
 	return fmt.Sprintf("%ssuggestion:-%d+0\n%s\n%s", f, d.Anchor.EndLine-d.Anchor.StartLine, *d.Suggestion, f)
 }
+
+// ReplacementBlock is d's suggestion for a forge that cannot apply one: the
+// replacement in a plain fence, under a line naming the lines it replaces
+// (D43). It is empty when d has no suggestion.
+func ReplacementBlock(d Draft) string {
+	if d.Suggestion == nil || d.Anchor == nil || d.Anchor.Side != Head {
+		return ""
+	}
+	lines := fmt.Sprintf("line %d", d.Anchor.EndLine)
+	if d.Anchor.StartLine < d.Anchor.EndLine {
+		lines = fmt.Sprintf("lines %d–%d", d.Anchor.StartLine, d.Anchor.EndLine)
+	}
+	f := Fence(*d.Suggestion)
+	return fmt.Sprintf("Suggested replacement for %s:\n\n%s\n%s\n%s", lines, f, *d.Suggestion, f)
+}

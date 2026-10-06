@@ -3,10 +3,11 @@
 import { createContext } from 'preact'
 import { useContext, useState } from 'preact/hooks'
 import { post } from './api'
-import type { Change } from './types'
+import type { Capabilities, Change } from './types'
 
 export interface Writer {
   url: string
+  caps: Capabilities
   // act posts to a write route, which answers with the change as it now
   // stands, and shows that.
   act: (path: string, body: Record<string, unknown>) => Promise<void>
@@ -18,9 +19,10 @@ export function useWriter(): Writer | undefined {
   return useContext(WriteContext)
 }
 
-export function makeWriter(url: string, onChange: (c: Change) => void, onError: (e: string) => void): Writer {
+export function makeWriter(url: string, caps: Capabilities, onChange: (c: Change) => void, onError: (e: string) => void): Writer {
   return {
     url,
+    caps,
     act: async (path, body) => {
       try {
         onChange(await post<Change>(path, { url, ...body }))

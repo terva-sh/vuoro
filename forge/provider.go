@@ -21,11 +21,22 @@ type Provider interface {
 
 // Capabilities are implemented actions available with this client's credentials.
 // They do not promise permission on a particular change; the forge decides that
-// when the person acts. Drafts includes creating, editing and submitting drafts.
+// when the person acts. The UI offers only these, and the application refuses
+// the rest, so a forge that cannot do something never shows a control for it.
 type Capabilities struct {
-	Drafts  bool `json:"drafts"`
+	// Drafts includes creating, editing and submitting pending comments.
+	Drafts bool `json:"drafts"`
+	// Reply is a pending comment that answers a thread.
+	Reply   bool `json:"reply"`
 	Resolve bool `json:"resolve"`
 	Approve bool `json:"approve"`
+	// Unapprove withdraws the person's own approval.
+	Unapprove bool `json:"unapprove"`
+	// RequestChanges submits a review that asks for changes.
+	RequestChanges bool `json:"request_changes"`
+	// Suggestions means the forge applies a suggestion block. Without it a
+	// suggestion posts as a plain fenced replacement (D43).
+	Suggestions bool `json:"suggestions"`
 }
 
 // Checkout describes how to fetch this change from its target repository.

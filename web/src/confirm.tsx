@@ -2,12 +2,12 @@
 // see it, asks before it runs, unless the person waived asking for it.
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
-import type { Change, Setup } from './types'
+import { changeNumber, type Change, type Setup } from './types'
 
 // The actions that ask first, as the server names them for waivers.
-export type Confirmable = 'submit' | 'approve'
+export type Confirmable = 'submit' | 'approve' | 'request_changes'
 
-const actionWords: Record<Confirmable, string> = { submit: 'submitting a review', approve: 'approving' }
+const actionWords: Record<Confirmable, string> = { submit: 'submitting a review', approve: 'approving', request_changes: 'requesting changes' }
 
 // waive turns asking off, or back on with ask, and returns the setup as it
 // now stands.
@@ -56,23 +56,26 @@ export function ConfirmDialog({ ask, onClose, onWaive }: {
 }
 
 // SubmitBar is the person's pending comments, and the actions that publish
-// them or approve, each of which asks first unless waived.
+// them with a verdict or approve, each of which asks first unless waived. It
+// offers only the verdicts the forge's capabilities name.
 export function SubmitBar({ change, me, pending, approved, waived, act, onWaive }: {
   change: Change; me: string; pending: number; approved: boolean; waived: string[]
   act: (path: string, body: Record<string, unknown>) => void
   onWaive: (actions: Confirmable[]) => void
 }) {
   const [ask, setAsk] = useState<Ask>()
-  const mr = `!${change.ref.number}`
+  const caps = change.capabilities
+  const mr = changeNumber(change.kind, change.ref.number)
   const confirm = (a: Ask) => (a.actions.every((x) => waived.includes(x)) ? a.run() : setAsk(a))
   const comments = `${pending} pending comment${pending === 1 ? '' : 's'}`
   const publish = pending > 0
-    ? `Publishes your ${comments} as @${me}, and everyone on the merge request sees them.`
+    ? `Publishes your ${comments} as @${me}, and everyone on ${mr} sees them.`
     : 'You have no pending comments, so this only marks your review as submitted.'
   const own = change.author.username === me
-    ? ['You opened this merge request. GitLab refuses an author’s approval when the project forbids it.']
+    ? ['You opened this change. A forge may refuse an author’s own verdict.']
     : []
-  const approve = `Approves ${mr} as @${me}, and everyone on the merge request sees it.`
+  const approve = `Approves ${mr} as @${me}, and everyone on it sees it.`
+  const changes = `Asks for changes on ${mr} as @${me}, and everyone on it sees it.`
   return (
     <div class="submit-bar">
       <span>✎ {comments} of yours, seen only by you until you submit</span>
@@ -80,16 +83,20 @@ export function SubmitBar({ change, me, pending, approved, waived, act, onWaive 
         title: `Submit your review of ${mr}?`, lines: [publish], go: 'Submit', actions: ['submit'],
         run: () => act('/api/changes/submit', {}),
       })}>Submit</button>
-      <button disabled={approved} onClick={() => confirm({
+      {caps.approve && <button disabled={approved} onClick={() => confirm({
         title: `Submit your review of ${mr} and approve it?`, lines: [publish, approve, ...own], go: 'Submit and approve', actions: ['submit', 'approve'],
-        run: () => act('/api/changes/submit', { approve: true }),
-      })}>Submit and approve</button>
-      {approved ? (
+        run: () => act('/api/changes/submit', { verdict: 'approved' }),
+      })}>Submit and approve</button>}
+      {caps.request_changes && <button onClick={() => confirm({
+        title: `Submit your review of ${mr} and request changes?`, lines: [publish, changes, ...own], go: 'Request changes', actions: ['submit', 'request_changes'],
+        run: () => act('/api/changes/submit', { verdict: 'changes_requested' }),
+      })}>Request changes</button>}
+      {approved ? caps.unapprove && (
         <button onClick={() => confirm({
-          title: `Revoke your approval of ${mr}?`, lines: [`Takes back your approval as @${me}, and everyone on the merge request sees it.`], go: 'Revoke approval', actions: ['approve'],
+          title: `Revoke your approval of ${mr}?`, lines: [`Takes back your approval as @${me}, and everyone on ${mr} sees it.`], go: 'Revoke approval', actions: ['approve'],
           run: () => act('/api/changes/approve', { approve: false }),
         })}>Revoke approval</button>
-      ) : (
+      ) : caps.approve && (
         <button onClick={() => confirm({
           title: `Approve ${mr}?`, lines: [approve, ...own], go: 'Approve', actions: ['approve'],
           run: () => act('/api/changes/approve', { approve: true }),

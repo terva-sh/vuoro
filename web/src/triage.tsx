@@ -129,7 +129,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
       {runs.length > 0 && <label>Triage run <select disabled={busy} value={selected} onChange={(e) => { version.current++; setSelected(e.currentTarget.value); setRun(undefined) }}>{runs.map((r) => <option key={r.id} value={r.id}>{ago(r.created)} at {short(r.head)}</option>)}</select></label>}
     </div>
     {tools.length === 0 && <p class="muted">No agent tool is available. You can still read the threads and reply directly when posting is supported.</p>}
-    {!change.capabilities.drafts && <p class="muted">Replies can be drafted, edited and copied locally. Posting on this forge is unavailable.</p>}
+    {!(change.capabilities.drafts && change.capabilities.reply) && <p class="muted">Replies can be drafted, edited and copied locally. Posting on this forge is unavailable.</p>}
     {error && <p class="alert" role="alert">{error}</p>}
     {current && <div class="triage-run"><StatusBadge status={current.status} /><HeadBadge state={headState} label="triaged" />{current.error && <p class="alert">{current.error}</p>}{moved && <p class="alert" role="status">The head changed. Refresh and run triage again before accepting replies.</p>}
       <details><summary>Talk to the agent · progress and reasoning</summary>{current.sessions.map((s) => <SessionPane run={current} session={s} key={s.id} />)}</details>
@@ -167,11 +167,11 @@ function ReplyCard({ draft, run, headState, stale, busy, mutate }: { draft: Draf
     </form> : <>
       {draft.description.trim() ? <Prose text={draft.description} /> : <p class="muted">No reply proposed. Write one if this thread needs an answer.</p>}
       <div class="actions"><button disabled={busy} onClick={() => setEditing(true)}>Edit reply and category</button>
-        {w && <button class="primary" disabled={busy || stale || !draft.description.trim()} onClick={() => void mutate(async () => { await w.act(`${base}/keep`, {}); return api<Run>(`/api/runs/${run.id}`) })}>Add to pending replies</button>}
+        {w?.caps.reply && <button class="primary" disabled={busy || stale || !draft.description.trim()} onClick={() => void mutate(async () => { await w.act(`${base}/keep`, {}); return api<Run>(`/api/runs/${run.id}`) })}>Add to pending replies</button>}
         {copy}
         <button disabled={busy} onClick={() => void mutate(() => post<Run>(`${base}/discard-reply`))}>Discard reply</button>
       </div>
-      <p class="muted">{w ? 'Add to pending replies sends a private draft. Submit above publishes your pending comments.' : 'This reply stays local until you copy it or posting becomes available.'}</p>
+      <p class="muted">{w?.caps.reply ? 'Add to pending replies sends a private draft. Submit above publishes your pending comments.' : 'This reply stays local until you copy it or posting becomes available.'}</p>
     </>}
   </div>
 }

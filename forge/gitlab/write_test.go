@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -20,14 +22,33 @@ type call struct {
 	Body         map[string]any
 }
 
-// recorder is a GitLab that accepts every write and records it.
-func recorder(t *testing.T) (*Client, forge.Ref, *[]call) {
+// recorder is a GitLab that accepts every write and records it. It answers
+// the reads a write makes, as the signed-in person me, with the recorded
+// merge request, in which phikai has requested changes and rkumar555 has not
+// reviewed.
+func recorder(t *testing.T, me ...string) (*Client, forge.Ref, *[]call) {
 	t.Helper()
+	who := "phikai"
+	if len(me) > 0 {
+		who = me[0]
+	}
+	gql, err := os.ReadFile("testdata/mr3991.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var mu sync.Mutex
 	var calls []call
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer "+secret {
 			http.Error(w, `{"message":"401 Unauthorized"}`, 401)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v4/user":
+			fmt.Fprintf(w, `{"username": %q}`, who)
+			return
+		case "/api/graphql":
+			w.Write(gql)
 			return
 		}
 		b, _ := io.ReadAll(r.Body)
@@ -70,7 +91,12 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 	must(c.Resolve(ctx, ref, "abc123", true))
 	must(c.Approve(ctx, ref, true))
 	must(c.Approve(ctx, ref, false))
-	must(c.Submit(ctx, ref))
+	must(c.Submit(ctx, ref, forge.VerdictCommented))
+	must(c.Submit(ctx, ref, forge.VerdictChangesRequested))
+	must(c.Submit(ctx, ref, forge.VerdictApproved))
+	if err := c.Submit(ctx, ref, "lgtm"); err == nil {
+		t.Fatal("an unknown verdict was submitted")
+	}
 
 	mr := "/api/v4/projects/gitlab-org%2Fcli/merge_requests/3991"
 	want := []struct{ method, path string }{
@@ -78,6 +104,8 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 		{"PUT", mr + "/draft_notes/41"}, {"DELETE", mr + "/draft_notes/41"},
 		{"PUT", mr + "/discussions/abc123"}, {"POST", mr + "/approve"}, {"POST", mr + "/unapprove"},
 		{"POST", mr + "/draft_notes/bulk_publish"},
+		{"POST", mr + "/draft_notes/bulk_publish"},
+		{"POST", mr + "/draft_notes/bulk_publish"}, {"POST", mr + "/approve"},
 	}
 	if len(*calls) != len(want) {
 		t.Fatalf("%d calls: %+v", len(*calls), *calls)
@@ -100,12 +128,54 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 	if (*calls)[5].Body["resolved"] != true {
 		t.Fatalf("resolve %v", (*calls)[5].Body)
 	}
+	if (*calls)[8].Body != nil || (*calls)[10].Body != nil {
+		t.Fatalf("a commented or approving batch carried a reviewer state: %v %v", (*calls)[8].Body, (*calls)[10].Body)
+	}
+	if (*calls)[9].Body["reviewer_state"] != "requested_changes" {
+		t.Fatalf("request changes %v", (*calls)[9].Body)
+	}
+}
+
+// GitLab answers a bulk publish with success whether or not it recorded
+// reviewer_state, so asking for changes reads the merge request back, and a
+// request it did not record is an error rather than a lost verdict.
+func TestRequestingChangesThatGitLabDidNotRecordIsAnError(t *testing.T) {
+	c, ref, calls := recorder(t, "rkumar555")
+	err := c.Submit(context.Background(), ref, forge.VerdictChangesRequested)
+	if !errors.Is(err, errChangesNotRecorded) || !strings.Contains(err.Error(), "comments were published") {
+		t.Fatalf("err %v", err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Body["reviewer_state"] != "requested_changes" {
+		t.Fatalf("writes %+v", *calls)
+	}
+}
+
+// A read-back that fails after the comments are published still says they
+// were published, rather than reading as a failed submit.
+func TestAnUnconfirmedRequestForChangesSaysTheCommentsWerePublished(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v4/user" {
+			http.Error(w, `{"message":"502 Bad Gateway"}`, 502)
+			return
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c, ref := client(t, srv, secret)
+	err := c.Submit(context.Background(), ref, forge.VerdictChangesRequested)
+	if err == nil || !strings.Contains(err.Error(), "comments were published") || !strings.Contains(err.Error(), "could not confirm") {
+		t.Fatalf("err %v", err)
+	}
+	var api *APIError
+	if !errors.As(err, &api) {
+		t.Fatalf("the read error is not kept: %v", err)
+	}
 }
 
 func TestAnAnonymousClientWritesNothing(t *testing.T) {
 	c, ref, calls := recorder(t)
 	c.token = config.Secret{}
-	if err := c.Submit(context.Background(), ref); !errors.Is(err, errNoToken) {
+	if err := c.Submit(context.Background(), ref, forge.VerdictCommented); !errors.Is(err, errNoToken) {
 		t.Fatalf("err %v", err)
 	}
 	if len(*calls) != 0 {
