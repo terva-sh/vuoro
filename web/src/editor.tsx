@@ -5,6 +5,7 @@ import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { diffStat } from './diff'
 import { FileList, fileID, FileView, manyFiles, Stat } from './diffview'
+import { Modal } from './modal'
 import type { Draft, EditorDetail, FileDiff, Run, StackPreview } from './types'
 import { changeWord } from './types'
 import { WriteContext } from './write'
@@ -192,48 +193,40 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
   const { busy, error, run: perform } = useAction()
   const cancel = useRef<HTMLButtonElement>(null)
   const word = changeWord(run.kind)
-  useEffect(() => {
-    cancel.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [busy])
   const push = () => perform(async () => {
     onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
     onClose()
   })
   return (
-    <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
-      <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">
-        <h2 id="push-title">{p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : `Push and open a draft ${word}`}</h2>
-        <ul>
-          {p.local ? <>
-            <li>Writes {p.commits} commit{p.commits === 1 ? '' : 's'} as the branch <span class="mono">{p.branch}</span> in your repository.</li>
-            <li>Nothing else changes there: not your checkout, your working tree, HEAD, or any other branch. A branch of that name you hold is never moved, and your hooks do not run.</li>
-          </> : p.own ? <>
-            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your {word}'s branch, as you, with your own git access. Fast-forward only.</li>
-            <li>Each fixed thread's drafted reply then cites its commit, unless you wrote the reply. Nothing is posted until you add replies and submit.</li>
-            <li>Pull the branch into your own checkout afterwards; vuoro does not touch it.</li>
-          </> : <>
-            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.branch}</span>, as you, with your own git access.</li>
-            <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">{p.not_draft ? '' : 'draft '}{word}</a>.</> : <>Opens a draft {word} onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
-          </>}
-          <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
-          {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
-          {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : `the review, so the ${word} may need a rebase`}.</li>}
-        </ul>
-        {!p.opened && !p.own && !p.local && (
-          <>
-            <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
-            <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
-          </>
-        )}
-        {error && <p class="alert" role="alert">⚠ {error}</p>}
-        <div class="actions">
-          <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
-          <button class="primary" disabled={busy || (!p.own && !p.local && !title.trim()) || (p.own && p.moved)} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.local ? 'Write the branch' : p.own || p.opened ? 'Push' : 'Push and open'}</button>
-        </div>
+    <Modal class="push-dialog" onClose={onClose} focus={cancel} locked={busy}
+      title={p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : `Push and open a draft ${word}`}>
+      <ul>
+        {p.local ? <>
+          <li>Writes {p.commits} commit{p.commits === 1 ? '' : 's'} as the branch <span class="mono">{p.branch}</span> in your repository.</li>
+          <li>Nothing else changes there: not your checkout, your working tree, HEAD, or any other branch. A branch of that name you hold is never moved, and your hooks do not run.</li>
+        </> : p.own ? <>
+          <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your {word}'s branch, as you, with your own git access. Fast-forward only.</li>
+          <li>Each fixed thread's drafted reply then cites its commit, unless you wrote the reply. Nothing is posted until you add replies and submit.</li>
+          <li>Pull the branch into your own checkout afterwards; vuoro does not touch it.</li>
+        </> : <>
+          <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.branch}</span>, as you, with your own git access.</li>
+          <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">{p.not_draft ? '' : 'draft '}{word}</a>.</> : <>Opens a draft {word} onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
+        </>}
+        <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
+        {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
+        {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : `the review, so the ${word} may need a rebase`}.</li>}
+      </ul>
+      {!p.opened && !p.own && !p.local && (
+        <>
+          <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+          <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
+        </>
+      )}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+      <div class="actions">
+        <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
+        <button class="primary" disabled={busy || (!p.own && !p.local && !title.trim()) || (p.own && p.moved)} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.local ? 'Write the branch' : p.own || p.opened ? 'Push' : 'Push and open'}</button>
       </div>
-    </div>
+    </Modal>
   )
 }

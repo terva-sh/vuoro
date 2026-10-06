@@ -1,7 +1,8 @@
 // Asking first. An action that acts on the forge as the person, where others
 // see it, asks before it runs, unless the person waived asking for it.
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import { api, post } from './api'
+import { Modal } from './modal'
 import { changeNumber, type Change, type Setup } from './types'
 
 // The actions that ask first, as the server names them for waivers.
@@ -31,27 +32,18 @@ export function ConfirmDialog({ ask, onClose, onWaive }: {
 }) {
   const [waive, setWaive] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    cancel.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
   return (
-    <div class="modal-back" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <h2 id="confirm-title">{ask.title}</h2>
-        <ul>{ask.lines.map((l) => <li key={l}>{l}</li>)}</ul>
-        <label class="waive">
-          <input type="checkbox" checked={waive} onChange={(e) => setWaive((e.target as HTMLInputElement).checked)} />
-          {' '}Don't ask again before {ask.actions.map((a) => actionWords[a]).join(' or ')}
-        </label>
-        <div class="actions">
-          <button ref={cancel} onClick={onClose}>Cancel</button>
-          <button class="primary" onClick={() => { if (waive) onWaive(ask.actions); onClose(); ask.run() }}>{ask.go}</button>
-        </div>
+    <Modal title={ask.title} onClose={onClose} focus={cancel}>
+      <ul>{ask.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+      <label class="waive">
+        <input type="checkbox" checked={waive} onChange={(e) => setWaive((e.target as HTMLInputElement).checked)} />
+        {' '}Don't ask again before {ask.actions.map((a) => actionWords[a]).join(' or ')}
+      </label>
+      <div class="actions">
+        <button ref={cancel} onClick={onClose}>Cancel</button>
+        <button class="primary" onClick={() => { if (waive) onWaive(ask.actions); onClose(); ask.run() }}>{ask.go}</button>
       </div>
-    </div>
+    </Modal>
   )
 }
 
