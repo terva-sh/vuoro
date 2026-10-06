@@ -127,6 +127,11 @@ func (c *Client) UpdateDraft(ctx context.Context, ref forge.Ref, id, body string
 	if err != nil {
 		return err
 	}
+	// The issue-comment route edits any comment, published ones too, so
+	// the id must be a comment of the person's pending review.
+	if _, err := c.pendingComment(ctx, ref, n); err != nil {
+		return err
+	}
 	_, err = c.write(ctx, http.MethodPatch, fmt.Sprintf("%s/issues/comments/%d", repoPath(ref), n), map[string]any{"body": body})
 	return err
 }
@@ -145,15 +150,31 @@ func (c *Client) DeleteDraft(ctx context.Context, ref forge.Ref, id string) erro
 	if err != nil {
 		return err
 	}
-	pending, err := c.pendingReview(ctx, ref)
+	pending, err := c.pendingComment(ctx, ref, n)
 	if err != nil {
 		return err
 	}
-	if pending == nil {
-		return fmt.Errorf("forgejo: no pending review holds comment %d", n)
-	}
 	_, err = c.write(ctx, http.MethodDelete, fmt.Sprintf("%s/reviews/%d/comments/%d", prPath(ref), pending.ID, n), nil)
 	return err
+}
+
+// pendingComment is the person's pending review on ref when comment n is one
+// of its comments, and an error saying it is no longer pending otherwise.
+func (c *Client) pendingComment(ctx context.Context, ref forge.Ref, n int64) (*apiReview, error) {
+	mine, err := c.myReviews(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	if mine.pending != nil {
+		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath(ref), mine.pending.ID))
+		if err != nil {
+			return nil, err
+		}
+		if slices.ContainsFunc(cs, func(cm apiComment) bool { return cm.ID == n }) {
+			return mine.pending, nil
+		}
+	}
+	return nil, fmt.Errorf("forgejo: comment %d is no longer pending; it may have been published: %w", n, forge.ErrNotFound)
 }
 
 // errWebBody is a change to the summary of a review the person started in
@@ -210,23 +231,43 @@ func (c *Client) me(ctx context.Context) (string, error) {
 	return c.login, nil
 }
 
-// pendingReview is the person's own pending review on ref, started in
-// Forgejo's web UI, or nil.
-func (c *Client) pendingReview(ctx context.Context, ref forge.Ref) (*apiReview, error) {
+// mine is the person's own reviews on a pull request: the pending one they
+// started in Forgejo's web UI, if any, and their newest published verdict.
+type mine struct {
+	pending, verdict *apiReview
+}
+
+func (c *Client) myReviews(ctx context.Context, ref forge.Ref) (mine, error) {
 	me, err := c.me(ctx)
 	if err != nil {
-		return nil, err
+		return mine{}, err
 	}
 	reviews, err := pages[apiReview](ctx, c, prPath(ref)+"/reviews")
 	if err != nil {
-		return nil, err
+		return mine{}, err
 	}
-	for _, r := range reviews {
-		if r.State == "PENDING" && strings.EqualFold(r.User.Login, me) {
-			return &r, nil
+	var m mine
+	for i := range reviews {
+		r := &reviews[i]
+		if !strings.EqualFold(r.User.Login, me) {
+			continue
+		}
+		switch r.State {
+		case "PENDING":
+			m.pending = r
+		case "APPROVED", "REQUEST_CHANGES":
+			if m.verdict == nil || !r.Submitted.Before(m.verdict.Submitted) {
+				m.verdict = r
+			}
 		}
 	}
-	return nil, nil
+	return m, nil
+}
+
+// stands says whether the person's newest verdict is event, undismissed, on
+// head: a verdict already published, which a retry must not publish again.
+func (m mine) stands(event, head string) bool {
+	return m.verdict != nil && m.verdict.State == event && !m.verdict.Dismissed && !m.verdict.Stale && m.verdict.Commit == head
 }
 
 var events = map[forge.Verdict]string{
@@ -277,10 +318,11 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 	if err != nil {
 		return err
 	}
-	pending, err := c.pendingReview(ctx, ref)
+	m, err := c.myReviews(ctx, ref)
 	if err != nil {
 		return err
 	}
+	pending := m.pending
 
 	var bodies []string
 	if pending != nil && strings.TrimSpace(pending.Body) != "" {
@@ -306,10 +348,14 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 		return fmt.Errorf("forgejo: %d of your inline comments were written on an earlier head of this pull request, so their lines may have moved; delete them and comment again on today's diff", stale)
 	}
 	body := strings.Join(bodies, "\n\n")
-	if verdict == forge.VerdictChangesRequested && strings.TrimSpace(body) == "" {
+	content := body != "" || len(comments) > 0 || (pending != nil && pending.Comments > 0)
+	// Only replies left, and the verdict already standing on this head: a
+	// retry after a reply failed. Forgejo holds the verdict, so post only the
+	// replies rather than publish it again.
+	review := content || (verdict != forge.VerdictCommented && !m.stands(event, pr.Head.SHA))
+	if review && verdict == forge.VerdictChangesRequested && strings.TrimSpace(body) == "" {
 		return errors.New("forgejo: Forgejo needs a comment on the whole change to request changes; add one, then request changes")
 	}
-	review := verdict != forge.VerdictCommented || body != "" || len(comments) > 0 || (pending != nil && pending.Comments > 0)
 	if !review && len(replies) == 0 {
 		return errors.New("forgejo: you have no pending comments to submit")
 	}
@@ -390,13 +436,13 @@ func (c *Client) Approve(ctx context.Context, ref forge.Ref, approve bool) error
 	if c.token.Empty() {
 		return errNoToken
 	}
-	pending, err := c.pendingReview(ctx, ref)
+	m, err := c.myReviews(ctx, ref)
 	if err != nil {
 		return err
 	}
 	// Forgejo merges a new review into the person's pending one, which
 	// would publish it with the approval.
-	if pending != nil {
+	if m.pending != nil {
 		return errors.New("forgejo: you have a review in progress that you started in Forgejo; approving would publish it, so use Submit and approve")
 	}
 	pr, err := read[apiPR](ctx, c, prPath(ref))

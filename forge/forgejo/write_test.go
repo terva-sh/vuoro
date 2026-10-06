@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -55,6 +56,8 @@ type writeForge struct {
 	fail    map[string]bool
 	mu      sync.Mutex
 	writes  []sent
+	// published are the reviews this fake has taken, as Forgejo lists them.
+	published []string
 }
 
 func (f *writeForge) serve(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +74,12 @@ func (f *writeForge) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"message":"boom"}`, 500)
 			return
 		}
+		if r.Method == http.MethodPost && r.URL.Path == pr+"/reviews" {
+			f.mu.Lock()
+			f.published = append(f.published, fmt.Sprintf(`{"id": %d, "user": {"login": "me"}, "state": %q, "commit_id": %q, "submitted_at": "2026-10-06T0%d:00:00Z"}`,
+				100+len(f.published), body["event"], body["commit_id"], len(f.published)+1))
+			f.mu.Unlock()
+		}
 		w.Write([]byte(`{"id": 99}`))
 		return
 	}
@@ -84,11 +93,16 @@ func (f *writeForge) serve(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`[]`))
 			return
 		}
-		reviews := `{"id": 11, "user": {"login": "reviewer"}, "state": "COMMENT", "comments_count": 1}`
+		reviews := []string{`{"id": 11, "user": {"login": "reviewer"}, "state": "COMMENT", "comments_count": 1}`}
 		if f.pending {
-			reviews += `, {"id": 12, "user": {"login": "me"}, "state": "PENDING", "body": "Private summary.", "comments_count": 1}`
+			reviews = append(reviews, `{"id": 12, "user": {"login": "me"}, "state": "PENDING", "body": "Private summary.", "comments_count": 1}`)
 		}
-		w.Write([]byte("[" + reviews + "]"))
+		f.mu.Lock()
+		reviews = append(reviews, f.published...)
+		f.mu.Unlock()
+		w.Write([]byte("[" + strings.Join(reviews, ",") + "]"))
+	case pr + "/reviews/12/comments":
+		w.Write([]byte(`[{"id": 41, "pull_request_review_id": 12, "path": "a.go", "position": 4, "body": "Private inline."}]`))
 	case pr + "/reviews/11/comments":
 		w.Write([]byte(`[{"id": 31, "pull_request_review_id": 11, "path": "a.go", "position": 3, "original_position": 0, "body": "Why?"}]`))
 	default:
@@ -262,6 +276,41 @@ func TestAFailedReplyStaysPending(t *testing.T) {
 	}
 }
 
+// A reply that fails after a verdict was published is retried without
+// publishing the verdict again, and without asking again for what the
+// published review already said.
+func TestARetryAfterAVerdictPostsOnlyTheReplies(t *testing.T) {
+	for _, v := range []forge.Verdict{forge.VerdictApproved, forge.VerdictChangesRequested} {
+		f := &writeForge{fail: map[string]bool{"/api/v1/repos/terva-sh/vuoro/issues/2/comments": true}}
+		c, ref, s := writeClient(t, f)
+		ctx := context.Background()
+		c.CreateDraft(ctx, ref, forge.NewDraft{Body: "general"})
+		c.CreateDraft(ctx, ref, forge.NewDraft{Body: "general reply", ThreadID: "comment-5"})
+		if err := c.Submit(ctx, ref, v); err == nil || !strings.Contains(err.Error(), "1 of 1 replies") {
+			t.Fatalf("%s: %v", v, err)
+		}
+		delete(f.fail, "/api/v1/repos/terva-sh/vuoro/issues/2/comments")
+		if err := c.Submit(ctx, ref, v); err != nil {
+			t.Fatalf("%s retry: %v", v, err)
+		}
+		reviews, replies := 0, 0
+		for _, w := range f.sent() {
+			switch {
+			case strings.HasSuffix(w.Path, "/pulls/2/reviews"):
+				reviews++
+			case strings.HasSuffix(w.Path, "/issues/2/comments"):
+				replies++
+			}
+		}
+		if reviews != 1 || replies != 2 {
+			t.Fatalf("%s: %d reviews and %d reply attempts", v, reviews, replies)
+		}
+		if ds, _ := s.Drafts(ref); len(ds) != 0 {
+			t.Fatalf("%s: left %+v", v, ds)
+		}
+	}
+}
+
 // A pending review the person started in Forgejo's web UI: its comments are
 // edited and deleted on Forgejo, its summary is left alone and kept by
 // Submit, and a bare approval is refused because it would publish it.
@@ -274,6 +323,14 @@ func TestAReviewStartedInForgejo(t *testing.T) {
 	}
 	if err := c.DeleteDraft(ctx, ref, "41"); err != nil {
 		t.Fatal(err)
+	}
+	// A published comment's id is not a pending comment, whatever route
+	// would edit it.
+	if err := c.UpdateDraft(ctx, ref, "31", "x"); !errors.Is(err, forge.ErrNotFound) {
+		t.Fatalf("editing a published comment: %v", err)
+	}
+	if err := c.DeleteDraft(ctx, ref, "31"); !errors.Is(err, forge.ErrNotFound) {
+		t.Fatalf("deleting a published comment: %v", err)
 	}
 	if err := c.UpdateDraft(ctx, ref, "review-12", "x"); !errors.Is(err, forge.ErrUnsupported) {
 		t.Fatalf("editing the web summary: %v", err)

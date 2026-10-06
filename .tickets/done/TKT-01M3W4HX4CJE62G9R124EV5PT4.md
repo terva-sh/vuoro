@@ -26,7 +26,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-06T04:35:59Z
+updated_at: 2026-10-06T04:42:00Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -149,6 +149,14 @@ Forgejo lists in `requested_reviewers` anyone whose latest review approved or re
 ### Not done here
 
 The editor's push to Forgejo is TKT-01M47EG9F7HZ7C3EPYF2TJMEYV. Probe PR #5 is closed. The sandbox repositories stay for the stacker's live test.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T04:42:00Z
+
+Follow-ups from terva-review run e9bc56f7 on PR #17, and the Windows leg.
+- High: after a verdict-bearing review published and a reply failed, a retry would publish the approval again, or a retried request for changes would fail its body check. Submit now asks Forgejo for the person's newest verdict (myReviews). When only replies are left and that verdict already stands, undismissed, on today's head, it posts only the replies. Forgejo is the record of what was published, so no submission state is kept in vuoro. TestARetryAfterAVerdictPostsOnlyTheReplies covers approve and request changes. Rejected: a published-verdict marker in the draft store, which is vuoro holding review state that the forge already holds. Also rejected: replies before the review, which contradicts D43.
+- Medium: UpdateDraft PATCHed any numeric id, and that route edits published comments too. UpdateDraft and DeleteDraft now require the id to be a comment of the person's pending review (pendingComment), and answer ErrNotFound otherwise.
+- Windows: TestReviewExitStatuses used -timeout 300ms, which ran out during the local git diff on the runner and was reported as a git error. A deadline that expires while reading the change now reports the same timeout as one during the review (review_cmd.go).
+The live TestLiveWrite passed again after these changes.
 
 ## Summary
 
