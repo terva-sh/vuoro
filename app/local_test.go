@@ -238,3 +238,52 @@ func TestACachedReadNeverBuildsAndKeepsTheCountAcrossARestart(t *testing.T) {
 		t.Fatalf("after a restart, the cached count: %+v", v)
 	}
 }
+
+func TestAQuietBranchCountsOnlyForWhatThePersonLeftOpen(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "proj")
+	git := checkout(t, dir)
+	git("switch", "-q", "-c", "fresh")
+	git("commit", "-q", "--allow-empty", "-m", "today")
+	// Two branches with no commit for a month: one never reviewed, and one
+	// whose review left a finding undecided and has moved since.
+	old := time.Now().Add(-30 * 24 * time.Hour).Format(time.RFC3339)
+	t.Setenv("GIT_COMMITTER_DATE", old)
+	git("switch", "-q", "-c", "stale", "main")
+	git("commit", "-q", "--allow-empty", "-m", "old")
+	git("switch", "-q", "-c", "left-open", "main")
+	git("commit", "-q", "--allow-empty", "-m", "reviewed")
+	reviewed := git("rev-parse", "HEAD")
+	git("commit", "-q", "--allow-empty", "-m", "after the review")
+	top := git("rev-parse", "--show-toplevel")
+
+	stateDir := t.TempDir()
+	rec := map[string]any{
+		"id": "r1", "kind": "local", "ref": map[string]any{"host": "local", "project": "proj-1", "number": 0},
+		"title": "old", "web_url": "", "head": reviewed, "base": "", "created": time.Now().UTC(), "status": "closed",
+		"cost_usd": 0, "sessions": []any{}, "origin": filepath.FromSlash(top), "repo": "", "resume": map[string]any{},
+		"drafts": []any{map[string]any{"id": "d1", "status": "pending", "severity": "high", "title": "t", "description": "x", "revision": 1, "session": "s1"}},
+	}
+	b, _ := json.Marshal(rec)
+	os.MkdirAll(filepath.Join(stateDir, "runs", "r1"), 0o700)
+	os.WriteFile(filepath.Join(stateDir, "runs", "r1", "run.json"), b, 0o600)
+	m := &review.Manager{StateDir: stateDir}
+	if err := m.Load(); err != nil {
+		t.Fatal(err)
+	}
+	_, v, msg := postLocal(t, (&App{StateDir: stateDir, Runs: m}).Handler(), "/api/local/projects", map[string]any{"path": dir})
+	if v.QuietDays != 14 {
+		t.Fatalf("quiet_days %d %s", v.QuietDays, msg)
+	}
+	if f := branchNamed(v, "proj", "fresh"); f == nil || f.Quiet || strings.Join(f.Needs, "|") != "never reviewed" {
+		t.Fatalf("fresh: %+v", f)
+	}
+	if s := branchNamed(v, "proj", "stale"); s == nil || !s.Quiet || len(s.Needs) != 0 {
+		t.Fatalf("stale: %+v", s)
+	}
+	if l := branchNamed(v, "proj", "left-open"); l == nil || !l.Quiet || l.Run == nil || !l.Run.Moved || strings.Join(l.Needs, "|") != "1 finding undecided" {
+		t.Fatalf("left-open: %+v", l)
+	}
+	if v.Needs != 2 {
+		t.Fatalf("needs %d, want fresh and left-open", v.Needs)
+	}
+}

@@ -125,6 +125,7 @@ export interface LocalBranch {
   run?: { id: string; status: Status; head: string; created: string; moved: boolean; undecided: number }
   fixes: { branch: string; waiting: boolean }[]
   needs: string[] // why it needs the person, empty when it does not
+  quiet: boolean // no commit for the view's quiet_days, so unreviewed is not counted (D48)
 }
 export interface LocalProject {
   key: string; name: string; path: string; base?: string; error?: string
@@ -134,6 +135,7 @@ export interface LocalView {
   roots: string[]; added: string[]; scanned: string; stopped?: string; built: string
   projects: LocalProject[]; hidden: LocalProject[]; unreadable: { path: string; error: string }[]
   needs: number
+  quiet_days: number
 }
 
 // Scheme is a colour scheme. The empty one follows the system's.

@@ -712,3 +712,23 @@ docs/plan.md section 6.8 records the design.
   Reviewing uncommitted work was rejected for now, since the runner would
   have to capture the working tree into its own clone.
 
+### D48. A local branch with no commit in 14 days is quiet, and counts only for what the person left open
+
+Decided by the owner on 2026-10-06, after the first build of the Local tab
+counted 118 branches as needing the person on their workspace, nearly all of
+them never reviewed and long abandoned. docs/plan.md section 6.8 records the
+rule.
+
+- **Time decides, by the branch tip's committer date.** A branch with no
+  commit in 14 days is quiet. It stays a row, but being never reviewed or
+  having moved since its review stops counting. On the owner's workspace,
+  127 unmerged branches across its repositories came to 15 counted at 7
+  days, 27 at 14, 31 at 30, and 69 at 60. Fourteen days is a sprint's length
+  and leaves room for a branch set down for a week.
+- **What the person left open in vuoro counts at any age:** undecided
+  findings and an editor's fix branch waiting to be merged. Each clears when
+  the person acts, so it cannot pile up as abandoned branches do.
+- **The alternatives** were counting only branches checked out in a
+  worktree, which misses work on a branch switched away from in the main
+  checkout, and counting only branches vuoro has reviewed before, which
+  hides the first review the tab exists to start.

@@ -18,9 +18,9 @@ const inbox: InboxView = {
   theirs: [], snoozed: [],
 }
 const local = (needs: number): LocalView => ({
-  roots: [], added: ['/w/proj'], scanned: '', built: new Date().toISOString(), hidden: [], unreadable: [], needs,
+  roots: [], added: ['/w/proj'], scanned: '', built: new Date().toISOString(), hidden: [], unreadable: [], needs, quiet_days: 14,
   projects: [{ key: '/w/proj/.git', name: 'proj', path: '/w/proj', base: 'main', added: true, base_chosen: false, worktrees: [],
-    branches: [{ name: 'feature', tip: 'abc', ahead: 2, committed: new Date().toISOString(), worktrees: [], fixes: [], needs: ['never reviewed'] }] }],
+    branches: [{ name: 'feature', tip: 'abc', ahead: 2, committed: new Date().toISOString(), worktrees: [], fixes: [], needs: ['never reviewed'], quiet: false }] }],
 })
 
 const root = document.createElement('div')

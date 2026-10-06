@@ -34,6 +34,9 @@ const (
 	runsPerProject = 30
 	// inspectAtOnce bounds the projects read at the same time.
 	inspectAtOnce = 8
+	// quietAfter is how long a branch goes without a commit before it is
+	// quiet: still listed, but no longer counted for wanting a review (D48).
+	quietAfter = 14 * 24 * time.Hour
 )
 
 // localView is the Local tab.
@@ -49,6 +52,8 @@ type localView struct {
 	Unreadable []unreadable `json:"unreadable"`
 	// Needs counts the branches that need the person, for the tab's label.
 	Needs int `json:"needs"`
+	// QuietDays is how many days without a commit make a branch quiet.
+	QuietDays int `json:"quiet_days"`
 }
 
 type unreadable struct {
@@ -69,6 +74,9 @@ type localBranch struct {
 	Fixes []fixBranch `json:"fixes"`
 	// Needs are why the branch needs the person, empty when it does not.
 	Needs []string `json:"needs"`
+	// Quiet says the branch has had no commit for quietAfter. Not being
+	// reviewed, or having moved since its review, does not count then.
+	Quiet bool `json:"quiet"`
 }
 
 // branchRun is a branch's newest review.
@@ -311,6 +319,7 @@ func (a *App) buildLocal(ctx context.Context, s local.Store, rescan bool) (*loca
 	v := &localView{
 		Roots: s.Roots, Added: s.Projects, Scanned: scan.At, Stopped: scan.Result.Stopped, Built: time.Now().UTC(),
 		Projects: []localProject{}, Hidden: []localProject{}, Unreadable: []unreadable{},
+		QuietDays: int(quietAfter / (24 * time.Hour)),
 	}
 
 	// Read every folder, added ones first, at most inspectAtOnce at a time.
@@ -423,7 +432,9 @@ func localRuns(m *review.Manager) []localRun {
 
 // matchRuns gives each branch its newest review: the newest run, from one of
 // the project's checkouts, whose reviewed head is in the branch's history
-// and not in the base's. A branch with none has never been reviewed.
+// and not in the base's. A branch with none has never been reviewed. A quiet
+// branch needs the person only for what they left open in vuoro: undecided
+// findings and a fix branch to merge, which each clear when they act.
 func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun) []localBranch {
 	out := make([]localBranch, 0, len(p.Branches))
 	names := make([]string, 0, len(p.Branches))
@@ -467,7 +478,9 @@ func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun) 
 	}
 	for i := range out {
 		b := &out[i]
+		b.Quiet = time.Since(b.Committed) > quietAfter
 		switch {
+		case b.Quiet:
 		case b.Run == nil:
 			b.Needs = append(b.Needs, "never reviewed")
 		case b.Run.Moved:

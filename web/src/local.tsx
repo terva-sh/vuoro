@@ -38,16 +38,17 @@ export function LocalTab({ onCount }: { onCount?: (n: number) => void }) {
       ) : (
         <>
           {view.stopped && <p class="muted">⚠ {view.stopped}; some checkouts may be missing.</p>}
-          {view.projects.map((p) => <Project project={p} key={p.key} />)}
+          {view.projects.map((p) => <Project project={p} quietDays={view.quiet_days} key={p.key} />)}
         </>
       )}
     </section>
   )
 }
 
-function Project({ project: p }: { project: LocalProject }) {
+function Project({ project: p, quietDays }: { project: LocalProject; quietDays: number }) {
   const needing = p.branches.filter((b) => b.needs.length > 0)
-  const quiet = p.branches.length - needing.length
+  const quiet = p.branches.filter((b) => b.quiet && b.needs.length === 0).length
+  const done = p.branches.length - needing.length - quiet
   return (
     <section class="local-project" aria-label={p.name}>
       <h3>
@@ -63,7 +64,8 @@ function Project({ project: p }: { project: LocalProject }) {
               <code>{b.name}</code> <span class="muted">{b.ahead} ahead · {ago(b.committed)}</span> — {b.needs.join('; ')}
             </li>
           ))}
-          {quiet > 0 && <li class="muted">{quiet === 1 ? '1 more branch needs' : `${quiet} more branches need`} nothing</li>}
+          {done > 0 && <li class="muted">{done === 1 ? '1 more branch needs' : `${done} more branches need`} nothing</li>}
+          {quiet > 0 && <li class="muted">{quiet === 1 ? '1 quiet branch' : `${quiet} quiet branches`}, with no commit in {quietDays} days</li>}
           {p.branches.length === 0 && <li class="muted">No branches beyond {p.base}.</li>}
         </ul>
       )}

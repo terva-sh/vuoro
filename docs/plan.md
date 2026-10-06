@@ -1119,6 +1119,14 @@ since its last review, when its last review has undecided findings, or when an
 editor's fix branch for it is waiting to be merged. The Local tab's count is
 the number of such branches.
 
+**A branch with no commit in 14 days is quiet** (D48). It is still a row, but
+being unreviewed or having moved since its review no longer counts, so a
+workspace's abandoned branches do not bury the active ones. Undecided findings
+and a fix branch waiting to be merged count at any age, because the person
+started them in vuoro and each clears when they act. The age is the branch
+tip's committer date, so a rebase counts as a commit. The tab lists quiet
+branches apart from the ones that need nothing.
+
 **Review starts from the row.** It runs section 6.7's local range,
 `<base>...<branch>`, with the preset the person picks, and opens the run in
 the window, where the person talks to the reviewers, picks findings, and hands
