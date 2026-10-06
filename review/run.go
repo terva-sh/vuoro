@@ -42,8 +42,8 @@ type Manager struct {
 
 	mu   sync.Mutex
 	runs map[string]*Run
-	// down is set by Shutdown, after which a checkout that finishes starts
-	// no session.
+	// down is set by Shutdown, after which no run starts, and a checkout
+	// that finishes starts no session.
 	down atomic.Bool
 }
 
@@ -207,6 +207,9 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 
 func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread) (*Run, error) {
 	id := newRunID()
+	// The checkout's lifecycle is set before the run is visible, so a Close
+	// or a Shutdown that finds the run can always stop and wait for it.
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	r := &Run{
 		ID: id, Kind: ch.Kind, Mode: mode, Threads: threads, Ref: ch.Ref, Title: ch.Title, WebURL: ch.WebURL,
 		Head: ch.Diff.Head, Base: ch.Diff.Base, Created: time.Now().UTC(), Status: Preparing,
@@ -216,6 +219,9 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 		sessions: sessions,
 		path:     filepath.Join(m.StateDir, "runs", id, "run.json"),
 		first:    first,
+
+		stopPrepare: cancel,
+		prepared:    make(chan struct{}),
 	}
 	if ch.Kind == Local {
 		r.origin = src.Remote
@@ -227,6 +233,13 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 		r.bindThreads()
 	}
 	m.mu.Lock()
+	// Shutdown sets down before it lists the runs, so a run is either one it
+	// waits for or one refused here.
+	if m.down.Load() {
+		m.mu.Unlock()
+		cancel()
+		return nil, ErrShuttingDown
+	}
 	if m.runs == nil {
 		m.runs = map[string]*Run{}
 	}
@@ -234,8 +247,6 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	m.mu.Unlock()
 	r.save()
 
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	r.stopPrepare, r.prepared = cancel, make(chan struct{})
 	go m.prepare(ctx, r, src)
 	return r, nil
 }
@@ -791,6 +802,9 @@ func (m *Manager) Override(runID, id string, level drafts.Level, reason string) 
 
 // ErrNoRun means no run or session has that ID.
 var ErrNoRun = errors.New("review: no such run or session")
+
+// ErrShuttingDown is a run started after vuoro began to exit.
+var ErrShuttingDown = errors.New("review: vuoro is exiting, so it starts no new run")
 
 // Get returns a run, or nil.
 func (m *Manager) Get(id string) *Run {

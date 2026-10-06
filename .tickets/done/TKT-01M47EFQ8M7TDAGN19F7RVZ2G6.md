@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T01:50:38Z
-updated_at: 2026-10-06T03:53:28Z
+updated_at: 2026-10-06T03:58:01Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -81,6 +81,10 @@ GitHub CI run 37405570542 on head cbb5e38 passed on windows-latest, ubuntu-lates
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T03:53:28Z
 
 A second cause of the same Windows symptom. GitHub CI on PR #16 failed TestReviewInterrupt on windows-latest, with the temp dir not empty in repos/local/<n>.git/hooks. Manager.start ran prepare (git init and fetch, then the checkout) in a goroutine that neither Close nor Shutdown waited for. An interrupt that arrived before the checkout finished let git keep writing the clone after the test, or vuoro, had moved on. It could also start reviewer sessions on a run that was already closed, and flip it back to Working. Fixed in PR #16: each run gets a cancellable prepare context and a prepared channel. Close marks the run closed, cancels the checkout and waits for it. Shutdown cancels and waits, and sets Manager.down so a checkout that finishes starts no session. TestClosingARunDuringItsCheckoutStartsNothing holds the clone's lock so that Close lands mid-checkout.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T03:58:01Z
+
+Follow-up from terva-review run 177d0c6d (high) on PR #16. start set stopPrepare and prepared after publishing the run in m.runs, so a concurrent Close or Shutdown could see them nil, skip the wait, and race the assignment. They are now set in the Run literal, before the run is visible. start also refuses a run with ErrShuttingDown once Shutdown has set Manager.down, which it does before listing the runs, so every run is either one Shutdown waits for or one that never starts. TestShutdownWaitsForACheckoutAndRefusesNewRuns holds this.
 
 ## Summary
 
