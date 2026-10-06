@@ -9,4 +9,3 @@ tickets, and the next fix pass overwrites it.
 | [TKT-01M3W4FGT1GY0X3TWJF81X3XWK](draft/TKT-01M3W4FGT1GY0X3TWJF81X3XWK.md) | vuoro v0.1.0 (MVP): orchestrated GitLab reviews, then the inbox | draft |
 | [TKT-01M3YMSTYMFRDFXD4QSVWHMM8P](draft/TKT-01M3YMSTYMFRDFXD4QSVWHMM8P.md) | vuoro v1.0.0: every forge, the editor agent, and a terva-sh release | draft |
 | [TKT-01M47EFQ400T20P79H9X152NAZ](draft/TKT-01M47EFQ400T20P79H9X152NAZ.md) | Forgejo parity: posting, verdicts, and the editor's push | draft |
-| [TKT-01M49F68YV694W81S3ESJKVH02](draft/TKT-01M49F68YV694W81S3ESJKVH02.md) | Local projects in the window: a Local tab, one row per branch | draft |
