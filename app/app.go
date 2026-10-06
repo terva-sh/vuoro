@@ -90,6 +90,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
 	mux.HandleFunc("POST /api/prefs/scheme", a.setScheme)
+	mux.HandleFunc("POST /api/prefs/tab", a.setTab)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
 	mux.HandleFunc("POST /api/runs/{id}/report", a.report)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/suggest", a.askSuggestion)

@@ -88,6 +88,14 @@ form.open input { flex: 1; min-width: 0; }
 
 main { padding: var(--ui-space-4); }
 .home > :not(.inbox) { max-width: 860px; }
+/* The home page's tabs, Reviews and Local, span the page as the inbox does. */
+.home > .home-tabs, .home > .home-panel { max-width: none; }
+.home-tabs .tab .badge { margin-left: var(--ui-space-1); font-weight: 400; }
+.local-head { display: flex; gap: var(--ui-space-3); align-items: baseline; }
+.local-head > button { margin-left: auto; }
+.local-project { margin-top: var(--ui-space-4); }
+.local-project h3 .muted { font-weight: 400; font-size: var(--ui-fs-detail); }
+.local-branches { padding-left: var(--ui-space-5); }
 .setup { padding-left: var(--ui-space-5); }
 
 /* The runs so far: a folded card under the inbox, one row per change, which

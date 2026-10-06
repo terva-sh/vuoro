@@ -1079,7 +1079,11 @@ section is how the window finds the work and starts it.
 
 **The home page has two tabs.** "Reviews" is the forge inbox of section 4.
 "Local" is the person's checkouts. Each tab's label carries the count of what
-needs the person there, and the last tab used is kept in `prefs.json`.
+needs the person there, and the last tab used is kept in `prefs.json`. The
+inbox keeps polling behind the Local tab, so its count stays current. Local
+reads the checkouts only once it is first shown; until then its count is the
+one from the view it last built, kept in `cache/local.json`, and none at all
+before the first.
 
 **Projects come from two places.** The person adds a folder, through the
 native directory chooser (tuohi's `dialog`, `TypeDirectory`) in the window, or

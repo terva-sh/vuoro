@@ -210,3 +210,31 @@ func TestABranchKnowsItsNewestReviewWhatMovedSinceAndItsWaitingFix(t *testing.T)
 		t.Fatal("vuoro's own fix branch is a row")
 	}
 }
+
+func TestACachedReadNeverBuildsAndKeepsTheCountAcrossARestart(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "proj")
+	git := checkout(t, dir)
+	git("switch", "-q", "-c", "feature")
+	git("commit", "-q", "--allow-empty", "-m", "one")
+	stateDir := t.TempDir()
+	cached := func(a *App) *localView {
+		w := httptest.NewRecorder()
+		a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/local?cached=1", nil))
+		var v *localView
+		json.Unmarshal(w.Body.Bytes(), &v)
+		return v
+	}
+	a := &App{StateDir: stateDir}
+	if v := cached(a); v != nil {
+		t.Fatalf("a cached read built the tab: %+v", v)
+	}
+	if _, err := os.Stat(filepath.Join(stateDir, "cache", "local.json")); err == nil {
+		t.Fatal("a cached read scanned")
+	}
+	if code, _, msg := postLocal(t, a.Handler(), "/api/local/projects", map[string]any{"path": dir}); code != http.StatusOK {
+		t.Fatalf("add: %s", msg)
+	}
+	if v := cached(&App{StateDir: stateDir}); v == nil || v.Needs != 1 {
+		t.Fatalf("after a restart, the cached count: %+v", v)
+	}
+}

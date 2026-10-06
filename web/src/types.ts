@@ -114,6 +114,28 @@ export interface ForgeForm {
 export interface TokenSource { id: string; label: string; read?: string[]; store?: string[]; note?: string }
 export type ToolState = 'ok' | 'missing' | 'too_old' | 'signed_out' | 'broken'
 export interface Tool { name: string; tool: string; version?: string; account?: string; error?: string; state: ToolState }
+// HomeTab is a tab of the home page (docs/plan.md section 6.8); empty is the
+// first, Reviews.
+export type HomeTab = '' | 'reviews' | 'local'
+
+// The Local tab: the person's checkouts, one row per branch beyond its base.
+export interface LocalWorktree { path: string; branch?: string; head: string; dirty: boolean }
+export interface LocalBranch {
+  name: string; tip: string; ahead: number; committed: string; worktrees: string[]
+  run?: { id: string; status: Status; head: string; created: string; moved: boolean; undecided: number }
+  fixes: { branch: string; waiting: boolean }[]
+  needs: string[] // why it needs the person, empty when it does not
+}
+export interface LocalProject {
+  key: string; name: string; path: string; base?: string; error?: string
+  worktrees: LocalWorktree[]; branches: LocalBranch[]; added: boolean; base_chosen: boolean
+}
+export interface LocalView {
+  roots: string[]; added: string[]; scanned: string; stopped?: string; built: string
+  projects: LocalProject[]; hidden: LocalProject[]; unreadable: { path: string; error: string }[]
+  needs: number
+}
+
 // Scheme is a colour scheme. The empty one follows the system's.
 export type Scheme = '' | 'light' | 'dark'
 
@@ -129,6 +151,7 @@ export interface Setup {
   profiles: { name: string; title: string; prompt: string }[]
   waived: string[] // confirmations the person turned off
   scheme: Scheme // the pinned colour scheme, or empty for the system's
+  tab: HomeTab // the home page's tab used last
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`

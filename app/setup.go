@@ -134,10 +134,11 @@ func (a *App) setupView() any {
 		Profiles    []review.Profile `json:"profiles"`
 		Waived      []string         `json:"waived"` // confirmations the person turned off
 		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
+		Tab         string           `json:"tab"`    // the home page's tab used last
 	}{ConfigPath: path, Editable: path != "" && cfgErr == nil, Base: base, Forges: []forgeView{}, Tools: []toolView{},
 		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetsOf(cfg), Profiles: review.Builtin}
 	prefs := a.loadPrefs()
-	out.Waived, out.Scheme = prefs.Waived, prefs.Scheme
+	out.Waived, out.Scheme, out.Tab = prefs.Waived, prefs.Scheme, prefs.Tab
 	if cfgErr != nil {
 		out.ConfigError = cfgErr.Error()
 	}

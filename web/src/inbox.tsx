@@ -69,7 +69,11 @@ function AgeBadge({ since }: { since: string | null }) {
 
 // Only a mounted inbox polls. All requests share one busy gate and cancellation;
 // actions cannot race an older refresh response into restoring a prior snooze.
-export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => void; opening?: boolean }) {
+// active is false while another home tab shows: the inbox keeps polling,
+// and onCount keeps the tab's count, but its keys are the other tab's.
+export function Inbox({ onOpen, opening = false, active = true, onCount }: {
+  onOpen: (url: string) => void; opening?: boolean; active?: boolean; onCount?: (n: number) => void
+}) {
   const [view, setView] = useState<InboxView>()
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string>()
@@ -139,9 +143,12 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
   const all = view ? [...view.mine, ...view.theirs, ...(view.dormant ?? []), ...view.snoozed] : []
   const current = all.find((row) => refKey(row.ref) === selected) ?? visible[0]
 
+  useEffect(() => { if (view) onCount?.(view.mine.length) }, [view])
+
   const keys = useRef<(e: KeyboardEvent) => void>()
   keys.current = (e) => {
     const target = e.target as HTMLElement | null
+    if (!active) return
     if (e.metaKey || e.ctrlKey || e.altKey || (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return
     const at = current ? visible.findIndex((row) => refKey(row.ref) === refKey(current.ref)) : -1
     const move = (to: number) => { const row = visible[Math.max(0, Math.min(visible.length - 1, to))]; if (row) setSelected(refKey(row.ref)) }

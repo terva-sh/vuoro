@@ -19,6 +19,10 @@ var Confirmable = []string{"submit", "approve", "request_changes"}
 // follows the system's.
 var Schemes = []string{"", "light", "dark"}
 
+// Tabs are the home page's tabs (docs/plan.md section 6.8). The empty tab is
+// the first, Reviews.
+var Tabs = []string{"", "reviews", "local"}
+
 // prefs are the person's choices made in the UI, kept in the state
 // directory rather than the config file, which is theirs to write.
 type prefs struct {
@@ -27,6 +31,8 @@ type prefs struct {
 	// Scheme is the colour scheme the person pinned, or empty to follow the
 	// system's.
 	Scheme string `json:"scheme,omitempty"`
+	// Tab is the home page's tab the person used last.
+	Tab string `json:"tab,omitempty"`
 }
 
 func (a *App) prefsPath() string {
@@ -51,6 +57,9 @@ func (a *App) loadPrefs() prefs {
 	}
 	if !slices.Contains(Schemes, p.Scheme) {
 		p.Scheme = ""
+	}
+	if !slices.Contains(Tabs, p.Tab) {
+		p.Tab = ""
 	}
 	return p
 }
@@ -96,6 +105,26 @@ func (a *App) setScheme(w http.ResponseWriter, r *http.Request) {
 	defer a.prefsMu.Unlock()
 	p := a.loadPrefs()
 	p.Scheme = req.Scheme
+	a.savePrefs(w, p)
+}
+
+// setTab keeps the home page's tab the person moved to, and answers with
+// the prefs.
+func (a *App) setTab(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Tab string `json:"tab"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !slices.Contains(Tabs, req.Tab) {
+		writeError(w, fmt.Errorf("%q is not a tab of the home page", req.Tab))
+		return
+	}
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	p.Tab = req.Tab
 	a.savePrefs(w, p)
 }
 

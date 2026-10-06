@@ -64,3 +64,27 @@ func TestAPinnedSchemeOutlivesARestartAndCanFollowTheSystemAgain(t *testing.T) {
 		t.Fatal("an unknown scheme was pinned")
 	}
 }
+
+func TestTheHomeTabOutlivesARestartAndOnlyAKnownTabIsKept(t *testing.T) {
+	dir := t.TempDir()
+	tab := func(a *App) string {
+		w := httptest.NewRecorder()
+		a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/setup", nil))
+		var out struct{ Tab string }
+		json.Unmarshal(w.Body.Bytes(), &out)
+		return out.Tab
+	}
+	a := &App{StateDir: dir}
+	if got := tab(a); got != "" {
+		t.Fatalf("a fresh start is on %q; it should be on the first tab", got)
+	}
+	if code, _ := call(t, a.Handler(), "/api/prefs/tab", map[string]any{"tab": "local"}); code != http.StatusOK {
+		t.Fatalf("set: %d", code)
+	}
+	if got := tab(&App{StateDir: dir}); got != "local" {
+		t.Fatalf("after a restart: %q", got)
+	}
+	if code, _ := call(t, a.Handler(), "/api/prefs/tab", map[string]any{"tab": "settings"}); code == http.StatusOK {
+		t.Fatal("an unknown tab was kept")
+	}
+}

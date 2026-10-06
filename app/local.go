@@ -94,6 +94,9 @@ type scanRecord struct {
 	At      time.Time        `json:"at"`
 	Result  local.ScanResult `json:"result"`
 	Version int              `json:"version"`
+	// View is the tab as last built, so its count is known after a restart
+	// without reading every checkout again.
+	View *localView `json:"view,omitempty"`
 }
 
 // localState is the App's cache of the tab.
@@ -241,9 +244,22 @@ func (a *App) localEdit(edit func(*local.Store, localReq) error) http.HandlerFun
 	}
 }
 
+// getLocal answers with the tab, built again when it is stale. With
+// ?cached=1 it never builds, and answers with the last view built, from
+// before a restart if need be, or null: the Reviews tab asks only for the
+// Local tab's count, and a scan runs only when the Local tab opens.
 func (a *App) getLocal(w http.ResponseWriter, r *http.Request) {
 	a.local.mu.Lock()
 	defer a.local.mu.Unlock()
+	if r.URL.Query().Get("cached") == "1" {
+		if a.local.view == nil {
+			if rec := a.loadScan(); rec != nil {
+				a.local.view = rec.View
+			}
+		}
+		writeJSON(w, http.StatusOK, a.local.view)
+		return
+	}
 	if v := a.local.view; v != nil && time.Since(v.Built) < localFresh {
 		writeJSON(w, http.StatusOK, v)
 		return
@@ -359,6 +375,10 @@ func (a *App) buildLocal(ctx context.Context, s local.Store, rescan bool) (*loca
 		return strings.ToLower(v.Projects[i].Name) < strings.ToLower(v.Projects[j].Name)
 	})
 	a.local.view = v
+	if path := a.scanPath(); path != "" {
+		scan.View = v
+		_ = state.WriteJSON(path, scan) // a lost cache costs a rebuild, not the person's work
+	}
 	return v, nil
 }
 

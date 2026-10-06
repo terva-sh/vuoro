@@ -4,11 +4,12 @@ import { api, bindings, post } from './api'
 import { ChangeView } from './change'
 import { LocalRun } from './run'
 import { Inbox } from './inbox'
+import { LocalTab } from './local'
 import { RunList } from './runs'
 import { waive } from './confirm'
 import { FirstRun, Forges, Tools } from './setup'
 import { applyScheme, SchemePicker } from './scheme'
-import type { Change, Run, Scheme, Setup } from './types'
+import type { Change, HomeTab, LocalView, Run, Scheme, Setup } from './types'
 
 interface Hello {
   version: string
@@ -103,11 +104,53 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
   useEffect(() => {
     if (setup && firstRun === undefined) setFirstRun(setup.editable && !setup.config_error && setup.forges.length === 0)
   }, [setup])
+  // The tab is the one used last, once setup says which, and Reviews before.
+  const [chosen, setChosen] = useState<HomeTab>()
+  const tab = chosen || setup?.tab || 'reviews'
+  const [counts, setCounts] = useState<{ reviews?: number; local?: number }>({})
+  // Local reads every checkout, so it waits to be shown, and its count
+  // comes from the view it last built until then.
+  const [localShown, setLocalShown] = useState(false)
+  useEffect(() => { if (tab === 'local') setLocalShown(true) }, [tab])
+  useEffect(() => {
+    api<LocalView | null>('/api/local?cached=1')
+      .then((v) => { if (v) setCounts((c) => ({ ...c, local: c.local ?? v.needs })) })
+      .catch(() => undefined)
+  }, [])
+  const choose = (t: HomeTab) => {
+    if (t === tab) return
+    setChosen(t)
+    post('/api/prefs/tab', { tab: t }).catch(() => undefined)
+  }
   if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
+  const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local']]
   return (
     <div class="home">
-      {/* A saved forge changes the base, and the inbox reads its accounts again. */}
-      <Inbox onOpen={onOpen} opening={opening} key={setup?.base} />
+      <nav class="tabs home-tabs" role="tablist" aria-label="Home" onKeyDown={(e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+        const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1
+        const next = tabs[(tabs.findIndex(([t]) => t === tab) + step) % tabs.length][0]
+        choose(next)
+        ;(e.currentTarget as HTMLElement).querySelector<HTMLButtonElement>(`#tab-${next}`)?.focus()
+      }}>
+        {tabs.map(([t, label]) => {
+          const n = counts[t as 'reviews' | 'local']
+          return (
+            <button role="tab" id={`tab-${t}`} aria-controls={`panel-${t}`} aria-selected={tab === t} tabIndex={tab === t ? 0 : -1}
+              class={tab === t ? 'tab on' : 'tab'} onClick={() => choose(t)} key={t}>
+              {label}{n !== undefined && <> <span class="badge" aria-label={`${n} need you`}>{n}</span></>}
+            </button>
+          )
+        })}
+      </nav>
+      <div class="home-panel" role="tabpanel" id="panel-reviews" aria-labelledby="tab-reviews" hidden={tab !== 'reviews'}>
+        {/* A saved forge changes the base, and the inbox reads its accounts again. */}
+        <Inbox onOpen={onOpen} opening={opening} key={setup?.base} active={tab === 'reviews'}
+          onCount={(n) => setCounts((c) => ({ ...c, reviews: n }))} />
+      </div>
+      <div class="home-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" hidden={tab !== 'local'}>
+        {localShown && <LocalTab onCount={(n) => setCounts((c) => ({ ...c, local: n }))} />}
+      </div>
       {setup && (
         <details class="inbox-setup" onToggle={(e) => {
           // Opening the panel reads setup again, which picks up a hand edit

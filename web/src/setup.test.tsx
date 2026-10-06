@@ -10,7 +10,7 @@ vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 afterEach(() => vi.resetAllMocks())
 
 const setup = (over: Partial<Setup> = {}): Setup => ({
-  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], scheme: '',
+  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], scheme: '', tab: '',
   sources: [
     { id: 'secret-service', label: 'Secret Service', read: ['secret-tool', 'lookup', 'service', 'vuoro', 'host', '{host}'], store: ['secret-tool', 'store', '--label=vuoro {host}', 'service', 'vuoro', 'host', '{host}'] },
     { id: 'env', label: 'An environment variable' },
