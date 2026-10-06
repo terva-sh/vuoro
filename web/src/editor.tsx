@@ -1,0 +1,266 @@
+// The editor's work: its commits beside the findings they answer, its diff,
+// and the push, which always asks first.
+import { useEffect, useRef, useState } from 'preact/hooks'
+import { api, post } from './api'
+import { diffStat } from './diff'
+import { FileList, fileID, FileView, manyFiles, Stat } from './diffview'
+import type { Draft, EditorDetail, FileDiff, Run, StackPreview } from './types'
+import { changeWord } from './types'
+import { WriteContext } from './write'
+import { short, StatusBadge } from './ui'
+
+// Editor hands the kept findings to an editor session, which fixes them on
+// a local branch in a sandbox, and shows its commits beside the findings
+// they answer (D39, D40). Nothing here touches the forge.
+// On a triage of the person's own change (D41), picked are the thread replies
+// to fix and describe names one; on a review, the kept findings are fixed.
+export function Editor({ run, url, onRun, picked, describe, picks = false }: {
+  run: Run; url: string; onRun: (r: Run) => void; picked?: Draft[]; describe?: (d: Draft) => string
+  picks?: boolean // a review of the person's own work, whose findings they pick (D42)
+}) {
+  const [detail, setDetail] = useState<EditorDetail>()
+  const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
+  const threads = run.mode === 'triage'
+  const own = threads || picks || run.kind === 'local'
+  const kept = run.drafts.filter((d) => d.decision === 'kept')
+  const name = describe ?? ((d: Draft) => d.title)
+  const ed = run.editor && !run.editor.discarded ? run.editor : undefined
+  const session = ed && run.sessions.find((s) => s.id === ed.session)
+  const working = session?.status === 'working' || session?.status === 'preparing'
+  // The editor's work is read again each time its turn ends.
+  useEffect(() => {
+    if (!ed || working) return
+    api<EditorDetail>(`/api/runs/${run.id}/editor`).then(setDetail, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  }, [ed?.session, working, session?.log?.length])
+  const act = async (path: string, body?: unknown) => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      onRun(await post<Run>(path, body))
+      setDetail(undefined)
+      setDiscarding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (run.mode && !threads) return null
+  if (!ed) {
+    const items = own ? picked ?? [] : kept
+    const what = threads ? 'thread' : 'finding'
+    const why = items.length > 0 ? '' : own ? `Pick a ${what} first` : 'Keep a finding first'
+    return (
+      <div class="editor-panel">
+        <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, own ? { url, items: items.map((d) => d.id) } : { url })}
+          title={why || `An agent fixes ${own ? `the picked ${what}s` : 'the kept findings'} on a local branch, in a sandbox, with no forge credential. Nothing is pushed.`}>
+          {busy ? '⧗ Starting the editor…' : own ? `⚒ Fix the picked ${what}s in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
+        </button>
+        {error && <p class="alert" role="alert">⚠ {error}</p>}
+      </div>
+    )
+  }
+  const byID = new Map(run.drafts.map((d) => [d.id, d]))
+  const title = (id: string) => { const d = byID.get(id); return d ? name(d) : '' }
+  const fixed = new Set(detail?.commits.flatMap((c) => c.findings) ?? [])
+  const given = own ? (ed.items ?? []).map((id) => byID.get(id)).filter((d): d is Draft => !!d) : kept
+  const left = given.filter((d) => !fixed.has(d.id))
+  return (
+    <div class="editor-panel">
+      <header class="editor-head">
+        <strong>⚒ Editor</strong>
+        <span class="mono">{ed.branch}</span>
+        {session && <StatusBadge status={session.status} />}
+        <span class="muted">from <span class="mono">{short(ed.base)}</span>{ed.pushed ? '' : ', local only'}</span>
+        {discarding ? (
+          <span class="push">
+            Delete the branch and its work?{' '}
+            <button class="primary" disabled={busy} onClick={() => void act(`/api/runs/${run.id}/editor/discard`)}>Discard</button>{' '}
+            <button class="link" onClick={() => setDiscarding(false)}>Keep it</button>
+          </span>
+        ) : (
+          <button class="push" disabled={busy} onClick={() => setDiscarding(true)}>Discard…</button>
+        )}
+      </header>
+      {working && <p class="muted">⧗ The editor is working. Open its session above to follow it or talk to it.</p>}
+      {detail && (
+        <>
+          <ol class="editor-commits">
+            {detail.commits.map((c) => (
+              <li key={c.sha}>
+                <span class="commit-sha">{short(c.sha)}</span>
+                <div class="commit-body">
+                  <div class="commit-subject">{c.subject}</div>
+                  {c.findings.map((id) => (
+                    <div class="commit-answers" key={id}>
+                      ↳ answers <span class="badge">{id}</span> {title(id)}
+                    </div>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {detail.commits.length === 0 && !working && <p class="muted">No commits yet.</p>}
+          {left.length > 0 && !working && (
+            <p class="muted">
+              ○ No commit names {left.map((d) => `${d.id} ${name(d)}`).join(', ')}. Its reply in the session says why.
+            </p>
+          )}
+          <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} />
+          {detail.files.length > 0 && <EditorDiff files={detail.files} />}
+        </>
+      )}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+    </div>
+  )
+}
+
+// EditorDiff is the editor's diff, laid out as the change's is: its files in
+// a column, each picked one opened and scrolled to. It is not the change's
+// diff, so nothing here comments on the forge.
+function EditorDiff({ files }: { files: FileDiff[] }) {
+  const [picked, setPicked] = useState<{ path: string; n: number }>()
+  const pick = (path: string) => {
+    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
+    requestAnimationFrame(() => document.getElementById(editorFiles + fileID(path))?.scrollIntoView({ block: 'start' }))
+  }
+  return (
+    <>
+      <h4 class="editor-diff-head">
+        Changes · {files.length} file{files.length === 1 ? '' : 's'}
+        <Stat {...files.reduce((t, f) => { const s = diffStat(f.patch); return { add: t.add + s.add, del: t.del + s.del } }, { add: 0, del: 0 })} />
+      </h4>
+      <WriteContext.Provider value={undefined}>
+        <div class="changes">
+          <FileList files={files} onPick={pick} current={picked?.path} />
+          <div class="files">
+            {files.map((f) => (
+              <FileView file={f} threads={[]} drafts={[]} key={f.new_path} idPrefix={editorFiles}
+                collapsed={files.length > manyFiles} picked={picked?.path === f.new_path ? picked.n : undefined} />
+            ))}
+          </div>
+        </div>
+      </WriteContext.Provider>
+    </>
+  )
+}
+
+const editorFiles = 'editor-'
+
+// PushBar offers the push of the editor's work and the stacked draft change,
+// and links it once open. The push always asks first: it is the
+// one action here that reaches the forge.
+export function PushBar({ run, url, detail, working, onRun }: {
+  run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
+}) {
+  const [preview, setPreview] = useState<StackPreview>()
+  const [error, setError] = useState<string>()
+  const [loading, setLoading] = useState(false)
+  const pushed = run.editor?.pushed
+  const own = !!run.editor?.own
+  const local = !!run.editor?.local
+  const last = detail.commits[detail.commits.length - 1]
+  const fresh = !!last && last.sha !== pushed?.sha
+  const word = changeWord(run.kind)
+  const ask = async () => {
+    setLoading(true)
+    setError(undefined)
+    try {
+      setPreview(await post<StackPreview>(`/api/runs/${run.id}/editor/stack`, { url }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <div class="push-bar">
+      {pushed && local && (
+        <span>✓ The branch <span class="mono">{pushed.branch}</span> is in your repository at <span class="mono">{short(pushed.sha)}</span>. Merge or cherry-pick it: <span class="mono">git merge {pushed.branch}</span></span>
+      )}
+      {pushed && !local && (own ? (
+        <span>✓ Pushed to your branch <span class="mono">{pushed.branch}</span> at <span class="mono">{short(pushed.sha)}</span> · the fixed threads' replies cite their commits</span>
+      ) : (
+        <span>
+          ✓ Pushed <span class="mono">{pushed.branch}</span> at <span class="mono">{short(pushed.sha)}</span>
+          {pushed.url ? <> · <a href={pushed.url} target="_blank" rel="noreferrer">the {pushed.not_draft ? '' : 'draft '}{word}</a></> : ` · the ${word} did not open; push again to retry`}
+          {pushed.not_draft && <span class="warn"> · ⚠ It opened as an ordinary {word}, not a draft, so it can be merged as it is. Mark it as a draft on the forge.</span>}
+        </span>
+      ))}
+      {(fresh || (!own && !local && pushed && !pushed.url)) && (
+        <button class="primary" disabled={working || loading} onClick={() => void ask()}
+          title={working ? 'Wait for the editor to finish' : 'Shows where it goes, and asks first'}>
+          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : `⇪ Push and open a draft ${word}…`}
+        </button>
+      )}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+      {preview && <PushDialog run={run} url={url} preview={preview} onClose={() => setPreview(undefined)} onRun={onRun} />}
+    </div>
+  )
+}
+
+// PushDialog is the confirmation, with the title and description to edit.
+// Cancel has the focus, so a stray Enter pushes nothing.
+export function PushDialog({ run, url, preview: p, onClose, onRun }: {
+  run: Run; url: string; preview: StackPreview; onClose: () => void; onRun: (r: Run) => void
+}) {
+  const [title, setTitle] = useState(p.title ?? '')
+  const [description, setDescription] = useState(p.description ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const cancel = useRef<HTMLButtonElement>(null)
+  const word = changeWord(run.kind)
+  useEffect(() => {
+    cancel.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy])
+  const push = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
+      <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">
+        <h2 id="push-title">{p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : `Push and open a draft ${word}`}</h2>
+        <ul>
+          {p.local ? <>
+            <li>Writes {p.commits} commit{p.commits === 1 ? '' : 's'} as the branch <span class="mono">{p.branch}</span> in your repository.</li>
+            <li>Nothing else changes there: not your checkout, your working tree, HEAD, or any other branch. A branch of that name you hold is never moved, and your hooks do not run.</li>
+          </> : p.own ? <>
+            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your {word}'s branch, as you, with your own git access. Fast-forward only.</li>
+            <li>Each fixed thread's drafted reply then cites its commit, unless you wrote the reply. Nothing is posted until you add replies and submit.</li>
+            <li>Pull the branch into your own checkout afterwards; vuoro does not touch it.</li>
+          </> : <>
+            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.branch}</span>, as you, with your own git access.</li>
+            <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">{p.not_draft ? '' : 'draft '}{word}</a>.</> : <>Opens a draft {word} onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
+          </>}
+          <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
+          {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
+          {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : `the review, so the ${word} may need a rebase`}.</li>}
+        </ul>
+        {!p.opened && !p.own && !p.local && (
+          <>
+            <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+            <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
+          </>
+        )}
+        {error && <p class="alert" role="alert">⚠ {error}</p>}
+        <div class="actions">
+          <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
+          <button class="primary" disabled={busy || (!p.own && !p.local && !title.trim()) || (p.own && p.moved)} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.local ? 'Write the branch' : p.own || p.opened ? 'Push' : 'Push and open'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parsePatch, placeAll } from './diff'
+import { diffStat, parsePatch, placeAll } from './diff'
 
 const patch = '@@ -1,3 +1,4 @@\n package calc\n-old\n+new\n+more\n tail\n@@ -40 +41 @@\n-q\n+r\n\\ No newline at end of file\n'
 
@@ -35,5 +35,12 @@ describe('placeAll', () => {
     expect(at.get(2)?.map((t) => t.id)).toEqual(['b'])
     expect(at.get(5)?.map((t) => t.id)).toEqual(['c'])
     expect(rest.map((t) => t.id)).toEqual(['d'])
+  })
+})
+
+describe('diffStat', () => {
+  it('counts added and removed lines, and not the hunk headers or context', () => {
+    expect(diffStat('@@ -1,3 +1,3 @@\n a\n-b\n+c\n+d\n\\ No newline at end of file\n')).toEqual({ add: 2, del: 1 })
+    expect(diffStat('')).toEqual({ add: 0, del: 0 })
   })
 })

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks'
-import { DraftCard, FileList, fileID, FileView, manyFiles, MyDraft, ThreadView } from './diffview'
+import { DraftCard, MyDraft, ThreadView } from './comments'
+import { FileList, fileID, FileView, manyFiles } from './diffview'
 import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
@@ -145,7 +146,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           {drafts.map((d) => <DraftCard key={d.id} draft={d} runID={runID} />)}
         </section>}
         <div class="changes">
-          <FileList files={files} onPick={pick} badge={(f) =>
+          <FileList files={files} onPick={pick} current={picked?.path} badge={(f) =>
             (byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && (
               <> <CommentBubble severity={worstSeverity(drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path))} /></>
             )} />
