@@ -109,7 +109,7 @@ colour is never the only signal.
 | `app` | The API under `/api/`: opening changes and driving review runs. The server mounts it behind the guard. |
 | `agent` | The driver interface and normalised events (section 6). `agent/terva` and `agent/claude` are the drivers, and they are the only code that knows a tool's protocol. |
 | `review` | Review runs: worktrees, profiles, finding validation, and the drafts channel the agent writes through (`review/drafts`). |
-| `local` | The Local tab's reading of the person's checkouts: added projects and scan roots, each project's branches beyond its base, and its worktrees (section 6.8). It reads only, and imports no forge, agent, review runner, API, or network. |
+| `local` | The Local tab's reading of the person's checkouts: added projects and scan roots, each project's branches beyond its base with their upstreams, its worktrees, and its remotes (section 6.8). It reads only, and imports no forge, agent, review runner, API, or network. |
 | `tickets` | The optional git-ticket integration (section 7). The only package that imports git-ticket. |
 | `web` | Frontend source and the committed `web/dist`. |
 
@@ -1131,7 +1131,34 @@ started them in vuoro and each clears when they act. The age is the branch
 tip's committer date, so a rebase counts as a commit. The tab lists quiet
 branches apart from the ones that need nothing.
 
-**Review starts from the row.** It runs section 6.7's local range,
+**A branch knows its change** (D49). Each remote's URL, SSH or HTTPS, is
+read as a host and a project path, and each branch's upstream as a remote and
+a branch on it. A branch is tied to an open change when the change's host and
+project are one of the checkout's remotes and its source branch is the
+branch's upstream there, or the branch's own name when it has none. The
+changes come from the inbox's cache (section 4), so the tie costs no forge
+call, and it finds every change the person authors, reviews, is assigned, or
+takes part in. A change outside that set, such as someone else's branch
+checked out to try, is not tied; asking the forge for it was rejected as one
+call per pushed branch on every refresh. The `local` package reads remotes
+and upstreams from git, and the application joins them to the cache, so
+`local` still imports no forge.
+
+A tied row names its change, as "!2 open" or "#14 open", which opens the
+change's page as the inbox does, and says how the branch stands against the
+change's head: in step, N commits not pushed, behind the change, or diverged.
+
+A tied branch's review is the change's, which the Reviews tab already
+counts, so Local counts it only for work the change does not hold: commits
+not pushed, which the row names as "N commits not pushed to !2", and, as for
+any branch, undecided findings and a fix branch waiting to be merged. Never
+reviewed and moved since its review do not count for it. The quiet rule (D48)
+still applies to commits not pushed.
+
+**Review starts from the row.** A tied row offers two reviews side by side:
+"Review the change", which opens the change's page, where findings become
+drafts the person can post; and "Review local commits", below. An untied row
+offers the second alone. Reviewing local commits runs section 6.7's local range,
 `<base>...<branch>`, with the preset the person picks, and opens the run in
 the window, where the person talks to the reviewers, picks findings, and hands
 them to the editor as for any review of their own work (D42). It reviews

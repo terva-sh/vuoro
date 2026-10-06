@@ -732,3 +732,28 @@ rule.
   worktree, which misses work on a branch switched away from in the main
   checkout, and counting only branches vuoro has reviewed before, which
   hides the first review the tab exists to start.
+
+### D49. A local branch is tied to its open change through the inbox's cache, and offers both reviews
+
+Decided by the owner on 2026-10-06, after adding a checkout whose branch had
+an open merge request on GitLab that the Local tab did not show.
+docs/plan.md section 6.8 records the design.
+
+- **The tie comes from the inbox's cache, not a new forge call.** A branch is
+  tied to an open change when the change's host and project are one of the
+  checkout's remotes and its source branch is the branch's upstream there.
+  The cache holds every change the person authors, reviews, is assigned, or
+  takes part in. The alternative, asking the forge on Refresh for each
+  pushed branch the cache did not tie, finds someone else's change checked
+  out to try, at one API call per such branch, and was rejected for now.
+- **A tied row offers "Review the change" and "Review local commits" side by
+  side.** The first opens the change's page, as the inbox does, where
+  findings become drafts the person can post. The second reviews the local
+  branch, unpushed commits included, whose findings cannot be posted. The
+  alternatives were to make the change's review the default and offer local
+  commits only when some are unpushed, and to link the change while Review
+  always ran locally.
+- **A tied branch counts in Local only for work its change does not hold:**
+  commits not pushed, undecided findings in a local run, and a fix branch
+  waiting to be merged. Its review is counted in the Reviews tab, and
+  counting it in both was rejected.
