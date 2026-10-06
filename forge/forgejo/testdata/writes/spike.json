@@ -1,0 +1,568 @@
+[
+  {
+    "note": "A pending review requires a non-empty body even with comments; an empty or whitespace body is refused (p1-pending-nobody).",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "PENDING",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "inline one",
+          "new_position": 3
+        }
+      ]
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "Refused: PENDING without a body.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "PENDING",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "inline one",
+          "new_position": 3
+        }
+      ]
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "A second PENDING upserts the person's one pending review (same id) and replaces its body.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "PENDING",
+      "body": "general two",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "inline two",
+          "new_position": 7
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "id": 2155,
+      "state": "PENDING",
+      "body": "general two",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 2,
+      "dismissed": false,
+      "stale": false,
+      "official": false,
+      "submitted_at": "2026-10-06T01:56:28Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "A pathless comment is accepted into a pending review and later publishes as a code comment with an empty path. Vuoro must not use it.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2155/comments",
+    "body": {
+      "body": "general via comments"
+    },
+    "status": 200,
+    "response": {
+      "id": 26991,
+      "pull_request_review_id": 2155,
+      "user": {
+        "login": "reviewer"
+      },
+      "body": "general via comments",
+      "path": "",
+      "position": 0,
+      "original_position": 0,
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "original_commit_id": "",
+      "resolver": null
+    }
+  },
+  {
+    "note": "The issue-comment PATCH edits a pending review comment and keeps its id.",
+    "as": "reviewer",
+    "method": "PATCH",
+    "path": "/api/v1/repos/author/sandbox/issues/comments/26986",
+    "body": {
+      "body": "inline one, edited"
+    },
+    "status": 200,
+    "response": {
+      "id": 26986,
+      "user": null,
+      "body": "inline one, edited"
+    }
+  },
+  {
+    "note": "Another account does not see the pending review in the reviews list.",
+    "as": "author",
+    "method": "GET",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": null,
+    "status": 200,
+    "response": []
+  },
+  {
+    "note": "But the issue timeline shows the pending review's body to other accounts, once per body set. Superseded bodies stay after submit.",
+    "as": "author",
+    "method": "GET",
+    "path": "/api/v1/repos/author/sandbox/issues/1/timeline",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "id": 26987,
+        "type": "review",
+        "body": "general one",
+        "review_id": 2155,
+        "user": {
+          "login": "reviewer"
+        }
+      },
+      {
+        "id": 26989,
+        "type": "review",
+        "body": "general two",
+        "review_id": 2155,
+        "user": {
+          "login": "reviewer"
+        }
+      }
+    ]
+  },
+  {
+    "note": "Submitting a pending COMMENT review with an empty body is refused even when it has comments.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2155",
+    "body": {
+      "event": "COMMENT",
+      "body": ""
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "One call creates and publishes a review with verdict, body and inline comments.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "REQUEST_CHANGES",
+      "body": "please fix",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "Add subtracts",
+          "new_position": 3
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "id": 2156,
+      "state": "REQUEST_CHANGES",
+      "body": "please fix",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 1,
+      "dismissed": false,
+      "stale": false,
+      "official": true,
+      "submitted_at": "2026-10-06T01:57:34Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "REQUEST_CHANGES requires a body.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "REQUEST_CHANGES",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "still",
+          "new_position": 3
+        }
+      ]
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "A one-call COMMENT may have an empty body when it has inline comments.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "COMMENT",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "inline only",
+          "new_position": 7
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "id": 2157,
+      "state": "COMMENT",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 1,
+      "dismissed": false,
+      "stale": false,
+      "official": false,
+      "submitted_at": "2026-10-06T01:57:35Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "APPROVED may have an empty body.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "APPROVED",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd"
+    },
+    "status": 200,
+    "response": {
+      "id": 2158,
+      "state": "APPROVED",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 0,
+      "dismissed": false,
+      "stale": false,
+      "official": true,
+      "submitted_at": "2026-10-06T01:57:35Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "The author cannot approve their own PR.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "APPROVED",
+      "body": "lgtm",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd"
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "The author cannot request changes on their own PR.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "REQUEST_CHANGES",
+      "body": "hm",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd"
+    },
+    "status": 422,
+    "response": {}
+  },
+  {
+    "note": "A later APPROVED from the same reviewer marks their earlier REQUEST_CHANGES dismissed.",
+    "as": "author",
+    "method": "GET",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": null,
+    "status": 200,
+    "response": [
+      {
+        "id": 2155,
+        "state": "COMMENT",
+        "body": "submitted body",
+        "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "comments_count": 3,
+        "dismissed": false,
+        "stale": false,
+        "official": false,
+        "submitted_at": "2026-10-06T01:56:28Z",
+        "user": {
+          "login": "reviewer"
+        }
+      },
+      {
+        "id": 2156,
+        "state": "REQUEST_CHANGES",
+        "body": "please fix",
+        "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "comments_count": 1,
+        "dismissed": true,
+        "stale": false,
+        "official": false,
+        "submitted_at": "2026-10-06T01:57:34Z",
+        "user": {
+          "login": "reviewer"
+        }
+      },
+      {
+        "id": 2157,
+        "state": "COMMENT",
+        "body": "",
+        "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "comments_count": 1,
+        "dismissed": false,
+        "stale": false,
+        "official": false,
+        "submitted_at": "2026-10-06T01:57:35Z",
+        "user": {
+          "login": "reviewer"
+        }
+      },
+      {
+        "id": 2158,
+        "state": "APPROVED",
+        "body": "",
+        "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "comments_count": 0,
+        "dismissed": false,
+        "stale": false,
+        "official": true,
+        "submitted_at": "2026-10-06T01:57:35Z",
+        "user": {
+          "login": "reviewer"
+        }
+      },
+      {
+        "id": 2159,
+        "state": "COMMENT",
+        "body": "",
+        "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "comments_count": 1,
+        "dismissed": false,
+        "stale": false,
+        "official": false,
+        "submitted_at": "2026-10-06T01:57:35Z",
+        "user": {
+          "login": "author"
+        }
+      }
+    ]
+  },
+  {
+    "note": "A reviewer with write access cannot dismiss their own approval.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2158/dismissals",
+    "body": {
+      "message": "withdrawn"
+    },
+    "status": 403,
+    "response": null
+  },
+  {
+    "note": "A repository admin can dismiss another account's approval.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2158/dismissals",
+    "body": {
+      "message": "dismissed by owner"
+    },
+    "status": 200,
+    "response": {
+      "id": 2158,
+      "state": "APPROVED",
+      "body": "",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 0,
+      "dismissed": true,
+      "stale": false,
+      "official": true,
+      "submitted_at": "2026-10-06T01:57:35Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "A reviewer can delete their own published review, which removes it from the record.",
+    "as": "reviewer",
+    "method": "DELETE",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2158",
+    "body": null,
+    "status": 204,
+    "response": null
+  },
+  {
+    "note": "A one-call review while a pending review exists merges into it: the pending comments publish and the body is replaced.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews",
+    "body": {
+      "event": "COMMENT",
+      "body": "vuoro one-call body",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments": [
+        {
+          "path": "calc.go",
+          "body": "vuoro inline",
+          "new_position": 9
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "id": 2160,
+      "state": "COMMENT",
+      "body": "vuoro one-call body",
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "comments_count": 2,
+      "dismissed": false,
+      "stale": false,
+      "official": false,
+      "submitted_at": "2026-10-06T01:57:50Z",
+      "user": {
+        "login": "reviewer"
+      }
+    }
+  },
+  {
+    "note": "A reply is a comment added to the thread's own review at its path and position. It publishes immediately and joins that conversation in the web UI.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls/1/reviews/2156/comments",
+    "body": {
+      "path": "calc.go",
+      "body": "reply into reviewer's review",
+      "new_position": 3
+    },
+    "status": 200,
+    "response": {
+      "id": 27006,
+      "pull_request_review_id": 2156,
+      "user": {
+        "login": "author"
+      },
+      "body": "reply into reviewer's review",
+      "path": "calc.go",
+      "position": 3,
+      "original_position": 0,
+      "commit_id": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+      "original_commit_id": "",
+      "resolver": null
+    }
+  },
+  {
+    "note": "A GitLab-style suggestion block renders as a plain code block; Forgejo has no applicable suggestions.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/markdown",
+    "body": {
+      "Text": "```suggestion\nfunc Add(a, b int) int { return a + b }\n```",
+      "Mode": "comment",
+      "Context": "author/sandbox"
+    },
+    "status": 200,
+    "response": "<pre class=\"code-block\"><code class=\"chroma language-suggestion display\">func Add(a, b int) int { return a + b }\n</code></pre>"
+  },
+  {
+    "note": "A WIP: title prefix opens a draft PR; [WIP] does too. Same-repository head and base.",
+    "as": "author",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls",
+    "body": {
+      "head": "vuoro/fix-1",
+      "base": "feature",
+      "title": "WIP: Fix Add (stacked)",
+      "body": "stacked"
+    },
+    "status": 201,
+    "response": {
+      "number": 2,
+      "title": "WIP: Fix Add (stacked)",
+      "draft": true,
+      "state": "open",
+      "head": {
+        "ref": "vuoro/fix-1",
+        "sha": "4d8fb5d23ca63eb70784730167971d3f73efaa88",
+        "repo": {
+          "full_name": "author/sandbox",
+          "fork": false
+        }
+      },
+      "base": {
+        "ref": "feature",
+        "sha": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "repo": {
+          "full_name": "author/sandbox",
+          "fork": false
+        }
+      },
+      "html_url": "https://forgejo.example/author/sandbox/pulls/2"
+    }
+  },
+  {
+    "note": "A PR from a fork has head.repo different from base.repo, and head.repo.fork true.",
+    "as": "reviewer",
+    "method": "POST",
+    "path": "/api/v1/repos/author/sandbox/pulls",
+    "body": {
+      "head": "reviewer:feature",
+      "base": "main",
+      "title": "From a fork",
+      "body": "fork check"
+    },
+    "status": 201,
+    "response": {
+      "number": 4,
+      "title": "From a fork",
+      "draft": false,
+      "state": "open",
+      "head": {
+        "ref": "feature",
+        "sha": "9c5367afa05e1140e01fafff58be0d299d80aedd",
+        "repo": {
+          "full_name": "reviewer/sandbox",
+          "fork": true
+        }
+      },
+      "base": {
+        "ref": "main",
+        "sha": "5d54c99f592247527be10a078ae7b9de3538084b",
+        "repo": {
+          "full_name": "author/sandbox",
+          "fork": false
+        }
+      },
+      "html_url": "https://forgejo.example/author/sandbox/pulls/4"
+    }
+  }
+]

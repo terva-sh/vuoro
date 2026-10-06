@@ -320,6 +320,39 @@ func TestAFailedCheckoutFailsTheRun(t *testing.T) {
 	}
 }
 
+// A fetch starts git's automatic maintenance, which detaches by default and
+// outlives the fetch. On Windows the detached process keeps the clone open
+// past a worktree removal or a delete, so vuoro runs it attached.
+func TestCheckoutLeavesNoDetachedGit(t *testing.T) {
+	m, _, _, src := setup(t, nil)
+	trace := filepath.Join(t.TempDir(), "trace.json")
+	t.Setenv("GIT_TRACE2_EVENT", trace)
+	if err := m.Repos.Checkout(context.Background(), src, filepath.Join(t.TempDir(), "wt")); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var started bool
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		var e struct {
+			Event string   `json:"event"`
+			Argv  []string `json:"argv"`
+		}
+		if json.Unmarshal([]byte(line), &e) != nil || e.Event != "child_start" || !slices.Contains(e.Argv, "maintenance") {
+			continue
+		}
+		started = true
+		if slices.Contains(e.Argv, "--detach") {
+			t.Fatalf("git ran maintenance detached: %v", e.Argv)
+		}
+	}
+	if !started {
+		t.Skip("this git starts no automatic maintenance on fetch")
+	}
+}
+
 func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	m, _, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
 	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
