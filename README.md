@@ -65,8 +65,14 @@ work up.
 ## Opening changes
 
 Paste a GitLab merge-request URL or a Forgejo pull-request URL into the window.
-Public changes can open anonymously. For a private Forgejo, add an account to
-vuoro's `config.json` in the platform's configuration directory:
+Public changes can open anonymously. To read your own reviews, add your forges
+in the window: a fresh install opens at setup, and "Accounts and review tools"
+on the home screen adds, edits, and removes them later. vuoro never asks for a
+token. You keep it in your keychain, a password manager, or an environment
+variable, and setup tests that source against the forge before it saves.
+
+Setup writes vuoro's `config.json` in the platform's configuration directory,
+which you can also edit by hand:
 
 ```json
 {

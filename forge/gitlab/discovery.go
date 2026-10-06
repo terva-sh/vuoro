@@ -14,7 +14,10 @@ import (
 )
 
 var _ forge.Discoverer = (*Client)(nil)
-var _ forge.FactsReader = (*Client)(nil)
+var (
+	_ forge.FactsReader = (*Client)(nil)
+	_ forge.Account     = (*Client)(nil)
+)
 
 // Discover returns complete open membership for the configured signed-in person.
 // It never follows pagination URLs or uses a delta as a membership snapshot.

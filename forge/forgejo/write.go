@@ -213,6 +213,14 @@ func (c *Client) changeLocal(ref forge.Ref, id string, edit func(*forge.Draft)) 
 	return s.SaveDrafts(ref, all)
 }
 
+// Me is the account the token signs in as.
+func (c *Client) Me(ctx context.Context) (string, error) {
+	if c.token.Empty() {
+		return "", errNoToken
+	}
+	return c.me(ctx)
+}
+
 // me is the signed-in account, read once.
 func (c *Client) me(ctx context.Context) (string, error) {
 	c.meMu.Lock()

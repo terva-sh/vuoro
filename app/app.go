@@ -35,7 +35,13 @@ type App struct {
 	Config *config.Config
 	// ConfigErr is why the configuration did not load, shown to the person.
 	ConfigErr error
-	Runs      *review.Manager
+	// ConfigPath is the configuration file setup writes, and ConfigBase the
+	// hash of it as read (config.Read). With no path, setup only shows.
+	ConfigPath string
+	ConfigBase string
+	cfgMu      sync.RWMutex // guards Config, ConfigErr and ConfigBase once serving
+	saveMu     sync.Mutex   // makes each setup save, and each reload, one step
+	Runs       *review.Manager
 	// Tools are the agent tools vuoro knows, by name. Each is probed once,
 	// and only a tool that answers is offered to a run.
 	Tools map[string]agent.Driver
@@ -50,14 +56,16 @@ type App struct {
 	// background holds work a reply does not wait for, such as the inbox
 	// catching up after a write.
 	background sync.WaitGroup
-	probeOnce  sync.Once
+	probeMu    sync.Mutex
+	probed     bool
 	probes     map[string]probe
 
 	clientMu     sync.Mutex
 	mu           sync.Mutex
 	clients      map[string]forge.Provider // by host and kind
 	changes      map[string]*forge.Change  // by Ref.String(), the last read of each
-	inboxOnce    sync.Once
+	inboxMu      sync.Mutex
+	inboxReady   bool
 	inboxService *inbox.Service
 	inboxErr     error
 }
@@ -68,12 +76,13 @@ type probe struct {
 	Version string `json:"version,omitempty"`
 	Account string `json:"account,omitempty"`
 	Error   string `json:"error,omitempty"`
+	state   string // for the setup screen's hint (toolState)
 }
 
 // Handler returns the API's routes.
 func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/setup", a.setup)
+	a.setupRoutes(mux)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)
@@ -105,74 +114,67 @@ func (a *App) Handler() http.Handler {
 }
 
 func (a *App) config() *config.Config {
+	a.cfgMu.RLock()
+	defer a.cfgMu.RUnlock()
 	if a.Config == nil {
 		return &config.Config{}
 	}
 	return a.Config
 }
 
-// probeTools probes every tool once, and offers the run manager the ones
-// that answered.
-func (a *App) probeTools() {
-	a.probeOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		a.probes = map[string]probe{}
-		offered := map[string]agent.Driver{}
-		for name, d := range a.Tools {
-			p, err := d.Probe(ctx)
-			pr := probe{Name: name, Tool: d.Name(), Version: p.Version, Account: p.Account}
-			if err != nil {
-				pr.Error = err.Error()
-			} else {
-				offered[name] = d
-			}
-			a.probes[name] = pr
-		}
-		if a.Runs != nil {
-			a.Runs.Drivers = offered
-		}
-	})
+// configErr is why the configuration did not load, or nil.
+func (a *App) configErr() error {
+	a.cfgMu.RLock()
+	defer a.cfgMu.RUnlock()
+	return a.ConfigErr
 }
 
-func (a *App) presets() []config.Preset {
-	if ps := a.config().Presets; len(ps) > 0 {
+// probeTools probes every tool once, and offers the run manager the ones
+// that answered. It returns what each probe found.
+func (a *App) probeTools() map[string]probe {
+	a.probeMu.Lock()
+	defer a.probeMu.Unlock()
+	if a.probed {
+		return a.probes
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	probes := map[string]probe{}
+	offered := map[string]agent.Driver{}
+	for name, d := range a.Tools {
+		p, err := d.Probe(ctx)
+		pr := probe{Name: name, Tool: d.Name(), Version: p.Version, Account: p.Account, state: toolState(p, err)}
+		if err != nil {
+			pr.Error = err.Error()
+		} else {
+			offered[name] = d
+		}
+		probes[name] = pr
+	}
+	if a.Runs != nil {
+		a.Runs.SetDrivers(offered)
+	}
+	a.probes, a.probed = probes, true
+	return probes
+}
+
+// reprobeTools forgets what the probes found, after the person installed or
+// signed in to a tool, and probes again.
+func (a *App) reprobeTools() map[string]probe {
+	a.probeMu.Lock()
+	a.probed = false
+	a.probeMu.Unlock()
+	return a.probeTools()
+}
+
+func (a *App) presets() []config.Preset { return presetsOf(a.config()) }
+
+// presetsOf is c's presets, or the default when it names none.
+func presetsOf(c *config.Config) []config.Preset {
+	if ps := c.Presets; len(ps) > 0 {
 		return ps
 	}
 	return []config.Preset{{Name: "default", Reviewers: []config.Reviewer{{Profile: "code"}}}}
-}
-
-func (a *App) setup(w http.ResponseWriter, r *http.Request) {
-	a.probeTools()
-	type forgeView struct {
-		Name     string `json:"name"`
-		URL      string `json:"url"`
-		Username string `json:"username"`
-	}
-	out := struct {
-		ConfigError string           `json:"config_error,omitempty"`
-		Forges      []forgeView      `json:"forges"`
-		Tools       []probe          `json:"tools"`
-		Presets     []config.Preset  `json:"presets"`
-		Profiles    []review.Profile `json:"profiles"`
-		Waived      []string         `json:"waived"` // confirmations the person turned off
-		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
-	}{Forges: []forgeView{}, Tools: []probe{}, Presets: a.presets(), Profiles: review.Builtin}
-	p := a.loadPrefs()
-	out.Waived, out.Scheme = p.Waived, p.Scheme
-	if a.ConfigErr != nil {
-		out.ConfigError = a.ConfigErr.Error()
-	}
-	for _, f := range a.config().Forges {
-		out.Forges = append(out.Forges, forgeView{f.Name, f.URL, f.Username})
-	}
-	for _, p := range a.probes {
-		out.Tools = append(out.Tools, p)
-	}
-	for _, p := range a.config().Profiles {
-		out.Profiles = append(out.Profiles, review.Profile(p))
-	}
-	writeJSON(w, http.StatusOK, out)
 }
 
 // forgeFor returns the configured forge for host, or nil.

@@ -641,7 +641,34 @@ editor's push). docs/plan.md section 5 records the boundary.
   capabilities change with its credentials and its version, not with its
   name.
 
-### D45. Vuoro keeps the terva-sh colour scheme, and diffs use its status roles
+### D45. Setup in the window chooses where a token is kept, and never takes the token
+
+Decided by the owner on 2026-10-06, for TKT-01M3YMSVJ2BTQN940P1XR3CJD6 (Set up
+forges and check agent tools in the window). D29 stands unchanged.
+
+- **The window helps the person choose a token source.** It offers the stores
+  this machine has: the macOS Keychain, the Secret Service, pass, 1Password,
+  an environment variable, or a command of their own. It shows the command
+  that stores the token in that source, for the person to run in a terminal,
+  and writes only the command or the variable that reads it back into
+  `config.json`. A Test button resolves the token from the source and asks the
+  forge whose it is, and a forge saves only after a test that names the
+  person's account.
+- **Rejected: pasting the token for vuoro to store in the OS keychain.** It
+  needs a store vuoro can write on every platform without cgo, and WSL usually
+  has no Secret Service, so it would still need this form as a fallback. It
+  would also reopen D29's choice to keep vuoro out of the token's storage.
+- **A save does not overwrite a hand edit.** Setup writes the file a person
+  could also edit by hand. It refuses to save over a file that changed or no
+  longer loads since the window read it, and it keeps every field the form
+  does not show. Saves within vuoro are serialized. An edit by another program
+  in the instant between the check and the write cannot be detected without
+  file locking, which the platforms do not share.
+- **Presets stay hand-written for now.** The first slice covers forges and the
+  agent-tool check. Building presets in the window is
+  TKT-01M48TMGNVS4303NW7NQW26Y6S (Build reviewer presets in the window).
+
+### D46. Vuoro keeps the terva-sh colour scheme, and diffs use its status roles
 
 Decided by the owner on 2026-10-06, after a contrast pass on the diff and the
 editor's panel. The owner confirmed D32's violet on the shared Birch and Tar
@@ -661,4 +688,3 @@ The alternatives were blue for added and amber for removed, which stay apart
 under every common colour blindness but sit outside the terva-sh palette, and
 `--ui-ok` with `--ui-warn`, which was rejected because amber already means a
 warning elsewhere in the UI.
-

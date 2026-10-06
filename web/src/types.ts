@@ -103,13 +103,28 @@ export interface EditorCommit { sha: string; subject: string; findings: string[]
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
 
 export interface Preset { name: string; reviewers: { profile: string; tool?: string; model?: string }[] }
+// ForgeForm is one forge as setup edits it. It names where the token comes
+// from, never the token.
+export interface ForgeForm {
+  name: string; kind: string; url: string; username: string
+  token_command?: string[]; token_env?: string; clone?: string
+}
+// TokenSource is a place this machine can keep a token. {host} in read and
+// store stands for the forge's host.
+export interface TokenSource { id: string; label: string; read?: string[]; store?: string[]; note?: string }
+export type ToolState = 'ok' | 'missing' | 'too_old' | 'signed_out' | 'broken'
+export interface Tool { name: string; tool: string; version?: string; account?: string; error?: string; state: ToolState }
 // Scheme is a colour scheme. The empty one follows the system's.
 export type Scheme = '' | 'light' | 'dark'
 
 export interface Setup {
   config_error?: string
-  forges: { name: string; url: string; username: string }[]
-  tools: { name: string; tool: string; version?: string; account?: string; error?: string }[]
+  config_path?: string
+  editable: boolean
+  base: string // the config file's hash as read; a save must match it
+  forges: (ForgeForm & { env_set?: boolean })[]
+  sources: TokenSource[]
+  tools: Tool[]
   presets: Preset[]
   profiles: { name: string; title: string; prompt: string }[]
   waived: string[] // confirmations the person turned off

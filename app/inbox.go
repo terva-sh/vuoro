@@ -13,10 +13,14 @@ import (
 )
 
 func (a *App) inbox() (*inbox.Service, error) {
-	a.inboxOnce.Do(func() {
-		if a.ConfigErr != nil {
+	a.inboxMu.Lock()
+	defer a.inboxMu.Unlock()
+	if !a.inboxReady {
+		a.inboxReady = true
+		a.inboxService, a.inboxErr = nil, nil
+		if a.configErr() != nil {
 			a.inboxErr = errors.New("The inbox configuration could not load; check the configuration file.")
-			return
+			return nil, a.inboxErr
 		}
 		a.inboxService, a.inboxErr = inbox.New(a.StateDir, a.config().Forges, func(ctx context.Context, f config.Forge) (forge.Provider, error) {
 			u, err := url.Parse(f.URL)
@@ -27,10 +31,10 @@ func (a *App) inbox() (*inbox.Service, error) {
 		})
 		if a.inboxErr != nil {
 			a.inboxErr = errors.New("The inbox cache could not load; check local state.")
-			return
+			return nil, a.inboxErr
 		}
 		a.inboxService.Dormant = a.config().Dormant()
-	})
+	}
 	return a.inboxService, a.inboxErr
 }
 

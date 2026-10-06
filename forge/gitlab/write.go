@@ -125,6 +125,21 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 // the person's request for changes.
 var errChangesNotRecorded = errors.New("gitlab: your comments were published, but GitLab did not record that you requested changes. It records that only for the merge request's reviewers, and a GitLab older than this feature ignores it. Request changes in GitLab")
 
+// Me is the account the token signs in as.
+func (c *Client) Me(ctx context.Context) (string, error) {
+	b, _, err := c.do(ctx, "GET", "/api/v4/user", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	var me struct {
+		Username string `json:"username"`
+	}
+	if json.Unmarshal(b, &me) != nil || me.Username == "" {
+		return "", errors.New("GitLab did not say who you are")
+	}
+	return me.Username, nil
+}
+
 // requestedChanges reads the merge request back and confirms the person's
 // reviewer state, because GitLab answers a bulk publish with success whether
 // or not it understood reviewer_state, and a verdict the person chose must
@@ -134,22 +149,16 @@ func (c *Client) requestedChanges(ctx context.Context, ref forge.Ref) error {
 	unconfirmed := func(err error) error {
 		return fmt.Errorf("gitlab: your comments were published, but vuoro could not confirm that GitLab recorded your request for changes; check the merge request: %w", err)
 	}
-	b, _, err := c.do(ctx, "GET", "/api/v4/user", nil, nil)
+	me, err := c.Me(ctx)
 	if err != nil {
 		return unconfirmed(err)
-	}
-	var me struct {
-		Username string `json:"username"`
-	}
-	if json.Unmarshal(b, &me) != nil || me.Username == "" {
-		return unconfirmed(errors.New("GitLab did not say who you are"))
 	}
 	ch, err := c.ReadFacts(ctx, ref)
 	if err != nil {
 		return unconfirmed(err)
 	}
 	for _, r := range ch.Reviewers {
-		if strings.EqualFold(r.Username, me.Username) && r.State == forge.RequestedChanges {
+		if strings.EqualFold(r.Username, me) && r.State == forge.RequestedChanges {
 			return nil
 		}
 	}
