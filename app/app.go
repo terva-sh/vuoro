@@ -78,6 +78,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)
 	mux.HandleFunc("POST /api/prefs/confirm", a.setConfirm)
+	mux.HandleFunc("POST /api/prefs/scheme", a.setScheme)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/confidence", a.overrideConfidence)
 	mux.HandleFunc("POST /api/runs/{id}/report", a.report)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/suggest", a.askSuggestion)
@@ -155,7 +156,10 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 		Presets     []config.Preset  `json:"presets"`
 		Profiles    []review.Profile `json:"profiles"`
 		Waived      []string         `json:"waived"` // confirmations the person turned off
-	}{Forges: []forgeView{}, Tools: []probe{}, Presets: a.presets(), Profiles: review.Builtin, Waived: a.loadPrefs().Waived}
+		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
+	}{Forges: []forgeView{}, Tools: []probe{}, Presets: a.presets(), Profiles: review.Builtin}
+	p := a.loadPrefs()
+	out.Waived, out.Scheme = p.Waived, p.Scheme
 	if a.ConfigErr != nil {
 		out.ConfigError = a.ConfigErr.Error()
 	}

@@ -84,7 +84,11 @@ is pinned as a Go tool to design v0.3.0 in `go.mod`.
 Vuoro uses violet on Birch (`#7546A4`) and lavender on Tar (`#B89AE3`),
 chosen in D32. Components read the shared `--ui-*` roles. `just design-export`
 refreshes the committed stylesheet; `just web-build` rebuilds its embedded
-frontend assets.
+frontend assets. The stylesheet follows the system's colour scheme unless the
+root element names one in `data-scheme`. The top bar offers System, Light,
+and Dark, and the choice is kept in `prefs.json` in the state directory,
+because the loopback port, and so the window's local storage, changes every
+launch.
 
 ### 3.1 Packages (target)
 

@@ -15,11 +15,18 @@ import (
 // others see the result. Each asks first unless the person waived it.
 var Confirmable = []string{"submit", "approve", "request_changes"}
 
+// Schemes are the colour schemes the person can pin. The empty scheme
+// follows the system's.
+var Schemes = []string{"", "light", "dark"}
+
 // prefs are the person's choices made in the UI, kept in the state
 // directory rather than the config file, which is theirs to write.
 type prefs struct {
 	// Waived are the confirmations the person asked not to see again.
 	Waived []string `json:"waived"`
+	// Scheme is the colour scheme the person pinned, or empty to follow the
+	// system's.
+	Scheme string `json:"scheme,omitempty"`
 }
 
 func (a *App) prefsPath() string {
@@ -41,6 +48,9 @@ func (a *App) loadPrefs() prefs {
 	p.Waived = slices.DeleteFunc(p.Waived, func(s string) bool { return !slices.Contains(Confirmable, s) })
 	if p.Waived == nil {
 		p.Waived = []string{}
+	}
+	if !slices.Contains(Schemes, p.Scheme) {
+		p.Scheme = ""
 	}
 	return p
 }
@@ -66,6 +76,32 @@ func (a *App) setConfirm(w http.ResponseWriter, r *http.Request) {
 	if !req.Ask {
 		p.Waived = append(p.Waived, req.Action)
 	}
+	a.savePrefs(w, p)
+}
+
+// setScheme pins the colour scheme, or with an empty one follows the
+// system's again, and answers with the prefs.
+func (a *App) setScheme(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Scheme string `json:"scheme"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !slices.Contains(Schemes, req.Scheme) {
+		writeError(w, fmt.Errorf("%q is not a colour scheme", req.Scheme))
+		return
+	}
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	p.Scheme = req.Scheme
+	a.savePrefs(w, p)
+}
+
+// savePrefs writes the prefs and answers with them. The caller holds
+// prefsMu.
+func (a *App) savePrefs(w http.ResponseWriter, p prefs) {
 	if path := a.prefsPath(); path != "" {
 		if err := state.WriteJSON(path, p); err != nil {
 			writeError(w, err)

@@ -4,7 +4,8 @@ import { ChangeView } from './change'
 import { LocalRun } from './run'
 import { Inbox } from './inbox'
 import { waive } from './confirm'
-import { changeNumber, type Change, type Run, type Setup } from './types'
+import { applyScheme, SchemePicker } from './scheme'
+import { changeNumber, type Change, type Run, type Scheme, type Setup } from './types'
 import { ago, short, StatusBadge, usd } from './ui'
 
 interface Hello {
@@ -21,6 +22,9 @@ export function App() {
   const [opening, setOpening] = useState(false)
   const [runs, setRuns] = useState<Run[]>([])
   const [localRun, setLocalRun] = useState<string>()
+  const [scheme, setScheme] = useState<Scheme>('')
+
+  useEffect(() => applyScheme(scheme), [scheme])
 
   useEffect(() => {
     // -check loads this page and waits for the report, so it comes first.
@@ -35,7 +39,12 @@ export function App() {
         setError(String(e))
         await b?.report({ ok: false, detail: String(e) })
       })
-    api<Setup>('/api/setup').then(setSetup).catch((e: unknown) => setError(String(e)))
+    api<Setup>('/api/setup')
+      .then((s) => {
+        setSetup(s)
+        setScheme(s.scheme)
+      })
+      .catch((e: unknown) => setError(String(e)))
     api<Run[]>('/api/runs').then(setRuns).catch(() => undefined)
   }, [])
 
@@ -68,6 +77,7 @@ export function App() {
           {change && <button type="button" disabled={opening} onClick={() => void open(url)}>Refresh</button>}
         </form>
         <span class="muted">{hello && `vuoro ${hello.version}`}</span>
+        <SchemePicker scheme={scheme} onScheme={setScheme} />
       </header>
       {setup?.config_error && <p class="alert" role="alert">⚠ The config file did not load: {setup.config_error}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}

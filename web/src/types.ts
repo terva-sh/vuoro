@@ -103,6 +103,9 @@ export interface EditorCommit { sha: string; subject: string; findings: string[]
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
 
 export interface Preset { name: string; reviewers: { profile: string; tool?: string; model?: string }[] }
+// Scheme is a colour scheme. The empty one follows the system's.
+export type Scheme = '' | 'light' | 'dark'
+
 export interface Setup {
   config_error?: string
   forges: { name: string; url: string; username: string }[]
@@ -110,6 +113,7 @@ export interface Setup {
   presets: Preset[]
   profiles: { name: string; title: string; prompt: string }[]
   waived: string[] // confirmations the person turned off
+  scheme: Scheme // the pinned colour scheme, or empty for the system's
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`

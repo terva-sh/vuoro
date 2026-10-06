@@ -21,7 +21,7 @@ const change: Change = {
 }
 const setup: Setup = {
   forges: [{ name: 'Forgejo', url: 'https://forge.example', username: 'me' }],
-  tools: [{ name: 'fake', tool: 'Fake Tool' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [],
+  tools: [{ name: 'fake', tool: 'Fake Tool' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [], scheme: '',
 }
 
 describe('forge capabilities', () => {

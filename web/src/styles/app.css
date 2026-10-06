@@ -359,3 +359,5 @@ main { padding: var(--ui-space-4); }
 .triage-reply .actions { flex-wrap: wrap; }
 .triage-run { padding: var(--ui-space-3) 0; display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
 .triage-run details { flex-basis: 100%; }
+
+.bar .scheme { font-size: var(--ui-fs-ui); padding: var(--ui-space-1) var(--ui-space-2); }
