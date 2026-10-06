@@ -6,6 +6,7 @@ import { api, post } from './api'
 import { diffStat } from './diff'
 import { FileList, fileID, FileView, manyFiles, Stat } from './diffview'
 import { Modal } from './modal'
+import { TextEditor } from './textedit'
 import type { Draft, EditorDetail, FileDiff, Run, StackPreview } from './types'
 import { changeWord } from './types'
 import { WriteContext } from './write'
@@ -219,7 +220,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
       {!p.opened && !p.own && !p.local && (
         <>
           <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
-          <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
+          <label class="field">Description <TextEditor rows={10} mono value={description} label="Description" onInput={setDescription} /></label>
         </>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}

@@ -5,6 +5,7 @@ import { errorText } from './action'
 import { post } from './api'
 import { DraftCard } from './comments'
 import { HeadBadge, useHead } from './head'
+import { TextEditor } from './textedit'
 import type { Draft, Level, Run } from './types'
 import { ConfidenceBadge, levelMark, SeverityBadge, severityOrder, short } from './ui'
 
@@ -140,7 +141,7 @@ export function HandOff({ run, kept }: { run: Run; kept: number }) {
           {done.copied ? '✓ Copied, and written' : 'Written'} to <span class="mono">{done.path}</span>
         </span>
       )}
-      {done && !done.copied && <textarea class="report-text" readOnly value={done.markdown} onFocus={(e) => (e.target as HTMLTextAreaElement).select()} />}
+      {done && !done.copied && <TextEditor rows={12} mono readOnly value={done.markdown} label="The hand-off report" />}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
   )

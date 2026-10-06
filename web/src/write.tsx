@@ -2,8 +2,9 @@
 // agent's drafts reach the forge only when the person keeps them.
 import { createContext } from 'preact'
 import { useContext, useState } from 'preact/hooks'
-import { errorText } from './action'
+import { errorText, useAction } from './action'
 import { post } from './api'
+import { EditForm, TextEditor } from './textedit'
 import type { Capabilities, Change } from './types'
 
 export interface Writer {
@@ -41,30 +42,12 @@ export function Composer({ placeholder, initial = '', submit, onDone, label = 'A
   submit: (text: string) => Promise<void>; onDone: () => void
 }) {
   const [text, setText] = useState(initial)
-  const [busy, setBusy] = useState(false)
+  // The writer shows what went wrong, so the form does not show it again.
+  const { busy, run } = useAction()
+  const save = () => void run(async () => { await submit(text); onDone() })
   return (
-    <form
-      class="composer"
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (!text.trim()) return
-        setBusy(true)
-        try {
-          await submit(text)
-          onDone()
-        } catch {
-          // the writer has shown the error
-        } finally {
-          setBusy(false)
-        }
-      }}
-    >
-      <textarea rows={4} value={text} placeholder={placeholder} aria-label={placeholder}
-        onInput={(e) => setText((e.target as HTMLTextAreaElement).value)} />
-      <div class="composer-actions">
-        <button class="primary" disabled={busy || !text.trim()}>{busy ? 'Saving…' : label}</button>
-        <button type="button" onClick={onDone}>Cancel</button>
-      </div>
-    </form>
+    <EditForm class="composer" onSave={save} onCancel={onDone} busy={busy} canSave={!!text.trim()} save={label}>
+      <TextEditor value={text} onInput={setText} label={placeholder} placeholder={placeholder} />
+    </EditForm>
   )
 }

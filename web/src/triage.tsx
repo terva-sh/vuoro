@@ -7,6 +7,7 @@ import { SessionPane } from './session'
 import { HeadBadge, useRunHead, type HeadState } from './head'
 import { ago, Prose, short, StatusBadge } from './ui'
 import { useWriter, WriteContext } from './write'
+import { EditForm, TextEditor } from './textedit'
 import { refKey, type Change, type Draft, type Run, type Setup, type Thread, type TriageCategory } from './types'
 
 const categories: [TriageCategory, string, string][] = [
@@ -161,12 +162,11 @@ function ReplyCard({ draft, run, headState, stale, busy, mutate }: { draft: Draf
     <div class="draft-meta muted">Drafted reply · {draft.drafted_by}{draft.edited && ' · edited by you'}</div>
     <HeadBadge state={headState} label="triaged" />
     {stale && !draft.decision && <p class="alert" role="status">This discussion or head changed. Run triage again before accepting this reply.</p>}
-    {draft.decision ? <><p class="muted">{draft.decision === 'kept' ? 'Accepted into pending comments. Current pending and published state comes from the forge.' : 'Reply discarded. The category and reason remain for reference.'}</p>{draft.description.trim() && <><Prose text={draft.description} />{copy}</>}</> : editing ? <form class="composer" onSubmit={(e) => { e.preventDefault(); void mutate(async () => { const next = await post<Run>(`${base}/edit-reply`, { body, category }); setEditing(false); return next }) }}>
+    {draft.decision ? <><p class="muted">{draft.decision === 'kept' ? 'Accepted into pending comments. Current pending and published state comes from the forge.' : 'Reply discarded. The category and reason remain for reference.'}</p>{draft.description.trim() && <><Prose text={draft.description} />{copy}</>}</> : editing ? <EditForm class="composer" busy={busy} save="Save locally" note="Saving does not send anything to the forge." onCancel={() => setEditing(false)}
+      onSave={() => void mutate(async () => { const next = await post<Run>(`${base}/edit-reply`, { body, category }); setEditing(false); return next })}>
       <label>Category <select value={category} onChange={(e) => setCategory(e.currentTarget.value as TriageCategory)}>{categories.map(([c,label]) => <option value={c} key={c}>{label}</option>)}</select></label>
-      <textarea rows={5} value={body} aria-label="Edit drafted reply" onInput={(e) => setBody(e.currentTarget.value)} />
-      <div class="actions"><button class="primary" disabled={busy}>Save locally</button><button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel</button></div>
-      <p class="muted">Saving does not send anything to the forge.</p>
-    </form> : <>
+      <TextEditor rows={5} value={body} label="Edit drafted reply" onInput={setBody} />
+    </EditForm> : <>
       {draft.description.trim() ? <Prose text={draft.description} /> : <p class="muted">No reply proposed. Write one if this thread needs an answer.</p>}
       <div class="actions"><button disabled={busy} onClick={() => setEditing(true)}>Edit reply and category</button>
         {w?.caps.reply && <button class="primary" disabled={busy || stale || !draft.description.trim()} onClick={() => void mutate(async () => { await w.act(`${base}/keep`, {}); return api<Run>(`/api/runs/${run.id}`) })}>Add to pending replies</button>}

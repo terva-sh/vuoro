@@ -172,12 +172,14 @@ main { padding: var(--ui-space-4); }
 .entry pre.refusal { color: var(--ui-warn); }
 .entry.denied, .entry.error { color: var(--ui-danger); font-size: var(--ui-fs-detail); }
 .talk { display: flex; gap: var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); border-top: 1px solid var(--ui-line); }
-.talk textarea { flex: 1; font: inherit; color: var(--ui-fg); background: var(--ui-bg); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-control); padding: var(--ui-space-1) var(--ui-space-2); resize: vertical; min-height: 2.4em; }
+.talk .text-editor { flex: 1; }
 
 .actions { display: flex; gap: var(--ui-space-2); margin-top: var(--ui-space-2); }
 .composer { margin: var(--ui-space-2) 0; }
-.composer textarea { width: 100%; font: inherit; color: var(--ui-fg); background: var(--ui-bg); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-control); padding: var(--ui-space-2); resize: vertical; }
-.composer-actions { display: flex; gap: var(--ui-space-2); margin-top: var(--ui-space-1); }
+/* Every text box the person writes in or copies from (textedit.tsx). */
+.text-editor { display: block; width: 100%; font: inherit; color: var(--ui-fg); background: var(--ui-bg); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-control); padding: var(--ui-space-2); resize: vertical; max-height: 60vh; }
+.text-editor.mono { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
+.edit-form .actions { margin-top: var(--ui-space-1); }
 .mine { border: 1px dashed var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-accent-soft); padding: var(--ui-space-2) var(--ui-space-3); margin: var(--ui-space-2) 0; }
 .draft.kept { border-left-color: var(--ui-ok); }
 .draft.dropped { opacity: 0.6; border-left-color: var(--ui-line-strong); }
@@ -287,7 +289,6 @@ main { padding: var(--ui-space-4); }
 
 /* The hand-off report. */
 .handoff { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-3); }
-.handoff .report-text { width: 100%; min-height: 12em; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
 .editor-panel .editor-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
 .editor-panel .editor-head .push { margin-left: auto; }
 /* The editor's commits, each a row: its SHA, its subject, and the findings
@@ -303,7 +304,6 @@ main { padding: var(--ui-space-4); }
 .push-bar { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
 .push-dialog { max-width: 720px; }
 .push-dialog .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-3); }
-.push-dialog .field textarea { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
 .push-dialog .warn, .push-bar .warn { color: var(--ui-warn); }
 
 /* A suggested change, as the author will see it to apply. */

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { post } from './api'
+import { TextEditor } from './textedit'
 import type { Entry, Run, Session } from './types'
 import { Prose, StatusBadge, usd } from './ui'
 
@@ -102,18 +103,13 @@ function Talk({ run, session }: { run: Run; session: Session }) {
     <>
       {error && <p class="alert">⚠ {error}</p>}
       <form class="talk" onSubmit={(e) => { e.preventDefault(); void send() }}>
-        <textarea
+        <TextEditor
           rows={2}
           value={text}
           placeholder={session.status === 'ended' ? 'Ask, and the session resumes' : `Ask the ${session.profile} reviewer why, or to look elsewhere, or to reword a draft`}
-          aria-label={`Message the ${session.profile} reviewer`}
-          onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              void send()
-            }
-          }}
+          label={`Message the ${session.profile} reviewer`}
+          onInput={setText}
+          submitOn="enter"
         />
         {working ? (
           <button type="button" onClick={stop}>■ Stop</button>
