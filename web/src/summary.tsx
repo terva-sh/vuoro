@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api, post } from './api'
+import { usePoll } from './poll'
 import { HeadBadge, useRunHead } from './head'
 import { refKey, type Change, type Run, type Setup } from './types'
 import { ago, Prose, short, StatusBadge, usd } from './ui'
@@ -40,24 +41,17 @@ function SummaryWorkspace({ change, setup }: Props) {
     }).catch((e: unknown) => { if (!controller.signal.aborted) setError(String(e)) })
     return () => { mounted.current = false; controller.abort() }
   }, [key, change.diff.head])
-  useEffect(() => {
-    if (!selected) return
-    let active = true
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout>
-    const tick = async () => {
-      const stamp = version.current
-      try {
-        const next = await api<Run>(`/api/runs/${selected}`, { signal: controller.signal })
-        if (active && !mutating.current && stamp === version.current) {
-          setRun(next)
-          setRuns((all) => all.map((r) => r.id === next.id ? next : r))
-        }
-      } catch (e) { if (active) setError(errorText(e)) }
-      if (active) timer = setTimeout(tick, 1000)
-    }
-    void tick()
-    return () => { active = false; controller.abort(); clearTimeout(timer) }
+  usePoll(async (signal) => {
+    if (!selected) return undefined
+    const stamp = version.current
+    try {
+      const next = await api<Run>(`/api/runs/${selected}`, { signal })
+      if (!signal.aborted && !mutating.current && stamp === version.current) {
+        setRun(next)
+        setRuns((all) => all.map((r) => r.id === next.id ? next : r))
+      }
+    } catch (e) { if (!signal.aborted) setError(errorText(e)) }
+    return 1000
   }, [selected])
 
   const mutate = async (action: () => Promise<Run>) => {

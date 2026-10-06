@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api, post } from './api'
+import { usePoll } from './poll'
 import { MyDraft, ThreadView } from './comments'
 import { Editor } from './editor'
 import { SessionPane } from './session'
@@ -59,23 +60,16 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
     return () => { mounted.current = false; controller.abort() }
   }, [key])
 
-  useEffect(() => {
-    if (!selected) return
-    let active = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const controller = new AbortController()
-    const tick = async () => {
-      const stamp = version.current
-      if (!working.current) {
-        try {
-          const next = await api<Run>(`/api/runs/${selected}`, { signal: controller.signal })
-          if (active && stamp === version.current && !working.current) setRun(next)
-        } catch (e) { if (active) setError(errorText(e)) }
-      }
-      if (active) timer = setTimeout(tick, 1500)
+  usePoll(async (signal) => {
+    if (!selected) return undefined
+    const stamp = version.current
+    if (!working.current) {
+      try {
+        const next = await api<Run>(`/api/runs/${selected}`, { signal })
+        if (!signal.aborted && stamp === version.current && !working.current) setRun(next)
+      } catch (e) { if (!signal.aborted) setError(errorText(e)) }
     }
-    void tick()
-    return () => { active = false; controller.abort(); clearTimeout(timer) }
+    return 1500
   }, [selected])
 
   const mutate = async (action: () => Promise<Run>) => {

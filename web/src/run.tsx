@@ -6,35 +6,25 @@ import { api, post } from './api'
 import { Editor } from './editor'
 import { Drafts, HandOff, shownDrafts } from './findings'
 import { HeadBadge, useHead } from './head'
+import { usePoll } from './poll'
 import { SessionPane } from './session'
 import type { Change, Draft, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
 import { WriteContext } from './write'
 import { ago, levelMark, short, StatusBadge, usd } from './ui'
 
-// usePoll reads a run, quickly while anything works and slowly otherwise.
-function usePoll(id: string | undefined, onRun: (r: Run) => void) {
-  useEffect(() => {
-    if (!id) return
-    let live = true
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout>
-    const tick = async () => {
-      try {
-        const r = await api<Run>(`/api/runs/${id}`, { signal: controller.signal })
-        if (!live) return
-        onRun(r)
-        const busy = r.status === 'preparing' || r.sessions.some((s) => s.status === 'working' || s.status === 'preparing')
-        timer = setTimeout(tick, busy ? 1000 : 3000)
-      } catch {
-        if (live) timer = setTimeout(tick, 5000)
-      }
-    }
-    void tick()
-    return () => {
-      live = false
-      controller.abort()
-      clearTimeout(timer)
+// useRunPoll reads a run, quickly while anything works and slowly otherwise.
+function useRunPoll(id: string | undefined, onRun: (r: Run) => void) {
+  usePoll(async (signal) => {
+    if (!id) return undefined
+    try {
+      const r = await api<Run>(`/api/runs/${id}`, { signal })
+      if (signal.aborted) return undefined
+      onRun(r)
+      const busy = r.status === 'preparing' || r.sessions.some((s) => s.status === 'working' || s.status === 'preparing')
+      return busy ? 1000 : 3000
+    } catch {
+      return 5000
     }
   }, [id])
 }
@@ -64,7 +54,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
     setRun(r)
     setRuns((rs) => rs.map((x) => (x.id === r.id ? r : x)))
   }
-  usePoll(selected, update)
+  useRunPoll(selected, update)
   // A review of the person's own change posts nothing (D42).
   const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
   const own = !!me && me.username.toLowerCase() === change.author.username.toLowerCase()
@@ -212,7 +202,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
 export function LocalRun({ id }: { id: string }) {
   const [run, setRun] = useState<Run>()
   const [error, setError] = useState<string>()
-  usePoll(id, setRun)
+  useRunPoll(id, setRun)
   if (!run) return <p class="muted">Loading the run…</p>
   const close = () => void post<Run>(`/api/runs/${run.id}/close`).then(setRun, (e: unknown) => setError(errorText(e)))
   return (

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api } from './api'
+import { usePoll } from './poll'
 import { changeNumber, refKey, type Ref } from './types'
 import { ago } from './ui'
 
@@ -78,45 +79,50 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
   const refresh = useRef<() => void>()
   const snooze = useRef<(row: InboxRow, until: string) => void>()
 
-  useEffect(() => {
-    let active = true
-    let working = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let controller = new AbortController()
-    const request = async (path: string, body: unknown) => {
-      if (!active || working) return
-      working = true
-      clearTimeout(timer)
-      setBusy(true)
-      setError(undefined)
-      controller = new AbortController()
-      try {
-        const next = await api<InboxView>(path, { method: 'POST', body: JSON.stringify(body), signal: controller.signal })
-        if (active) setView(next)
-      } catch (e) {
-        if (active) setError(errorText(e))
-      } finally {
-        if (active) {
-          working = false
-          setBusy(false)
-          timer = setTimeout(() => void request('/api/inbox/refresh', {}), 60_000)
-        }
-      }
+  // One gate for every request, held from the first read of the cache, and
+  // one signal, aborted when the inbox closes.
+  const life = useRef(new AbortController())
+  const working = useRef(true)
+  const settled = useRef(0) // when the last refresh or snooze settled
+  useEffect(() => () => life.current.abort(), [])
+  const request = async (path: string, body: unknown) => {
+    const signal = life.current.signal
+    if (signal.aborted || working.current) return
+    working.current = true
+    setBusy(true)
+    setError(undefined)
+    try {
+      const next = await api<InboxView>(path, { method: 'POST', body: JSON.stringify(body), signal })
+      if (!signal.aborted) setView(next)
+    } catch (e) {
+      if (!signal.aborted) setError(errorText(e))
+    } finally {
+      working.current = false
+      settled.current = Date.now()
+      if (!signal.aborted) setBusy(false)
     }
-    refresh.current = () => void request('/api/inbox/refresh', {})
-    snooze.current = (row, until) => void request('/api/inbox/snooze', { ref: row.ref, until })
-    void (async () => {
+  }
+  refresh.current = () => void request('/api/inbox/refresh', {})
+  snooze.current = (row, until) => void request('/api/inbox/snooze', { ref: row.ref, until })
+  // The cached rows first, then a refresh, and another a minute after the
+  // last request settled, whichever request that was.
+  usePoll(async () => {
+    const signal = life.current.signal
+    if (settled.current === 0) {
       try {
-        const cached = await api<InboxView>('/api/inbox', { signal: controller.signal })
-        if (active) setView(cached)
+        const cached = await api<InboxView>('/api/inbox', { signal })
+        if (!signal.aborted) setView(cached)
       } catch (e) {
-        if (active) setError(errorText(e))
+        if (!signal.aborted) setError(errorText(e))
       } finally {
-        working = false
-        if (active) void request('/api/inbox/refresh', {})
+        working.current = false
       }
-    })()
-    return () => { active = false; clearTimeout(timer); controller.abort(); refresh.current = undefined; snooze.current = undefined }
+    } else {
+      const wait = settled.current + 60_000 - Date.now()
+      if (wait > 0) return wait
+    }
+    await request('/api/inbox/refresh', {})
+    return 60_000
   }, [])
 
   const mine = (view?.mine ?? []).filter((row) => !filter || hasKind(row, filter))

@@ -99,6 +99,8 @@ describe('the combined inbox', () => {
     await act(async () => { vi.advanceTimersByTime(180_000) })
     expect(api).toHaveBeenCalledTimes(2)
     await act(async () => finish(view))
+    // The poll schedules its next tick a few microtasks after the refresh settles.
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve() })
     let signal: AbortSignal | null | undefined
     vi.mocked(api).mockImplementationOnce((_path, init) => { signal = init?.signal; return new Promise(() => {}) })
     await act(async () => { vi.advanceTimersByTime(60_000) })
