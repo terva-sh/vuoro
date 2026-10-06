@@ -221,6 +221,9 @@ func Parse(b []byte) (*Config, error) {
 	return &c, nil
 }
 
+// Check reports what is wrong with one forge, as Load would.
+func (f Forge) Check() error { return f.check() }
+
 func (f Forge) check() error {
 	switch {
 	case f.Name == "":

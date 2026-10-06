@@ -30,9 +30,11 @@ type Manager struct {
 	StateDir string
 	Repos    *Repos
 	// Drivers are the agent tools a reviewer may run on, by name, such as
-	// "claude". Only a driver whose lockdown is proven is offered.
-	Drivers map[string]agent.Driver
-	Drafts  *drafts.Server
+	// "claude". Only a driver whose lockdown is proven is offered. Set it
+	// before the manager serves; afterwards, replace it with SetDrivers.
+	Drivers   map[string]agent.Driver
+	driversMu sync.RWMutex
+	Drafts    *drafts.Server
 	// MCPURL is the drafts server's URL on the loopback server.
 	MCPURL   string
 	Profiles []Profile
@@ -941,7 +943,17 @@ func (m *Manager) profile(name string) (Profile, bool) {
 	return Profile{}, false
 }
 
+// SetDrivers replaces the agent tools offered to new sessions, as a probe
+// run again finds them. Sessions already started keep their driver.
+func (m *Manager) SetDrivers(d map[string]agent.Driver) {
+	m.driversMu.Lock()
+	m.Drivers = d
+	m.driversMu.Unlock()
+}
+
 func (m *Manager) driver(name string) (string, agent.Driver, error) {
+	m.driversMu.RLock()
+	defer m.driversMu.RUnlock()
 	if name == "" && len(m.Drivers) == 1 {
 		for n, d := range m.Drivers {
 			return n, d, nil

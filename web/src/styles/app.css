@@ -359,3 +359,18 @@ main { padding: var(--ui-space-4); }
 .triage-reply .actions { flex-wrap: wrap; }
 .triage-run { padding: var(--ui-space-3) 0; display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
 .triage-run details { flex-basis: 100%; }
+
+/* Setup (D45): the first-run card, and the forge form it shares with the accounts panel. */
+.first-run { max-width: 760px; }
+.first-run h2 { margin: 0 0 var(--ui-space-2); color: var(--ui-heading); }
+.first-run h3 { margin: var(--ui-space-5) 0 var(--ui-space-2); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.forge-editor { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); padding: var(--ui-space-3) var(--ui-space-4); margin: var(--ui-space-2) 0; background: var(--ui-surface); }
+.forge-editor .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
+.forge-editor .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-2); }
+.forge-editor .field.grow { flex: 1; min-width: 240px; }
+.forge-editor .steps { padding-left: var(--ui-space-5); }
+.forge-editor .steps li + li { margin-top: var(--ui-space-3); }
+.forge-editor code.copyable { user-select: all; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
+.forge-editor .ok, .tools .ok { color: var(--ui-ok); }
+.forge-editor .warn, .tools .warn { color: var(--ui-warn); }
+.forges ul, .tools ul { padding-left: var(--ui-space-4); margin: var(--ui-space-1) 0; }

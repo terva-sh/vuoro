@@ -31,6 +31,12 @@ type Discoverer interface {
 	Discover(ctx context.Context, username string) ([]Discovered, error)
 }
 
+// Account says whose token a client holds, so setup can confirm a token
+// source names the person's own account before it is saved.
+type Account interface {
+	Me(ctx context.Context) (string, error)
+}
+
 // FactsReader optionally reads fresh review facts without patches or personal
 // drafts. The inbox calls it every refresh, even when Updated is unchanged:
 // merge readiness and the signed-in person's permissions can change separately.

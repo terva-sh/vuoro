@@ -755,3 +755,27 @@ func TestForgejoForkHeadRunsWithoutTheSourceBranchAndSurvivesReload(t *testing.T
 		t.Fatal(err)
 	}
 }
+
+// Checking the tools again replaces the drivers while runs may be starting.
+// Under -race, which CI runs on darwin, an unguarded map would be reported.
+func TestDriversCanBeReplacedWhileRunsStart(t *testing.T) {
+	m := &Manager{}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for range 200 {
+			m.SetDrivers(map[string]agent.Driver{"fake": nil})
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 200 {
+			m.driver("fake")
+		}
+	}()
+	wg.Wait()
+	if name, _, err := m.driver(""); err != nil || name != "fake" {
+		t.Fatalf("the only driver: %q %v", name, err)
+	}
+}

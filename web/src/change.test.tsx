@@ -19,9 +19,9 @@ const change: Change = {
   threads: [{ id: '1', resolvable: true, resolved: false, anchor: { path: 'a.go', old_path: 'a.go', new_line: 1, old_line: 0, diff: { head: 'head', base: 'base', start: 'base' } },
     notes: [{ id: '1', author: { username: 'reviewer', bot: false }, body: 'Comment', at: '', system: false }] }], drafts: [],
 }
-const setup: Setup = {
-  forges: [{ name: 'Forgejo', url: 'https://forge.example', username: 'me' }],
-  tools: [{ name: 'fake', tool: 'Fake Tool' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [],
+const setup: Setup = { editable: true, base: '', sources: [],
+  forges: [{ name: 'Forgejo', url: 'https://forge.example', username: 'me', kind: 'forgejo' }],
+  tools: [{ name: 'fake', tool: 'Fake Tool', state: 'ok' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [],
 }
 
 describe('forge capabilities', () => {

@@ -4,6 +4,7 @@ import { ChangeView } from './change'
 import { LocalRun } from './run'
 import { Inbox } from './inbox'
 import { waive } from './confirm'
+import { FirstRun, Forges, Tools } from './setup'
 import { changeNumber, type Change, type Run, type Setup } from './types'
 import { ago, short, StatusBadge, usd } from './ui'
 
@@ -84,18 +85,30 @@ export function App() {
   )
 }
 
-function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; onOpenRun: (id: string) => void; opening: boolean }) {
+export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; onOpenRun: (id: string) => void; opening: boolean }) {
+  // A fresh install, with nowhere to read reviews from, starts at setup. It
+  // stays until the person is done, so adding a second forge is one step on.
+  const [firstRun, setFirstRun] = useState<boolean>()
+  useEffect(() => {
+    if (setup && firstRun === undefined) setFirstRun(setup.editable && !setup.config_error && setup.forges.length === 0)
+  }, [setup])
+  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
   return (
     <div class="home">
-      <Inbox onOpen={onOpen} opening={opening} />
+      {/* A saved forge changes the base, and the inbox reads its accounts again. */}
+      <Inbox onOpen={onOpen} opening={opening} key={setup?.base} />
       {setup && (
-        <details class="inbox-setup"><summary>Accounts and review tools</summary>
+        <details class="inbox-setup" onToggle={(e) => {
+          // Opening the panel reads setup again, which picks up a hand edit
+          // or a repaired file before anything is edited from it.
+          if ((e.currentTarget as HTMLDetailsElement).open) api<Setup>('/api/setup').then(onSetup).catch(() => undefined)
+        }}><summary>Accounts and review tools</summary>
         <ul class="setup">
           <li>
-            Forges: {setup.forges.length === 0 ? 'none configured, so changes open anonymously and only public projects work' : setup.forges.map((f) => `${f.name} as @${f.username}`).join(', ')}
+            Forges: <Forges setup={setup} onSetup={onSetup} />
           </li>
           <li>
-            Agent tools: {setup.tools.length === 0 ? 'none' : setup.tools.map((t) => (t.error ? `⚠ ${t.tool}: ${t.error}` : `✓ ${t.tool} ${t.version}`)).join(', ')}
+            Agent tools: <Tools setup={setup} onSetup={onSetup} />
           </li>
           <li>
             Confirmations:{' '}

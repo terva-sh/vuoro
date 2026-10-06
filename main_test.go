@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -74,5 +78,41 @@ func TestANonLoopbackAddressIsRefused(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "127.0.0.1 only") {
 		t.Fatalf("stderr %q does not say why", stderr.String())
+	}
+}
+
+// A configuration file that does not load at launch is still the one setup
+// names, and fixing it by hand takes effect when setup opens again.
+func TestABrokenConfigAtLaunchCanBeFixedWithoutARestart(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the XDG directories place the config file on Linux only")
+	}
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	path := filepath.Join(dir, "config", "vuoro", "config.json")
+	os.MkdirAll(filepath.Dir(path), 0o700)
+	os.WriteFile(path, []byte(`{"forges": [`), 0o600)
+	a, _, err := newApp("http://127.0.0.1:1/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Tools = nil // probing the person's own tools is not this test's business
+	setup := func() (out struct {
+		ConfigError string `json:"config_error"`
+		ConfigPath  string `json:"config_path"`
+		Editable    bool   `json:"editable"`
+	}) {
+		w := httptest.NewRecorder()
+		a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/setup", nil))
+		json.Unmarshal(w.Body.Bytes(), &out)
+		return out
+	}
+	if got := setup(); got.ConfigError == "" || got.ConfigPath != path || got.Editable {
+		t.Fatalf("a broken file at launch: %+v", got)
+	}
+	os.WriteFile(path, []byte(`{"forges": []}`), 0o600)
+	if got := setup(); got.ConfigError != "" || !got.Editable {
+		t.Fatalf("after fixing it: %+v", got)
 	}
 }

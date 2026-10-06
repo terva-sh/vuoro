@@ -437,8 +437,10 @@ Decided on 2026-10-02 (D29), and held in `config/`.
 
 The config file is `config.json` in the platform config directory:
 `~/Library/Application Support/vuoro` on macOS, `$XDG_CONFIG_HOME/vuoro` or
-`~/.config/vuoro` on Linux, and `%AppData%\vuoro` on Windows. In the MVP the
-person writes it by hand. Setup in the UI arrives at v1.0. An example, with no
+`~/.config/vuoro` on Linux, and `%AppData%\vuoro` on Windows. The window's
+setup writes it (D45): it adds, edits, and removes forges, tests each token
+source against the forge, and refuses to save over a hand edit. A person can still
+write it by hand. An example, with no
 secret in it:
 
 ```json

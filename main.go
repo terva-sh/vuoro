@@ -113,10 +113,15 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 	a := &app.App{StateDir: stateDir}
 	if path, err := config.Path(); err != nil {
 		a.ConfigErr = err
-	} else if c, err := config.Load(path); err == nil {
-		a.Config = c
-	} else if !errors.Is(err, os.ErrNotExist) {
-		a.ConfigErr = err
+	} else {
+		// The path is kept even when the file does not load, so setup can
+		// name it and pick the fix up without a restart.
+		a.ConfigPath = path
+		if c, base, err := config.Read(path); err == nil {
+			a.Config, a.ConfigBase = c, base
+		} else {
+			a.ConfigErr = err
+		}
 	}
 	mcpDir := filepath.Join(stateDir, "mcp")
 	if err := state.MkdirAll(mcpDir); err != nil {

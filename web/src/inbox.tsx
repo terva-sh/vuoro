@@ -197,7 +197,7 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
       </div>
       {error && <p class="alert" role="alert">{error}</p>}
       {!view && <p class="muted">Loading your inbox…</p>}
-      {view && view.accounts.length === 0 && <p>Add your GitLab or Forgejo account in Vuoro’s configuration to discover your reviews. You can also open a change by URL above.</p>}
+      {view && view.accounts.length === 0 && <p>Add the forges you review on under “Accounts and review tools” below, and vuoro finds the reviews that wait for you. You can also open a change by URL above.</p>}
       {view && view.accounts.length > 0 && <>
         <div class="inbox-summary" role="group" aria-label="What needs you">
           <span class="muted">Needs you:</span>

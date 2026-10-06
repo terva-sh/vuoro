@@ -14,7 +14,10 @@ import (
 )
 
 var _ forge.Discoverer = (*Client)(nil)
-var _ forge.FactsReader = (*Client)(nil)
+var (
+	_ forge.FactsReader = (*Client)(nil)
+	_ forge.Account     = (*Client)(nil)
+)
 
 type apiIssue struct {
 	Number      int       `json:"number"`
