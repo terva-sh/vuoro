@@ -593,3 +593,29 @@ work to fix what it finds, which is how vuoro dogfoods its review loop.
   changes in the working tree, which collide with the person's own work.
 - **Reviewing the fixed head again comes next**, as its own slice, so the
   loop closes with the findings the fixes resolved.
+
+### D43. Forgejo drafts stay in vuoro until Submit, which publishes the review in one call
+
+Decided by the owner on 2026-10-06, from the Forgejo write spike,
+TKT-01M47EG9BHW0HBVFBTSBB1915X (Prove which Forgejo review writes round-trip
+against a sandbox PR). docs/plan.md section 5.3 records the evidence.
+
+- **Drafts are local until Submit.** Forgejo's issue timeline shows a pending
+  review's body to every reader of the repository, and keeps each superseded
+  body after submit. A pending review also refuses an empty body. So Submit
+  creates and publishes the review in one call, with the verdict, the joined
+  general drafts as its body, and every inline comment. The alternatives were
+  mirroring GitLab with a forge-side pending review, and a placeholder body
+  replaced at submit. Both leak.
+- **Replies post into the thread's own review**, at its path and position,
+  after the review. Each publishes by itself, so a partial failure is reported
+  for each reply. A comment at the same line in a new review was rejected,
+  because Forgejo shows it as a separate conversation.
+- **Withdrawing an approval is unsupported on Forgejo.** A reviewer cannot
+  dismiss their own approval, and dismissal is an admin's action on someone
+  else's review. Deleting the published review was rejected because it erases
+  the record, and the forge is the record.
+- **Resolve stays hidden**, because the API has no route for it.
+- **A suggestion posts as a plain fenced replacement under a line that says
+  so**, because Forgejo cannot apply one. The alternative, hiding suggestions
+  on Forgejo, discards a finding's most useful part.

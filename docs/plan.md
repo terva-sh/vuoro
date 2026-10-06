@@ -240,6 +240,7 @@ its credentials. `forge.Writer` is a separate optional contract reached only
 through the person's protected API actions. Capability flags are not a promise
 of repository permission: the forge authorizes each write. GitLab supplies
 writing capabilities when authenticated; Forgejo supplies none in this slice.
+Section 5.3 records what Forgejo's API allows for writes.
 The UI uses these flags, so configuring a Forgejo account enables private reads
 without enabling posting, keeping findings on the forge, or inline suggestions
 that would post there. Agent findings remain local drafts.
@@ -476,6 +477,45 @@ mechanism on 2026-10-02, and `server/guard.go` holds it:
 
 A server added later, such as the drafts MCP endpoint, uses the same guard
 with a credential of its own.
+
+### 5.3 Forgejo writes
+
+TKT-01M47EG9BHW0HBVFBTSBB1915X (Prove which Forgejo review writes round-trip
+against a sandbox PR) exercised every write on the internal instance, Forgejo
+15.0.3 (gitea-1.22 API), on 2026-10-06. It used a private sandbox PR with an
+author account and a reviewer account. `forge/forgejo/testdata/writes/spike.json`
+holds the scrubbed request and response for each case. The writer and the
+stacker build on what follows.
+
+**Do not keep a pending review on Forgejo.** A pending review is hidden from the
+reviews list and the comment endpoints, but the issue timeline shows its body
+to every reader of the repository, once each time the body is set. A body that
+is later replaced stays in the timeline after submit. A pending review also
+needs a non-empty body. So vuoro keeps Forgejo drafts local until Submit. Submit
+then creates and publishes the review in one `POST /pulls/{n}/reviews` call,
+carrying the verdict, the body, and every inline comment. That call is the one
+event that `forge.Writer.Submit` promises. If the person already has a pending
+review, perhaps started in the web UI, the call merges into it, publishes its
+comments, and replaces its body. vuoro shows those comments as part of what
+Submit will publish, and keeps the old body unless the person changes it.
+
+| Operation | Forgejo route | Notes |
+|---|---|---|
+| Inline draft | Local until Submit, then `comments[]` on the review | Forgejo does not check that a line exists, so vuoro's anchor check is the guard. |
+| General draft | Local until Submit, then the review body | A review has one body, so several general drafts are joined in order. A comment with no path is accepted, but it publishes as a malformed code comment, so vuoro never sends one. |
+| Edit, delete a draft | Local | A comment already pending on the forge can be edited with `PATCH /issues/comments/{id}`, which keeps its id, and deleted with `DELETE /reviews/{id}/comments/{c}`. |
+| Reply | `POST /pulls/{n}/reviews/{thread's review}/comments` at the thread's path and position | It publishes at once and joins that conversation. A comment at the same line in a new review starts a separate conversation instead. A reply is sent at Submit, after the review, as a separate write. |
+| Comment | `event: COMMENT` | Needs a body or at least one inline comment. |
+| Approve | `event: APPROVED` | May have an empty body. The author cannot approve their own PR. |
+| Request changes | `event: REQUEST_CHANGES` | Needs a body. The author cannot request changes on their own PR. |
+| Withdraw an approval | None | A reviewer cannot dismiss their own approval. Dismissal is a repository admin's action on someone else's review. Deleting one's own published review works, but it erases the record. Withdrawal stays unsupported. |
+| Resolve, unresolve | None | The API has no route. Resolving stays hidden. |
+| Suggestion | None | Forgejo renders a `suggestion` block as plain code, and it cannot be applied. A Forgejo suggestion posts as an ordinary fenced replacement under a line saying so. |
+| Stacked draft PR | `POST /pulls` with a `WIP:` title prefix | Both `WIP:` and `[WIP]` give `draft: true`. |
+| Fork check | `head.repo.full_name` against `base.repo.full_name` | A fork PR also has `head.repo.fork: true`. |
+
+A later verdict from the same reviewer marks their earlier non-comment verdict
+dismissed. The inbox reader already treats that as superseded.
 
 ## 6. Agents
 
