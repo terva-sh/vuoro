@@ -2,6 +2,7 @@
 // agent's drafts reach the forge only when the person keeps them.
 import { createContext } from 'preact'
 import { useContext, useState } from 'preact/hooks'
+import { errorText } from './action'
 import { post } from './api'
 import type { Capabilities, Change } from './types'
 
@@ -27,7 +28,7 @@ export function makeWriter(url: string, caps: Capabilities, onChange: (c: Change
       try {
         onChange(await post<Change>(path, { url, ...body }))
       } catch (e) {
-        onError(e instanceof Error ? e.message : String(e))
+        onError(errorText(e))
         throw e
       }
     },

@@ -1,9 +1,9 @@
 ---
 schema: 3
-id: TKT-01M49AZ7C8CPNC5FCT0BGZKGFP
-title: Add a shared Modal for the backdrop, Escape, and focus
+id: TKT-01M49AZ7K2AYBQR1SVPX7BGK13
+title: Share one DiffBrowser between the change and the editor's diff
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T19:27:41Z
-updated_at: 2026-10-06T19:27:41Z
+updated_at: 2026-10-06T19:49:52Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -32,9 +32,9 @@ extensions: {}
 
 ## Description
 
-ConfirmDialog and PushDialog each build the backdrop, Escape handling, initial focus, and aria wiring. Add a Modal primitive and build both on it, so every later dialog is accessible by default.
+change.tsx and EditorDiff each hold the picked-file state, scroll-into-view, and FileList beside FileView. Extract a DiffBrowser that takes per-file threads, drafts, and badges.
 
 ## Acceptance criteria
 
-- [ ] Modal exists with a test for Escape, backdrop click, and initial focus
-- [ ] ConfirmDialog and PushDialog use it
+- [ ] DiffBrowser exists, and the change view and the editor's diff use it
+- [ ] Picking a file opens and scrolls to it in both, as tested today

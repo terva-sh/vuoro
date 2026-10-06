@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { errorText } from './action'
 import { api, post } from './api'
 import { MyDraft, ThreadView } from './comments'
 import { Editor } from './editor'
@@ -68,7 +69,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
         try {
           const next = await api<Run>(`/api/runs/${selected}`, { signal: controller.signal })
           if (active && stamp === version.current && !working.current) setRun(next)
-        } catch (e) { if (active) setError(e instanceof Error ? e.message : String(e)) }
+        } catch (e) { if (active) setError(errorText(e)) }
       }
       if (active) timer = setTimeout(tick, 1500)
     }
@@ -85,7 +86,7 @@ function TriageWorkspace({ change, setup, onPick }: TriageProps) {
     try {
       const next = await action()
       if (mounted.current) { setRun(next); setSelected(next.id); setRuns((all) => [next, ...all.filter((r) => r.id !== next.id)]) }
-    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { if (mounted.current) setError(errorText(e)) }
     finally { working.current = false; if (mounted.current) setBusy(false) }
   }
   const start = () => mutate(() => post<Run>('/api/triage', { url: change.web_url, tool: tool ?? tools[0]?.name }))

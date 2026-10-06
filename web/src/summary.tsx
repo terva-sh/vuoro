@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { errorText } from './action'
 import { api, post } from './api'
 import { HeadBadge, useRunHead } from './head'
 import { refKey, type Change, type Run, type Setup } from './types'
@@ -52,7 +53,7 @@ function SummaryWorkspace({ change, setup }: Props) {
           setRun(next)
           setRuns((all) => all.map((r) => r.id === next.id ? next : r))
         }
-      } catch (e) { if (active) setError(e instanceof Error ? e.message : String(e)) }
+      } catch (e) { if (active) setError(errorText(e)) }
       if (active) timer = setTimeout(tick, 1000)
     }
     void tick()
@@ -68,7 +69,7 @@ function SummaryWorkspace({ change, setup }: Props) {
         setRun(next); setSelected(next.id)
         setRuns((all) => [next, ...all.filter((r) => r.id !== next.id)])
       }
-    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { if (mounted.current) setError(errorText(e)) }
     finally { mutating.current = false; if (mounted.current) setBusy(false) }
   }
   const review = reviews.find((r) => r.id === baseline)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
+import { errorText } from './action'
 import { api, bindings, post } from './api'
 import { ChangeView } from './change'
 import { LocalRun } from './run'
@@ -55,7 +56,7 @@ export function App() {
       setChange(await post<Change>('/api/changes', { url: target.trim() }))
       setURL(target.trim())
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e))
     } finally {
       setOpening(false)
     }

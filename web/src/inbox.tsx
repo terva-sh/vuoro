@@ -2,6 +2,7 @@
 // lanes, two-line rows with an age badge, and a detail pane for the selected
 // change. Their turn, Dormant, and Snoozed fold away until asked for.
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { errorText } from './action'
 import { api } from './api'
 import { changeNumber, refKey, type Ref } from './types'
 import { ago } from './ui'
@@ -93,7 +94,7 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
         const next = await api<InboxView>(path, { method: 'POST', body: JSON.stringify(body), signal: controller.signal })
         if (active) setView(next)
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : String(e))
+        if (active) setError(errorText(e))
       } finally {
         if (active) {
           working = false
@@ -109,7 +110,7 @@ export function Inbox({ onOpen, opening = false }: { onOpen: (url: string) => vo
         const cached = await api<InboxView>('/api/inbox', { signal: controller.signal })
         if (active) setView(cached)
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : String(e))
+        if (active) setError(errorText(e))
       } finally {
         working = false
         if (active) void request('/api/inbox/refresh', {})

@@ -1,6 +1,7 @@
 // Comments on a change: the forge's threads, the person's own pending
 // comments, and an agent's drafts, which the person keeps, edits, or drops.
 import { useState } from 'preact/hooks'
+import { errorText } from './action'
 import { post } from './api'
 import { HeadBadge, useHead } from './head'
 import type { Draft, ForgeDraft, Thread } from './types'
@@ -139,7 +140,7 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
   }
   const ask = () => {
     setAsked('asked')
-    post(`/api/runs/${runID}/drafts/${draft.id}/suggest`).catch((e: unknown) => setAsked(`⚠ ${e instanceof Error ? e.message : String(e)}`))
+    post(`/api/runs/${runID}/drafts/${draft.id}/suggest`).catch((e: unknown) => setAsked(`⚠ ${errorText(e)}`))
   }
   return (
     <div class={`draft ${draft.status} ${draft.decision ?? ''} ${compact ? 'compact' : ''}`}>

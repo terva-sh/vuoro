@@ -1,6 +1,7 @@
 // The editor's work: its commits beside the findings they answer, its diff,
 // and the push, which always asks first.
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { diffStat } from './diff'
 import { FileList, fileID, FileView, manyFiles, Stat } from './diffview'
@@ -19,8 +20,7 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
   picks?: boolean // a review of the person's own work, whose findings they pick (D42)
 }) {
   const [detail, setDetail] = useState<EditorDetail>()
-  const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(false)
+  const { busy, error, setError, run: perform } = useAction()
   const [discarding, setDiscarding] = useState(false)
   const threads = run.mode === 'triage'
   const own = threads || picks || run.kind === 'local'
@@ -32,21 +32,13 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
   // The editor's work is read again each time its turn ends.
   useEffect(() => {
     if (!ed || working) return
-    api<EditorDetail>(`/api/runs/${run.id}/editor`).then(setDetail, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+    api<EditorDetail>(`/api/runs/${run.id}/editor`).then(setDetail, (e: unknown) => setError(errorText(e)))
   }, [ed?.session, working, session?.log?.length])
-  const act = async (path: string, body?: unknown) => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      onRun(await post<Run>(path, body))
-      setDetail(undefined)
-      setDiscarding(false)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
+  const act = (path: string, body?: unknown) => perform(async () => {
+    onRun(await post<Run>(path, body))
+    setDetail(undefined)
+    setDiscarding(false)
+  })
   if (run.mode && !threads) return null
   if (!ed) {
     const items = own ? picked ?? [] : kept
@@ -156,25 +148,14 @@ export function PushBar({ run, url, detail, working, onRun }: {
   run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
 }) {
   const [preview, setPreview] = useState<StackPreview>()
-  const [error, setError] = useState<string>()
-  const [loading, setLoading] = useState(false)
+  const { busy: loading, error, run: perform } = useAction()
   const pushed = run.editor?.pushed
   const own = !!run.editor?.own
   const local = !!run.editor?.local
   const last = detail.commits[detail.commits.length - 1]
   const fresh = !!last && last.sha !== pushed?.sha
   const word = changeWord(run.kind)
-  const ask = async () => {
-    setLoading(true)
-    setError(undefined)
-    try {
-      setPreview(await post<StackPreview>(`/api/runs/${run.id}/editor/stack`, { url }))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const ask = () => perform(async () => setPreview(await post<StackPreview>(`/api/runs/${run.id}/editor/stack`, { url })))
   return (
     <div class="push-bar">
       {pushed && local && (
@@ -208,8 +189,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
 }) {
   const [title, setTitle] = useState(p.title ?? '')
   const [description, setDescription] = useState(p.description ?? '')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
+  const { busy, error, run: perform } = useAction()
   const cancel = useRef<HTMLButtonElement>(null)
   const word = changeWord(run.kind)
   useEffect(() => {
@@ -218,17 +198,10 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [busy])
-  const push = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      setBusy(false)
-    }
-  }
+  const push = () => perform(async () => {
+    onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
+    onClose()
+  })
   return (
     <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">

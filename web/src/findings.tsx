@@ -1,6 +1,7 @@
 // The findings of a run, each opened in place with its marks, and the
 // hand-off report of the kept ones.
 import { useState } from 'preact/hooks'
+import { errorText } from './action'
 import { post } from './api'
 import { DraftCard } from './comments'
 import { HeadBadge, useHead } from './head'
@@ -70,7 +71,7 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
   from: string; sources: Draft[]; profile: Map<string, string>; picker?: Pick
 }) {
   const [error, setError] = useState<string>()
-  const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(errorText(e)))
   const mark = d.override ?? d.confidence
   const a = d.anchor
   const decided = d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : ''
@@ -125,7 +126,7 @@ export function HandOff({ run, kept }: { run: Run; kept: number }) {
       const copied = await navigator.clipboard?.writeText(r.markdown).then(() => true, () => false) ?? false
       setDone({ ...r, copied })
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e))
     }
   }
   return (
@@ -150,7 +151,7 @@ export function HandOff({ run, kept }: { run: Run; kept: number }) {
 function Marks({ draft: d, runID, onRun, checking }: { draft: Draft; runID: string; onRun: (r: Run) => void; checking: boolean }) {
   const [error, setError] = useState<string>()
   const set = (level: Level | '') =>
-    post<Run>(`/api/runs/${runID}/drafts/${d.id}/confidence`, { level }).then(onRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+    post<Run>(`/api/runs/${runID}/drafts/${d.id}/confidence`, { level }).then(onRun, (e: unknown) => setError(errorText(e)))
   return (
     <div class="marks">
       <div>

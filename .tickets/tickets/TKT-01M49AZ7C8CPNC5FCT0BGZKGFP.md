@@ -1,9 +1,9 @@
 ---
 schema: 3
-id: TKT-01M49AZ75DS51KKNCF519ZBERK
-title: Add a useAction hook for busy and error state around a request
+id: TKT-01M49AZ7C8CPNC5FCT0BGZKGFP
+title: Add a shared Modal for the backdrop, Escape, and focus
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T19:27:41Z
-updated_at: 2026-10-06T19:27:41Z
+updated_at: 2026-10-06T19:49:52Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -32,9 +32,9 @@ extensions: {}
 
 ## Description
 
-The idiom e instanceof Error ? e.message : String(e) appears 21 times, each beside a hand-rolled busy and error useState pair. Add errorText(e) and a useAction() hook, and use them.
+ConfirmDialog and PushDialog each build the backdrop, Escape handling, initial focus, and aria wiring. Add a Modal primitive and build both on it, so every later dialog is accessible by default.
 
 ## Acceptance criteria
 
-- [ ] errorText and useAction exist with tests
-- [ ] No component repeats the error idiom
+- [ ] Modal exists with a test for Escape, backdrop click, and initial focus
+- [ ] ConfirmDialog and PushDialog use it

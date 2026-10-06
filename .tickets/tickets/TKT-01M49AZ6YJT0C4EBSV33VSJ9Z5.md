@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M49AZ6YJT0C4EBSV33VSJ9Z5
 title: Share one TextEditor and EditForm across every text box
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T19:27:41Z
-updated_at: 2026-10-06T19:27:41Z
+updated_at: 2026-10-06T19:49:52Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""

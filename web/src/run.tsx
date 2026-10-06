@@ -1,6 +1,7 @@
 // A review run: its agents, its findings, and the hand-back, polled while
 // anything works.
 import { useEffect, useState } from 'preact/hooks'
+import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { Editor } from './editor'
 import { Drafts, HandOff, shownDrafts } from './findings'
@@ -45,8 +46,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   const [selected, setSelected] = useState<string>()
   const [run, setRun] = useState<Run>()
   const [preset, setPreset] = useState<string>()
-  const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(false)
+  const { busy, error, setError, run: act } = useAction()
 
   const key = refKey(change.ref)
   useEffect(() => {
@@ -71,26 +71,18 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
-  const start = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      const r = await post<Run>('/api/runs', { url: change.web_url, preset: preset ?? setup?.presets[0]?.name })
-      setRuns([r, ...runs])
-      setSelected(r.id)
-      setRun(r)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
+  const start = () => act(async () => {
+    const r = await post<Run>('/api/runs', { url: change.web_url, preset: preset ?? setup?.presets[0]?.name })
+    setRuns([r, ...runs])
+    setSelected(r.id)
+    setRun(r)
+  })
   const close = async () => {
     if (!run) return
     try {
       update(await post<Run>(`/api/runs/${run.id}/close`))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e))
     }
   }
 
@@ -222,7 +214,7 @@ export function LocalRun({ id }: { id: string }) {
   const [error, setError] = useState<string>()
   usePoll(id, setRun)
   if (!run) return <p class="muted">Loading the run…</p>
-  const close = () => void post<Run>(`/api/runs/${run.id}/close`).then(setRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  const close = () => void post<Run>(`/api/runs/${run.id}/close`).then(setRun, (e: unknown) => setError(errorText(e)))
   return (
     <div class="local-run">
       <h1>{run.title}</h1>

@@ -1,5 +1,6 @@
 // One agent session: its transcript, and the person's line to it.
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { errorText, useAction } from './action'
 import { post } from './api'
 import type { Entry, Run, Session } from './types'
 import { Prose, StatusBadge, usd } from './ui'
@@ -78,30 +79,23 @@ function toolHint(input?: string): string {
 // starts a new line. A session that ended is resumed by the next message.
 function Talk({ run, session }: { run: Run; session: Session }) {
   const [text, setText] = useState('')
-  const [error, setError] = useState<string>()
-  const [sending, setSending] = useState(false)
+  const { busy: sending, error, setError, run: act } = useAction()
   // An editor outlives its review's close; the reviewers do not.
   if (run.status === 'closed' && session.role !== 'editor') return <p class="muted pad">The run is closed.</p>
   if (session.status === 'waiting') return <p class="muted pad">⧗ Starts when every reviewer has reported.</p>
   const working = session.status === 'working'
   const send = async () => {
     if (!text.trim() || working) return
-    setSending(true)
-    setError(undefined)
-    try {
+    await act(async () => {
       await post(`/api/runs/${run.id}/sessions/${session.id}/messages`, { text })
       setText('')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSending(false)
-    }
+    })
   }
   const stop = async () => {
     try {
       await post(`/api/runs/${run.id}/sessions/${session.id}/stop`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e))
     }
   }
   return (
