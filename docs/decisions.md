@@ -640,3 +640,25 @@ editor's push). docs/plan.md section 5 records the boundary.
   the write otherwise. Deciding by forge kind in the UI was rejected: a forge's
   capabilities change with its credentials and its version, not with its
   name.
+
+### D45. Vuoro keeps the terva-sh colour scheme, and diffs use its status roles
+
+Decided by the owner on 2026-10-06, after a contrast pass on the diff and the
+editor's panel. The owner confirmed D32's violet on the shared Birch and Tar
+foundation, and chose to keep every colour inside the terva-sh scheme.
+
+- **Diffs use the shared status roles.** An added line takes `--ui-ok` and a
+  removed one `--ui-danger`, as a stronger tint, a gutter bar, and a bold
+  sign. Each row carries its `+` or `−` sign and each file its added and
+  removed counts, so the colour is never the only signal.
+- **A new colour that means something comes from the scheme.** Components
+  read the `--ui-*` roles from `terva-sh/design`, and a colour the scheme
+  lacks is proposed there rather than added here. The inbox's age badge, whose
+  blue, amber, and magenta ramp docs/plan.md section 5 specifies, predates
+  this and stays until the scheme offers a ramp.
+
+The alternatives were blue for added and amber for removed, which stay apart
+under every common colour blindness but sit outside the terva-sh palette, and
+`--ui-ok` with `--ui-warn`, which was rejected because amber already means a
+warning elsewhere in the UI.
+

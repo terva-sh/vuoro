@@ -4,14 +4,10 @@
 
 * { box-sizing: border-box; }
 
-/* Diff colours: blue for an added line and amber for a removed one, which
-   stay apart under every common colour blindness, unlike green and red. Each
-   row also carries its + or − sign. */
-:root { --diff-add: #2563A8; --diff-del: #A8570C; }
-:root[data-scheme='dark'] { --diff-add: #78AEE8; --diff-del: #E3A15C; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-scheme='light']) { --diff-add: #78AEE8; --diff-del: #E3A15C; }
-}
+/* Diff colours come from the shared status roles (D45): ok for an added
+   line, danger for a removed one. The colour is never the only signal: each
+   row carries its + or − sign and a gutter bar, and each file its counts. */
+:root { --diff-add: var(--ui-ok); --diff-del: var(--ui-danger); }
 
 body {
   margin: 0;
