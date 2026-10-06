@@ -239,11 +239,11 @@ Forgejo writes remain later work, with GitHub after Forgejo (D21).
 its credentials. `forge.Writer` is a separate optional contract reached only
 through the person's protected API actions. Capability flags are not a promise
 of repository permission: the forge authorizes each write. GitLab supplies
-writing capabilities when authenticated; Forgejo supplies none in this slice.
-Section 5.3 records what Forgejo's API allows for writes.
-The UI uses these flags, so configuring a Forgejo account enables private reads
-without enabling posting, keeping findings on the forge, or inline suggestions
-that would post there. Agent findings remain local drafts.
+writing capabilities when authenticated. Forgejo supplies drafts, reply, approve
+and request changes when authenticated and given a draft store, and never
+resolve, withdrawal or applicable suggestions (section 5.3, D43). An anonymous
+client of either supplies none, so a URL read without a configured account
+offers no posting. Agent findings remain local drafts.
 
 The flags are `drafts`, `reply`, `resolve`, `approve`, `unapprove` (withdrawing
 the person's own approval), `request_changes`, and `suggestions`. The last means
@@ -300,7 +300,12 @@ and `assigned` filters. It also examines `reviewed` candidates to retain a
 requested-reviewer relationship after a verdict, when a later push may need
 another review. Recorded request/removal timeline entries and `REQUEST_REVIEW`
 records establish the relationship; voluntary reviews alone do not. Request and
-removal events are ordered across both sources per reviewer. Undated events
+removal events are ordered across both sources per reviewer. Forgejo also
+lists in `requested_reviewers` a reviewer whose latest review approved or
+requested changes, with no request on record (verified live on 15.0.3, while
+TKT-01M3W4HX4CJE62G9R124EV5PT4 was being built). So a listed reviewer with no request record, whose
+undismissed verdict on today's head stands, has answered; a real request
+always leaves a `REQUEST_REVIEW` record or a timeline event. Undated events
 retain an uncertain relationship rather than silently hiding work. Current PR
 requests take precedence. All roles deduplicate by the existing change key.
 Patch-free fact reads omit pending private reviews. Published review histories

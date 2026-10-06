@@ -179,6 +179,12 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		logf("%v", err)
 		return exitUsage
 	}
+	// Reading the change counts against -timeout too, and running out of it
+	// there is the same timeout as running out of it during the review.
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		logf("the run did not finish within %s", *timeout)
+		return exitFailed
+	}
 	if err != nil {
 		logf("%v", err)
 		return exitFailed
