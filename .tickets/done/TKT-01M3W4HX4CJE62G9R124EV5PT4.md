@@ -26,7 +26,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-06T04:51:38Z
+updated_at: 2026-10-06T04:53:45Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -165,6 +165,10 @@ terva-review run 8e261f75 (high): a retry's skip of the verdict depended on the 
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T04:51:38Z
 
 terva-review run 60212b81 (medium) asked to paginate /pulls/{n}/reviews/{id}/comments. Declined after a live probe on warricksothr/vuoro-sandbox#1, review 2155 (11 comments): Forgejo 15.0.3 returns the same complete list for no parameters, page=1&limit=1, page=2&limit=1 and page=50&limit=100. The endpoint has no pagination, and pages[] stops only on an empty page, so it would fetch the list 1000 times and fail. The three reads now share reviewComments, which records this.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T04:53:45Z
+
+terva-review run 4e61dee3 (medium): a partial submit's error didn't say which replies failed. Each failure is now reported as 'your reply <draft id> to thread <thread id>: <err>'. TestAFailedReplyStaysPending has two failing replies on one thread and checks that both are named.
 
 ## Summary
 

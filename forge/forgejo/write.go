@@ -382,7 +382,7 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 	var failed []string
 	for _, d := range replies {
 		if err := c.reply(ctx, ref, d); err != nil {
-			failed = append(failed, err.Error())
+			failed = append(failed, fmt.Sprintf("your reply %s to thread %s: %v", d.ID, d.ThreadID, err))
 			continue
 		}
 		remaining = slices.DeleteFunc(remaining, func(x forge.Draft) bool { return x.ID == d.ID })

@@ -261,11 +261,15 @@ func TestAFailedReplyStaysPending(t *testing.T) {
 	c.CreateDraft(ctx, ref, forge.NewDraft{Body: "general"})
 	c.CreateDraft(ctx, ref, forge.NewDraft{Body: "line reply", ThreadID: "31"})
 	failing, _ := c.CreateDraft(ctx, ref, forge.NewDraft{Body: "general reply", ThreadID: "comment-5"})
+	another, _ := c.CreateDraft(ctx, ref, forge.NewDraft{Body: "another general reply", ThreadID: "comment-5"})
 	err := c.Submit(ctx, ref, forge.VerdictCommented)
-	if err == nil || !strings.Contains(err.Error(), "1 of 2 replies") {
+	// The error names each reply that failed, so the person can tell them apart.
+	if err == nil || !strings.Contains(err.Error(), "2 of 3 replies") ||
+		!strings.Contains(err.Error(), "your reply "+failing.ID+" to thread comment-5") ||
+		!strings.Contains(err.Error(), "your reply "+another.ID+" to thread comment-5") {
 		t.Fatalf("err %v", err)
 	}
-	if ds, _ := s.Drafts(ref); len(ds) != 1 || ds[0].ID != failing.ID {
+	if ds, _ := s.Drafts(ref); len(ds) != 2 || ds[0].ID != failing.ID || ds[1].ID != another.ID {
 		t.Fatalf("pending after a partial submit: %+v", ds)
 	}
 	delete(f.fail, "/api/v1/repos/terva-sh/vuoro/issues/2/comments")
