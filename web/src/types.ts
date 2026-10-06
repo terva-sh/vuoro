@@ -83,14 +83,15 @@ export interface Run {
 // branch (D39).
 export interface EditorState {
   session: string; branch: string; base: string; started: string; discarded?: boolean
-  own?: boolean; items?: string[] // a fix of the person's own change, and the threads it was given (D41)
+  own?: boolean; items?: string[] // a fix of the person's own change, and the drafts it was given (D41, D42)
+  local?: boolean // a local range's fix, handed back as a branch in the person's repository (D42)
   pushed?: { branch: string; sha: string; target: string; url?: string; at: string }
 }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.
 export interface StackPreview {
   branch: string; target: string; sha: string; commits: number; files: string[]; ci?: string[]
-  moved?: boolean; own?: boolean; title?: string; description?: string; opened?: string
+  moved?: boolean; own?: boolean; local?: boolean; title?: string; description?: string; opened?: string
 }
 export interface EditorCommit { sha: string; subject: string; findings: string[] }
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }

@@ -69,7 +69,8 @@ func (st *Store) AcceptReply(id string, accept func(Draft) (string, bool, error)
 	return nil
 }
 
-// CiteFix records that a pushed commit fixes a reply's thread (D41). The
+// CiteFix records that a pushed commit fixes a draft: a reply's thread
+// (D41), or a finding of the person's own review (D42). A thread's
 // reply then names the commit, unless the person edited it, whose words
 // stand. A reply already accepted keeps its text, since the forge holds it.
 // No MCP tool reaches this method, and the agent can no longer revise the
@@ -78,11 +79,12 @@ func (st *Store) CiteFix(id, sha, body string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	d := st.find(id)
-	if d == nil || d.ThreadID == "" || d.Status != Pending {
-		return &RuleError{"reply.pending", "id", "a pending triage reply"}
+	if d == nil || d.Status != Pending {
+		return &RuleError{"draft.pending", "id", "a pending draft"}
 	}
 	d.FixedIn = sha
-	if !d.Edited && d.Decision == "" {
+	// A finding has no reply to rewrite; only a thread's does.
+	if d.ThreadID != "" && !d.Edited && d.Decision == "" {
 		d.Description = body
 	}
 	d.Revision++

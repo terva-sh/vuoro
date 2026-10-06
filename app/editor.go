@@ -31,17 +31,22 @@ func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	ch, err := a.open(ctx, req.URL)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	if run.Mode == "triage" && !a.isAuthor(ch) {
-		writeError(w, errors.New("The editor fixes threads on your own change only."))
-		return
+	task := review.EditorTask{Items: req.Items}
+	var ch *forge.Change
+	if run.Kind != review.Local { // a local range has no forge to read
+		var err error
+		if ch, err = a.open(ctx, req.URL); err != nil {
+			writeError(w, err)
+			return
+		}
+		task.Own = a.isAuthor(ch)
+		if run.Mode == "triage" && !task.Own {
+			writeError(w, errors.New("The editor fixes threads on your own change only."))
+			return
+		}
 	}
 	a.probeTools() // a run reloaded after a restart starts on a probed tool
-	if _, err := a.Runs.StartEditor(ctx, run.ID, ch, a.identity(ctx), req.Items); err != nil {
+	if _, err := a.Runs.StartEditor(ctx, run.ID, ch, a.identity(ctx), task); err != nil {
 		writeError(w, err)
 		return
 	}
@@ -99,7 +104,8 @@ type stackPreview struct {
 	Files       []string `json:"files"`
 	CI          []string `json:"ci,omitempty"` // files that change what CI runs
 	Moved       bool     `json:"moved,omitempty"`
-	Own         bool     `json:"own,omitempty"` // pushes to the change's own branch (D41)
+	Own         bool     `json:"own,omitempty"`   // pushes to the change's own branch (D41)
+	Local       bool     `json:"local,omitempty"` // writes a new branch in the person's repository (D42)
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Opened      string   `json:"opened,omitempty"` // the draft change already open
@@ -114,6 +120,20 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 	run := a.Runs.Get(runID)
 	if run == nil {
 		return nil, nil, p, review.ErrNoRun
+	}
+	if run.Kind == review.Local {
+		d, err := a.Runs.Editor(ctx, runID)
+		if err != nil {
+			return nil, nil, p, err
+		}
+		if len(d.Commits) == 0 {
+			return nil, nil, p, errors.New("The editor has committed nothing to hand back.")
+		}
+		p = stackPreview{Branch: d.Branch, Target: d.Branch, SHA: d.Commits[len(d.Commits)-1].SHA, Commits: len(d.Commits), Local: true, Files: []string{}}
+		for _, f := range d.Files {
+			p.Files = append(p.Files, f.NewPath)
+		}
+		return nil, nil, p, nil
 	}
 	ch, err := a.open(ctx, url)
 	if err != nil {
@@ -211,6 +231,14 @@ func (a *App) pushEditor(w http.ResponseWriter, r *http.Request) {
 	ch, st, p, err := a.stack(ctx, r.PathValue("id"), req.URL)
 	if err != nil {
 		writeError(w, err)
+		return
+	}
+	if p.Local {
+		if _, err := a.Runs.PushEditor(ctx, r.PathValue("id"), "", forge.StackTarget{}, req.SHA, nil); err != nil {
+			writeError(w, err)
+			return
+		}
+		a.getRun(w, r)
 		return
 	}
 	if p.Own && p.Moved {

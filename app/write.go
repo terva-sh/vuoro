@@ -268,6 +268,11 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 		if run.Ref != ch.Ref || run.Kind != ch.Kind {
 			return "", false, errors.New("This draft belongs to another change.")
 		}
+		// A review of the person's own change posts nothing (D42): its
+		// findings are picked for the editor or dismissed.
+		if run.Mode == "" && a.isAuthor(ch) {
+			return "", false, errors.New("This is your own change, so its findings are not posted. Pick a finding for the editor, or dismiss it.")
+		}
 		body, edited := keepBody(d), false
 		if req.Body != nil && *req.Body != body {
 			body, edited = *req.Body, true

@@ -42,26 +42,26 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 	}
 	wait(t, r, idle)
 	who := Identity{Name: "Pat", Email: "pat@example.com"}
-	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, nil); err == nil {
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); err == nil {
 		t.Fatal("an editor started with nothing kept")
 	}
 	m.Decide(r.ID, "d1", drafts.Kept, "41", false)
 	moved := *ch
 	moved.Diff.Head = "0123456789abcdef"
-	if _, err := m.StartEditor(context.Background(), r.ID, &moved, who, nil); err == nil {
+	if _, err := m.StartEditor(context.Background(), r.ID, &moved, who, EditorTask{}); err == nil {
 		t.Fatal("an editor started on a change that moved")
 	}
-	if _, err := m.StartEditor(context.Background(), r.ID, ch, Identity{}, nil); err == nil {
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, Identity{}, EditorTask{}); err == nil {
 		t.Fatal("an editor started with no git identity")
 	}
-	ed, err := m.StartEditor(context.Background(), r.ID, ch, who, nil)
+	ed, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ed.Branch != "vuoro/fix-7-"+r.ID[len(r.ID)-6:] || ed.Base != ch.Diff.Head {
 		t.Fatalf("editor %+v", ed)
 	}
-	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, nil); !errors.Is(err, ErrEditorBusy) {
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); !errors.Is(err, ErrEditorBusy) {
 		t.Fatalf("a second editor: %v", err)
 	}
 	v := wait(t, r, func(v RunView) bool { return idle(v) && len(v.Sessions) == 2 && v.Sessions[1].FirstComplete })
@@ -145,7 +145,7 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 	if err := m.Say(r.ID, v.Sessions[1].ID, "carry on"); err == nil {
 		t.Fatal("a discarded editor was resumed")
 	}
-	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, nil); err != nil {
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); err != nil {
 		t.Fatalf("an editor after a discard: %v", err)
 	}
 	wait(t, r, func(v RunView) bool { return idle(v) && len(v.Sessions) == 3 && v.Sessions[2].FirstComplete })
@@ -159,7 +159,7 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 	if _, err := os.Stat(r.dir); !os.IsNotExist(err) {
 		t.Fatalf("the closed run's worktree is still there: %v", err)
 	}
-	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, nil); err != nil {
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); err != nil {
 		t.Fatalf("an editor on a closed run: %v", err)
 	}
 	v = wait(t, r, func(v RunView) bool {
@@ -283,18 +283,18 @@ func TestTheEditorFixesPickedThreadsAndPushesToTheChangesOwnBranch(t *testing.T)
 	wait(t, r, func(v RunView) bool { return v.Status == Idle && len(v.Drafts) == 3 })
 	ctx, who := context.Background(), Identity{Name: "Pat", Email: "pat@example.com"}
 
-	if _, err := m.StartEditor(ctx, r.ID, ch, who, nil); err == nil {
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{}); err == nil {
 		t.Fatal("an editor started with no thread picked")
 	}
-	if _, err := m.StartEditor(ctx, r.ID, ch, who, []string{"d9"}); err == nil {
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Items: []string{"d9"}}); err == nil {
 		t.Fatal("an editor started on a thread the run does not have")
 	}
 	changed := *ch
 	changed.Threads = append([]forge.Thread{{ID: "t1", Resolvable: true, Anchor: ch.Threads[0].Anchor, Notes: note("Never mind")}}, ch.Threads[1:]...)
-	if _, err := m.StartEditor(ctx, r.ID, &changed, who, []string{"d1"}); err == nil {
+	if _, err := m.StartEditor(ctx, r.ID, &changed, who, EditorTask{Items: []string{"d1"}}); err == nil {
 		t.Fatal("an editor started on a thread whose discussion changed since triage")
 	}
-	ed, err := m.StartEditor(ctx, r.ID, ch, who, []string{"d1", "d2"})
+	ed, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Items: []string{"d1", "d2"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,4 +357,146 @@ func TestTheEditorFixesPickedThreadsAndPushesToTheChangesOwnBranch(t *testing.T)
 		t.Fatalf("a second push: %v", err)
 	}
 	m.Close(ctx, r.ID)
+}
+
+// A review of the person's own merge request posts nothing: they pick
+// findings for the editor, whose commits go to the merge request's branch
+// (D42).
+func TestTheEditorFixesPickedFindingsOfAnOwnReviewOnItsBranch(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		call("propose_draft", map[string]any{"severity": "low", "title": "Name it", "description": "d"})
+		return "done"
+	})
+	var message string
+	d.edit = commitFix(t, &message, "Vuoro-Finding: d1")
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	ctx, who := context.Background(), Identity{Name: "Pat", Email: "pat@example.com"}
+	m.Decide(r.ID, "d2", drafts.Dropped, "", false)
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Own: true, Items: []string{"d2"}}); err == nil {
+		t.Fatal("a dismissed finding was handed to the editor")
+	}
+	ed, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Own: true, Items: []string{"d1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ed.Own || ed.Local {
+		t.Fatalf("editor %+v", ed)
+	}
+	wait(t, r, func(v RunView) bool {
+		return len(v.Sessions) == 2 && v.Sessions[1].FirstComplete && v.Sessions[1].Status == Idle
+	})
+	if !strings.Contains(message, "picked 1 finding") || !strings.Contains(message, "Finding 1 is d1") || strings.Contains(message, "Name it") {
+		t.Fatalf("the editor was sent %q", message)
+	}
+	detail, err := m.Editor(ctx, r.ID)
+	if err != nil || len(detail.Commits) != 1 {
+		t.Fatalf("detail %+v %v", detail, err)
+	}
+	sha := detail.Commits[0].SHA
+	exec.Command("git", "-C", src.Remote, "switch", "-q", "main").Run()
+	if _, err := m.PushEditor(ctx, r.ID, src.Remote, forge.StackTarget{Branch: "feature", Head: ch.Diff.Head}, sha, nil); err != nil {
+		t.Fatal(err)
+	}
+	if out, _ := exec.Command("git", "-C", src.Remote, "rev-parse", "feature").Output(); strings.TrimSpace(string(out)) != sha {
+		t.Fatalf("the change's branch is at %q", out)
+	}
+	if got := r.View().Drafts[0]; got.FixedIn != sha || got.Description != "d" {
+		t.Fatalf("d1 %+v", got)
+	}
+	m.Close(ctx, r.ID)
+}
+
+// A local range's fixes become a new branch in the person's own repository,
+// and nothing else there changes: not HEAD, the working tree, or another
+// branch, and none of its hooks run (D42).
+func TestTheEditorHandsALocalRangesFixesBackAsANewBranch(t *testing.T) {
+	m, d, _, _ := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		return "done"
+	})
+	var message string
+	d.edit = commitFix(t, &message, "Vuoro-Finding: d1")
+	repo, _, _ := remote(t)
+	os.WriteFile(filepath.Join(repo, "notes.txt"), []byte("my own work in progress\n"), 0o644)
+	hook := filepath.Join(repo, ".git", "hooks", "post-receive")
+	os.WriteFile(hook, []byte("#!/bin/sh\ntouch \""+filepath.Join(repo, "HOOK-RAN")+"\"\n"), 0o755)
+	ctx := context.Background()
+	lt, err := LocalChange(ctx, "", repo, "main..feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := m.Start(lt.Change, lt.Source, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	who := Identity{Name: "Pat", Email: "pat@example.com"}
+	ed, err := m.StartEditor(ctx, r.ID, nil, who, EditorTask{Items: []string{"d1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ed.Local || ed.Own || ed.Branch != "vuoro/fix-"+r.ID {
+		t.Fatalf("editor %+v", ed)
+	}
+	wait(t, r, func(v RunView) bool {
+		return len(v.Sessions) == 2 && v.Sessions[1].FirstComplete && v.Sessions[1].Status == Idle
+	})
+	detail, err := m.Editor(ctx, r.ID)
+	if err != nil || len(detail.Commits) != 1 {
+		t.Fatalf("detail %+v %v", detail, err)
+	}
+	sha := detail.Commits[0].SHA
+	git := func(args ...string) string {
+		out, _ := exec.Command("git", append([]string{"-C", repo}, args...)...).Output()
+		return strings.TrimSpace(string(out))
+	}
+	headBefore, branchBefore, statusBefore := git("rev-parse", "HEAD"), git("branch", "--show-current"), git("status", "--porcelain")
+
+	// A branch of that name that the person holds is never moved.
+	git("branch", ed.Branch, "main")
+	if _, err := m.PushEditor(ctx, r.ID, "ignored", forge.StackTarget{}, sha, nil); err == nil {
+		t.Fatal("a push moved a branch the person holds")
+	}
+	git("branch", "-D", ed.Branch)
+	p, err := m.PushEditor(ctx, r.ID, "ignored", forge.StackTarget{}, sha, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch {
+	case p.Branch != ed.Branch || git("rev-parse", "refs/heads/"+ed.Branch) != sha:
+		t.Fatalf("pushed %+v, the branch is at %q", p, git("rev-parse", "refs/heads/"+ed.Branch))
+	case git("rev-parse", "HEAD") != headBefore || git("branch", "--show-current") != branchBefore || git("status", "--porcelain") != statusBefore:
+		t.Fatal("the push changed the person's checkout")
+	}
+	if _, err := os.Stat(filepath.Join(repo, "HOOK-RAN")); err == nil {
+		t.Fatal("the person's hook ran")
+	}
+	// vuoro's own branch can be pushed again.
+	if _, err := m.PushEditor(ctx, r.ID, "ignored", forge.StackTarget{}, sha, nil); err != nil {
+		t.Fatalf("a second push: %v", err)
+	}
+	if got := r.View().Drafts[0]; got.FixedIn != sha {
+		t.Fatalf("d1 %+v", got)
+	}
+}
+
+// commitFix is an editor turn that fixes Add and commits with trailer.
+func commitFix(t *testing.T, message *string, trailer string) func(agent.Spec, string) string {
+	return func(spec agent.Spec, text string) string {
+		*message = text
+		os.WriteFile(filepath.Join(spec.Dir, "calc.go"), []byte("package calc\n\nfunc Add(a, b int) int { return a + b }\n"), 0o644)
+		cmd := exec.Command("git", "commit", "-qam", "Add adds", "-m", trailer)
+		cmd.Dir, cmd.Env = spec.Dir, append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + spec.Dir}, spec.Editor.Env...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("git commit: %s", out)
+		}
+		return "fixed"
+	}
 }

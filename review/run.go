@@ -96,6 +96,7 @@ type Run struct {
 	summaryStopped atomic.Bool
 	editor         *EditorState
 	who            Identity // the editor's git identity
+	origin         string   // a local range's checkout, where its fixes go (D42)
 }
 
 // Session is one agent session in a run.
@@ -207,6 +208,9 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 		sessions: sessions,
 		path:     filepath.Join(m.StateDir, "runs", id, "run.json"),
 		first:    first,
+	}
+	if ch.Kind == Local {
+		r.origin = src.Remote
 	}
 	r.anchors = indexLines(ch.Files)
 	r.store.CheckAnchor = r.anchors.check

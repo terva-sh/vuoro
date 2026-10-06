@@ -567,3 +567,29 @@ D19's push target, which D39 set aside only for other people's changes.
   replying and resolving on submit, and leaving replies to the person.
 - **Editor fixes come before applying reviewers' suggestion blocks**, which
   needs no agent and stays a later slice.
+
+### D42. Where the editor's fixes go depends on whose change it is, and a review of your own work posts nothing
+
+Decided by the owner on 2026-10-05, from the three flows they named: reviewing
+somebody else's change, answering review on your own, and reviewing your own
+work to fix what it finds, which is how vuoro dogfoods its review loop.
+
+| Change | What the person does with an item | Where the fixes go |
+|---|---|---|
+| Somebody else's merge request | Keeps a finding as a comment | A stacked draft merge request (D39) |
+| Their own merge request, threads from reviewers | Picks a thread; its reply cites the fix | The merge request's branch (D41) |
+| Their own merge request, reviewed by vuoro | Picks a finding to fix, or dismisses it | The merge request's branch (D41) |
+| A local range, before any merge request | Picks a finding to fix, or dismisses it | A new branch in their own repository |
+
+- **A review of the person's own merge request posts nothing.** Keep is
+  refused there, and a finding is picked for the editor or dismissed
+  locally. The alternatives were picking with an optional post, and posting
+  as on others' changes.
+- **A local range's fixes become a new branch, `vuoro/fix-<run>`, in the
+  person's own repository.** vuoro writes the branch's ref and nothing else:
+  not the checkout, the working tree, or HEAD. It never overwrites a branch
+  that exists, and the repository's hooks do not run. The person merges or
+  cherry-picks it. The alternatives were a patch file, and uncommitted
+  changes in the working tree, which collide with the person's own work.
+- **Reviewing the fixed head again comes next**, as its own slice, so the
+  loop closes with the findings the fixes resolved.

@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"PushEditor", "OpenStacked"} {
-		if got := callers[name]; len(got) != 1 || got[0] != "pushEditor" {
+		if got := slices.Compact(callers[name]); len(got) != 1 || got[0] != "pushEditor" {
 			t.Errorf("%s is called from %q, want only pushEditor", name, got)
 		}
 	}

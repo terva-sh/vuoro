@@ -103,6 +103,7 @@ type record struct {
 	Anchors lineIndex         `json:"anchors"`
 	Resume  map[string]string `json:"resume"` // each session's resume handle
 	Who     *Identity         `json:"editor_identity,omitempty"`
+	Origin  string            `json:"origin,omitempty"` // a local range's checkout
 }
 
 func (r *Run) record() record {
@@ -110,7 +111,7 @@ func (r *Run) record() record {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	rec.First = r.first
-	rec.Repo, rec.Anchors, rec.Resume = r.repoKey, r.anchors, map[string]string{}
+	rec.Repo, rec.Anchors, rec.Resume, rec.Origin = r.repoKey, r.anchors, map[string]string{}, r.origin
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
 	}
@@ -156,6 +157,7 @@ func (m *Manager) Load() error {
 			store:   drafts.Restore(rec.Drafts),
 			path:    path,
 			editor:  rec.Editor,
+			origin:  rec.Origin,
 		}
 		if rec.Who != nil {
 			r.who = *rec.Who
@@ -193,7 +195,7 @@ func (m *Manager) Load() error {
 			case s.Role == drafts.Suggester:
 				s.spec = agent.Spec{SystemPrompt: suggestionPrompt(), Model: s.Model}
 			case s.Role == drafts.Editor:
-				s.spec = agent.Spec{SystemPrompt: editorPrompt(r.editor != nil && r.editor.Own), Model: s.Model}
+				s.spec = agent.Spec{SystemPrompt: editorPrompt(r.editor.kind(r.Mode)), Model: s.Model}
 			case ok:
 				s.spec = agent.Spec{SystemPrompt: systemPrompt(p), Model: s.Model}
 			}

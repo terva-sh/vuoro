@@ -61,6 +61,9 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
     setRuns((rs) => rs.map((x) => (x.id === r.id ? r : x)))
   }
   usePoll(selected, update)
+  // A review of the person's own change posts nothing (D42).
+  const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
+  const own = !!me && me.username.toLowerCase() === change.author.username.toLowerCase()
   useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
@@ -122,14 +125,23 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} url={change.web_url} onClose={close} onPick={onPick} onRun={update} />}
+      {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} />}
     </div>
   )
 }
 
-function RunView({ run, url, onClose, onPick, onRun }: {
-  run: Run; url: string; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
+// RunView is one run. own marks a review of the person's own work, a merge
+// request of theirs or a local range, whose findings are picked for the
+// editor or dismissed, and never posted (D42).
+export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
+  run: Run; url: string; own?: boolean; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
 }) {
+  const self = own || run.kind === 'local'
+  // The findings to hand the editor: pending and undecided ones above low
+  // severity that the verifier did not doubt, until the person changes them.
+  const [picks, setPicks] = useState<Record<string, boolean>>({})
+  const pickable = (d: Draft) => self && d.status === 'pending' && !d.decision && !d.fixed_in && !d.thread_id
+  const isPicked = (d: Draft) => pickable(d) && (picks[d.id] ?? (['critical', 'high', 'medium'].includes(d.severity) && (d.override ?? d.confidence)?.level !== 'doubtful'))
   const headState = useHead()
   // A pane opens while its session works, and the person can fold or open
   // any of them.
@@ -178,14 +190,22 @@ function RunView({ run, url, onClose, onPick, onRun }: {
               {unchecked > 0 && ` · ${unchecked} not checked yet`}
             </span>
           )}
-          <span class="muted push">An agent drafts, and nothing is posted until you keep it and submit.</span>
+          <span class="muted push">{self ? 'Your own work: nothing here is posted. Pick findings for the editor, or dismiss them.' : 'An agent drafts, and nothing is posted until you keep it and submit.'}</span>
         </header>
-        <Drafts run={run} onPick={onPick} onRun={onRun} />
+        {self ? (
+          // Nothing here posts: the findings are picked or dismissed.
+          <WriteContext.Provider value={undefined}>
+            <Drafts run={run} onPick={onPick} onRun={onRun}
+              pick={{ isPicked, pickable, set: (d, on) => setPicks({ ...picks, [d.id]: on }) }} />
+          </WriteContext.Provider>
+        ) : (
+          <Drafts run={run} onPick={onPick} onRun={onRun} />
+        )}
       </section>
       <section class="run-section">
-        <header class="run-section-head"><h3>Hand back</h3><span class="muted">the kept findings, as a report or as fixes</span></header>
-        <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />
-        <Editor run={run} url={url} onRun={onRun} />
+        <header class="run-section-head"><h3>{self ? 'Fix' : 'Hand back'}</h3><span class="muted">{self ? 'the findings you picked, on a branch' : 'the kept findings, as a report or as fixes'}</span></header>
+        {!self && <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />}
+        <Editor run={run} url={url} onRun={onRun} picks={self} picked={self ? shownDrafts(run).filter(isPicked) : undefined} />
       </section>
     </div>
   )
@@ -210,7 +230,11 @@ export function sourceLabel(d: Draft, byID: Map<string, Draft>, profile: Map<str
 }
 
 
-function Drafts({ run, onPick, onRun }: { run: Run; onPick: (path: string) => void; onRun: (r: Run) => void }) {
+// Pick is how a review of the person's own work marks findings for the
+// editor.
+interface Pick { isPicked: (d: Draft) => boolean; pickable: (d: Draft) => boolean; set: (d: Draft, on: boolean) => void }
+
+function Drafts({ run, onPick, onRun, pick: picker }: { run: Run; onPick: (path: string) => void; onRun: (r: Run) => void; pick?: Pick }) {
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
   const profile = new Map(run.sessions.map((s) => [s.id, s.profile]))
   const shown = [...shownDrafts(run)].sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity))
@@ -224,7 +248,7 @@ function Drafts({ run, onPick, onRun }: { run: Run; onPick: (path: string) => vo
     <>
       <div class="findings">
         {shown.map((d) => (
-          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)} onRun={onRun}
+          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)} onRun={onRun} picker={picker}
             checking={run.sessions.some((s) => s.role === 'verifier' && (s.status === 'waiting' || s.status === 'working' || s.status === 'preparing'))}
             from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
             sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
@@ -245,34 +269,50 @@ function Drafts({ run, onPick, onRun }: { run: Run; onPick: (path: string) => vo
 }
 
 // Finding is one row of the findings list, opened in place.
-function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, profile }: {
+function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, profile, picker }: {
   draft: Draft; runID: string; onPick?: () => void; onRun: (r: Run) => void; checking: boolean
-  from: string; sources: Draft[]; profile: Map<string, string>
+  from: string; sources: Draft[]; profile: Map<string, string>; picker?: Pick
 }) {
+  const [error, setError] = useState<string>()
+  const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   const mark = d.override ?? d.confidence
   const a = d.anchor
-  const decided = d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? '✗ dropped' : ''
+  const decided = d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : ''
   return (
-    <details class={`finding ${d.decision ?? 'undecided'}`}>
-      <summary>
-        <SeverityBadge severity={d.severity} />
-        {mark ? <ConfidenceBadge c={mark} mine={!!d.override} /> : <span class="badge muted">{checking ? '⧗ checking' : '· not checked'}</span>}
-        <span class="finding-title">{d.title}</span>
-        {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
-        {decided && <span class="badge">{decided}</span>}
-        <HeadBadge state={useHead()} />
-      </summary>
-      <div class="finding-body">
-        <Marks draft={d} runID={runID} onRun={onRun} checking={checking} />
-        <DraftCard draft={d} runID={runID} onPick={onPick} label={from} compact />
-        {sources.length > 1 && (
-          <details class="sources">
-            <summary>What each reviewer wrote: {sources.length}</summary>
-            {sources.map((s) => <DraftCard draft={s} key={s.id} label={`${profile.get(s.session) ?? s.session} reviewer, ${s.id}`} />)}
-          </details>
-        )}
-      </div>
-    </details>
+    <div class="finding-row">
+      {/* Outside the summary, whose click would swallow the checkbox's. */}
+      {picker?.pickable(d) && (
+        <label class="pick" title="Hand this finding to the editor">
+          <input type="checkbox" checked={picker.isPicked(d)} onChange={(e) => picker.set(d, e.currentTarget.checked)} /> fix
+        </label>
+      )}
+      <details class={`finding ${d.decision ?? 'undecided'}`}>
+        <summary>
+          <SeverityBadge severity={d.severity} />
+          {mark ? <ConfidenceBadge c={mark} mine={!!d.override} /> : <span class="badge muted">{checking ? '⧗ checking' : '· not checked'}</span>}
+          <span class="finding-title">{d.title}</span>
+          {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
+          {decided && <span class="badge">{decided}</span>}
+          <HeadBadge state={useHead()} />
+        </summary>
+        <div class="finding-body">
+          <Marks draft={d} runID={runID} onRun={onRun} checking={checking} />
+          {picker?.pickable(d) && (
+            <div class="actions">
+              <button onClick={() => void dismiss()} title="Sets it aside here. Nothing is posted.">Dismiss</button>
+            </div>
+          )}
+          {error && <p class="alert" role="alert">⚠ {error}</p>}
+          <DraftCard draft={d} runID={runID} onPick={onPick} label={from} compact />
+          {sources.length > 1 && (
+            <details class="sources">
+              <summary>What each reviewer wrote: {sources.length}</summary>
+              {sources.map((s) => <DraftCard draft={s} key={s.id} label={`${profile.get(s.session) ?? s.session} reviewer, ${s.id}`} />)}
+            </details>
+          )}
+        </div>
+      </details>
+    </div>
   )
 }
 
@@ -314,14 +354,16 @@ function HandOff({ run, kept }: { run: Run; kept: number }) {
 // they answer (D39, D40). Nothing here touches the forge.
 // On a triage of the person's own change (D41), picked are the thread replies
 // to fix and describe names one; on a review, the kept findings are fixed.
-export function Editor({ run, url, onRun, picked, describe }: {
+export function Editor({ run, url, onRun, picked, describe, picks = false }: {
   run: Run; url: string; onRun: (r: Run) => void; picked?: Draft[]; describe?: (d: Draft) => string
+  picks?: boolean // a review of the person's own work, whose findings they pick (D42)
 }) {
   const [detail, setDetail] = useState<EditorDetail>()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [discarding, setDiscarding] = useState(false)
-  const own = run.mode === 'triage'
+  const threads = run.mode === 'triage'
+  const own = threads || picks || run.kind === 'local'
   const kept = run.drafts.filter((d) => d.decision === 'kept')
   const name = describe ?? ((d: Draft) => d.title)
   const ed = run.editor && !run.editor.discarded ? run.editor : undefined
@@ -345,15 +387,16 @@ export function Editor({ run, url, onRun, picked, describe }: {
       setBusy(false)
     }
   }
-  if ((run.mode && !own) || run.kind === 'local') return null
+  if (run.mode && !threads) return null
   if (!ed) {
     const items = own ? picked ?? [] : kept
-    const why = items.length > 0 ? '' : own ? 'Pick a thread first' : 'Keep a finding first'
+    const what = threads ? 'thread' : 'finding'
+    const why = items.length > 0 ? '' : own ? `Pick a ${what} first` : 'Keep a finding first'
     return (
       <div class="editor-panel">
         <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, own ? { url, items: items.map((d) => d.id) } : { url })}
-          title={why || `An agent fixes ${own ? 'the picked threads' : 'the kept findings'} on a local branch, in a sandbox, with no forge credential. Nothing is pushed.`}>
-          {busy ? '⧗ Starting the editor…' : own ? `⚒ Fix the picked threads in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
+          title={why || `An agent fixes ${own ? `the picked ${what}s` : 'the kept findings'} on a local branch, in a sandbox, with no forge credential. Nothing is pushed.`}>
+          {busy ? '⧗ Starting the editor…' : own ? `⚒ Fix the picked ${what}s in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
         </button>
         {error && <p class="alert" role="alert">⚠ {error}</p>}
       </div>
@@ -449,6 +492,7 @@ function PushBar({ run, url, detail, working, onRun }: {
   const [loading, setLoading] = useState(false)
   const pushed = run.editor?.pushed
   const own = !!run.editor?.own
+  const local = !!run.editor?.local
   const last = detail.commits[detail.commits.length - 1]
   const fresh = !!last && last.sha !== pushed?.sha
   const ask = async () => {
@@ -464,7 +508,10 @@ function PushBar({ run, url, detail, working, onRun }: {
   }
   return (
     <div class="push-bar">
-      {pushed && (own ? (
+      {pushed && local && (
+        <span>✓ The branch <span class="mono">{pushed.branch}</span> is in your repository at <span class="mono">{short(pushed.sha)}</span>. Merge or cherry-pick it: <span class="mono">git merge {pushed.branch}</span></span>
+      )}
+      {pushed && !local && (own ? (
         <span>✓ Pushed to your branch <span class="mono">{pushed.branch}</span> at <span class="mono">{short(pushed.sha)}</span> · the fixed threads' replies cite their commits</span>
       ) : (
         <span>
@@ -472,10 +519,10 @@ function PushBar({ run, url, detail, working, onRun }: {
           {pushed.url ? <> · <a href={pushed.url} target="_blank" rel="noreferrer">the draft merge request</a></> : ' · the merge request did not open; push again to retry'}
         </span>
       ))}
-      {(fresh || (!own && pushed && !pushed.url)) && (
+      {(fresh || (!own && !local && pushed && !pushed.url)) && (
         <button class="primary" disabled={working || loading} onClick={() => void ask()}
           title={working ? 'Wait for the editor to finish' : 'Shows where it goes, and asks first'}>
-          {loading ? '⧗ Reading the merge request…' : pushed ? '⇪ Push the new commits…' : own ? '⇪ Push to your branch…' : '⇪ Push and open a draft merge request…'}
+          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : '⇪ Push and open a draft merge request…'}
         </button>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
@@ -514,9 +561,12 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
   return (
     <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">
-        <h2 id="push-title">{p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : 'Push and open a draft merge request'}</h2>
+        <h2 id="push-title">{p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : 'Push and open a draft merge request'}</h2>
         <ul>
-          {p.own ? <>
+          {p.local ? <>
+            <li>Writes {p.commits} commit{p.commits === 1 ? '' : 's'} as the branch <span class="mono">{p.branch}</span> in your repository.</li>
+            <li>Nothing else changes there: not your checkout, your working tree, HEAD, or any other branch. A branch of that name you hold is never moved, and your hooks do not run.</li>
+          </> : p.own ? <>
             <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your merge request's branch, as you, with your own git access. Fast-forward only.</li>
             <li>Each fixed thread's drafted reply then cites its commit, unless you wrote the reply. Nothing is posted until you add replies and submit.</li>
             <li>Pull the branch into your own checkout afterwards; vuoro does not touch it.</li>
@@ -528,7 +578,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
           {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
           {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : 'the review, so the merge request may need a rebase'}.</li>}
         </ul>
-        {!p.opened && !p.own && (
+        {!p.opened && !p.own && !p.local && (
           <>
             <label class="field">Title <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
             <label class="field">Description <textarea rows={10} value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} /></label>
@@ -537,7 +587,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
         {error && <p class="alert" role="alert">⚠ {error}</p>}
         <div class="actions">
           <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
-          <button class="primary" disabled={busy || (!p.own && !title.trim()) || (p.own && p.moved)} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.own || p.opened ? 'Push' : 'Push and open'}</button>
+          <button class="primary" disabled={busy || (!p.own && !p.local && !title.trim()) || (p.own && p.moved)} onClick={() => void push()}>{busy ? '⧗ Pushing…' : p.local ? 'Write the branch' : p.own || p.opened ? 'Push' : 'Push and open'}</button>
         </div>
       </div>
     </div>
@@ -697,5 +747,23 @@ function Talk({ run, session }: { run: Run; session: Session }) {
         )}
       </form>
     </>
+  )
+}
+
+// LocalRun is a review of a local range, from vuoro review, which has no
+// change page: its findings, and the editor that fixes them (D42).
+export function LocalRun({ id }: { id: string }) {
+  const [run, setRun] = useState<Run>()
+  const [error, setError] = useState<string>()
+  usePoll(id, setRun)
+  if (!run) return <p class="muted">Loading the run…</p>
+  const close = () => void post<Run>(`/api/runs/${run.id}/close`).then(setRun, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+  return (
+    <div class="local-run">
+      <h1>{run.title}</h1>
+      <p class="muted">local commits of {run.ref.project}, <span class="mono">{short(run.base)}..{short(run.head)}</span>, {ago(run.created)}</p>
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+      <RunView run={run} url="" own onClose={close} onPick={() => undefined} onRun={setRun} />
+    </div>
   )
 }

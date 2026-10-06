@@ -95,6 +95,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/editor/discard", a.discardEditor)
 	mux.HandleFunc("POST /api/runs/{id}/editor/stack", a.previewStack)
 	mux.HandleFunc("POST /api/runs/{id}/editor/push", a.pushEditor)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/dismiss", a.dismiss)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
 	a.writeRoutes(mux)
@@ -421,6 +422,16 @@ func (a *App) getRun(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) closeRun(w http.ResponseWriter, r *http.Request) {
 	if err := a.Runs.Close(r.Context(), r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	a.getRun(w, r)
+}
+
+// dismiss sets a finding of the person's own review aside (D42). It is local
+// state, and nothing reaches the forge.
+func (a *App) dismiss(w http.ResponseWriter, r *http.Request) {
+	if err := a.Runs.Decide(r.PathValue("id"), r.PathValue("did"), drafts.Dropped, "", false); err != nil {
 		writeError(w, err)
 		return
 	}

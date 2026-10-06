@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, bindings, post } from './api'
 import { ChangeView } from './change'
+import { LocalRun } from './run'
 import { Inbox } from './inbox'
 import { waive } from './confirm'
 import { changeNumber, type Change, type Run, type Setup } from './types'
@@ -19,6 +20,7 @@ export function App() {
   const [change, setChange] = useState<Change>()
   const [opening, setOpening] = useState(false)
   const [runs, setRuns] = useState<Run[]>([])
+  const [localRun, setLocalRun] = useState<string>()
 
   useEffect(() => {
     // -check loads this page and waits for the report, so it comes first.
@@ -53,7 +55,7 @@ export function App() {
   return (
     <div class="app">
       <header class="bar">
-        <button class="brand link" onClick={() => { setChange(undefined); api<Run[]>('/api/runs').then(setRuns).catch(() => undefined) }}>vuoro</button>
+        <button class="brand link" onClick={() => { setChange(undefined); setLocalRun(undefined); api<Run[]>('/api/runs').then(setRuns).catch(() => undefined) }}>vuoro</button>
         <form class="open" onSubmit={(e) => { e.preventDefault(); void open(url) }}>
           <input
             type="url"
@@ -72,15 +74,17 @@ export function App() {
       <main>
         {change ? (
           <ChangeView change={change} setup={setup} onChange={setChange} onSetup={setSetup} key={`${change.web_url}@${change.diff.head}`} />
+        ) : localRun ? (
+          <LocalRun id={localRun} key={localRun} />
         ) : (
-          <Home setup={setup} onSetup={setSetup} runs={runs} opening={opening} onOpen={(u) => { setURL(u); void open(u) }} />
+          <Home setup={setup} onSetup={setSetup} runs={runs} opening={opening} onOpen={(u) => { setURL(u); void open(u) }} onOpenRun={setLocalRun} />
         )}
       </main>
     </div>
   )
 }
 
-function Home({ setup, onSetup, runs, onOpen, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; opening: boolean }) {
+function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; onOpenRun: (id: string) => void; opening: boolean }) {
   return (
     <div class="home">
       <Inbox onOpen={onOpen} opening={opening} />
@@ -107,14 +111,14 @@ function Home({ setup, onSetup, runs, onOpen, opening }: { setup?: Setup; onSetu
         </ul>
         </details>
       )}
-      <RunList runs={runs} onOpen={onOpen} />
+      <RunList runs={runs} onOpen={onOpen} onOpenRun={onOpenRun} />
     </div>
   )
 }
 
 // RunList is the runs so far. A run of local commits, from vuoro review, has
 // no forge page to open, so it is listed without a link.
-export function RunList({ runs, onOpen }: { runs: Run[]; onOpen: (url: string) => void }) {
+export function RunList({ runs, onOpen, onOpenRun }: { runs: Run[]; onOpen: (url: string) => void; onOpenRun?: (id: string) => void }) {
   if (runs.length === 0) return null
   return (
     <>
@@ -122,7 +126,7 @@ export function RunList({ runs, onOpen }: { runs: Run[]; onOpen: (url: string) =
       <ul class="runs">
         {runs.map((r) => (
           <li key={r.id}>
-            {r.kind === 'local' ? <span>{r.title}</span> : <button class="link" onClick={() => onOpen(r.web_url)}>{r.title}</button>}{' '}
+            {r.kind === 'local' ? (onOpenRun ? <button class="link" onClick={() => onOpenRun(r.id)}>{r.title}</button> : <span>{r.title}</span>) : <button class="link" onClick={() => onOpen(r.web_url)}>{r.title}</button>}{' '}
             <span class="muted">
               {r.kind === 'local' ? `local commits of ${r.ref.project}` : `${r.ref.project}${changeNumber(r.kind, r.ref.number)}`} at {short(r.head)}, {ago(r.created)}, {r.drafts.filter((d) => d.status === 'pending').length} drafts, {usd(r.cost_usd)}
             </span>{' '}

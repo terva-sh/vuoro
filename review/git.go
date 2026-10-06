@@ -288,7 +288,14 @@ func (r *Repos) FetchEditor(ctx context.Context, key, runID, branch, dir string)
 // pushes nothing else, and never forces: a branch that moved on the forge is
 // refused rather than overwritten. sha is the commit the person reviewed,
 // and the push is refused when the ref has moved past it.
-func (r *Repos) PushEditor(ctx context.Context, key, runID, remote, branch, sha string) error {
+//
+// A push into the person's own repository, for a local range (D42), runs
+// their receive-pack with hooks off, so nothing of theirs runs.
+//
+// last is vuoro's own previous push of the branch there, or empty: a local
+// push creates the branch, or moves it from last, and is refused when the
+// branch holds anything else, so a branch of the person's is never moved.
+func (r *Repos) PushEditor(ctx context.Context, key, runID, remote, branch, sha string, local bool, last string) error {
 	gitDir, err := r.gitDir(key)
 	if err != nil {
 		return err
@@ -305,7 +312,12 @@ func (r *Repos) PushEditor(ctx context.Context, key, runID, remote, branch, sha 
 	if strings.TrimSpace(got) != sha {
 		return fmt.Errorf("review: the editor committed again after %s; look at its work again before pushing", short(sha))
 	}
-	_, err = r.git(ctx, gitDir, "push", "--quiet", "--no-verify", remote, sha+":refs/heads/"+branch)
+	args := []string{"push", "--quiet", "--no-verify"}
+	if local {
+		args = append(args, "--receive-pack=git -c core.hooksPath="+os.DevNull+" -c core.fsmonitor=false receive-pack",
+			"--force-with-lease=refs/heads/"+branch+":"+last)
+	}
+	_, err = r.git(ctx, gitDir, append(args, remote, sha+":refs/heads/"+branch)...)
 	return err
 }
 

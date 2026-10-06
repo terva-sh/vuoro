@@ -741,6 +741,19 @@ thread a pushed commit names then has its reply cite the commit, unless the
 person wrote the reply, and the agent can no longer revise it. Nothing is
 resolved, and replies stay local until the person adds and submits them.
 
+**Fixing the person's own work from its review** (D42). A review of the
+person's own merge request, or of a local range from `vuoro review`, posts
+nothing: Keep is refused there, and each finding is picked for the editor,
+or dismissed locally. Findings above low severity that the verifier did not
+doubt are picked by default. On a merge request, the fixes push to its
+branch as D41's do. On a local range, which now opens on its own page, they
+become a new branch `vuoro/fix-<run>` in the person's repository: vuoro
+writes that one ref with `--force-with-lease` against an empty value or its
+own last push, so a branch the person holds is never moved, runs their
+receive-pack with hooks off, and touches nothing else there. A local run
+records its checkout for this; runs from before that cannot be fixed and
+are reviewed again.
+
 ### 6.4 Other actions
 
 Summarising a change, summarising what changed since my last review, and the

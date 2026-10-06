@@ -201,6 +201,16 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 		t.Fatalf("the agent's run wrote to the forge: %q", w)
 	}
 
+	// On the person's own change, a review posts nothing (D42).
+	a.Config.Forges[0].Username = "unstable-code"
+	if code, out := call(t, h, fmt.Sprintf("/api/runs/%s/drafts/d1/keep", run.ID), map[string]any{"url": mrURL}); code == 200 || !strings.Contains(fmt.Sprint(out["error"]), "your own change") {
+		t.Fatalf("a finding was kept on the person's own change: %d %v", code, out)
+	}
+	a.Config.Forges[0].Username = "me"
+	if len(g.seen()) != 0 {
+		t.Fatalf("a refused keep wrote %q", g.seen())
+	}
+
 	// The person keeps one, twice in quick succession, and it becomes one
 	// pending draft note of theirs.
 	g.mu.Lock()

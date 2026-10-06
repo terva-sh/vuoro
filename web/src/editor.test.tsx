@@ -3,7 +3,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, post } from './api'
-import { Editor, PushDialog } from './run'
+import { Editor, PushDialog, RunView } from './run'
 import type { Draft, Run, Session } from './types'
 
 const draft = (id: string, decision?: 'kept' | 'dropped') =>
@@ -83,5 +83,23 @@ describe('Editor', () => {
     expect(b.textContent).toContain('Fix the picked threads in a branch (1)')
     await act(async () => b.click())
     expect(post).toHaveBeenCalledWith('/api/runs/r1/editor', { url: 'u', items: ['d2'] })
+  })
+
+  it('on the person\'s own review, picks findings for the editor and posts nothing', async () => {
+    vi.mocked(api).mockResolvedValue({})
+    vi.mocked(post).mockResolvedValue(run())
+    const low = { ...draft('d3'), severity: 'low' } as Draft
+    const own = run({ drafts: [draft('d1'), draft('d2'), low] })
+    const root = document.createElement('div')
+    act(() => render(<RunView run={own} url="u" own onClose={() => {}} onPick={() => {}} onRun={() => {}} />, root))
+    expect(root.textContent).not.toContain('Keep')
+    expect(root.textContent).not.toContain('Copy the hand-off report')
+    const boxes = [...root.querySelectorAll<HTMLInputElement>('.finding-row > .pick input')]
+    expect(boxes.map((b) => b.checked)).toEqual([true, true, false]) // low is not picked by default
+    act(() => { boxes[1].checked = false; boxes[1].dispatchEvent(new Event('change', { bubbles: true })) })
+    const start = [...root.querySelectorAll('button')].find((b) => b.textContent!.includes('Fix the picked findings'))!
+    expect(start.textContent).toContain('(1)')
+    await act(async () => start.click())
+    expect(post).toHaveBeenCalledWith('/api/runs/r1/editor', { url: 'u', items: ['d1'] })
   })
 })

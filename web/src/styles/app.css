@@ -209,8 +209,12 @@ main { padding: var(--ui-space-4); }
 .run-section .session-strip { margin-bottom: 0; }
 .run-section .sessions { margin-top: var(--ui-space-3); }
 .editor-panel { border-top: 1px dashed var(--ui-line); padding-top: var(--ui-space-3); }
-.author-thread-heading .pick { display: inline-flex; gap: 4px; align-items: center; margin-right: var(--ui-space-2); color: var(--ui-muted); font-size: var(--ui-fs-note); }
+.finding-row { display: flex; gap: var(--ui-space-2); align-items: flex-start; }
+.finding-row > .finding { flex: 1; min-width: 0; }
+.finding-row > .pick { padding-top: 6px; }
+.finding-row > .pick, .author-thread-heading .pick { display: inline-flex; gap: 4px; align-items: center; margin-right: var(--ui-space-2); color: var(--ui-muted); font-size: var(--ui-fs-note); }
 .author-editor { margin-top: var(--ui-space-3); }
+.local-run h1 { margin: var(--ui-space-3) 0 var(--ui-space-1); font-size: var(--ui-fs-title, 1.25rem); color: var(--ui-heading); }
 .editor-diff-head { margin: var(--ui-space-3) 0 var(--ui-space-2); font-size: var(--ui-fs-detail); color: var(--ui-heading); }
 .findings { display: flex; flex-direction: column; gap: var(--ui-space-1); }
 .finding { border: 1px solid var(--ui-line); border-left: 3px solid var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-surface); }
