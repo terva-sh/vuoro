@@ -109,6 +109,9 @@ type Run struct {
 	origin         string   // a local range's checkout, where its fixes go (D42)
 }
 
+// Origin is a local range's checkout, or empty for a forge change's run.
+func (r *Run) Origin() string { return r.origin }
+
 // Session is one agent session in a run.
 type Session struct {
 	ID            string

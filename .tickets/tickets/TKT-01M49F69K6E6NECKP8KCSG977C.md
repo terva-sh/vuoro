@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M49F69K6E6NECKP8KCSG977C
 title: Split the home page into Reviews and Local tabs
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T20:41:27Z
-updated_at: 2026-10-06T20:41:27Z
+updated_at: 2026-10-06T20:54:03Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""

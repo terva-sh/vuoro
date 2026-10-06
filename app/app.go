@@ -68,6 +68,7 @@ type App struct {
 	inboxReady   bool
 	inboxService *inbox.Service
 	inboxErr     error
+	local        localState
 }
 
 type probe struct {
@@ -83,6 +84,7 @@ type probe struct {
 func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	a.setupRoutes(mux)
+	a.localRoutes(mux)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)

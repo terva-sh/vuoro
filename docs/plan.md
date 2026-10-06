@@ -109,6 +109,7 @@ colour is never the only signal.
 | `app` | The API under `/api/`: opening changes and driving review runs. The server mounts it behind the guard. |
 | `agent` | The driver interface and normalised events (section 6). `agent/terva` and `agent/claude` are the drivers, and they are the only code that knows a tool's protocol. |
 | `review` | Review runs: worktrees, profiles, finding validation, and the drafts channel the agent writes through (`review/drafts`). |
+| `local` | The Local tab's reading of the person's checkouts: added projects and scan roots, each project's branches beyond its base, and its worktrees (section 6.8). It reads only, and imports no forge, agent, review runner, API, or network. |
 | `tickets` | The optional git-ticket integration (section 7). The only package that imports git-ticket. |
 | `web` | Frontend source and the committed `web/dist`. |
 

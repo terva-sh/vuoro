@@ -43,6 +43,19 @@ func TestBoundaries(t *testing.T) {
 			t.Errorf("the agent or review packages depend on %s", d)
 		}
 	}
+	// Reading the person's checkouts for the Local tab is plain reading: it
+	// reaches no forge, agent, review runner, API, or network.
+	localDeps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./local/...").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range strings.Fields(string(localDeps)) {
+		for _, banned := range []string{mod + "forge", mod + "agent", mod + "review", mod + "app", mod + "server", "net/http"} {
+			if d == banned || strings.HasPrefix(d, banned+"/") {
+				t.Errorf("local depends on %s", d)
+			}
+		}
+	}
 	all, err := exec.Command("go", "list", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./...").Output()
 	if err != nil {
 		t.Fatal(err)
