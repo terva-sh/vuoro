@@ -199,3 +199,78 @@ func TestABaseIsChosenOrFoundOrSaidToBeMissing(t *testing.T) {
 		t.Fatal("a folder with no checkout was read as a project")
 	}
 }
+
+func TestARemoteURLIsReadAsAHostAndAProjectPath(t *testing.T) {
+	for raw, want := range map[string]string{
+		"git@gitlab.com:group/sub/proj.git":             "gitlab.com group/sub/proj",
+		"ssh://git@Git.Example:2222/group/proj.git":     "git.example group/proj",
+		"https://github.com/owner/repo":                 "github.com owner/repo",
+		"https://oauth2:secret@gitlab.example/g/p.git/": "gitlab.example g/p",
+		"gitlab.example:g/p":                            "gitlab.example g/p",
+		"/srv/git/proj.git":                             "",
+		"file:///srv/git/proj.git":                      "",
+		"../sibling":                                    "",
+		"https://gitlab.example/":                       "",
+		"https://gitlab.example/g/../../etc":            "",
+	} {
+		host, path, ok := ParseRemoteURL(raw)
+		got := ""
+		if ok {
+			got = host + " " + path
+		}
+		if got != want {
+			t.Errorf("ParseRemoteURL(%q) = %q, want %q", raw, got, want)
+		}
+		if strings.Contains(got, "secret") {
+			t.Errorf("a credential survived parsing: %q", got)
+		}
+	}
+}
+
+func TestAProjectReadsItsRemotesAndEachBranchsUpstream(t *testing.T) {
+	ctx := context.Background()
+	dir := filepath.Join(t.TempDir(), "proj")
+	git := repo(t, dir)
+	git("remote", "add", "origin", "git@gitlab.example:group/proj.git")
+	git("remote", "add", "mirror", "/srv/elsewhere.git")
+	git("switch", "-q", "-c", "feature")
+	git("commit", "-q", "--allow-empty", "-m", "one")
+	git("update-ref", "refs/remotes/origin/feature-mr", "HEAD")
+	git("branch", "--set-upstream-to=origin/feature-mr")
+	pushed := git("rev-parse", "HEAD")
+	git("commit", "-q", "--allow-empty", "-m", "two")
+	git("switch", "-q", "-c", "loose", "main")
+	git("commit", "-q", "--allow-empty", "-m", "loose")
+
+	p, err := Inspect(ctx, "", dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Remotes) != 1 || p.Remotes[0] != (Remote{Name: "origin", Host: "gitlab.example", Path: "group/proj"}) {
+		t.Fatalf("remotes %+v; a path on disk names no forge project", p.Remotes)
+	}
+	if p.Remote("origin") == nil || p.Remote("mirror") != nil {
+		t.Fatal("Remote finds only the remotes kept")
+	}
+	for _, b := range p.Branches {
+		switch b.Name {
+		case "feature":
+			if b.UpstreamRemote != "origin" || b.UpstreamBranch != "feature-mr" {
+				t.Errorf("feature's upstream: %+v", b)
+			}
+			if ahead, behind, known := p.Compare(ctx, b.Tip, pushed); !known || ahead != 1 || behind != 0 {
+				t.Errorf("Compare(feature, pushed) = %d, %d, %v", ahead, behind, known)
+			}
+		case "loose":
+			if b.UpstreamRemote != "" || b.UpstreamBranch != "" {
+				t.Errorf("loose has no upstream: %+v", b)
+			}
+		}
+	}
+	if _, _, known := p.Compare(ctx, pushed, strings.Repeat("ab", 20)); known {
+		t.Fatal("a commit the checkout lacks was compared")
+	}
+	if _, _, known := p.Compare(ctx, pushed, "--all"); known {
+		t.Fatal("an option was taken as a commit")
+	}
+}

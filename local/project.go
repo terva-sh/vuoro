@@ -35,6 +35,10 @@ type Branch struct {
 	Ahead     int       `json:"ahead"`
 	Committed time.Time `json:"committed"`
 	Worktrees []string  `json:"worktrees"` // the paths it is checked out in
+	// UpstreamRemote and UpstreamBranch are the branch's upstream, as a remote
+	// and a branch name on it, both empty when it has none.
+	UpstreamRemote string `json:"upstream_remote,omitempty"`
+	UpstreamBranch string `json:"upstream_branch,omitempty"`
 }
 
 // Project is one repository, however many checkouts it has.
@@ -47,6 +51,8 @@ type Project struct {
 	Base      string     `json:"base,omitempty"`
 	Worktrees []Worktree `json:"worktrees"`
 	Branches  []Branch   `json:"branches"`
+	// Remotes are the remotes that name a forge project.
+	Remotes []Remote `json:"remotes"`
 	// Fixes are vuoro's own branches in the repository, by name, with
 	// their tips.
 	Fixes map[string]string `json:"-"`
@@ -66,7 +72,7 @@ func Inspect(ctx context.Context, gitBin, path, base string) (*Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("local: %s is not a git checkout", path)
 	}
-	p := &Project{Key: filepath.Clean(strings.TrimSpace(out)), Worktrees: []Worktree{}, Branches: []Branch{}, Fixes: map[string]string{}}
+	p := &Project{Key: filepath.Clean(strings.TrimSpace(out)), Worktrees: []Worktree{}, Branches: []Branch{}, Remotes: []Remote{}, Fixes: map[string]string{}}
 	if out, err = g.Run(ctx, "worktree", "list", "--porcelain"); err != nil {
 		return nil, err
 	}
@@ -78,6 +84,7 @@ func Inspect(ctx context.Context, gitBin, path, base string) (*Project, error) {
 	}
 	p.git = Git{Bin: gitBin, Dir: p.Path}
 	p.Name = filepath.Base(p.Path)
+	p.readRemotes(ctx)
 	for i := range p.Worktrees {
 		w := &p.Worktrees[i]
 		st, err := Git{Bin: gitBin, Dir: w.Path}.Run(ctx, "status", "--porcelain", "--untracked-files=no")
@@ -169,6 +176,7 @@ func (p *Project) readBranches(ctx context.Context) error {
 	}
 	// git 2.41 and later count every branch's commits beyond the base in the
 	// same call. An older git counts them one branch at a time below.
+	format += "%00%(upstream:remotename)%00%(upstream:remoteref)"
 	counted := true
 	out, err = p.git.Run(ctx, "for-each-ref", "--no-merged="+p.Base, format+"%00%(ahead-behind:"+p.Base+")", "refs/heads/")
 	if err != nil {
@@ -185,7 +193,7 @@ func (p *Project) readBranches(ctx context.Context) error {
 	}
 	for _, l := range lines(out) {
 		f := strings.Split(l, "\x00")
-		if len(f) < 3 || strings.HasPrefix(f[0], FixPrefix) {
+		if len(f) < 5 || strings.HasPrefix(f[0], FixPrefix) {
 			continue
 		}
 		sec, _ := strconv.ParseInt(f[2], 10, 64)
@@ -194,8 +202,12 @@ func (p *Project) readBranches(ctx context.Context) error {
 			wt = []string{}
 		}
 		b := Branch{Name: f[0], Tip: f[1], Committed: time.Unix(sec, 0).UTC(), Worktrees: wt, Ahead: -1}
-		if counted && len(f) == 4 {
-			if ab := strings.Fields(f[3]); len(ab) == 2 {
+		// A branch whose upstream is another local branch has the remote ".".
+		if f[3] != "" && f[3] != "." {
+			b.UpstreamRemote, b.UpstreamBranch = f[3], strings.TrimPrefix(f[4], "refs/heads/")
+		}
+		if counted && len(f) == 6 {
+			if ab := strings.Fields(f[5]); len(ab) == 2 {
 				b.Ahead, _ = strconv.Atoi(ab[0])
 			}
 		}

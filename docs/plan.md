@@ -1135,7 +1135,9 @@ branches apart from the ones that need nothing.
 read as a host and a project path, and each branch's upstream as a remote and
 a branch on it. A branch is tied to an open change when the change's host and
 project are one of the checkout's remotes and its source branch is the
-branch's upstream there, or the branch's own name when it has none. The
+branch's upstream branch, on a remote of the same host, or the branch's own
+name when it has none. The upstream's remote may be a fork of the change's
+project, since a change from a fork names the project it goes into. The
 changes come from the inbox's cache (section 4), so the tie costs no forge
 call, and it finds every change the person authors, reviews, is assigned, or
 takes part in. A change outside that set, such as someone else's branch

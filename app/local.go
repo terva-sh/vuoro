@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/local"
 	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/review/drafts"
@@ -72,6 +73,9 @@ type localBranch struct {
 	local.Branch
 	Run   *branchRun  `json:"run,omitempty"`
 	Fixes []fixBranch `json:"fixes"`
+	// Change is the open change the branch is pushed to, from the inbox's
+	// cache (D49).
+	Change *tiedChange `json:"change,omitempty"`
 	// Needs are why the branch needs the person, empty when it does not.
 	Needs []string `json:"needs"`
 	// Quiet says the branch has had no commit for quietAfter. Not being
@@ -87,6 +91,22 @@ type branchRun struct {
 	Created   time.Time     `json:"created"`
 	Moved     bool          `json:"moved"`     // the branch has commits since
 	Undecided int           `json:"undecided"` // findings not yet picked, dismissed, or fixed
+}
+
+// tiedChange is a branch's open change, and how the branch stands against
+// the change's head.
+type tiedChange struct {
+	Ref    forge.Ref `json:"ref"`
+	Kind   string    `json:"kind"`
+	Title  string    `json:"title"`
+	WebURL string    `json:"web_url"`
+	Head   string    `json:"head"`
+	Draft  bool      `json:"draft"`
+	// Standing is in-step, ahead, behind, diverged, or unfetched when the
+	// checkout lacks the change's head.
+	Standing string `json:"standing"`
+	Ahead    int    `json:"ahead"`  // commits on the branch the change lacks: not pushed
+	Behind   int    `json:"behind"` // commits in the change the branch lacks
 }
 
 // fixBranch is an editor's branch for this one, and whether it waits to be
@@ -366,9 +386,10 @@ func (a *App) buildLocal(ctx context.Context, s local.Store, rescan bool) (*loca
 		order = append(order, rd.p.Key)
 	}
 	runs := localRuns(a.Runs)
+	changes := a.openChanges()
 	for _, key := range order {
 		lp := byKey[key]
-		lp.Branches = a.matchRuns(ctx, lp.Project, runs)
+		lp.Branches = a.matchRuns(ctx, lp.Project, runs, changes)
 		if slices.Contains(s.Hidden, key) {
 			v.Hidden = append(v.Hidden, *lp)
 			continue
@@ -435,7 +456,7 @@ func localRuns(m *review.Manager) []localRun {
 // and not in the base's. A branch with none has never been reviewed. A quiet
 // branch needs the person only for what they left open in vuoro: undecided
 // findings and a fix branch to merge, which each clear when they act.
-func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun) []localBranch {
+func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun, changes []forge.Change) []localBranch {
 	out := make([]localBranch, 0, len(p.Branches))
 	names := make([]string, 0, len(p.Branches))
 	for _, b := range p.Branches {
@@ -479,8 +500,15 @@ func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun) 
 	for i := range out {
 		b := &out[i]
 		b.Quiet = time.Since(b.Committed) > quietAfter
+		b.Change = tieChange(ctx, p, b.Branch, changes)
 		switch {
 		case b.Quiet:
+		case b.Change != nil:
+			// The change's review is the Reviews tab's to count. Local counts
+			// only what the change does not hold.
+			if b.Change.Ahead > 0 {
+				b.Needs = append(b.Needs, fmt.Sprintf("%d commit%s not pushed to %s", b.Change.Ahead, plural(b.Change.Ahead), changeLabel(b.Change.Kind, b.Change.Ref.Number)))
+			}
 		case b.Run == nil:
 			b.Needs = append(b.Needs, "never reviewed")
 		case b.Run.Moved:
@@ -496,6 +524,92 @@ func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun) 
 		}
 	}
 	return out
+}
+
+// openChanges are the open changes in the inbox's cache, newest first.
+// Reading them costs no forge call, and an inbox that cannot load ties
+// nothing.
+func (a *App) openChanges() []forge.Change {
+	s, err := a.inbox()
+	if err != nil || s == nil {
+		return nil
+	}
+	var out []forge.Change
+	for _, acc := range s.Snapshot().Accounts {
+		for _, it := range acc.Items {
+			c := it.Change
+			if it.Unread || c.SourceBranch == "" || (c.State != "" && c.State != forge.Open) {
+				continue
+			}
+			if c.Kind == "" {
+				c.Kind = acc.Kind
+			}
+			out = append(out, c)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
+	return out
+}
+
+// tieChange finds b's open change among changes (D49): one whose project is
+// one of the checkout's remotes, and whose source branch is b's upstream
+// branch on a remote of the same host, or b's own name when it has no
+// upstream. Matching the project against every remote ties a branch pushed
+// to a fork to its change in the project the fork came from.
+func tieChange(ctx context.Context, p *local.Project, b local.Branch, changes []forge.Change) *tiedChange {
+	source, host := b.Name, ""
+	if b.UpstreamRemote != "" {
+		r := p.Remote(b.UpstreamRemote)
+		if r == nil {
+			return nil // pushed somewhere that names no forge project
+		}
+		source, host = b.UpstreamBranch, r.Host
+	}
+	for _, c := range changes {
+		if c.SourceBranch != source || (host != "" && hostname(c.Ref.Host) != host) {
+			continue
+		}
+		for _, r := range p.Remotes {
+			if hostname(c.Ref.Host) != r.Host || !strings.EqualFold(c.Ref.Project, r.Path) {
+				continue
+			}
+			t := &tiedChange{Ref: c.Ref, Kind: c.Kind, Title: c.Title, WebURL: c.WebURL, Head: c.Diff.Head, Draft: c.Draft}
+			ahead, behind, known := 0, 0, c.Diff.Head == b.Tip
+			if !known {
+				ahead, behind, known = p.Compare(ctx, b.Tip, c.Diff.Head)
+			}
+			switch {
+			case !known:
+				t.Standing = "unfetched"
+			case ahead > 0 && behind > 0:
+				t.Standing, t.Ahead, t.Behind = "diverged", ahead, behind
+			case ahead > 0:
+				t.Standing, t.Ahead = "ahead", ahead
+			case behind > 0:
+				t.Standing, t.Behind = "behind", behind
+			default:
+				t.Standing = "in-step"
+			}
+			return t
+		}
+	}
+	return nil
+}
+
+// hostname is a forge host without its port, in lower case, as a remote's.
+func hostname(host string) string {
+	if h, _, ok := strings.Cut(host, ":"); ok {
+		host = h
+	}
+	return strings.ToLower(host)
+}
+
+// changeLabel is a change's number as its forge writes it: !2 or #2.
+func changeLabel(kind string, n int) string {
+	if kind == forge.Forgejo {
+		return fmt.Sprintf("#%d", n)
+	}
+	return fmt.Sprintf("!%d", n)
 }
 
 // sameDir says whether path names one of the checkouts, however each is

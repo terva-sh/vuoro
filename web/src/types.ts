@@ -120,8 +120,16 @@ export type HomeTab = '' | 'reviews' | 'local'
 
 // The Local tab: the person's checkouts, one row per branch beyond its base.
 export interface LocalWorktree { path: string; branch?: string; head: string; dirty: boolean }
+// LocalChange is the open change a local branch is pushed to (D49), and how
+// the branch stands against its head.
+export interface LocalChange {
+  ref: Ref; kind: string; title: string; web_url: string; head: string; draft: boolean
+  standing: 'in-step' | 'ahead' | 'behind' | 'diverged' | 'unfetched'; ahead: number; behind: number
+}
 export interface LocalBranch {
   name: string; tip: string; ahead: number; committed: string; worktrees: string[]
+  upstream_remote?: string; upstream_branch?: string
+  change?: LocalChange
   run?: { id: string; status: Status; head: string; created: string; moved: boolean; undecided: number }
   fixes: { branch: string; waiting: boolean }[]
   needs: string[] // why it needs the person, empty when it does not
@@ -129,6 +137,7 @@ export interface LocalBranch {
 }
 export interface LocalProject {
   key: string; name: string; path: string; base?: string; error?: string
+  remotes: { name: string; host: string; path: string }[]
   worktrees: LocalWorktree[]; branches: LocalBranch[]; added: boolean; base_chosen: boolean
 }
 export interface LocalView {

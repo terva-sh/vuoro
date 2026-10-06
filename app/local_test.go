@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/terva-sh/vuoro/config"
+	"github.com/terva-sh/vuoro/forge"
+	"github.com/terva-sh/vuoro/inbox"
 	"github.com/terva-sh/vuoro/review"
+	"github.com/terva-sh/vuoro/state"
 )
 
 // checkout is a repository at dir on main, with a helper to run git in it.
@@ -285,5 +291,81 @@ func TestAQuietBranchCountsOnlyForWhatThePersonLeftOpen(t *testing.T) {
 	}
 	if v.Needs != 2 {
 		t.Fatalf("needs %d, want fresh and left-open", v.Needs)
+	}
+}
+
+// cacheInbox writes items as the inbox's cache for one GitLab account, and
+// answers the config that names it.
+func cacheInbox(t *testing.T, stateDir string, items []inbox.Item) *config.Config {
+	t.Helper()
+	sum := sha256.Sum256([]byte("gitlab\x00gitlab.example\x00me"))
+	key := hex.EncodeToString(sum[:])
+	snap := inbox.AccountSnapshot{Key: key, Name: "Work", Kind: "gitlab", Host: "gitlab.example", Username: "me", Items: items}
+	if err := state.WriteJSON(filepath.Join(stateDir, "cache", "inbox", key+".json"), snap); err != nil {
+		t.Fatal(err)
+	}
+	return &config.Config{Forges: []config.Forge{{Name: "Work", Kind: "gitlab", URL: "https://gitlab.example", Username: "me"}}}
+}
+
+func TestABranchIsTiedToItsOpenChangeFromTheInboxCache(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "proj")
+	git := checkout(t, dir)
+	git("remote", "add", "origin", "git@gitlab.example:group/proj.git")
+	// pushed is in step with !2; ahead has a commit !3 lacks; local has no
+	// upstream but its name is !4's source branch; other's change is in
+	// another project.
+	git("switch", "-q", "-c", "pushed")
+	git("commit", "-q", "--allow-empty", "-m", "one")
+	pushed := git("rev-parse", "HEAD")
+	git("update-ref", "refs/remotes/origin/pushed", pushed)
+	git("branch", "--set-upstream-to=origin/pushed")
+	git("switch", "-q", "-c", "ahead")
+	git("update-ref", "refs/remotes/origin/ahead-mr", pushed)
+	git("branch", "--set-upstream-to=origin/ahead-mr")
+	git("commit", "-q", "--allow-empty", "-m", "not pushed")
+	git("commit", "-q", "--allow-empty", "-m", "not pushed either")
+	git("switch", "-q", "-c", "local", "main")
+	git("commit", "-q", "--allow-empty", "-m", "local")
+	git("switch", "-q", "-c", "other", "main")
+	git("commit", "-q", "--allow-empty", "-m", "other")
+	git("switch", "-q", "main")
+
+	change := func(n int, source, head, project string, state forge.State) inbox.Item {
+		return inbox.Item{Change: forge.Change{Kind: "gitlab", Ref: forge.Ref{Host: "gitlab.example", Project: project, Number: n},
+			Title: source, WebURL: "https://gitlab.example/" + project + "/-/merge_requests/" + source, SourceBranch: source,
+			TargetBranch: "main", Diff: forge.DiffRefs{Head: head}, State: state}, Roles: []forge.Role{forge.AuthorRole}}
+	}
+	stateDir := t.TempDir()
+	cfg := cacheInbox(t, stateDir, []inbox.Item{
+		change(2, "pushed", pushed, "group/proj", forge.Open),
+		change(3, "ahead-mr", pushed, "Group/Proj", forge.Open),
+		change(4, "local", "0123456789abcdef0123456789abcdef01234567", "group/proj", forge.Open),
+		change(5, "other", pushed, "group/elsewhere", forge.Open),
+		change(6, "ahead", pushed, "group/proj", forge.Merged),
+	})
+	_, v, msg := postLocal(t, (&App{StateDir: stateDir, Config: cfg}).Handler(), "/api/local/projects", map[string]any{"path": dir})
+
+	p := branchNamed(v, "proj", "pushed")
+	if p == nil || p.Change == nil || p.Change.Ref.Number != 2 || p.Change.Standing != "in-step" || len(p.Needs) != 0 {
+		t.Fatalf("pushed: %+v %s", p, msg)
+	}
+	a := branchNamed(v, "proj", "ahead")
+	if a == nil || a.Change == nil || a.Change.Ref.Number != 3 || a.Change.Standing != "ahead" || a.Change.Ahead != 2 {
+		t.Fatalf("ahead: %+v", a)
+	}
+	if strings.Join(a.Needs, "|") != "2 commits not pushed to !3" {
+		t.Fatalf("ahead needs %q", a.Needs)
+	}
+	l := branchNamed(v, "proj", "local")
+	if l == nil || l.Change == nil || l.Change.Ref.Number != 4 || l.Change.Standing != "unfetched" || len(l.Needs) != 0 {
+		t.Fatalf("local: %+v", l)
+	}
+	if o := branchNamed(v, "proj", "other"); o == nil || o.Change != nil || strings.Join(o.Needs, "|") != "never reviewed" {
+		t.Fatalf("other was tied to a change in another project: %+v", o)
+	}
+	// Of the tied branches only ahead counts, for its unpushed commits;
+	// other is not tied, so it counts as never reviewed.
+	if v.Needs != 2 {
+		t.Fatalf("needs %d, want ahead and other", v.Needs)
 	}
 }

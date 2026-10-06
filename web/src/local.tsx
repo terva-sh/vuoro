@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { useAction } from './action'
 import { api, bindings, post } from './api'
-import type { LocalProject, LocalView } from './types'
+import { changeNumber, type LocalChange, type LocalProject, type LocalView } from './types'
 import { ago } from './ui'
 
 type Adding = 'project' | 'root'
@@ -15,7 +15,7 @@ const adding: Record<Adding, { title: string; route: string }> = {
 // LocalTab reads the local view, which reads every checkout, when it is
 // first shown. onCount hears how many branches need the person each time
 // the view is read. Every edit answers with the view, read again.
-export function LocalTab({ onCount }: { onCount?: (n: number) => void }) {
+export function LocalTab({ onCount, onOpen }: { onCount?: (n: number) => void; onOpen?: (url: string) => void }) {
   const [view, setView] = useState<LocalView>()
   const [typing, setTyping] = useState<Adding>()
   const read = useAction()
@@ -72,7 +72,7 @@ export function LocalTab({ onCount }: { onCount?: (n: number) => void }) {
           ) : null}
           {view.stopped && <p class="muted">⚠ {view.stopped}; some checkouts may be missing.</p>}
           {view.projects.map((p) => (
-            <Project project={p} quietDays={view.quiet_days} busy={read.busy} key={p.key}
+            <Project project={p} quietDays={view.quiet_days} busy={read.busy} key={p.key} onOpen={onOpen}
               onHide={() => void edit('/api/local/hide', { key: p.key, hidden: true })} />
           ))}
           {!none && <Folders view={view} busy={read.busy} onEdit={(path, body) => void edit(path, body)} />}
@@ -135,14 +135,41 @@ function Folders({ view, busy, onEdit }: { view: LocalView; busy: boolean; onEdi
   )
 }
 
-function Project({ project: p, quietDays, busy, onHide }: { project: LocalProject; quietDays: number; busy: boolean; onHide: () => void }) {
-  const needing = p.branches.filter((b) => b.needs.length > 0)
-  const quiet = p.branches.filter((b) => b.quiet && b.needs.length === 0).length
-  const done = p.branches.length - needing.length - quiet
+// standing says how a branch stands against its change's head.
+export function standing(c: LocalChange): string {
+  switch (c.standing) {
+    case 'in-step': return 'in step'
+    case 'ahead': return `${c.ahead} not pushed`
+    case 'behind': return `${c.behind} behind`
+    case 'diverged': return `${c.ahead} not pushed, ${c.behind} behind`
+    default: return 'has commits not fetched here'
+  }
+}
+
+// ChangeLink names a branch's open change, and opens its page as the inbox
+// does.
+export function ChangeLink({ change: c, onOpen }: { change: LocalChange; onOpen?: (url: string) => void }) {
+  const name = `${changeNumber(c.kind, c.ref.number)} ${c.draft ? 'draft' : 'open'}`
+  return (
+    <span class="local-change">
+      {onOpen ? <button class="link" title={c.title} onClick={() => onOpen(c.web_url)}>{name}</button> : <span title={c.title}>{name}</span>}
+      {' '}<span class="muted">{standing(c)}</span>
+    </span>
+  )
+}
+
+function Project({ project: p, quietDays, busy, onHide, onOpen }: {
+  project: LocalProject; quietDays: number; busy: boolean; onHide: () => void; onOpen?: (url: string) => void
+}) {
+  const needing = p.branches.filter((b) => b.needs.length > 0).length
+  // A branch shows when it needs the person or has a change to open.
+  const shown = p.branches.filter((b) => b.needs.length > 0 || b.change)
+  const quiet = p.branches.filter((b) => b.quiet && b.needs.length === 0 && !b.change).length
+  const done = p.branches.length - shown.length - quiet
   return (
     <section class="local-project" aria-label={p.name}>
       <h3>
-        {p.name} <span class="badge">{needing.length}</span>{' '}
+        {p.name} <span class="badge">{needing}</span>{' '}
         <span class="muted">{p.path}{p.base && ` · against ${p.base}`}</span>{' '}
         <button class="link" disabled={busy} onClick={onHide}>Hide</button>
       </h3>
@@ -150,9 +177,11 @@ function Project({ project: p, quietDays, busy, onHide }: { project: LocalProjec
         <p class="muted">⚠ {p.error}</p>
       ) : (
         <ul class="local-branches">
-          {needing.map((b) => (
+          {shown.map((b) => (
             <li key={b.name}>
-              <code>{b.name}</code> <span class="muted">{b.ahead} ahead · {ago(b.committed)}</span> — {b.needs.join('; ')}
+              <code>{b.name}</code> <span class="muted">{b.ahead} ahead · {ago(b.committed)}</span>
+              {b.change && <> · <ChangeLink change={b.change} onOpen={onOpen} /></>}
+              {b.needs.length > 0 && <> — {b.needs.join('; ')}</>}
             </li>
           ))}
           {done > 0 && <li class="muted">{done === 1 ? '1 more branch needs' : `${done} more branches need`} nothing</li>}

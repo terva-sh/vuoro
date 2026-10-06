@@ -3,8 +3,8 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, bindings, post, type Bindings } from './api'
-import { LocalTab } from './local'
-import type { LocalBranch, LocalView } from './types'
+import { LocalTab, standing } from './local'
+import type { LocalBranch, LocalChange, LocalView } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn(), bindings: vi.fn() }))
 const root = document.createElement('div')
@@ -15,7 +15,7 @@ const button = (name: string) => [...root.querySelectorAll('button')].find((b) =
 const empty = (over: Partial<LocalView> = {}): LocalView => ({
   roots: [], added: [], scanned: '', built: new Date().toISOString(), hidden: [], unreadable: [], needs: 0, quiet_days: 14, projects: [], ...over,
 })
-const project = (key: string, name: string) => ({ key, name, path: `/w/${name}`, base: 'main', added: true, base_chosen: false, worktrees: [], branches: [] })
+const project = (key: string, name: string) => ({ key, name, path: `/w/${name}`, base: 'main', added: true, base_chosen: false, remotes: [], worktrees: [], branches: [] })
 const window_ = (chooseFolder: Bindings['chooseFolder']) =>
   vi.mocked(bindings).mockReturnValue({ token: async () => 't', version: async () => 'v', report: async () => {}, chooseFolder })
 
@@ -27,7 +27,7 @@ describe('the Local tab', () => {
   it('lists what needs the person, and counts the rest apart from the quiet branches', async () => {
     const view: LocalView = {
       roots: [], added: ['/w/p'], scanned: '', built: new Date().toISOString(), hidden: [], unreadable: [], needs: 2, quiet_days: 14,
-      projects: [{ key: 'k', name: 'p', path: '/w/p', base: 'main', added: true, base_chosen: false, worktrees: [], branches: [
+      projects: [{ key: 'k', name: 'p', path: '/w/p', base: 'main', added: true, base_chosen: false, remotes: [], worktrees: [], branches: [
         branch('fresh', { needs: ['never reviewed'] }),
         branch('left-open', { quiet: true, needs: ['1 finding undecided'] }),
         branch('reviewed'),
@@ -116,5 +116,35 @@ describe('the Local tab', () => {
     await settle()
     await act(async () => (root.querySelector('[aria-label="p"] button') as HTMLButtonElement).click())
     expect(post).toHaveBeenLastCalledWith('/api/local/hide', { key: '/w/p/.git', hidden: true })
+  })
+})
+
+describe('a branch tied to its change', () => {
+  it('names the change, opens its page, and says how the branch stands', async () => {
+    const change = (standing: LocalChange['standing'], ahead = 0, behind = 0): LocalChange =>
+      ({ ref: { host: 'gitlab.example', project: 'g/p', number: 2 }, kind: 'gitlab', title: 'Extend viewers', web_url: 'https://gitlab.example/g/p/-/merge_requests/2', head: 'abc', draft: false, standing, ahead, behind })
+    expect(standing(change('in-step'))).toBe('in step')
+    expect(standing(change('ahead', 2))).toBe('2 not pushed')
+    expect(standing(change('behind', 0, 3))).toBe('3 behind')
+    expect(standing(change('diverged', 1, 4))).toBe('1 not pushed, 4 behind')
+    expect(standing(change('unfetched'))).toBe('has commits not fetched here')
+
+    const view = empty({ added: ['/w/p'], projects: [{ ...project('/w/p/.git', 'p'), branches: [
+      branch('in-step', { change: change('in-step') }),
+      branch('quiet-tied', { quiet: true, change: change('in-step') }),
+      branch('done'),
+    ] }] })
+    vi.mocked(api).mockResolvedValue(view)
+    const open = vi.fn()
+    await act(async () => render(<LocalTab onOpen={open} />, root))
+    await settle()
+    const rows = [...root.querySelectorAll('.local-branches li')].map((li) => li.textContent)
+    // A tied branch shows, even quiet and needing nothing, so its change can be opened.
+    expect(rows[0]).toContain('!2 open')
+    expect(rows[0]).toContain('in step')
+    expect(rows[1]).toContain('quiet-tied')
+    expect(rows[2]).toBe('1 more branch needs nothing')
+    await act(async () => button('!2 open').click())
+    expect(open).toHaveBeenCalledWith('https://gitlab.example/g/p/-/merge_requests/2')
   })
 })

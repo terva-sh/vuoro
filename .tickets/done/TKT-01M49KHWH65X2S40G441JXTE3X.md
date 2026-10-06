@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M49KHWH65X2S40G441JXTE3X
 title: Tie a local branch to its open change from the inbox cache
 type: task
-status: draft
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T21:57:41Z
-updated_at: 2026-10-06T21:57:41Z
+updated_at: 2026-10-06T22:21:44Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -42,7 +42,17 @@ The owner's example: crdb-access's extends-and-viewers, tracking origin/extends-
 
 ## Acceptance criteria
 
-- [ ] Remotes in SSH and HTTPS form are read as a host and project path, and each branch's upstream as remote and branch
-- [ ] A branch is tied to the cached open change from its upstream on a matching remote, with no forge call
-- [ ] A tied row names its change, opens its page, and says in step, N not pushed, behind, or diverged
-- [ ] A tied branch counts only for commits not pushed, undecided findings, and a waiting fix branch
+- [x] Remotes in SSH and HTTPS form are read as a host and project path, and each branch's upstream as remote and branch
+- [x] A branch is tied to the cached open change from its upstream on a matching remote, with no forge call
+- [x] A tied row names its change, opens its page, and says in step, N not pushed, behind, or diverged
+- [x] A tied branch counts only for commits not pushed, undecided findings, and a waiting fix branch
+
+## Summary
+
+A local branch is now tied to its open change. `local` reads remotes (`local/remote.go`: `ParseRemoteURL` keeps only host and path, so no credential in a URL survives) and each branch's upstream. The app's `tieChange` (app/local.go) matches against `openChanges()`, the inbox cache's `Snapshot()`, with no forge call.
+
+- A tied branch carries `change` with its ref, title, web URL, head, and how it stands against the head (in-step, ahead, behind, diverged, unfetched).
+- It counts only for "N commits not pushed to !n", plus undecided findings and a waiting fix.
+- The Local panel shows tied branches with a link that opens the change's page, as the inbox does.
+
+Checked against the owner's real state on a copy: crdb-access's extends-and-viewers ties to !2, in step, and the Local count went from 1 to 0. Tests: local/local_test.go (URL forms, remotes, upstreams, Compare), app/local_test.go (tie through a written inbox cache), web/src/local.test.tsx.

@@ -149,7 +149,7 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
           onCount={(n) => setCounts((c) => ({ ...c, reviews: n }))} />
       </div>
       <div class="home-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" hidden={tab !== 'local'}>
-        {localShown && <LocalTab onCount={(n) => setCounts((c) => ({ ...c, local: n }))} />}
+        {localShown && <LocalTab onOpen={onOpen} onCount={(n) => setCounts((c) => ({ ...c, local: n }))} />}
       </div>
       {setup && (
         <details class="inbox-setup" onToggle={(e) => {
