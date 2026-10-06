@@ -130,19 +130,23 @@ var errChangesNotRecorded = errors.New("gitlab: your comments were published, bu
 // or not it understood reviewer_state, and a verdict the person chose must
 // not be lost without their knowing.
 func (c *Client) requestedChanges(ctx context.Context, ref forge.Ref) error {
+	// The comments are already published, so every failure here says so.
+	unconfirmed := func(err error) error {
+		return fmt.Errorf("gitlab: your comments were published, but vuoro could not confirm that GitLab recorded your request for changes; check the merge request: %w", err)
+	}
 	b, _, err := c.do(ctx, "GET", "/api/v4/user", nil, nil)
 	if err != nil {
-		return err
+		return unconfirmed(err)
 	}
 	var me struct {
 		Username string `json:"username"`
 	}
 	if json.Unmarshal(b, &me) != nil || me.Username == "" {
-		return errors.New("gitlab: your comments were published, but vuoro could not read who you are to confirm the requested changes")
+		return unconfirmed(errors.New("GitLab did not say who you are"))
 	}
 	ch, err := c.ReadFacts(ctx, ref)
 	if err != nil {
-		return err
+		return unconfirmed(err)
 	}
 	for _, r := range ch.Reviewers {
 		if strings.EqualFold(r.Username, me.Username) && r.State == forge.RequestedChanges {

@@ -150,6 +150,28 @@ func TestRequestingChangesThatGitLabDidNotRecordIsAnError(t *testing.T) {
 	}
 }
 
+// A read-back that fails after the comments are published still says they
+// were published, rather than reading as a failed submit.
+func TestAnUnconfirmedRequestForChangesSaysTheCommentsWerePublished(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v4/user" {
+			http.Error(w, `{"message":"502 Bad Gateway"}`, 502)
+			return
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c, ref := client(t, srv, secret)
+	err := c.Submit(context.Background(), ref, forge.VerdictChangesRequested)
+	if err == nil || !strings.Contains(err.Error(), "comments were published") || !strings.Contains(err.Error(), "could not confirm") {
+		t.Fatalf("err %v", err)
+	}
+	var api *APIError
+	if !errors.As(err, &api) {
+		t.Fatalf("the read error is not kept: %v", err)
+	}
+}
+
 func TestAnAnonymousClientWritesNothing(t *testing.T) {
 	c, ref, calls := recorder(t)
 	c.token = config.Secret{}

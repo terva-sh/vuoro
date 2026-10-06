@@ -23,7 +23,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T01:50:57Z
-updated_at: 2026-10-06T03:53:28Z
+updated_at: 2026-10-06T04:02:24Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -132,6 +132,10 @@ GitLab's `reviewer_state=requested_changes` has offline coverage only. `TestLive
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T03:53:28Z
 
 This supersedes the 'Not verified live' paragraph of the previous note. terva-review on PR #16 (run 4dd6edbf, high) found that GitLab answers bulk_publish with success whether or not it recorded reviewer_state, so an older GitLab would drop the person's request for changes without anyone knowing. Fix: after a changes-requested publish, Submit reads /user and the merge request back, and confirms the person's reviewer state is requested_changes. If it is not, Submit returns errChangesNotRecorded, which says the comments were published but the request for changes was not recorded. GitLab records the state only for the change's reviewers, and an older GitLab ignores it. TestRequestingChangesThatGitLabDidNotRecordIsAnError holds this. Alternatives rejected: probing the version in Capabilities, which has no context or network, and the version the feature arrived in is not documented; and the GraphQL mergeRequestRequestChanges mutation after publishing, which fails loudly where it is missing but lands the verdict as a second event. TestLiveWrite's request-changes step still needs a machine with the token.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T04:02:24Z
+
+Follow-up from terva-review run f172ee88 (medium) on PR #16. If reading /user or the merge request failed after the publish succeeded, requestedChanges returned the bare read error, which reads as a failed submit even though the comments were public. Every failure after the publish now says the comments were published and the request for changes could not be confirmed, and it wraps the read error. That error is distinct from errChangesNotRecorded, which means GitLab was read and the state is missing. TestAnUnconfirmedRequestForChangesSaysTheCommentsWerePublished holds this. Left as it is: the window shows the error without refreshing the change, as for every failed write. The message tells the person to check the merge request.
 
 ## Summary
 
