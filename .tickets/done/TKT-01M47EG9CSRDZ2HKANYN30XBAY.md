@@ -23,7 +23,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-06T01:50:57Z
-updated_at: 2026-10-06T03:46:45Z
+updated_at: 2026-10-06T03:53:28Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -128,6 +128,10 @@ GitLab's `reviewer_state=requested_changes` has offline coverage only. `TestLive
 ### Seen in passing
 
 `web/node_modules/.vite/vitest/.../results.json` is tracked, added in 86395f0, and every test run rewrites it. It was restored, not committed. It wants a .gitignore entry and removal from the index, in its own change.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T03:53:28Z
+
+This supersedes the 'Not verified live' paragraph of the previous note. terva-review on PR #16 (run 4dd6edbf, high) found that GitLab answers bulk_publish with success whether or not it recorded reviewer_state, so an older GitLab would drop the person's request for changes without anyone knowing. Fix: after a changes-requested publish, Submit reads /user and the merge request back, and confirms the person's reviewer state is requested_changes. If it is not, Submit returns errChangesNotRecorded, which says the comments were published but the request for changes was not recorded. GitLab records the state only for the change's reviewers, and an older GitLab ignores it. TestRequestingChangesThatGitLabDidNotRecordIsAnError holds this. Alternatives rejected: probing the version in Capabilities, which has no context or network, and the version the feature arrived in is not documented; and the GraphQL mergeRequestRequestChanges mutation after publishing, which fails loudly where it is missing but lands the verdict as a second event. TestLiveWrite's request-changes step still needs a machine with the token.
 
 ## Summary
 

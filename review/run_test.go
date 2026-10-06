@@ -353,6 +353,42 @@ func TestCheckoutLeavesNoDetachedGit(t *testing.T) {
 	}
 }
 
+// Closing a run while its checkout is still running stops the checkout and
+// waits for it, so no git of the run's outlives the Close, and the run starts
+// no session afterwards. The test holds the clone's lock, so the checkout is
+// still waiting for it when Close is called.
+func TestClosingARunDuringItsCheckoutStartsNothing(t *testing.T) {
+	m, d, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
+	unlock, err := m.Repos.lock(context.Background(), filepath.Join(m.Repos.Dir, filepath.FromSlash(src.Key)+".git"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	closed := make(chan error, 1)
+	go func() { closed <- m.Close(ctx, r.ID) }()
+	select {
+	case <-r.prepared:
+	case <-ctx.Done():
+		t.Fatal("Close did not stop the checkout")
+	}
+	unlock()
+	if err := <-closed; err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	d.mu.Lock()
+	started := len(d.specs)
+	d.mu.Unlock()
+	if v := r.View(); v.Status != Closed || started != 0 {
+		t.Fatalf("status %s, %d sessions started", v.Status, started)
+	}
+}
+
 func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	m, _, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
 	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)

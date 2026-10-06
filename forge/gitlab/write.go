@@ -112,10 +112,44 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 	if _, err := c.write(ctx, "POST", mrPath(ref)+"/draft_notes/bulk_publish", body); err != nil {
 		return err
 	}
-	if verdict == forge.VerdictApproved {
+	switch verdict {
+	case forge.VerdictApproved:
 		return c.Approve(ctx, ref, true)
+	case forge.VerdictChangesRequested:
+		return c.requestedChanges(ctx, ref)
 	}
 	return nil
+}
+
+// errChangesNotRecorded is a bulk publish that succeeded without recording
+// the person's request for changes.
+var errChangesNotRecorded = errors.New("gitlab: your comments were published, but GitLab did not record that you requested changes. It records that only for the merge request's reviewers, and a GitLab older than this feature ignores it. Request changes in GitLab")
+
+// requestedChanges reads the merge request back and confirms the person's
+// reviewer state, because GitLab answers a bulk publish with success whether
+// or not it understood reviewer_state, and a verdict the person chose must
+// not be lost without their knowing.
+func (c *Client) requestedChanges(ctx context.Context, ref forge.Ref) error {
+	b, _, err := c.do(ctx, "GET", "/api/v4/user", nil, nil)
+	if err != nil {
+		return err
+	}
+	var me struct {
+		Username string `json:"username"`
+	}
+	if json.Unmarshal(b, &me) != nil || me.Username == "" {
+		return errors.New("gitlab: your comments were published, but vuoro could not read who you are to confirm the requested changes")
+	}
+	ch, err := c.ReadFacts(ctx, ref)
+	if err != nil {
+		return err
+	}
+	for _, r := range ch.Reviewers {
+		if strings.EqualFold(r.Username, me.Username) && r.State == forge.RequestedChanges {
+			return nil
+		}
+	}
+	return errChangesNotRecorded
 }
 
 func (c *Client) Resolve(ctx context.Context, ref forge.Ref, threadID string, resolved bool) error {

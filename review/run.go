@@ -42,6 +42,9 @@ type Manager struct {
 
 	mu   sync.Mutex
 	runs map[string]*Run
+	// down is set by Shutdown, after which a checkout that finishes starts
+	// no session.
+	down atomic.Bool
 }
 
 // Reviewer is one reviewer a run starts: a profile on a tool and a model.
@@ -84,15 +87,20 @@ type Run struct {
 	Error   string
 	Summary *SummaryRange
 
-	dir            string // the worktree
-	repoKey        string
-	anchors        lineIndex
-	store          *drafts.Store
-	sessions       []*Session
-	path           string
-	first          string // the first message, for a session that restarts
-	summaryCancel  context.CancelFunc
-	summaryDone    chan struct{}
+	dir           string // the worktree
+	repoKey       string
+	anchors       lineIndex
+	store         *drafts.Store
+	sessions      []*Session
+	path          string
+	first         string // the first message, for a session that restarts
+	summaryCancel context.CancelFunc
+	summaryDone   chan struct{}
+	// stopPrepare ends the checkout a new run starts with, and prepared is
+	// closed once it has returned, so nothing of the run's git outlives a
+	// Close or a Shutdown. Both are nil for a run read from its record.
+	stopPrepare    context.CancelFunc
+	prepared       chan struct{}
 	summaryStopped atomic.Bool
 	editor         *EditorState
 	who            Identity // the editor's git identity
@@ -226,15 +234,21 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	m.mu.Unlock()
 	r.save()
 
-	go m.prepare(r, src)
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	r.stopPrepare, r.prepared = cancel, make(chan struct{})
+	go m.prepare(ctx, r, src)
 	return r, nil
 }
 
-func (m *Manager) prepare(r *Run, src Source) {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
+func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
+	defer close(r.prepared)
+	defer r.stopPrepare()
 	if err := m.Repos.Checkout(ctx, src, r.dir); err != nil {
 		r.mu.Lock()
+		if r.Status == Closed { // stopped by Close, which records the run
+			r.mu.Unlock()
+			return
+		}
 		r.Status, r.Error = Failed, err.Error()
 		for _, s := range r.sessions {
 			s.Status = Failed
@@ -244,6 +258,12 @@ func (m *Manager) prepare(r *Run, src Source) {
 		return
 	}
 	r.mu.Lock()
+	// A run closed while its checkout ran, or one vuoro is exiting under,
+	// starts nothing.
+	if r.Status == Closed || m.down.Load() {
+		r.mu.Unlock()
+		return
+	}
 	r.Status = Working
 	r.mu.Unlock()
 	for _, s := range r.sessions {
@@ -798,6 +818,9 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	if r == nil {
 		return ErrNoRun
 	}
+	if err := r.endPrepare(ctx); err != nil {
+		return err
+	}
 	if r.Mode == "summary" {
 		if err := m.stopSummary(r); err != nil {
 			return err
@@ -846,10 +869,33 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	return err
 }
 
+// endPrepare stops the run's checkout if it is still running, marks the run
+// closed so the checkout starts no session, and waits for it to return.
+func (r *Run) endPrepare(ctx context.Context) error {
+	if r.prepared == nil {
+		return nil
+	}
+	r.mu.Lock()
+	r.Status = Closed
+	r.mu.Unlock()
+	r.stopPrepare()
+	select {
+	case <-r.prepared:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // Shutdown ends every live session, as vuoro exits, so no agent outlives it.
 // Runs stay open, and their sessions are resumable from their records.
 func (m *Manager) Shutdown() {
+	m.down.Store(true)
 	for _, r := range m.Runs() {
+		if r.prepared != nil {
+			r.stopPrepare()
+			<-r.prepared
+		}
 		if r.Mode == "summary" {
 			_ = m.stopSummary(r)
 			if r.summaryDone != nil {

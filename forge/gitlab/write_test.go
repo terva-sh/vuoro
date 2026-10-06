@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -20,14 +22,33 @@ type call struct {
 	Body         map[string]any
 }
 
-// recorder is a GitLab that accepts every write and records it.
-func recorder(t *testing.T) (*Client, forge.Ref, *[]call) {
+// recorder is a GitLab that accepts every write and records it. It answers
+// the reads a write makes, as the signed-in person me, with the recorded
+// merge request, in which phikai has requested changes and rkumar555 has not
+// reviewed.
+func recorder(t *testing.T, me ...string) (*Client, forge.Ref, *[]call) {
 	t.Helper()
+	who := "phikai"
+	if len(me) > 0 {
+		who = me[0]
+	}
+	gql, err := os.ReadFile("testdata/mr3991.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var mu sync.Mutex
 	var calls []call
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer "+secret {
 			http.Error(w, `{"message":"401 Unauthorized"}`, 401)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v4/user":
+			fmt.Fprintf(w, `{"username": %q}`, who)
+			return
+		case "/api/graphql":
+			w.Write(gql)
 			return
 		}
 		b, _ := io.ReadAll(r.Body)
@@ -112,6 +133,20 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 	}
 	if (*calls)[9].Body["reviewer_state"] != "requested_changes" {
 		t.Fatalf("request changes %v", (*calls)[9].Body)
+	}
+}
+
+// GitLab answers a bulk publish with success whether or not it recorded
+// reviewer_state, so asking for changes reads the merge request back, and a
+// request it did not record is an error rather than a lost verdict.
+func TestRequestingChangesThatGitLabDidNotRecordIsAnError(t *testing.T) {
+	c, ref, calls := recorder(t, "rkumar555")
+	err := c.Submit(context.Background(), ref, forge.VerdictChangesRequested)
+	if !errors.Is(err, errChangesNotRecorded) || !strings.Contains(err.Error(), "comments were published") {
+		t.Fatalf("err %v", err)
+	}
+	if len(*calls) != 1 || (*calls)[0].Body["reviewer_state"] != "requested_changes" {
+		t.Fatalf("writes %+v", *calls)
 	}
 }
 
