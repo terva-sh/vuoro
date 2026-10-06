@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -236,6 +237,46 @@ func TestAStackedTitleDropsTheReviewedTitlesDraftMarker(t *testing.T) {
 		if got := StackTitle(RunView{Title: in, Ref: forge.Ref{Number: 7}}); got != want {
 			t.Errorf("StackTitle(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// A stacked change the forge opened as an ordinary one keeps its URL, and
+// is reported as not a draft; any other failure opens nothing.
+func TestAStackedChangeThatIsNotADraftKeepsItsURL(t *testing.T) {
+	const u = "https://forge.example/o/r/pulls/9"
+	for name, c := range map[string]struct {
+		url      string
+		err      error
+		want     string
+		notDraft bool
+		fails    bool
+	}{
+		"a draft":     {url: u, want: u},
+		"not a draft": {url: u, err: fmt.Errorf("forgejo: %w", forge.ErrNotDraft), want: u, notDraft: true},
+		"refused":     {err: errors.New("409"), fails: true},
+	} {
+		url, notDraft, err := openStacked(func() (string, error) { return c.url, c.err })
+		if url != c.want || notDraft != c.notDraft || (err != nil) != c.fails {
+			t.Errorf("%s: %q %v %v", name, url, notDraft, err)
+		}
+	}
+}
+
+// On Forgejo the editor's task and the stacked title name a pull request, by
+// its number.
+func TestAForgejoChangeIsAPullRequest(t *testing.T) {
+	v := RunView{Kind: "forgejo", Title: "WIP: Fix Add", Ref: forge.Ref{Number: 7}, WebURL: "https://forge.example/o/r/pulls/7"}
+	if got := StackTitle(v); got != "Fix review findings on #7: Fix Add" {
+		t.Errorf("StackTitle = %q", got)
+	}
+	picked := []drafts.Draft{{ID: "t1", ThreadID: "31", Title: "a finding"}}
+	for name, msg := range map[string]string{"threads": threadsMessage(v, picked), "findings": findingsMessage(v, picked)} {
+		if !strings.Contains(msg, "Pull request: https://forge.example/o/r/pulls/7\n") || strings.Contains(msg, "erge request") {
+			t.Errorf("%s message:\n%s", name, msg)
+		}
+	}
+	if !strings.Contains(threadsMessage(RunView{Kind: "gitlab", Ref: forge.Ref{Number: 7}}, picked), "Merge request: ") {
+		t.Error("a GitLab change is not a merge request")
 	}
 }
 

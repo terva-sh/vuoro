@@ -269,7 +269,7 @@ main { padding: var(--ui-space-4); }
 .push-dialog { max-width: 720px; }
 .push-dialog .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-3); }
 .push-dialog .field textarea { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
-.push-dialog .warn { color: var(--ui-warn); }
+.push-dialog .warn, .push-bar .warn { color: var(--ui-warn); }
 
 /* A suggested change, as the author will see it to apply. */
 .draft .suggestion { margin: var(--ui-space-2) 0; }

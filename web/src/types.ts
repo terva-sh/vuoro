@@ -91,13 +91,13 @@ export interface EditorState {
   session: string; branch: string; base: string; started: string; discarded?: boolean
   own?: boolean; items?: string[] // a fix of the person's own change, and the drafts it was given (D41, D42)
   local?: boolean // a local range's fix, handed back as a branch in the person's repository (D42)
-  pushed?: { branch: string; sha: string; target: string; url?: string; at: string }
+  pushed?: { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; at: string }
 }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.
 export interface StackPreview {
   branch: string; target: string; sha: string; commits: number; files: string[]; ci?: string[]
-  moved?: boolean; own?: boolean; local?: boolean; title?: string; description?: string; opened?: string
+  moved?: boolean; own?: boolean; local?: boolean; title?: string; description?: string; opened?: string; not_draft?: boolean
 }
 export interface EditorCommit { sha: string; subject: string; findings: string[] }
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
@@ -115,3 +115,5 @@ export interface Setup {
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`
 
 export const changeNumber = (kind: string | undefined, n: number) => `${kind === 'forgejo' ? '#' : '!'}${n}`
+// changeWord is what the forge calls a change.
+export const changeWord = (kind: string | undefined) => (kind === 'forgejo' ? 'pull request' : 'merge request')

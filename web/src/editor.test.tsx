@@ -3,7 +3,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, post } from './api'
-import { Editor, PushDialog, RunView } from './run'
+import { Editor, PushBar, PushDialog, RunView } from './run'
 import type { Draft, Run, Session } from './types'
 
 const draft = (id: string, decision?: 'kept' | 'dropped') =>
@@ -71,6 +71,26 @@ describe('Editor', () => {
     expect(post).toHaveBeenCalledWith('/api/runs/r1/editor/push', { url: 'u', confirm: 'push', sha: 'f00d', title: 'My title', description: 'd' })
     expect(closed).toHaveBeenCalled()
     root.remove()
+  })
+
+  it('names a Forgejo change a pull request', () => {
+    const preview = { branch: 'vuoro/fix-7-abc', target: 'fix/total', sha: 'f00d', commits: 1, files: ['calc.go'], moved: true, title: 't', description: 'd' }
+    const root = document.createElement('div')
+    act(() => render(<PushDialog run={run({ kind: 'forgejo' })} url="u" preview={preview} onClose={() => {}} onRun={() => {}} />, root))
+    expect(root.textContent).toContain('Push and open a draft pull request')
+    expect(root.textContent).toContain('Opens a draft pull request onto fix/total')
+    expect(root.textContent).toContain('the pull request may need a rebase')
+    expect(root.textContent).not.toContain('merge request')
+  })
+
+  it('says so when the forge opened the stacked change as an ordinary one', () => {
+    const detail = { session: 's2', branch: 'vuoro/fix-7-abc', base: 'b', started: '', commits: [{ sha: 'f00d', subject: 's', findings: [] }], files: [] }
+    const pushed = { branch: 'vuoro/fix-7-abc', sha: 'f00d', target: 'fix/total', url: 'https://forge.example/o/r/pulls/9', not_draft: true, at: '' }
+    const r = run({ kind: 'forgejo', editor: { session: 's2', branch: 'vuoro/fix-7-abc', base: 'b', started: '', pushed } })
+    const root = document.createElement('div')
+    act(() => render(<PushBar run={r} url="u" detail={detail} working={false} onRun={() => {}} />, root))
+    expect(root.querySelector('a')!.textContent).toBe('the pull request')
+    expect(root.textContent).toContain('opened as an ordinary pull request, not a draft')
   })
 
   it('hands the picked threads of the person\'s own change to the editor', async () => {

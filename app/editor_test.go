@@ -43,3 +43,25 @@ func TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest(t *testing.T) {
 		}
 	}
 }
+
+// The push warns about the CI configuration of the change's own forge.
+func TestCIFilesAreTheForgesOwn(t *testing.T) {
+	for _, c := range []struct {
+		kind, path string
+		want       bool
+	}{
+		{"gitlab", ".gitlab-ci.yml", true},
+		{"gitlab", "ci/.gitlab-ci.yml", true},
+		{"gitlab", ".gitlab/ci/build.yml", true},
+		{"gitlab", ".forgejo/workflows/ci.yml", false},
+		{"forgejo", ".forgejo/workflows/ci.yml", true},
+		{"forgejo", ".gitea/workflows/ci.yml", true},
+		{"forgejo", ".github/workflows/ci.yml", true},
+		{"forgejo", ".gitlab-ci.yml", false},
+		{"forgejo", "main.go", false},
+	} {
+		if got := ciFile(c.kind, c.path); got != c.want {
+			t.Errorf("ciFile(%s, %s) = %v", c.kind, c.path, got)
+		}
+	}
+}

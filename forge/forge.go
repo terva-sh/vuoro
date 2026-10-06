@@ -266,7 +266,8 @@ type Stacker interface {
 	// able to push to and whose author owns it.
 	StackTarget(ctx context.Context, ref Ref) (StackTarget, error)
 	// OpenStacked opens a draft change from s.Branch onto s.Target in ref's
-	// project, and returns its web URL.
+	// project, and returns its web URL. A change the forge opened, but not as
+	// a draft, returns its URL with ErrNotDraft.
 	OpenStacked(ctx context.Context, ref Ref, s NewStacked) (string, error)
 }
 
@@ -283,6 +284,10 @@ type NewStacked struct {
 	Title       string
 	Description string
 }
+
+// ErrNotDraft means a stacked change opened, but the forge did not mark it a
+// draft, so anyone who may merge it could.
+var ErrNotDraft = errors.New("it opened as an ordinary change, not a draft")
 
 // ErrFork means the change's source branch is in a fork.
 var ErrFork = errors.New("this change's source branch is in a fork, which vuoro does not push to; its author owns it")

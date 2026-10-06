@@ -791,8 +791,10 @@ hand-off report lists, become the editor's task:
    the branch lands, and a source branch that moved since the review. A
    later push of new editor commits updates the same merge request. The
    push route is the only caller of the push and of the merge request's
-   creation, and a test holds that. GitLab is supported first; Forgejo
-   answers that it is not supported yet.
+   creation, and a test holds that. On Forgejo the change is a draft pull
+   request, marked by a `WIP:` title prefix, and the CI files flagged are
+   `.forgejo/`, `.gitea/workflows/` and `.github/workflows/`. Forgejo's
+   `TestLiveStack` exercises both this route and the own-branch push (D41).
 
 **Fixing the person's own change from its threads** (D41). On the Threads
 tab, the person picks triaged threads, must fix ones by default, and

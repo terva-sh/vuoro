@@ -108,7 +108,8 @@ type stackPreview struct {
 	Local       bool     `json:"local,omitempty"` // writes a new branch in the person's repository (D42)
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
-	Opened      string   `json:"opened,omitempty"` // the draft change already open
+	Opened      string   `json:"opened,omitempty"`    // the draft change already open
+	NotDraft    bool     `json:"not_draft,omitempty"` // the forge opened it as an ordinary change
 
 	head string // the source branch's head as the forge reported it
 }
@@ -148,7 +149,7 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 	}
 	st, ok := c.(forge.Stacker)
 	if !ok {
-		return nil, nil, p, fmt.Errorf("%w: vuoro opens a stacked merge request on GitLab only, so far", forge.ErrUnsupported)
+		return nil, nil, p, fmt.Errorf("%w: vuoro cannot open a stacked change on this forge", forge.ErrUnsupported)
 	}
 	target, err := st.StackTarget(ctx, ch.Ref)
 	if err != nil {
@@ -175,18 +176,23 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 	}
 	for _, f := range d.Files {
 		p.Files = append(p.Files, f.NewPath)
-		if ciFile(f.NewPath) || ciFile(f.OldPath) {
+		if ciFile(ch.Kind, f.NewPath) || ciFile(ch.Kind, f.OldPath) {
 			p.CI = append(p.CI, f.NewPath)
 		}
 	}
 	if d.Pushed != nil && !d.Own {
-		p.Opened = d.Pushed.URL
+		p.Opened, p.NotDraft = d.Pushed.URL, d.Pushed.NotDraft
 	}
 	return ch, st, p, nil
 }
 
-// ciFile says a path configures GitLab CI, which a pushed branch runs.
-func ciFile(path string) bool {
+// ciFile says a path configures the forge's CI, which a pushed branch runs.
+// Forgejo Actions reads .forgejo/workflows, and also .gitea/workflows and
+// .github/workflows; .forgejo holds its other configuration too.
+func ciFile(kind, path string) bool {
+	if kind == forge.Forgejo {
+		return strings.HasPrefix(path, ".forgejo/") || strings.HasPrefix(path, ".gitea/workflows/") || strings.HasPrefix(path, ".github/workflows/")
+	}
 	return strings.HasSuffix(path, ".gitlab-ci.yml") || strings.HasPrefix(path, ".gitlab/")
 }
 
@@ -246,7 +252,7 @@ func (a *App) pushEditor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !p.Own && strings.TrimSpace(req.Title) == "" {
-		writeError(w, errors.New("The merge request needs a title."))
+		writeError(w, fmt.Errorf("The %s needs a title.", review.ChangeWord(ch.Kind)))
 		return
 	}
 	src, err := a.source(ch)

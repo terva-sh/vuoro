@@ -3,7 +3,7 @@ import { api, post } from './api'
 import { DraftCard, FileList, fileID, FileView, manyFiles } from './diffview'
 import { HeadBadge, useHead } from './head'
 import type { Change, Draft, EditorDetail, Entry, FileDiff, Level, Run, Session, Setup, StackPreview } from './types'
-import { refKey } from './types'
+import { changeWord, refKey } from './types'
 import { WriteContext } from './write'
 import { ago, ConfidenceBadge, levelMark, Prose, SeverityBadge, severityOrder, short, StatusBadge, usd } from './ui'
 
@@ -481,10 +481,10 @@ function EditorDiff({ files }: { files: FileDiff[] }) {
 
 const editorFiles = 'editor-'
 
-// PushBar offers the push of the editor's work and the stacked draft merge
-// request, and links it once open. The push always asks first: it is the
+// PushBar offers the push of the editor's work and the stacked draft change,
+// and links it once open. The push always asks first: it is the
 // one action here that reaches the forge.
-function PushBar({ run, url, detail, working, onRun }: {
+export function PushBar({ run, url, detail, working, onRun }: {
   run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
 }) {
   const [preview, setPreview] = useState<StackPreview>()
@@ -495,6 +495,7 @@ function PushBar({ run, url, detail, working, onRun }: {
   const local = !!run.editor?.local
   const last = detail.commits[detail.commits.length - 1]
   const fresh = !!last && last.sha !== pushed?.sha
+  const word = changeWord(run.kind)
   const ask = async () => {
     setLoading(true)
     setError(undefined)
@@ -516,13 +517,14 @@ function PushBar({ run, url, detail, working, onRun }: {
       ) : (
         <span>
           ✓ Pushed <span class="mono">{pushed.branch}</span> at <span class="mono">{short(pushed.sha)}</span>
-          {pushed.url ? <> · <a href={pushed.url} target="_blank" rel="noreferrer">the draft merge request</a></> : ' · the merge request did not open; push again to retry'}
+          {pushed.url ? <> · <a href={pushed.url} target="_blank" rel="noreferrer">the {pushed.not_draft ? '' : 'draft '}{word}</a></> : ` · the ${word} did not open; push again to retry`}
+          {pushed.not_draft && <span class="warn"> · ⚠ It opened as an ordinary {word}, not a draft, so it can be merged as it is. Mark it as a draft on the forge.</span>}
         </span>
       ))}
       {(fresh || (!own && !local && pushed && !pushed.url)) && (
         <button class="primary" disabled={working || loading} onClick={() => void ask()}
           title={working ? 'Wait for the editor to finish' : 'Shows where it goes, and asks first'}>
-          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : '⇪ Push and open a draft merge request…'}
+          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : `⇪ Push and open a draft ${word}…`}
         </button>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
@@ -541,6 +543,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const cancel = useRef<HTMLButtonElement>(null)
+  const word = changeWord(run.kind)
   useEffect(() => {
     cancel.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
@@ -561,22 +564,22 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
   return (
     <div class="modal-back" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <div class="modal push-dialog" role="dialog" aria-modal="true" aria-labelledby="push-title">
-        <h2 id="push-title">{p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : 'Push and open a draft merge request'}</h2>
+        <h2 id="push-title">{p.local ? 'Hand back as a branch' : p.own ? 'Push to your branch' : p.opened ? 'Push the new commits' : `Push and open a draft ${word}`}</h2>
         <ul>
           {p.local ? <>
             <li>Writes {p.commits} commit{p.commits === 1 ? '' : 's'} as the branch <span class="mono">{p.branch}</span> in your repository.</li>
             <li>Nothing else changes there: not your checkout, your working tree, HEAD, or any other branch. A branch of that name you hold is never moved, and your hooks do not run.</li>
           </> : p.own ? <>
-            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your merge request's branch, as you, with your own git access. Fast-forward only.</li>
+            <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.target}</span>, your {word}'s branch, as you, with your own git access. Fast-forward only.</li>
             <li>Each fixed thread's drafted reply then cites its commit, unless you wrote the reply. Nothing is posted until you add replies and submit.</li>
             <li>Pull the branch into your own checkout afterwards; vuoro does not touch it.</li>
           </> : <>
             <li>Pushes {p.commits} commit{p.commits === 1 ? '' : 's'} to <span class="mono">{p.branch}</span>, as you, with your own git access.</li>
-            <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">draft merge request</a>.</> : <>Opens a draft merge request onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
+            <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">{p.not_draft ? '' : 'draft '}{word}</a>.</> : <>Opens a draft {word} onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
           </>}
           <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
           {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
-          {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : 'the review, so the merge request may need a rebase'}.</li>}
+          {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : `the review, so the ${word} may need a rebase`}.</li>}
         </ul>
         {!p.opened && !p.own && !p.local && (
           <>
