@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M47EFQ8M7TDAGN19F7RVZ2G6
 title: "TestReviewMCPServerIsGuarded fails on Windows: temp dir still in use"
 type: bug
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -16,17 +16,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: t3code/project-release-status
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: 9c2234bc7582aa1a3d904575c42a0d8d06c3d643
-  session: null
-  claimed_at: 2026-10-06T01:52:30Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-06T01:50:38Z
-updated_at: 2026-10-06T02:44:01Z
+updated_at: 2026-10-06T02:50:37Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -51,7 +44,7 @@ Find what still has files open at cleanup: an unwaited `exec.Cmd`, a background 
 
 ## Acceptance criteria
 
-- [ ] TestReviewMCPServerIsGuarded passes on windows-latest in GitHub CI
+- [x] TestReviewMCPServerIsGuarded passes on windows-latest in GitHub CI
 - [x] The cause is named in a note, and the fix waits for the process rather than ignoring cleanup errors
 
 ## Implementation plan
@@ -80,3 +73,11 @@ Not covered: `summaryGit` only reads, so it never starts maintenance. `review/lo
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T02:44:01Z
 
 The fix is in Forgejo PR #15 (https://git.local.sothr.com/terva-sh/vuoro/pulls/15), commit 358c9be. The branch tickets/forgejo-write-spike is also pushed to GitHub, for the windows-latest leg that acceptance criterion 1 needs.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T02:50:36Z
+
+GitHub CI run 37405570542 on head cbb5e38 passed on windows-latest, ubuntu-latest and macos-latest, including TestReviewMCPServerIsGuarded. Forgejo CI and terva-review (run 832d2085, no findings) passed on PR #15. One green run does not prove a race is gone, but the trace test pins the cause.
+
+## Summary
+
+Repos.git runs git's automatic maintenance attached (maintenance.autoDetach=false, gc.autoDetach=false), so no detached maintenance holds the cached clone open after a command. TestCheckoutLeavesNoDetachedGit holds it. Windows CI passed on PR #15.
