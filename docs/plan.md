@@ -1070,6 +1070,66 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   a forge project. git's own ref locks refuse the second fetch rather than
   corrupt the clone, and the command reports that.
 
+### 6.8 Local projects in the window
+
+Decided on 2026-10-06 (D47), so that a branch is reviewed before it is
+pushed without leaving the window. Section 6.7's runner does the review. This
+section is how the window finds the work and starts it.
+
+**The home page has two tabs.** "Reviews" is the forge inbox of section 4.
+"Local" is the person's checkouts. Each tab's label carries the count of what
+needs the person there, and the last tab used is kept in `prefs.json`.
+
+**Projects come from two places.** The person adds a folder, through the
+native directory chooser (tuohi's `dialog`, `TypeDirectory`) in the window, or
+a typed absolute path in `-browser` mode. The person can also name a root,
+such as `~/Workspace`, which vuoro scans for checkouts. The scan:
+
+- runs when the Local tab opens with a stale list, and on Refresh, never in
+  the background;
+- descends at most four directories below a root, stops at a checkout rather
+  than looking inside it, follows no symbolic link, and skips hidden
+  directories and dependency trees (`node_modules`, `vendor`, `.venv`,
+  `target`);
+- stops at 500 checkouts or ten seconds, and says that it stopped.
+
+A project is a repository, keyed by its absolute git common directory, so a
+main checkout and its worktrees are one project however they were found. A
+found project can be hidden, and an added one removed. Both stay in the state
+directory, never in the config file.
+
+**A row is a branch.** Each project lists its local branches that have commits
+beyond the project's base, newest commit first, ten at a time. The base is the
+remote's default branch (`origin/HEAD`), then `main`, then `master`, and the
+person can change it for the project. A branch checked out in a worktree
+carries that worktree as a tag, with its path and a mark when it has
+uncommitted changes to tracked files. vuoro's own `vuoro/fix-*` branches are
+listed under the branch whose run made them, not as rows of their own. A row
+shows the branch, its commits ahead of the base and its newest commit's age,
+its worktrees, and its last review: the run's status, whether the branch has
+moved since, and its undecided findings.
+
+**A branch needs the person** when it has never been reviewed, when it moved
+since its last review, when its last review has undecided findings, or when an
+editor's fix branch for it is waiting to be merged. The Local tab's count is
+the number of such branches.
+
+**Review starts from the row.** It runs section 6.7's local range,
+`<base>...<branch>`, with the preset the person picks, and opens the run in
+the window, where the person talks to the reviewers, picks findings, and hands
+them to the editor as for any review of their own work (D42). It reviews
+commits only. A worktree with uncommitted changes says that they are not in
+the review. The run stays open, as a window run does, until the person closes
+it, and the CLI's runs appear in the tab on its next refresh.
+
+**Reading a checkout is read-only, and runs none of its code.** Listing uses
+`for-each-ref`, `worktree list --porcelain`, and `status --porcelain
+--untracked-files=no`, with hooks, fsmonitor, external diff programs, and
+textconv disabled, as section 6.7's runner does. A path from the window must
+be absolute and is cleaned before use. The routes sit behind the guard of
+section 5.2 like every other. Nothing in a checkout changes except the fix
+branch's ref, which D42 already allows.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -1119,6 +1179,8 @@ remains the cgo-free option if that changes. The state directory holds:
 | `runs/<id>/` | a review run: its sessions, transcripts, and drafts | vuoro's own record, under the retention above |
 | `repos/` | a bare clone of each reviewed project, fetched over the person's own git transport | derived |
 | `worktrees/<run>/` | the checkout a run's reviewers read | derived, removed with the run |
+| `local.json` | the person's added projects, scan roots, hidden projects, and each project's base (section 6.8) | authored |
+| `cache/local.json` | the last scan and each project's branches and worktrees | derived |
 
 `cache/inbox/<account-hash>.json` holds each account’s derived snapshot and
 last-attempt/last-success/error metadata. Its key includes kind, host and
@@ -1195,7 +1257,8 @@ and a terva-sh release).
   first (D39), then the author's side.
 - **Reviews before a push.** Review a local branch or range in the window, and
   carry the findings into the merge request. The headless command arrives in
-  the MVP (D35).
+  the MVP (D35), and the window's Local tab finds and starts the work
+  (section 6.8, D47).
 - **Repositories add instructions.** A checklist and conventions, read at the
   base commit, layered on the person's preset. A repository never picks the
   reviewers.

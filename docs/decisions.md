@@ -688,3 +688,27 @@ The alternatives were blue for added and amber for removed, which stay apart
 under every common colour blindness but sit outside the terva-sh palette, and
 `--ui-ok` with `--ui-warn`, which was rejected because amber already means a
 warning elsewhere in the UI.
+
+### D47. The home page gains a Local tab of the person's checkouts, one row per branch
+
+Decided by the owner on 2026-10-06, after a review of the landing page found
+it forge-only: a local range could be reviewed only from the command line.
+docs/plan.md section 6.8 records the design.
+
+- **Two tabs, "Reviews" and "Local",** each with a count of what needs the
+  person, and the last one used remembered. The alternatives were a local
+  section under the inbox, which puts local work below the fold, and a side
+  column, which squeezes the inbox's list and detail.
+- **Projects are folders the person adds, and roots vuoro scans.** Adding uses
+  the native directory chooser. A scan is bounded in depth, count, and time,
+  and runs only when asked. Listing only the projects already reviewed was
+  rejected, because the first review could not then start from the window.
+- **A row is a branch with commits beyond its base, and a worktree is a tag
+  on the branch it has checked out.** Reviews are of commits on a branch, so
+  the row is what gets reviewed. Rows of worktrees were rejected, because a
+  branch with no checkout would not show, and so was listing both, as too
+  busy.
+- **A local review covers commits only,** as the command line's does (D35).
+  Reviewing uncommitted work was rejected for now, since the runner would
+  have to capture the working tree into its own clone.
+
