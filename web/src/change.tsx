@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'preact/hooks'
 import { DraftCard, MyDraft, ThreadView } from './comments'
-import { FileList, fileID, FileView, manyFiles } from './diffview'
+import { DiffBrowser, useFilePicker } from './diffview'
 import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
@@ -53,13 +53,12 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
     return m
   }, [threads])
 
-  // picked is the file last picked from the list or a finding, and how many
-  // picks there have been, so picking it again opens it again.
-  const [picked, setPicked] = useState<{ path: string; n: number }>()
+  // A file is picked from the list or from a finding.
+  const picker = useFilePicker()
+  const picked = picker.picked
   const pick = (path: string) => {
     setTab('changes')
-    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
-    requestAnimationFrame(() => document.getElementById(fileID(path))?.scrollIntoView({ block: 'start' }))
+    picker.pick(path)
   }
 
   const approved = !!me && (change.reviewers ?? []).some((r) => r.username === me.username && r.state === 'approved')
@@ -145,26 +144,16 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
           <p class="muted">These drafts retain their original locations. They are shown separately from the current diff; anchored findings need a new review before you keep them.</p>
           {drafts.map((d) => <DraftCard key={d.id} draft={d} runID={runID} />)}
         </section>}
-        <div class="changes">
-          <FileList files={files} onPick={pick} current={picked?.path} badge={(f) =>
+        <DiffBrowser files={files} picked={picked} onPick={pick} runID={runID}
+          badge={(f) =>
             (byFile.get(f.new_path)?.length ?? 0) + drafts.filter((d) => d.anchor?.path === f.new_path).length > 0 && (
               <> <CommentBubble severity={worstSeverity(drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path))} /></>
-            )} />
-          <div class="files">
-            {files.map((f) => (
-              <FileView
-                key={f.new_path}
-                file={f}
-                threads={byFile.get(f.new_path) ?? (f.old_path !== f.new_path ? byFile.get(f.old_path) ?? [] : [])}
-                drafts={moved ? [] : drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path)}
-                mine={mine.filter((d) => d.anchor?.path === f.new_path && !d.thread_id)}
-                runID={runID}
-                collapsed={files.length > manyFiles}
-                picked={picked?.path === f.new_path ? picked.n : undefined}
-              />
-            ))}
-          </div>
-        </div>
+            )}
+          notes={(f) => ({
+            threads: byFile.get(f.new_path) ?? (f.old_path !== f.new_path ? byFile.get(f.old_path) ?? [] : []),
+            drafts: moved ? [] : drafts.filter((d) => d.status === 'pending' && !d.decision && d.anchor?.path === f.new_path),
+            mine: mine.filter((d) => d.anchor?.path === f.new_path && !d.thread_id),
+          })} />
         </>
       )}
       <div hidden={tab !== 'review'}>

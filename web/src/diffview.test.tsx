@@ -2,7 +2,7 @@
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { describe, expect, it } from 'vitest'
-import { collapseAt, FileView } from './diffview'
+import { collapseAt, DiffBrowser, FileView, manyFiles, useFilePicker } from './diffview'
 import type { FileDiff } from './types'
 
 const big = (n: number): FileDiff => ({
@@ -71,5 +71,23 @@ describe('keepText', () => {
     expect(keepText({ ...d, evidence: 'x := "```"', suggestion: undefined }, true)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n````\nx := "```"\n````')
     // A forge that cannot apply a suggestion gets a plain replacement (D43).
     expect(keepText(d, false)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n```\nreturn a - b\n```\n\nSuggested replacement for lines 3–4:\n\n```\n\treturn a + b\n\t// sums\n```')
+  })
+})
+
+describe('DiffBrowser', () => {
+  it('lists every file, and a pick marks it and opens it when many files start collapsed', () => {
+    const files: FileDiff[] = Array.from({ length: manyFiles + 1 }, (_, i) => ({ ...big(2), old_path: `f${i}.go`, new_path: `f${i}.go` }))
+    const Probe = () => {
+      const { picked, pick } = useFilePicker('x-')
+      return <DiffBrowser files={files} picked={picked} onPick={pick} idPrefix="x-" notes={() => ({})} />
+    }
+    const root = document.createElement('div')
+    act(() => render(<Probe />, root))
+    expect(root.querySelectorAll('.file-list .file-link').length).toBe(manyFiles + 1)
+    expect(root.querySelectorAll('.file.collapsed').length).toBe(manyFiles + 1)
+    act(() => (root.querySelectorAll('.file-list .file-link')[3] as HTMLButtonElement).click())
+    expect(root.querySelector('.file-link.current')?.getAttribute('title')).toBe('f3.go')
+    expect(root.querySelector('#x-file-f3_go')?.classList.contains('collapsed')).toBe(false)
+    expect(root.querySelectorAll('.file.collapsed').length).toBe(manyFiles)
   })
 })

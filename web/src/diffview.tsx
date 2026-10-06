@@ -72,6 +72,48 @@ export function fileID(path: string) {
   return 'file-' + path.replace(/[^A-Za-z0-9_-]/g, '_')
 }
 
+// Picked is the file last picked, and how many picks there have been, so
+// picking it again opens it again.
+export interface Picked { path: string; n: number }
+
+// useFilePicker keeps the file picked last, and scrolls to it once it is
+// open. idPrefix matches the DiffBrowser's.
+export function useFilePicker(idPrefix = ''): { picked?: Picked; pick: (path: string) => void } {
+  const [picked, setPicked] = useState<Picked>()
+  const pick = (path: string) => {
+    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
+    requestAnimationFrame(() => document.getElementById(idPrefix + fileID(path))?.scrollIntoView({ block: 'start' }))
+  }
+  return { picked, pick }
+}
+
+// FileNotes are what one file of the diff shows on its lines.
+export interface FileNotes { threads?: Thread[]; drafts?: Draft[]; mine?: ForgeDraft[] }
+
+// DiffBrowser is a diff's files in a column beside the files themselves.
+// Picking one in the column opens it and scrolls to it. Past manyFiles, every
+// file starts collapsed.
+export function DiffBrowser({ files, picked, onPick, notes, badge, runID, idPrefix = '' }: {
+  files: FileDiff[]; picked?: Picked; onPick: (path: string) => void
+  notes?: (f: FileDiff) => FileNotes; badge?: (f: FileDiff) => ComponentChildren
+  runID?: string; idPrefix?: string
+}) {
+  return (
+    <div class="changes">
+      <FileList files={files} onPick={onPick} current={picked?.path} badge={badge} />
+      <div class="files">
+        {files.map((f) => {
+          const n = notes?.(f) ?? {}
+          return (
+            <FileView key={f.new_path} file={f} threads={n.threads ?? []} drafts={n.drafts ?? []} mine={n.mine} runID={runID}
+              idPrefix={idPrefix} collapsed={files.length > manyFiles} picked={picked?.path === f.new_path ? picked.n : undefined} />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // FileView is one file of the diff. picked counts the times the person has
 // picked it from the file list, or is undefined when another file was picked
 // last. A pick opens a collapsed file, and the next pick of another file

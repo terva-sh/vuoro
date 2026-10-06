@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { diffStat } from './diff'
-import { FileList, fileID, FileView, manyFiles, Stat } from './diffview'
+import { DiffBrowser, Stat, useFilePicker } from './diffview'
 import { Modal } from './modal'
 import { TextEditor } from './textedit'
 import type { Draft, EditorDetail, FileDiff, Run, StackPreview } from './types'
@@ -115,11 +115,7 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
 // a column, each picked one opened and scrolled to. It is not the change's
 // diff, so nothing here comments on the forge.
 function EditorDiff({ files }: { files: FileDiff[] }) {
-  const [picked, setPicked] = useState<{ path: string; n: number }>()
-  const pick = (path: string) => {
-    setPicked((p) => ({ path, n: (p?.n ?? 0) + 1 }))
-    requestAnimationFrame(() => document.getElementById(editorFiles + fileID(path))?.scrollIntoView({ block: 'start' }))
-  }
+  const { picked, pick } = useFilePicker(editorFiles)
   return (
     <>
       <h4 class="editor-diff-head">
@@ -127,15 +123,7 @@ function EditorDiff({ files }: { files: FileDiff[] }) {
         <Stat {...files.reduce((t, f) => { const s = diffStat(f.patch); return { add: t.add + s.add, del: t.del + s.del } }, { add: 0, del: 0 })} />
       </h4>
       <WriteContext.Provider value={undefined}>
-        <div class="changes">
-          <FileList files={files} onPick={pick} current={picked?.path} />
-          <div class="files">
-            {files.map((f) => (
-              <FileView file={f} threads={[]} drafts={[]} key={f.new_path} idPrefix={editorFiles}
-                collapsed={files.length > manyFiles} picked={picked?.path === f.new_path ? picked.n : undefined} />
-            ))}
-          </div>
-        </div>
+        <DiffBrowser files={files} picked={picked} onPick={pick} idPrefix={editorFiles} />
       </WriteContext.Provider>
     </>
   )
