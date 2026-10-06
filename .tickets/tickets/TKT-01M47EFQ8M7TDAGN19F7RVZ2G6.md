@@ -26,7 +26,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-06T01:50:38Z
-updated_at: 2026-10-06T01:54:50Z
+updated_at: 2026-10-06T02:44:01Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -76,3 +76,7 @@ Alternatives rejected:
 Not covered: `summaryGit` only reads, so it never starts maintenance. `review/local.go` runs in the person's own checkout, where their own git config applies. The editor's agent runs git itself in its sandbox; any detached maintenance there belongs to that session.
 
 `just ci` passes on Linux. Acceptance criterion 1 waits for a windows-latest run on GitHub CI.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T02:44:01Z
+
+The fix is in Forgejo PR #15 (https://git.local.sothr.com/terva-sh/vuoro/pulls/15), commit 358c9be. The branch tickets/forgejo-write-spike is also pushed to GitHub, for the windows-latest leg that acceptance criterion 1 needs.
