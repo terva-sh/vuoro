@@ -133,7 +133,17 @@ func (r *Run) save() {
 // Load reads every run record under the state directory, so the person's
 // runs, drafts, and conversations outlive a restart. A session comes back
 // ended, and talking to it resumes it.
-func (m *Manager) Load() error {
+func (m *Manager) Load() error { return m.load(nil) }
+
+// LoadFinished reads the run records this manager does not hold whose runs
+// are over: closed, failed, or cancelled. It picks up a run another vuoro
+// process, such as vuoro review, finished, and leaves alone one it is still
+// writing, which a second writer would overwrite.
+func (m *Manager) LoadFinished() error {
+	return m.load(func(s Status) bool { return s == Closed || s == Failed || s == Cancelled })
+}
+
+func (m *Manager) load(keep func(Status) bool) error {
 	paths, err := filepath.Glob(filepath.Join(m.StateDir, "runs", "*", "run.json"))
 	if err != nil {
 		return err
@@ -146,6 +156,9 @@ func (m *Manager) Load() error {
 	for _, path := range paths {
 		var rec record
 		if err := state.ReadJSON(path, &rec); err != nil || rec.ID == "" || m.runs[rec.ID] != nil {
+			continue
+		}
+		if keep != nil && !keep(rec.Status) {
 			continue
 		}
 		r := &Run{

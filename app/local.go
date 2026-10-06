@@ -131,6 +131,9 @@ type scanRecord struct {
 type localState struct {
 	mu   sync.Mutex
 	view *localView
+	// stale says a run started since view was built, so the next read
+	// builds it again however fresh it is.
+	stale bool
 }
 
 func (a *App) localStorePath() string {
@@ -150,6 +153,7 @@ func (a *App) scanPath() string {
 func (a *App) localRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/local", a.getLocal)
 	mux.HandleFunc("POST /api/local/refresh", a.refreshLocal)
+	mux.HandleFunc("POST /api/local/review", a.reviewBranch)
 	mux.HandleFunc("POST /api/local/projects", a.localEdit(func(s *local.Store, req localReq) error {
 		p, err := local.CleanPath(req.Path)
 		if err != nil {
@@ -288,7 +292,7 @@ func (a *App) getLocal(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, a.local.view)
 		return
 	}
-	if v := a.local.view; v != nil && time.Since(v.Built) < localFresh {
+	if v := a.local.view; v != nil && !a.local.stale && time.Since(v.Built) < localFresh {
 		writeJSON(w, http.StatusOK, v)
 		return
 	}
@@ -300,9 +304,100 @@ func (a *App) refreshLocal(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
+	// A run vuoro review finished since the window loaded its runs shows
+	// on the branch it reviewed.
+	if a.Runs != nil {
+		_ = a.Runs.LoadFinished()
+	}
 	a.local.mu.Lock()
 	defer a.local.mu.Unlock()
 	a.serveLocal(w, r, true)
+}
+
+var errUnknownBranch = errors.New("local: that branch has no commits beyond the project's base; refresh the Local tab")
+
+// branchReview is a started review of a branch, and the worktrees holding
+// the branch with uncommitted changes, which the review does not see.
+type branchReview struct {
+	Run         review.RunView `json:"run"`
+	Uncommitted []string       `json:"uncommitted"`
+}
+
+// reviewBranch starts a review of a listed branch's commits beyond its
+// project's base: section 6.7's local range, in the window, where the run
+// stays open until the person closes it (docs/plan.md section 6.8). It reads
+// the checkout and writes nothing to it; the runner fetches the commits into
+// vuoro's own clone.
+func (a *App) reviewBranch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Key    string `json:"key"`
+		Branch string `json:"branch"`
+		Preset string `json:"preset,omitempty"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	a.local.mu.Lock()
+	known := a.knownProject(req.Key)
+	a.local.mu.Unlock()
+	if known == nil {
+		writeError(w, errUnknownProject)
+		return
+	}
+	s, err := local.LoadStore(a.localStorePath())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	// Read the project again, so the branch is one it has now, and its tip
+	// and base are today's.
+	p, err := local.Inspect(r.Context(), "", known.Path, s.Bases[req.Key])
+	if err == nil && p.Error != "" {
+		err = errors.New(p.Error)
+	}
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	var branch *local.Branch
+	for i := range p.Branches {
+		if p.Branches[i].Name == req.Branch {
+			branch = &p.Branches[i]
+		}
+	}
+	if branch == nil {
+		writeError(w, errUnknownBranch)
+		return
+	}
+	reviewers, synth, verifier, err := a.Plan(req.Preset, nil, nil, nil)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	lt, err := review.LocalChange(r.Context(), "", p.Path, p.Base+"..."+branch.Name)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	// LocalChange looks for uncommitted changes in the main checkout, but
+	// the branch's are in the worktrees it is checked out in.
+	out := branchReview{Uncommitted: []string{}}
+	for _, wt := range p.Worktrees {
+		if wt.Branch == branch.Name && wt.Dirty {
+			out.Uncommitted = append(out.Uncommitted, wt.Path)
+		}
+	}
+	a.probeTools()
+	run, err := a.Runs.Start(lt.Change, lt.Source, reviewers, synth, verifier)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	a.local.mu.Lock()
+	a.local.stale = true
+	a.local.mu.Unlock()
+	out.Run = run.View()
+	writeJSON(w, http.StatusCreated, out)
 }
 
 // serveLocal builds the tab and answers with it. The caller holds the lock.
@@ -404,7 +499,7 @@ func (a *App) buildLocal(ctx context.Context, s local.Store, rescan bool) (*loca
 	sort.SliceStable(v.Projects, func(i, j int) bool {
 		return strings.ToLower(v.Projects[i].Name) < strings.ToLower(v.Projects[j].Name)
 	})
-	a.local.view = v
+	a.local.view, a.local.stale = v, false
 	if path := a.scanPath(); path != "" {
 		scan.View = v
 		_ = state.WriteJSON(path, scan) // a lost cache costs a rebuild, not the person's work

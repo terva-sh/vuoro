@@ -13,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/config"
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/inbox"
 	"github.com/terva-sh/vuoro/review"
+	"github.com/terva-sh/vuoro/review/drafts"
 	"github.com/terva-sh/vuoro/state"
 )
 
@@ -368,4 +370,110 @@ func TestABranchIsTiedToItsOpenChangeFromTheInboxCache(t *testing.T) {
 	if v.Needs != 2 {
 		t.Fatalf("needs %d, want ahead and other", v.Needs)
 	}
+}
+
+func TestABranchIsReviewedFromTheWindowAndItsCheckoutIsLeftAlone(t *testing.T) {
+	work := t.TempDir()
+	dir := filepath.Join(work, "proj")
+	git := checkout(t, dir)
+	os.WriteFile(filepath.Join(dir, "calc.go"), []byte("package calc\n"), 0o600)
+	git("add", "calc.go")
+	git("commit", "-q", "-m", "calc")
+	git("switch", "-q", "-c", "feature")
+	os.WriteFile(filepath.Join(dir, "calc.go"), []byte("package calc\n\nfunc Add(a, b int) int { return a - b }\n"), 0o600)
+	git("commit", "-q", "-am", "add Add")
+	git("switch", "-q", "main")
+	// feature is checked out in a worktree with an uncommitted change.
+	wt := filepath.Join(work, "proj-feature")
+	git("worktree", "add", "-q", wt, "feature")
+	os.WriteFile(filepath.Join(wt, "calc.go"), []byte("package calc // edited\n"), 0o600)
+	before := git("for-each-ref") + git("status", "--porcelain") + git("-C", wt, "status", "--porcelain")
+
+	mcp := drafts.NewServer()
+	mcpSrv := httptest.NewServer(mcp)
+	defer mcpSrv.Close()
+	stateDir := t.TempDir()
+	a := &App{StateDir: stateDir, Tools: map[string]agent.Driver{"fake": agentDriver{}},
+		Runs: &review.Manager{StateDir: stateDir, Repos: &review.Repos{Dir: filepath.Join(stateDir, "repos")}, Drafts: mcp, MCPURL: mcpSrv.URL + "/mcp/"}}
+	defer a.Runs.Shutdown()
+	h := a.Handler()
+	_, v, _ := postLocal(t, h, "/api/local/projects", map[string]any{"path": dir})
+	key := v.Projects[0].Key
+
+	if code, out := call(t, h, "/api/local/review", map[string]any{"key": filepath.Join(work, "elsewhere"), "branch": "feature"}); code == http.StatusCreated {
+		t.Fatalf("reviewed a project vuoro does not list: %v", out)
+	}
+	for _, bad := range []string{"main", "no-such", "--all"} {
+		if code, out := call(t, h, "/api/local/review", map[string]any{"key": key, "branch": bad}); code == http.StatusCreated {
+			t.Fatalf("reviewed %q, which is not a listed branch: %v", bad, out)
+		}
+	}
+	code, out := call(t, h, "/api/local/review", map[string]any{"key": key, "branch": "feature"})
+	if code != http.StatusCreated {
+		t.Fatalf("review: %d %v", code, out)
+	}
+	b, _ := json.Marshal(out)
+	var started branchReview
+	json.Unmarshal(b, &started)
+	if len(started.Uncommitted) != 1 || !sameFile(started.Uncommitted[0], wt) {
+		t.Fatalf("uncommitted %q, want the feature worktree", started.Uncommitted)
+	}
+	run := a.Runs.Get(started.Run.ID)
+	if run == nil || started.Run.Kind != review.Local || started.Run.Title != "add Add" {
+		t.Fatalf("run %+v", started.Run)
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	for run.View().Status != review.Idle && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if st := run.View().Status; st != review.Idle {
+		t.Fatalf("the run is %s: %s", st, run.View().Error)
+	}
+	// The run stays open, as a window run does, and the branch shows it.
+	if f := branchNamed(getLocalView(t, h), "proj", "feature"); f == nil || f.Run == nil || f.Run.ID != started.Run.ID {
+		t.Fatalf("feature's review after starting one: %+v", f)
+	}
+	if after := git("for-each-ref") + git("status", "--porcelain") + git("-C", wt, "status", "--porcelain"); after != before {
+		t.Fatalf("the review wrote to the checkout:\n%s\nthen\n%s", before, after)
+	}
+}
+
+func TestRefreshPicksUpARunAnotherProcessFinishedAndNotOneStillRunning(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "proj")
+	git := checkout(t, dir)
+	git("switch", "-q", "-c", "feature")
+	git("commit", "-q", "--allow-empty", "-m", "one")
+	head := git("rev-parse", "HEAD")
+	top := git("rev-parse", "--show-toplevel")
+	stateDir := t.TempDir()
+	m := &review.Manager{StateDir: stateDir}
+	m.Load()
+	h := (&App{StateDir: stateDir, Runs: m}).Handler()
+	postLocal(t, h, "/api/local/projects", map[string]any{"path": dir})
+
+	write := func(id string, status review.Status) {
+		rec := map[string]any{"id": id, "kind": "local", "ref": map[string]any{"host": "local", "project": "proj-1"}, "title": id,
+			"head": head, "created": time.Now().UTC(), "status": status, "sessions": []any{}, "origin": filepath.FromSlash(top),
+			"resume": map[string]any{}, "drafts": []any{}}
+		b, _ := json.Marshal(rec)
+		os.MkdirAll(filepath.Join(stateDir, "runs", id), 0o700)
+		os.WriteFile(filepath.Join(stateDir, "runs", id, "run.json"), b, 0o600)
+	}
+	write("cli-running", review.Working)
+	_, v, _ := postLocal(t, h, "/api/local/refresh", map[string]any{})
+	if f := branchNamed(v, "proj", "feature"); f == nil || f.Run != nil || m.Get("cli-running") != nil {
+		t.Fatalf("a run still being written was taken: %+v", f)
+	}
+	write("cli-done", review.Closed)
+	_, v, _ = postLocal(t, h, "/api/local/refresh", map[string]any{})
+	if f := branchNamed(v, "proj", "feature"); f == nil || f.Run == nil || f.Run.ID != "cli-done" {
+		t.Fatalf("a finished run from the command line: %+v", f)
+	}
+}
+
+// sameFile says whether two paths name one file, however each is spelled.
+func sameFile(a, b string) bool {
+	x, err1 := os.Stat(a)
+	y, err2 := os.Stat(b)
+	return err1 == nil && err2 == nil && os.SameFile(x, y)
 }
