@@ -7,7 +7,7 @@ import { Home } from './app'
 import type { InboxView } from './inbox'
 import type { HomeTab, LocalView, Setup } from './types'
 
-vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
+vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn(), bindings: vi.fn() }))
 
 const setup = (tab: HomeTab): Setup => ({
   editable: false, base: 'b1', config_path: '/c.json', forges: [], tools: [], presets: [], profiles: [], waived: [], scheme: '', tab, sources: [],

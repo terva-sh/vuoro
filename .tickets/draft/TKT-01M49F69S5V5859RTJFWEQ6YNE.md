@@ -17,12 +17,13 @@ dependencies:
   - TKT-01M49F697KRB85MATTJDR3PE42
   - TKT-01M49F69DQA78FC51MYRH9N1TR
   - TKT-01M49F69K6E6NECKP8KCSG977C
+  - TKT-01M49F69YPPFF84P65TX6S9Y80
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-06T20:41:27Z
-updated_at: 2026-10-06T20:41:27Z
+updated_at: 2026-10-06T21:32:53Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -40,5 +41,11 @@ Section 6.8: each project with its branch rows, worktree tags, last review and w
 
 - [ ] Branch rows show ahead count, age, worktree tags with a dirty mark, and the last review
 - [ ] Review starts a run and opens it
-- [ ] Projects and roots can be added by path, hidden, and removed, and a project's base changed
 - [ ] Ten branches show at a time per project
+- [ ] A project's base can be changed
+
+## Notes
+
+**agent:claude/frontend-modules-2026-10-06** at 2026-10-06T21:32:53Z
+
+Adding, hiding and removing projects and roots moved to TKT-01M49F69Y (Add, hide, and remove local projects and roots, with the folder chooser) on 2026-10-06, so this ticket now waits on it. Changing a project's base stays here.

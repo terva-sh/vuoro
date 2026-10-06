@@ -2,50 +2,140 @@
 // branches in each that need them.
 import { useEffect, useState } from 'preact/hooks'
 import { useAction } from './action'
-import { api, post } from './api'
+import { api, bindings, post } from './api'
 import type { LocalProject, LocalView } from './types'
 import { ago } from './ui'
 
+type Adding = 'project' | 'root'
+const adding: Record<Adding, { title: string; route: string }> = {
+  project: { title: 'Add a folder', route: '/api/local/projects' },
+  root: { title: 'Add a folder to scan', route: '/api/local/roots' },
+}
+
 // LocalTab reads the local view, which reads every checkout, when it is
 // first shown. onCount hears how many branches need the person each time
-// the view is read.
+// the view is read. Every edit answers with the view, read again.
 export function LocalTab({ onCount }: { onCount?: (n: number) => void }) {
   const [view, setView] = useState<LocalView>()
+  const [typing, setTyping] = useState<Adding>()
   const read = useAction()
-  const load = async (path: string, refresh: boolean) => {
-    const v = await read.run(() => (refresh ? post<LocalView>(path) : api<LocalView>(path)))
+  const apply = async (fn: () => Promise<LocalView>) => {
+    const v = await read.run(fn)
     if (v) {
       setView(v)
       onCount?.(v.needs)
     }
+    return v
   }
-  useEffect(() => { void load('/api/local', false) }, [])
+  const edit = (path: string, body: object) => apply(() => post<LocalView>(path, body))
+  useEffect(() => { void apply(() => api<LocalView>('/api/local')) }, [])
+
+  // The window asks with the native folder chooser, which only answers a
+  // path. A browser has no chooser, and takes a typed path instead.
+  const add = async (what: Adding) => {
+    const choose = bindings()?.chooseFolder
+    if (!choose) {
+      setTyping(what)
+      return
+    }
+    const path = await choose(adding[what].title)
+    if (path) await edit(adding[what].route, { path })
+  }
+  const none = view && view.added.length + view.roots.length === 0
 
   return (
     <section class="local" aria-label="Local projects" aria-busy={read.busy}>
       <header class="local-head">
         <h2>Local projects</h2>
         {view && <span class="muted">read {ago(view.built)}</span>}
-        <button disabled={read.busy} onClick={() => void load('/api/local/refresh', true)}>{read.busy ? 'Reading…' : 'Refresh'}</button>
+        <span class="local-actions">
+          <button disabled={read.busy} onClick={() => void add('project')}>Add a folder</button>
+          <button disabled={read.busy} onClick={() => void add('root')}>Add a folder to scan</button>
+          <button disabled={read.busy} onClick={() => void apply(() => post<LocalView>('/api/local/refresh'))}>{read.busy ? 'Reading…' : 'Refresh'}</button>
+        </span>
       </header>
+      {typing && (
+        <PathForm title={adding[typing].title} busy={read.busy} onCancel={() => setTyping(undefined)}
+          onAdd={async (path) => { if (await edit(adding[typing].route, { path })) setTyping(undefined) }} />
+      )}
       {read.error && <p class="alert" role="alert">⚠ {read.error}</p>}
       {!view ? (
         read.busy && <p class="muted">Reading your checkouts…</p>
-      ) : view.projects.length === 0 ? (
-        <p class="muted">
-          No local projects yet. vuoro lists the checkouts you add, and the ones it finds in the folders you ask it to scan.
-        </p>
       ) : (
         <>
+          {none ? (
+            <p class="muted">
+              No local projects yet. Add a checkout, or a folder such as ~/Workspace for vuoro to scan for checkouts.
+            </p>
+          ) : view.projects.length === 0 ? (
+            <p class="muted">No checkouts to show in the folders you added.</p>
+          ) : null}
           {view.stopped && <p class="muted">⚠ {view.stopped}; some checkouts may be missing.</p>}
-          {view.projects.map((p) => <Project project={p} quietDays={view.quiet_days} key={p.key} />)}
+          {view.projects.map((p) => (
+            <Project project={p} quietDays={view.quiet_days} busy={read.busy} key={p.key}
+              onHide={() => void edit('/api/local/hide', { key: p.key, hidden: true })} />
+          ))}
+          {!none && <Folders view={view} busy={read.busy} onEdit={(path, body) => void edit(path, body)} />}
         </>
       )}
     </section>
   )
 }
 
-function Project({ project: p, quietDays }: { project: LocalProject; quietDays: number }) {
+// PathForm takes a typed absolute path, for a browser, which has no chooser.
+function PathForm({ title, busy, onAdd, onCancel }: { title: string; busy: boolean; onAdd: (path: string) => Promise<void>; onCancel: () => void }) {
+  const [path, setPath] = useState('')
+  return (
+    <form class="local-path" onSubmit={(e) => { e.preventDefault(); void onAdd(path.trim()) }}>
+      <label>
+        {title}:{' '}
+        <input type="text" autoFocus value={path} placeholder="/Users/you/Workspace or ~/Workspace" aria-label={`${title}, as an absolute path`}
+          onInput={(e) => setPath((e.target as HTMLInputElement).value)} />
+      </label>
+      <button class="primary" disabled={busy || !path.trim()}>Add</button>
+      <button type="button" onClick={onCancel}>Cancel</button>
+    </form>
+  )
+}
+
+// Folders are what the person gave vuoro, each with a way to take it back:
+// the checkouts added, the folders scanned, and the projects hidden.
+function Folders({ view, busy, onEdit }: { view: LocalView; busy: boolean; onEdit: (path: string, body: object) => void }) {
+  const broken = new Map(view.unreadable.map((u) => [u.path, u.error]))
+  const parts = [
+    `${view.added.length} added`,
+    `${view.roots.length} scanned`,
+    ...(view.hidden.length > 0 ? [`${view.hidden.length} hidden`] : []),
+  ]
+  return (
+    <details class="local-folders" open={broken.size > 0}>
+      <summary>Folders · {parts.join(', ')}</summary>
+      <ul>
+        {view.added.map((path) => (
+          <li key={`a:${path}`}>
+            <code>{path}</code> <span class="muted">checkout</span>
+            {broken.has(path) && <span class="muted"> · ⚠ {broken.get(path)}</span>}{' '}
+            <button class="link" disabled={busy} onClick={() => onEdit('/api/local/projects/remove', { path })}>Remove</button>
+          </li>
+        ))}
+        {view.roots.map((path) => (
+          <li key={`r:${path}`}>
+            <code>{path}</code> <span class="muted">scanned for checkouts</span>{' '}
+            <button class="link" disabled={busy} onClick={() => onEdit('/api/local/roots/remove', { path })}>Remove</button>
+          </li>
+        ))}
+        {view.hidden.map((p) => (
+          <li key={`h:${p.key}`}>
+            {p.name} <span class="muted">{p.path} · hidden</span>{' '}
+            <button class="link" disabled={busy} onClick={() => onEdit('/api/local/hide', { key: p.key, hidden: false })}>Show</button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+function Project({ project: p, quietDays, busy, onHide }: { project: LocalProject; quietDays: number; busy: boolean; onHide: () => void }) {
   const needing = p.branches.filter((b) => b.needs.length > 0)
   const quiet = p.branches.filter((b) => b.quiet && b.needs.length === 0).length
   const done = p.branches.length - needing.length - quiet
@@ -53,7 +143,8 @@ function Project({ project: p, quietDays }: { project: LocalProject; quietDays: 
     <section class="local-project" aria-label={p.name}>
       <h3>
         {p.name} <span class="badge">{needing.length}</span>{' '}
-        <span class="muted">{p.path}{p.base && ` · against ${p.base}`}</span>
+        <span class="muted">{p.path}{p.base && ` · against ${p.base}`}</span>{' '}
+        <button class="link" disabled={busy} onClick={onHide}>Hide</button>
       </h3>
       {p.error ? (
         <p class="muted">⚠ {p.error}</p>

@@ -1088,7 +1088,11 @@ before the first.
 **Projects come from two places.** The person adds a folder, through the
 native directory chooser (tuohi's `dialog`, `TypeDirectory`) in the window, or
 a typed absolute path in `-browser` mode. The person can also name a root,
-such as `~/Workspace`, which vuoro scans for checkouts. The scan:
+such as `~/Workspace`, which vuoro scans for checkouts. The chooser is the
+window's `vuoro.chooseFolder` binding, which only answers the chosen path; the
+page adds it through the guarded API, which checks it as it checks a typed
+one. The tab's Folders list shows what was added and scanned, each with
+Remove, and the projects hidden, each with Show. The scan:
 
 - runs when the Local tab opens with a stale list, and on Refresh, never in
   the background;

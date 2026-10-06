@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/terva-sh/tuohi/dialog"
 )
 
 // childArgs carries vuoro's arguments into a child test binary, and marks it
@@ -114,5 +117,23 @@ func TestABrokenConfigAtLaunchCanBeFixedWithoutARestart(t *testing.T) {
 	os.WriteFile(path, []byte(`{"forges": []}`), 0o600)
 	if got := setup(); got.ConfigError != "" || !got.Editable {
 		t.Fatalf("after fixing it: %+v", got)
+	}
+}
+
+func TestChooseFolderAsksForADirectoryAndAnswersEmptyWhenCancelled(t *testing.T) {
+	var asked dialog.Options
+	answer := []string{"/home/pat/work"}
+	var fail error
+	choose := chooseFolder(func(o dialog.Options) ([]string, error) { asked = o; return answer, fail })
+	if got := choose("Add a folder"); got != "/home/pat/work" || asked.Type != dialog.TypeDirectory || asked.Title != "Add a folder" {
+		t.Fatalf("chose %q with %+v", got, asked)
+	}
+	answer = nil
+	if got := choose("Add a folder"); got != "" {
+		t.Fatalf("a cancelled chooser answered %q", got)
+	}
+	answer, fail = []string{"/x"}, errors.New("no window")
+	if got := choose("Add a folder"); got != "" {
+		t.Fatalf("a chooser that failed answered %q", got)
 	}
 }

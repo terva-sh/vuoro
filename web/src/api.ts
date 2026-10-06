@@ -6,6 +6,9 @@ export interface Bindings {
   token(): Promise<string>
   version(): Promise<string>
   report(r: { ok: boolean; detail: string }): Promise<void>
+  // chooseFolder shows the native folder chooser, and answers the folder
+  // chosen, or '' when the person cancelled.
+  chooseFolder?(title: string): Promise<string>
 }
 
 declare global {

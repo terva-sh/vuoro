@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/terva-sh/tuohi"
+	"github.com/terva-sh/tuohi/dialog"
 	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/agent/claude"
 	"github.com/terva-sh/vuoro/app"
@@ -165,12 +166,28 @@ type report struct {
 	Detail string `json:"detail"`
 }
 
+// chooseFolder is the vuoro.chooseFolder binding: the native directory
+// chooser, titled by the page, answering the chosen folder, or "" when the
+// person cancelled or no chooser could be shown. It only answers a path.
+// The page adds it through the guarded API, which checks it as it checks a
+// typed one (docs/plan.md section 6.8).
+func chooseFolder(show func(dialog.Options) ([]string, error)) func(title string) string {
+	return func(title string) string {
+		paths, err := show(dialog.Options{Type: dialog.TypeDirectory, Title: title})
+		if err != nil || len(paths) == 0 {
+			return ""
+		}
+		return paths[0]
+	}
+}
+
 // showWindow opens the window on url and runs the UI loop on the main thread.
 func showWindow(url, token string, check bool, logger *log.Logger) int {
 	app := &tuohi.App{Name: "vuoro", Exit: true}
 	reports := make(chan report, 1)
 
-	view := &tuohi.View{
+	var view *tuohi.View
+	view = &tuohi.View{
 		URL:    url,
 		Title:  "vuoro",
 		Frame:  true,
@@ -182,6 +199,8 @@ func showWindow(url, token string, check bool, logger *log.Logger) int {
 			// tuohi offers bindings only to the origin the view trusts, its
 			// own loopback server, so only vuoro's page can read the token.
 			"vuoro.token": func() string { return token },
+			// The folder chooser answers a path and adds nothing itself.
+			"vuoro.chooseFolder": chooseFolder(func(o dialog.Options) ([]string, error) { return view.Dialog(o) }),
 			"vuoro.report": func(r report) {
 				select {
 				case reports <- r:
