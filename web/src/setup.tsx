@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'preact/hooks'
-import { post } from './api'
-import type { ForgeForm, Setup, TokenSource, Tool } from './types'
-
 // Setup in the window (D45). vuoro never asks for a token: the person keeps
 // it where they choose, and the config names the command or the variable
 // that supplies it (D29). The form tests that source against the forge
 // before it saves.
+import { useEffect, useState } from 'preact/hooks'
+import { errorText, useAction } from './action'
+import { post } from './api'
+import { EditForm } from './textedit'
+import type { ForgeForm, Setup, TokenSource, Tool } from './types'
 
 // splitCommand splits a command line into its words as a shell would,
 // honouring single quotes, double quotes, and backslashes, and expanding
@@ -94,8 +95,10 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   const [command, setCommand] = useState(initial?.token_command ? joinCommand(initial.token_command) : '')
   const [env, setEnv] = useState(initial?.token_env ?? '')
   const [result, setResult] = useState<{ username: string; key: string }>()
-  const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(false)
+  // Testing and saving are apart, so each button says which one runs.
+  const testing = useAction()
+  const saving = useAction()
+  const busy = testing.busy || saving.busy
 
   const host = hostOf(url)
   const source: TokenSource | undefined = setup.sources.find((s) => s.id === sourceID)
@@ -112,7 +115,7 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
     try {
       argv = splitCommand(command)
     } catch (e) {
-      commandError = e instanceof Error ? e.message : String(e)
+      commandError = errorText(e)
     }
   }
   const effectiveName = name.trim() || host
@@ -128,32 +131,25 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   const ready = !!host && (isEnv || (argv.length > 0 && !commandError))
 
   const test = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      const r = await post<{ username: string; matches: boolean }>('/api/setup/test', form)
-      setResult({ username: r.username, key })
-      if (!form.username) setUsername(r.username)
-    } catch (e) {
+    saving.setError(undefined)
+    const r = await testing.run(() => post<{ username: string; matches: boolean }>('/api/setup/test', form))
+    if (!r) {
       setResult(undefined)
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
+      return
     }
+    setResult({ username: r.username, key })
+    if (!form.username) setUsername(r.username)
   }
-  const save = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      onSaved(await post<Setup>('/api/setup/forges', { base, original: original ?? '', forge: form }))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      setBusy(false)
-    }
+  const save = () => {
+    testing.setError(undefined)
+    void saving.run(async () => onSaved(await post<Setup>('/api/setup/forges', { base, original: original ?? '', forge: form })))
   }
   const page = tokenPage(kind, url)
+  const label = original ? 'Save' : 'Add this forge'
   return (
-    <form class="forge-editor" onSubmit={(e) => { e.preventDefault(); if (canSave) void save() }}>
+    <EditForm class="forge-editor" onSave={save} onCancel={onCancel} busy={busy} canSave={!!canSave}
+      save={label} saving={saving.busy ? 'Saving…' : label} hint={canSave ? undefined : 'Test the token first'}
+      error={testing.error ?? saving.error}>
       <div class="row">
         <label class="field">Forge
           <select value={kind} onChange={(e) => setKind((e.target as HTMLSelectElement).value)}>
@@ -191,7 +187,7 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
           {!isEnv && argv.length > 0 && !commandError && <p class="muted">vuoro will run <span class="mono">{argv.map((a) => `‹${a}›`).join(' ')}</span>, without a shell, whenever it needs the token.</p>}
         </li>
         <li>
-          <button type="button" disabled={busy || !ready} onClick={() => void test()}>{busy && !tested ? 'Testing…' : 'Test'}</button>{' '}
+          <button type="button" disabled={busy || !ready} onClick={() => void test()}>{testing.busy ? 'Testing…' : 'Test'}</button>{' '}
           {tested && <span class="ok">✓ Signed in as @{result.username}</span>}
           {tested && form.username && result.username.toLowerCase() !== form.username.toLowerCase() && <p class="warn">The token is @{result.username}'s, not @{form.username}'s.</p>}
         </li>
@@ -210,12 +206,7 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
           </select>
         </label>
       </div>
-      {error && <p class="alert" role="alert">⚠ {error}</p>}
-      <div class="actions">
-        {onCancel && <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>}
-        <button class="primary" disabled={busy || !canSave} title={canSave ? '' : 'Test the token first'}>{original ? 'Save' : 'Add this forge'}</button>
-      </div>
-    </form>
+    </EditForm>
   )
 }
 
@@ -233,19 +224,8 @@ function toolHelp(t: Tool): string {
 
 // Tools shows what each agent tool's probe found, and checks again on demand.
 export function Tools({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) => void }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  const again = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      onSetup(await post<Setup>('/api/setup/tools', {}))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
+  const { busy, error, run } = useAction()
+  const again = () => run(async () => onSetup(await post<Setup>('/api/setup/tools', {})))
   return (
     <div class="tools">
       {setup.tools.length === 0 ? <p>vuoro knows no agent tool on this machine.</p> : (
@@ -267,16 +247,11 @@ function describeSource(f: ForgeForm & { env_set?: boolean }): string {
 export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) => void }) {
   const [editing, setEditing] = useState<string>() // a forge's name, or '' for a new one
   const [removing, setRemoving] = useState<string>()
-  const [error, setError] = useState<string>()
-  const remove = async (name: string) => {
-    setError(undefined)
-    try {
-      onSetup(await post<Setup>('/api/setup/forges/remove', { base: setup.base, name }))
-      setRemoving(undefined)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
+  const { busy, error, run } = useAction()
+  const remove = (name: string) => run(async () => {
+    onSetup(await post<Setup>('/api/setup/forges/remove', { base: setup.base, name }))
+    setRemoving(undefined)
+  })
   const saved = (s: Setup) => { setEditing(undefined); onSetup(s) }
   return (
     <div class="forges">
@@ -292,7 +267,7 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
                 {setup.editable && <>
                   {' '}<button class="link" onClick={() => setEditing(f.name)}>Edit</button>
                   {removing === f.name ? (
-                    <> · Remove {f.name}? <button class="link" onClick={() => void remove(f.name)}>Remove</button> <button class="link" onClick={() => setRemoving(undefined)}>Keep</button></>
+                    <> · Remove {f.name}? <button class="link" disabled={busy} onClick={() => void remove(f.name)}>{busy ? 'Removing…' : 'Remove'}</button> <button class="link" disabled={busy} onClick={() => setRemoving(undefined)}>Keep</button></>
                   ) : <> <button class="link" onClick={() => setRemoving(f.name)}>Remove</button></>}
                 </>}
               </>

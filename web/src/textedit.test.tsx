@@ -65,6 +65,13 @@ describe('EditForm', () => {
     }
   })
 
+  it('offers no Cancel without onCancel, and titles Save with its hint', () => {
+    const root = document.createElement('div')
+    act(() => render(<EditForm save="Add" hint="Test the token first" canSave={false} onSave={() => {}}><input /></EditForm>, root))
+    expect([...root.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Add'])
+    expect(root.querySelector('button')!.title).toBe('Test the token first')
+  })
+
   it('shows its error and its note', () => {
     const f = form({ error: 'refused', note: 'Saving does not post.' })
     expect(f.root.querySelector('[role=alert]')?.textContent).toBe('⚠ refused')

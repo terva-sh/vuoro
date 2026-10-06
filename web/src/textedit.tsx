@@ -51,14 +51,16 @@ export function TextEditor({ value, onInput, label, placeholder, rows = 4, mono 
 
 // EditForm is a form that saves: its fields, then Save and Cancel, then the
 // error and a note. Save is the form's submit, so Enter in a field and
-// Cmd+Enter in a TextEditor both reach it.
-export function EditForm({ onSave, onCancel, busy = false, canSave = true, save, saving = 'Saving…', error, note, class: cls = '', children }: {
+// Cmd+Enter in a TextEditor both reach it. Without onCancel there is no
+// Cancel, for a form that is the only way forward.
+export function EditForm({ onSave, onCancel, busy = false, canSave = true, save, saving = 'Saving…', hint, error, note, class: cls = '', children }: {
   onSave: () => void
-  onCancel: () => void
+  onCancel?: () => void
   busy?: boolean
   canSave?: boolean
   save: string // the Save button's label
   saving?: string // its label while busy
+  hint?: string // the Save button's title, such as why it cannot save yet
   error?: string
   note?: ComponentChildren
   class?: string
@@ -68,8 +70,8 @@ export function EditForm({ onSave, onCancel, busy = false, canSave = true, save,
     <form class={`edit-form ${cls}`.trim()} onSubmit={(e) => { e.preventDefault(); if (!busy && canSave) onSave() }}>
       {children}
       <div class="actions">
-        <button class="primary" disabled={busy || !canSave}>{busy ? saving : save}</button>
-        <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+        <button class="primary" disabled={busy || !canSave} title={hint}>{busy ? saving : save}</button>
+        {onCancel && <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       {note && <p class="muted">{note}</p>}
