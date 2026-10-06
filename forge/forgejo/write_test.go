@@ -58,6 +58,7 @@ type writeForge struct {
 	writes  []sent
 	// published are the reviews this fake has taken, as Forgejo lists them.
 	published []string
+	head      string // the PR's head, "head1" when empty
 }
 
 func (f *writeForge) serve(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +88,13 @@ func (f *writeForge) serve(w http.ResponseWriter, r *http.Request) {
 	case "/api/v1/user":
 		w.Write([]byte(`{"login": "me"}`))
 	case pr:
-		w.Write([]byte(`{"head": {"ref": "feature", "sha": "head1"}}`))
+		f.mu.Lock()
+		head := f.head
+		f.mu.Unlock()
+		if head == "" {
+			head = "head1"
+		}
+		fmt.Fprintf(w, `{"head": {"ref": "feature", "sha": %q}}`, head)
 	case pr + "/reviews":
 		if r.URL.Query().Get("page") != "1" {
 			w.Write([]byte(`[]`))
@@ -277,8 +284,8 @@ func TestAFailedReplyStaysPending(t *testing.T) {
 }
 
 // A reply that fails after a verdict was published is retried without
-// publishing the verdict again, and without asking again for what the
-// published review already said.
+// publishing the verdict again, even after a push, and without asking again
+// for what the published review already said.
 func TestARetryAfterAVerdictPostsOnlyTheReplies(t *testing.T) {
 	for _, v := range []forge.Verdict{forge.VerdictApproved, forge.VerdictChangesRequested} {
 		f := &writeForge{fail: map[string]bool{"/api/v1/repos/terva-sh/vuoro/issues/2/comments": true}}
@@ -290,6 +297,11 @@ func TestARetryAfterAVerdictPostsOnlyTheReplies(t *testing.T) {
 			t.Fatalf("%s: %v", v, err)
 		}
 		delete(f.fail, "/api/v1/repos/terva-sh/vuoro/issues/2/comments")
+		// The author pushes before the retry, so the published verdict no
+		// longer stands on today's head.
+		f.mu.Lock()
+		f.head = "head2"
+		f.mu.Unlock()
 		if err := c.Submit(ctx, ref, v); err != nil {
 			t.Fatalf("%s retry: %v", v, err)
 		}
@@ -308,6 +320,18 @@ func TestARetryAfterAVerdictPostsOnlyTheReplies(t *testing.T) {
 		if ds, _ := s.Drafts(ref); len(ds) != 0 {
 			t.Fatalf("%s: left %+v", v, ds)
 		}
+	}
+
+	// Fresh replies with a verdict still publish the verdict.
+	f := &writeForge{}
+	c, ref, _ := writeClient(t, f)
+	ctx := context.Background()
+	c.CreateDraft(ctx, ref, forge.NewDraft{Body: "a reply", ThreadID: "comment-5"})
+	if err := c.Submit(ctx, ref, forge.VerdictApproved); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.sent(); len(w) != 2 || w[0].Body["event"] != "APPROVED" {
+		t.Fatalf("fresh replies with an approval: %+v", w)
 	}
 }
 

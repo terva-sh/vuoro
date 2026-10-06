@@ -26,7 +26,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-06T04:42:00Z
+updated_at: 2026-10-06T04:48:56Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -157,6 +157,10 @@ Follow-ups from terva-review run e9bc56f7 on PR #17, and the Windows leg.
 - Medium: UpdateDraft PATCHed any numeric id, and that route edits published comments too. UpdateDraft and DeleteDraft now require the id to be a comment of the person's pending review (pendingComment), and answer ErrNotFound otherwise.
 - Windows: TestReviewExitStatuses used -timeout 300ms, which ran out during the local git diff on the runner and was reported as a git error. A deadline that expires while reading the change now reports the same timeout as one during the review (review_cmd.go).
 The live TestLiveWrite passed again after these changes.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T04:48:56Z
+
+terva-review run 8e261f75 (high): a retry's skip of the verdict depended on the head being unchanged, so a push between attempts republished an approval or blocked a request-changes retry on the empty-body check. Fixed by marking replies left after a published review (Draft.AfterReview, persisted in the local store); a submit whose only remaining drafts are such replies posts them and publishes no review whatever the head. Fresh replies with a verdict still publish it unless it stands. Rejected: matching the newest published verdict regardless of head, because a person may deliberately re-approve after a push. TestARetryAfterAVerdictPostsOnlyTheReplies now moves the head before the retry and fails without the fix. just ci and TestLiveWrite pass.
 
 ## Summary
 

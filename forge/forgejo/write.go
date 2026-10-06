@@ -349,10 +349,11 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 	}
 	body := strings.Join(bodies, "\n\n")
 	content := body != "" || len(comments) > 0 || (pending != nil && pending.Comments > 0)
-	// Only replies left, and the verdict already standing on this head: a
-	// retry after a reply failed. Forgejo holds the verdict, so post only the
-	// replies rather than publish it again.
-	review := content || (verdict != forge.VerdictCommented && !m.stands(event, pr.Head.SHA))
+	// Replies left after their review was published are a retry: post them
+	// and publish no review, whether or not the head has moved since. With
+	// fresh replies only, a verdict publishes unless it already stands.
+	retry := len(replies) > 0 && !slices.ContainsFunc(replies, func(d forge.Draft) bool { return !d.AfterReview })
+	review := content || (verdict != forge.VerdictCommented && !retry && !m.stands(event, pr.Head.SHA))
 	if review && verdict == forge.VerdictChangesRequested && strings.TrimSpace(body) == "" {
 		return errors.New("forgejo: Forgejo needs a comment on the whole change to request changes; add one, then request changes")
 	}
@@ -365,8 +366,11 @@ func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdic
 		}); err != nil {
 			return err
 		}
-		// The review is public now: drop what it published, so a retry of
-		// the replies never publishes it twice.
+		// The review is public now: drop what it published, and mark the
+		// replies as following it, so a retry never publishes it twice.
+		for i := range replies {
+			replies[i].AfterReview = true
+		}
 		if err := s.SaveDrafts(ref, replies); err != nil {
 			return fmt.Errorf("forgejo: your review was published, but vuoro could not clear its pending comments; delete them before submitting again: %w", err)
 		}

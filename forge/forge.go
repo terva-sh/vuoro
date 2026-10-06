@@ -202,6 +202,9 @@ type Draft struct {
 	Body     string  `json:"body"`
 	ThreadID string  `json:"thread_id"` // set when it replies to a thread
 	Anchor   *Anchor `json:"anchor"`    // set when it is a new inline comment
+	// AfterReview marks a reply left pending after the review it was
+	// submitted with was published, so retrying it publishes no review.
+	AfterReview bool `json:"after_review,omitempty"`
 }
 
 // Opener opens one change with everything a review needs.
