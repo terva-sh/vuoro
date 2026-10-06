@@ -26,7 +26,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-06T04:48:56Z
+updated_at: 2026-10-06T04:51:38Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -161,6 +161,10 @@ The live TestLiveWrite passed again after these changes.
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T04:48:56Z
 
 terva-review run 8e261f75 (high): a retry's skip of the verdict depended on the head being unchanged, so a push between attempts republished an approval or blocked a request-changes retry on the empty-body check. Fixed by marking replies left after a published review (Draft.AfterReview, persisted in the local store); a submit whose only remaining drafts are such replies posts them and publishes no review whatever the head. Fresh replies with a verdict still publish it unless it stands. Rejected: matching the newest published verdict regardless of head, because a person may deliberately re-approve after a push. TestARetryAfterAVerdictPostsOnlyTheReplies now moves the head before the retry and fails without the fix. just ci and TestLiveWrite pass.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-06T04:51:38Z
+
+terva-review run 60212b81 (medium) asked to paginate /pulls/{n}/reviews/{id}/comments. Declined after a live probe on warricksothr/vuoro-sandbox#1, review 2155 (11 comments): Forgejo 15.0.3 returns the same complete list for no parameters, page=1&limit=1, page=2&limit=1 and page=50&limit=100. The endpoint has no pagination, and pages[] stops only on an empty page, so it would fetch the list 1000 times and fail. The three reads now share reviewComments, which records this.
 
 ## Summary
 

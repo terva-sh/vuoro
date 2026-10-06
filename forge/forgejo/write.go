@@ -166,7 +166,7 @@ func (c *Client) pendingComment(ctx context.Context, ref forge.Ref, n int64) (*a
 		return nil, err
 	}
 	if mine.pending != nil {
-		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath(ref), mine.pending.ID))
+		cs, err := reviewComments(ctx, c, prPath(ref), mine.pending.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +416,7 @@ func (c *Client) reply(ctx context.Context, ref forge.Ref, d forge.Draft) error 
 		if r.State == "PENDING" || r.Comments == 0 {
 			continue
 		}
-		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath(ref), r.ID))
+		cs, err := reviewComments(ctx, c, prPath(ref), r.ID)
 		if err != nil {
 			return err
 		}

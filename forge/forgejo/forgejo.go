@@ -127,6 +127,14 @@ func read[T any](ctx context.Context, c *Client, path string) (T, error) {
 	}
 	return out, nil
 }
+
+// reviewComments is every comment of a review. The endpoint returns the
+// complete list and has no page/limit API: Forgejo 15 ignores both
+// parameters (verified live), so paging would repeat the same comments until
+// pages gave up.
+func reviewComments(ctx context.Context, c *Client, prPath string, review int64) ([]apiComment, error) {
+	return read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, review))
+}
 func pages[T any](ctx context.Context, c *Client, path string) ([]T, error) {
 	var out []T
 	// Follow until an empty page rather than guessing the server's maximum limit
@@ -308,9 +316,7 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 		if r.Comments == 0 {
 			continue
 		}
-		// This endpoint returns the complete list and has no page/limit API.
-		// Page parameters are ignored, so paging would repeat the same comments.
-		cs, err := read[[]apiComment](ctx, c, fmt.Sprintf("%s/reviews/%d/comments", prPath, r.ID))
+		cs, err := reviewComments(ctx, c, prPath, r.ID)
 		if err != nil {
 			return nil, err
 		}
