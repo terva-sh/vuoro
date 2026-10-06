@@ -102,7 +102,20 @@ main { padding: var(--ui-space-4); }
 .local-folders ul { padding-left: var(--ui-space-5); }
 .local-project { margin-top: var(--ui-space-4); }
 .local-project h3 .muted { font-weight: 400; font-size: var(--ui-fs-detail); }
-.local-branches { padding-left: var(--ui-space-5); }
+/* A branch row: name, worktree tags, and its reviews on one line; its last
+   review and change below; then what it needs, labelled, not only coloured. */
+.local-branches { list-style: none; padding: 0; margin: var(--ui-space-2) 0 0; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+.local-branch { padding: var(--ui-space-2) var(--ui-space-3); display: grid; gap: var(--ui-space-1); }
+.local-branch + .local-branch { border-top: 1px solid var(--ui-line); }
+.local-branch-head, .local-branch-facts { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; }
+.local-branch-name { font-weight: 600; color: var(--ui-heading); }
+.local-branch-actions { margin-left: auto; display: flex; gap: var(--ui-space-2); }
+.local-branch-facts:empty { display: none; }
+.local-branch p { margin: 0; }
+.local-tag { border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-pill); padding: 0 var(--ui-space-2); font-size: var(--ui-fs-detail); color: var(--ui-fg); }
+.local-needs { color: var(--ui-warn); }
+.local-more { margin-top: var(--ui-space-2); }
+.local-actions label { display: flex; gap: var(--ui-space-1); align-items: center; }
 .setup { padding-left: var(--ui-space-5); }
 
 /* The runs so far: a folded card under the inbox, one row per change, which
