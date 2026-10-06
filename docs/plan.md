@@ -89,6 +89,9 @@ root element names one in `data-scheme`. The top bar offers System, Light,
 and Dark, and the choice is kept in `prefs.json` in the state directory,
 because the loopback port, and so the window's local storage, changes every
 launch.
+Diffs mark an added line in blue and a removed one in amber, not green and
+red, because blue and amber stay apart under every common colour blindness.
+Each row also carries its sign, and each file its added and removed counts.
 
 ### 3.1 Packages (target)
 

@@ -76,6 +76,18 @@ export function placeAll<T>(rows: Row[], items: T[], place: (t: T) => Place | un
   return { at, rest }
 }
 
+// diffStat counts a patch's added and removed lines, without the hunk
+// headers.
+export function diffStat(patch: string): { add: number; del: number } {
+  let add = 0
+  let del = 0
+  for (const line of patch.split('\n')) {
+    if (line[0] === '+') add++
+    else if (line[0] === '-') del++
+  }
+  return { add, del }
+}
+
 // patchLines counts a patch's lines, to decide whether to collapse it.
 export function patchLines(patch: string): number {
   let n = 0

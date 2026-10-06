@@ -4,6 +4,15 @@
 
 * { box-sizing: border-box; }
 
+/* Diff colours: blue for an added line and amber for a removed one, which
+   stay apart under every common colour blindness, unlike green and red. Each
+   row also carries its + or − sign. */
+:root { --diff-add: #2563A8; --diff-del: #A8570C; }
+:root[data-scheme='dark'] { --diff-add: #78AEE8; --diff-del: #E3A15C; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme='light']) { --diff-add: #78AEE8; --diff-del: #E3A15C; }
+}
+
 body {
   margin: 0;
   background: var(--ui-bg);
@@ -107,9 +116,13 @@ main { padding: var(--ui-space-4); }
   font-size: var(--ui-fs-detail);
 }
 .files { min-width: 0; }
-.file { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); margin-bottom: var(--ui-space-3); background: var(--ui-surface); overflow: hidden; scroll-margin-top: 64px; /* clear of the sticky top bar */ }
-.file-head { display: flex; gap: var(--ui-space-2); align-items: center; padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); border-bottom: 1px solid var(--ui-line); }
-.file-toggle { color: var(--ui-heading); }
+.file { border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); margin-bottom: var(--ui-space-3); background: var(--ui-raised); overflow: hidden; scroll-margin-top: 64px; /* clear of the sticky top bar */ }
+.file-head { display: flex; gap: var(--ui-space-2); align-items: center; padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-surface); border-bottom: 1px solid var(--ui-line-strong); }
+.file-head .file-toggle { color: var(--ui-heading); font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+.file-meta { display: flex; gap: var(--ui-space-3); align-items: center; white-space: nowrap; }
+.stat { font: var(--ui-fs-detail) var(--ui-font-mono); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.stat-add { color: var(--diff-add); }
+.stat-del { color: var(--diff-del); }
 /* A collapsed file is its header alone, one line, so a large change scans. */
 .file.collapsed { margin-bottom: var(--ui-space-1); }
 .file.collapsed .file-head { border-bottom: none; padding-top: var(--ui-space-1); padding-bottom: var(--ui-space-1); }
@@ -117,11 +130,18 @@ main { padding: var(--ui-space-4); }
 .diff { width: 100%; border-collapse: collapse; font: var(--ui-fs-detail) / 1.5 var(--ui-font-mono); }
 .diff td { padding: 0 var(--ui-space-2); vertical-align: top; }
 .diff .ln { width: 1%; text-align: right; color: var(--ui-muted); user-select: none; white-space: nowrap; }
-.diff .code { white-space: pre-wrap; overflow-wrap: anywhere; }
-.diff .sign { user-select: none; display: inline-block; width: 1.2em; color: var(--ui-muted); }
-.row-add { background: var(--ui-ok-soft); }
-.row-del { background: var(--ui-danger-soft); }
-.row-hunk td { background: var(--ui-accent-soft); color: var(--ui-muted); }
+.diff .ln + .ln { border-right: 1px solid var(--ui-line); }
+.diff .code { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ui-fg); }
+.diff .sign { user-select: none; display: inline-block; width: 1.2em; color: var(--ui-muted); font-weight: 700; }
+.row-add { background: color-mix(in srgb, var(--diff-add) 16%, var(--ui-raised)); }
+.row-del { background: color-mix(in srgb, var(--diff-del) 19%, var(--ui-raised)); }
+.row-add .ln { background: color-mix(in srgb, var(--diff-add) 28%, var(--ui-raised)); color: var(--ui-fg); }
+.row-del .ln { background: color-mix(in srgb, var(--diff-del) 32%, var(--ui-raised)); color: var(--ui-fg); }
+.row-add .ln:first-child { box-shadow: inset 3px 0 var(--diff-add); }
+.row-del .ln:first-child { box-shadow: inset 3px 0 var(--diff-del); }
+.row-add .sign { color: var(--diff-add); }
+.row-del .sign { color: var(--diff-del); }
+.row-hunk td { background: var(--ui-accent-soft); color: var(--ui-accent); border-block: 1px solid var(--ui-line); padding-block: 2px; }
 .row-note td { color: var(--ui-muted); font-style: italic; }
 .row-comments > td { padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-bg); font-family: var(--ui-font-sans); font-size: var(--ui-fs-ui); }
 
@@ -167,6 +187,8 @@ main { padding: var(--ui-space-4); }
 .draft.dropped { opacity: 0.6; border-left-color: var(--ui-line-strong); }
 .submit-bar { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-top: var(--ui-space-3); padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-raised); border-radius: var(--ui-radius); }
 .diff button.add-comment { background: none; border: none; padding: 0; border-radius: 0; color: var(--ui-muted); cursor: pointer; width: 1.2em; text-align: left; font: inherit; }
+.diff .row-add button.add-comment { color: var(--diff-add); font-weight: 700; }
+.diff .row-del button.add-comment { color: var(--diff-del); font-weight: 700; }
 .diff tr:hover button.add-comment { color: var(--ui-accent); }
 
 /* Markdown, as forges and agents write it. */
@@ -209,13 +231,14 @@ main { padding: var(--ui-space-4); }
 .run-section .session-strip { margin-bottom: 0; }
 .run-section .sessions { margin-top: var(--ui-space-3); }
 .editor-panel { border-top: 1px dashed var(--ui-line); padding-top: var(--ui-space-3); }
+.run-section-head + .editor-panel { border-top: none; padding-top: 0; }
 .finding-row { display: flex; gap: var(--ui-space-2); align-items: flex-start; }
 .finding-row > .finding { flex: 1; min-width: 0; }
 .finding-row > .pick { padding-top: 6px; }
 .finding-row > .pick, .author-thread-heading .pick { display: inline-flex; gap: 4px; align-items: center; margin-right: var(--ui-space-2); color: var(--ui-muted); font-size: var(--ui-fs-note); }
 .author-editor { margin-top: var(--ui-space-3); }
 .local-run h1 { margin: var(--ui-space-3) 0 var(--ui-space-1); font-size: var(--ui-fs-title, 1.25rem); color: var(--ui-heading); }
-.editor-diff-head { margin: var(--ui-space-3) 0 var(--ui-space-2); font-size: var(--ui-fs-detail); color: var(--ui-heading); }
+.editor-diff-head { display: flex; gap: var(--ui-space-3); align-items: baseline; margin: var(--ui-space-4) 0 var(--ui-space-2); font-size: var(--ui-fs-ui); color: var(--ui-heading); }
 .findings { display: flex; flex-direction: column; gap: var(--ui-space-1); }
 .finding { border: 1px solid var(--ui-line); border-left: 3px solid var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-surface); }
 .finding.kept { border-left-color: var(--ui-ok); }
@@ -237,10 +260,17 @@ main { padding: var(--ui-space-4); }
 .session-chip { display: flex; gap: var(--ui-space-2); align-items: center; border-radius: var(--ui-radius-pill); }
 .session-chip.on { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
 
-/* The file list shows each file's name, with its directory under it. */
-.file-link { display: flex; flex-direction: column; padding: 2px 0; }
-.file-name { font-family: var(--ui-font-mono); color: var(--ui-fg); }
-.file-dir { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); color: var(--ui-muted); overflow-wrap: anywhere; }
+/* The file list shows each file's name, with its directory and its counts
+   under it, and marks the file picked last. */
+.file-list { gap: 2px; }
+.file-list button.file-link { display: flex; flex-direction: column; gap: 1px; padding: var(--ui-space-1) var(--ui-space-2); border-left: 3px solid transparent; border-radius: 0 var(--ui-radius-control) var(--ui-radius-control) 0; }
+.file-list button.file-link:hover:not(:disabled) { background: var(--ui-hover); text-decoration: none; }
+.file-list button.file-link.current { background: var(--ui-accent-soft); border-left-color: var(--ui-accent); }
+.file-name { font-family: var(--ui-font-mono); color: var(--ui-heading); font-weight: 600; overflow-wrap: anywhere; }
+.file-sub { display: flex; gap: var(--ui-space-2); align-items: baseline; }
+.file-dir { flex: 1; min-width: 0; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); color: var(--ui-muted); overflow-wrap: anywhere; }
+.file-tag { font-size: var(--ui-fs-note); color: var(--ui-muted); font-style: italic; }
+.file-sub .stat { font-size: var(--ui-fs-note); }
 .file-link:hover .file-name { color: var(--ui-accent); }
 
 /* Asking first: a dialog over the page, with Cancel focused. */
@@ -264,7 +294,16 @@ main { padding: var(--ui-space-4); }
 .handoff .report-text { width: 100%; min-height: 12em; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
 .editor-panel .editor-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
 .editor-panel .editor-head .push { margin-left: auto; }
-.editor-commits { margin: 0 0 var(--ui-space-2); padding-left: 1.5em; }
+/* The editor's commits, each a row: its SHA, its subject, and the findings
+   it answers under it. */
+.editor-commits { list-style: none; margin: 0 0 var(--ui-space-3); padding: 0; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); background: var(--ui-raised); }
+.editor-commits li { display: flex; gap: var(--ui-space-3); align-items: baseline; padding: var(--ui-space-2) var(--ui-space-3); border-bottom: 1px solid var(--ui-line); }
+.editor-commits li:last-child { border-bottom: none; }
+.commit-sha { flex: none; font: var(--ui-fs-detail) var(--ui-font-mono); color: var(--ui-accent); }
+.commit-body { min-width: 0; overflow-wrap: anywhere; }
+.commit-subject { color: var(--ui-heading); font-weight: 600; }
+.commit-answers { color: var(--ui-muted); font-size: var(--ui-fs-detail); margin-top: 2px; }
+.commit-answers .badge { font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); color: var(--ui-fg); }
 .push-bar { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
 .push-dialog { max-width: 720px; }
 .push-dialog .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-3); }
