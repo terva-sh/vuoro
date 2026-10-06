@@ -239,6 +239,21 @@ type Writer interface {
 	Approve(ctx context.Context, ref Ref, approve bool) error
 }
 
+// DraftStore keeps the person's pending comments on a change for a forge that
+// cannot keep them privately until they submit (D43). It is vuoro's own
+// state, never the forge's, and holds no credential.
+type DraftStore interface {
+	Drafts(ref Ref) ([]Draft, error)
+	SaveDrafts(ref Ref, drafts []Draft) error
+}
+
+// LocalDrafter is a client whose pending comments live in a DraftStore. The
+// application gives it one after dialing; until then it reports no drafts
+// capability.
+type LocalDrafter interface {
+	KeepDraftsIn(DraftStore)
+}
+
 // Stacker opens a change onto another change's source branch, which is how
 // vuoro hands back an editor's fixes (D39). The person's token opens it, and
 // only at their confirmed action.

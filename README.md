@@ -97,7 +97,9 @@ authentication and endpoint environment variables. Vuoro does not read or copy
 your Claude settings file, and authentication values must stay out of Vuoro's
 configuration file.
 
-Forgejo posting controls remain unavailable until its write adapter lands.
+Forgejo posts reviews too. Its pending comments stay in Vuoro until you
+submit, because Forgejo would show them to others sooner, and it cannot
+resolve a thread or withdraw an approval, so Vuoro offers neither there.
 GitHub is not supported yet.
 
 ## Shared styling

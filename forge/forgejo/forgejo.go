@@ -1,8 +1,9 @@
-// Package forgejo reads Forgejo pull requests into the neutral forge model.
-// It implements no Writer: a configured account cannot enable posting here.
+// Package forgejo reads Forgejo pull requests into the neutral forge model,
+// and writes the person's reviews to them (write.go).
 package forgejo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/terva-sh/vuoro/config"
@@ -27,6 +29,14 @@ type Client struct {
 	base  *url.URL
 	token config.Secret
 	http  *http.Client
+
+	// drafts keeps the person's pending comments in vuoro (D43); nil until
+	// the application gives the client a store.
+	draftMu sync.Mutex
+	drafts  forge.DraftStore
+
+	meMu  sync.Mutex
+	login string
 }
 
 func New(base string, token config.Secret) (*Client, error) {
@@ -37,8 +47,7 @@ func New(base string, token config.Secret) (*Client, error) {
 	u.Host = strings.ToLower(u.Host)
 	return &Client{base: u, token: token, http: &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("forgejo: redirects are refused") }}}, nil
 }
-func ParseURL(raw string) (forge.Ref, error)       { return forge.URLRef(raw, "/pulls/", 2) }
-func (c *Client) Capabilities() forge.Capabilities { return forge.Capabilities{} }
+func ParseURL(raw string) (forge.Ref, error) { return forge.URLRef(raw, "/pulls/", 2) }
 func (c *Client) scrub(s string) string {
 	if t := c.token.Reveal(); t != "" {
 		s = strings.ReplaceAll(s, t, "[redacted]")
@@ -46,15 +55,32 @@ func (c *Client) scrub(s string) string {
 	return s
 }
 func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, error) {
+	return c.do(ctx, http.MethodGet, path, q, nil)
+}
+
+// do sends one API request. A body is sent as JSON. Errors never carry the
+// token, and a redirect is refused rather than followed with it.
+func (c *Client) do(ctx context.Context, method, path string, q url.Values, body any) ([]byte, error) {
 	target := c.base.String() + "/api/v1" + path
 	if len(q) > 0 {
 		target += "?" + q.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	var payload io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		payload = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, payload)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if !c.token.Empty() {
 		req.Header.Set("Authorization", "token "+c.token.Reveal())
 	}
@@ -67,7 +93,7 @@ func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, er
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return nil, fmt.Errorf("forgejo: GET %s: %s", path, c.scrub(err.Error()))
+		return nil, fmt.Errorf("forgejo: %s %s: %s", method, path, c.scrub(err.Error()))
 	}
 	defer res.Body.Close()
 	b, err := io.ReadAll(io.LimitReader(res.Body, maxBody+1))
@@ -86,7 +112,7 @@ func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, er
 		if len(msg) > 200 {
 			msg = msg[:200]
 		}
-		return nil, &forge.APIError{Forge: forge.Forgejo, Method: "GET", Path: path, Status: res.StatusCode, Message: msg}
+		return nil, &forge.APIError{Forge: forge.Forgejo, Method: method, Path: path, Status: res.StatusCode, Message: msg}
 	}
 	return b, nil
 }
@@ -274,7 +300,7 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 		}
 		if r.Body != "" {
 			if pending {
-				ch.Drafts = append(ch.Drafts, forge.Draft{ID: fmt.Sprint(r.ID), Body: r.Body})
+				ch.Drafts = append(ch.Drafts, forge.Draft{ID: reviewPrefix + fmt.Sprint(r.ID), Body: r.Body})
 			} else if r.State != "REQUEST_REVIEW" {
 				ch.Threads = append(ch.Threads, forge.Thread{ID: fmt.Sprintf("review-%d", r.ID), Notes: []forge.Note{{ID: fmt.Sprint(r.ID), Author: user(r.User), Body: r.Body, At: r.Submitted}}})
 			}
@@ -392,15 +418,44 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 			add(n.Author)
 		}
 	}
+	// The person's own pending comments, kept in vuoro until they submit,
+	// follow any pending review they started in Forgejo's web UI.
+	if workspace {
+		c.draftMu.Lock()
+		s := c.drafts
+		c.draftMu.Unlock()
+		if s != nil {
+			local, err := s.Drafts(ref)
+			if err != nil {
+				return nil, err
+			}
+			ch.Drafts = append(ch.Drafts, local...)
+		}
+	}
+	ch.Capabilities = c.Capabilities()
 	return ch, nil
 }
+
+// reconcileRequests applies the PR's requested_reviewers to reviewer state.
+// Forgejo lists there both a reviewer with a pending request and one whose
+// latest review approved or requested changes (verified live on 15.0.3); a
+// request, unlike a verdict, leaves a REQUEST_REVIEW record or a timeline
+// event. So a listed reviewer with no request on record, whose verdict on
+// today's head stands, has answered.
 func reconcileRequests(ch *forge.Change, requested []apiUser) {
 	for _, u := range requested {
 		var latest time.Time
+		recorded := false
 		for _, request := range ch.Requests {
-			if request.Reviewer == u.Login && request.At.After(latest) {
-				latest = request.At
+			if request.Reviewer == u.Login {
+				recorded = true
+				if request.At.After(latest) {
+					latest = request.At
+				}
 			}
+		}
+		if !recorded && standingVerdict(ch, u.Login) {
+			continue
 		}
 		answered := false
 		for _, review := range ch.Reviews {
@@ -417,6 +472,20 @@ func reconcileRequests(ch *forge.Change, requested []apiUser) {
 		}
 	}
 }
+
+// standingVerdict says whether login's newest non-comment review approves or
+// requests changes on today's head, undismissed.
+func standingVerdict(ch *forge.Change, login string) bool {
+	var last *forge.Review
+	for i := range ch.Reviews {
+		r := &ch.Reviews[i]
+		if r.Reviewer == login && r.Verdict != forge.VerdictCommented && (last == nil || !r.At.Before(last.At)) {
+			last = r
+		}
+	}
+	return last != nil && !last.Dismissed && !last.Stale && last.SHA == ch.Diff.Head
+}
+
 func addReview(ch *forge.Change, r apiReview) {
 	verdict := map[string]forge.Verdict{"APPROVED": forge.VerdictApproved, "REQUEST_CHANGES": forge.VerdictChangesRequested, "COMMENT": forge.VerdictCommented}[r.State]
 	if verdict == "" {

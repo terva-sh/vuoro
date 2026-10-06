@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -208,6 +209,11 @@ func (a *App) client(ctx context.Context, host, kind string) (forge.Provider, er
 	c, err := dial(kind, base, token)
 	if err != nil {
 		return nil, err
+	}
+	// A forge that cannot keep pending comments privately keeps them in
+	// vuoro's state (D43). Without a state directory it offers no drafts.
+	if ld, ok := c.(forge.LocalDrafter); ok && a.StateDir != "" {
+		ld.KeepDraftsIn(localDrafts{dir: filepath.Join(a.StateDir, "drafts")})
 	}
 	a.mu.Lock()
 	if a.clients == nil {

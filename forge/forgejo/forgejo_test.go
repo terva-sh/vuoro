@@ -128,11 +128,13 @@ func TestRecordedPullRequest(t *testing.T) {
 	if len(ch.Pushes) != 3 || ch.Pushes[2].Head != ch.Diff.Head || len(ch.Threads) != 1 || ch.Threads[0].Notes[0].System {
 		t.Fatalf("timeline: %+v %+v", ch.Pushes, ch.Threads)
 	}
+	// Without a token and a draft store, the client offers no write and
+	// takes none (D43).
 	if ch.Capabilities != (forge.Capabilities{}) {
 		t.Fatal("reader exposes writes")
 	}
-	if _, ok := any(c).(forge.Writer); ok {
-		t.Fatal("Forgejo implements Writer")
+	if err := c.Submit(context.Background(), ref, forge.VerdictCommented); !errors.Is(err, errNoToken) {
+		t.Fatalf("an anonymous submit: %v", err)
 	}
 }
 func TestReviewStateThreadsAndPrivateDrafts(t *testing.T) {
@@ -254,7 +256,10 @@ func TestOutstandingReviewRequests(t *testing.T) {
 	}{
 		{name: "same-head re-request after approval", requestAt: []int{13, 9}, want: forge.Unreviewed},
 		{name: "approval after request", requestAt: []int{9}, want: forge.Approved},
-		{name: "request without timeline timestamp", want: forge.Unreviewed},
+		// Forgejo lists a reviewer whose standing verdict approves in
+		// requested_reviewers with no request on record (verified live).
+		{name: "listed for a standing verdict, with no request on record", want: forge.Approved},
+		{name: "listed with no request on record, after a stale verdict", stale: true, want: forge.Unreviewed},
 		{name: "removed request is only history", requestAt: []int{13}, removed: true, want: forge.Approved},
 		{name: "stale review cannot answer request", requestAt: []int{9}, stale: true, want: forge.Unreviewed},
 	} {
