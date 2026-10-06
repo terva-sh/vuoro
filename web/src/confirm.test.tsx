@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { SubmitBar } from './confirm'
 import type { Change } from './types'
 
-const change = { ref: { host: 'gitlab.com', project: 'g/p', number: 7 }, author: { username: 'author' } } as unknown as Change
+const change = { kind: 'gitlab', capabilities: { drafts: true, reply: true, resolve: true, approve: true, unapprove: true, request_changes: true, suggestions: true }, ref: { host: 'gitlab.com', project: 'g/p', number: 7 }, author: { username: 'author' } } as unknown as Change
 
 function bar(waived: string[] = [], approved = false) {
   const posted: [string, Record<string, unknown>][] = []
@@ -22,7 +22,8 @@ function bar(waived: string[] = [], approved = false) {
 describe('SubmitBar', () => {
   for (const [label, path, body] of [
     ['Submit', '/api/changes/submit', {}],
-    ['Submit and approve', '/api/changes/submit', { approve: true }],
+    ['Submit and approve', '/api/changes/submit', { verdict: 'approved' }],
+    ['Request changes', '/api/changes/submit', { verdict: 'changes_requested' }],
     ['Approve', '/api/changes/approve', { approve: true }],
   ] as const) {
     it(`asks before ${label}, and Cancel posts nothing`, () => {

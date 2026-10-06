@@ -89,6 +89,9 @@ func (a *App) keepReply(w http.ResponseWriter, r *http.Request, url string, body
 			return "", false, errors.New("Save the reply locally before adding it to pending comments.")
 		}
 		ch, wr, err := a.writer(r.Context(), url)
+		if err == nil {
+			err = allowed(ch.Capabilities.Drafts && ch.Capabilities.Reply, "replying to a thread")
+		}
 		if err != nil {
 			return "", false, err
 		}
@@ -99,7 +102,7 @@ func (a *App) keepReply(w http.ResponseWriter, r *http.Request, url string, body
 		if err := a.Runs.CheckReply(runID, d, ch); err != nil {
 			return "", false, err
 		}
-		text := keepBody(d)
+		text := keepBody(d, ch.Capabilities)
 		if strings.TrimSpace(text) == "" {
 			return "", false, errors.New("Write a reply before adding it to pending comments.")
 		}

@@ -227,10 +227,15 @@ type Writer interface {
 	CreateDraft(ctx context.Context, ref Ref, d NewDraft) (Draft, error)
 	UpdateDraft(ctx context.Context, ref Ref, id, body string) error
 	DeleteDraft(ctx context.Context, ref Ref, id string) error
-	// Submit publishes every pending comment of the person's at once, so the
-	// review lands as one event.
-	Submit(ctx context.Context, ref Ref) error
+	// Submit publishes every pending comment of the person's at once, with
+	// the person's verdict, so the review lands as one event. Commented
+	// publishes the comments only. Approved also approves. ChangesRequested
+	// marks the review as asking for changes, where Capabilities.RequestChanges
+	// says the forge can.
+	Submit(ctx context.Context, ref Ref, verdict Verdict) error
 	Resolve(ctx context.Context, ref Ref, threadID string, resolved bool) error
+	// Approve approves, or withdraws the person's approval where
+	// Capabilities.Unapprove says the forge can.
 	Approve(ctx context.Context, ref Ref, approve bool) error
 }
 

@@ -80,7 +80,7 @@ func TestLiveWrite(t *testing.T) {
 		t.Fatal("a draft note was visible on the change before Submit")
 	}
 
-	if err := c.Submit(ctx, ref); err != nil {
+	if err := c.Submit(ctx, ref, forge.VerdictCommented); err != nil {
 		t.Fatalf("submit: %v", err)
 	}
 	ch = open()
@@ -106,7 +106,7 @@ func TestLiveWrite(t *testing.T) {
 	if _, err := c.CreateDraft(ctx, ref, forge.NewDraft{Body: "vuoro live reply " + nonce, ThreadID: thread.ID}); err != nil {
 		t.Fatalf("reply draft: %v", err)
 	}
-	if err := c.Submit(ctx, ref); err != nil {
+	if err := c.Submit(ctx, ref, forge.VerdictCommented); err != nil {
 		t.Fatalf("submit reply: %v", err)
 	}
 	ch = open()
@@ -151,6 +151,31 @@ func TestLiveWrite(t *testing.T) {
 	if !hasRule(revoked, "R1") {
 		t.Fatalf("revoking did not return the review request: %s", describe(revoked))
 	}
+
+	// Requesting changes is the published batch's reviewer state. Approving
+	// and revoking afterwards leaves the reviewer as the run found them.
+	if err := c.Submit(ctx, ref, forge.VerdictChangesRequested); err != nil {
+		t.Fatalf("request changes: %v", err)
+	}
+	if st := reviewerState(open(), me); st != forge.RequestedChanges {
+		t.Fatalf("reviewer state after requesting changes: %q", st)
+	}
+	t.Log("requesting changes set the reviewer state to requested_changes")
+	if err := c.Approve(ctx, ref, true); err != nil {
+		t.Fatalf("approve after requesting changes: %v", err)
+	}
+	if err := c.Approve(ctx, ref, false); err != nil {
+		t.Fatalf("revoke after requesting changes: %v", err)
+	}
+}
+
+func reviewerState(ch *forge.Change, me string) forge.ReviewState {
+	for _, r := range ch.Reviewers {
+		if strings.EqualFold(r.Username, me) {
+			return r.State
+		}
+	}
+	return ""
 }
 
 // liveWriter builds a client from the configured forge on host, with its

@@ -97,10 +97,25 @@ func (c *Client) DeleteDraft(ctx context.Context, ref forge.Ref, id string) erro
 	return err
 }
 
-// Submit publishes every draft note of the person's in one batch.
-func (c *Client) Submit(ctx context.Context, ref forge.Ref) error {
-	_, err := c.write(ctx, "POST", mrPath(ref)+"/draft_notes/bulk_publish", nil)
-	return err
+// Submit publishes every draft note of the person's in one batch. Asking for
+// changes is the batch's reviewer_state; approving is a second call, after the
+// comments it answers are published.
+func (c *Client) Submit(ctx context.Context, ref forge.Ref, verdict forge.Verdict) error {
+	var body map[string]any
+	switch verdict {
+	case forge.VerdictCommented, forge.VerdictApproved:
+	case forge.VerdictChangesRequested:
+		body = map[string]any{"reviewer_state": "requested_changes"}
+	default:
+		return fmt.Errorf("gitlab: unknown verdict %q", verdict)
+	}
+	if _, err := c.write(ctx, "POST", mrPath(ref)+"/draft_notes/bulk_publish", body); err != nil {
+		return err
+	}
+	if verdict == forge.VerdictApproved {
+		return c.Approve(ctx, ref, true)
+	}
+	return nil
 }
 
 func (c *Client) Resolve(ctx context.Context, ref forge.Ref, threadID string, resolved bool) error {

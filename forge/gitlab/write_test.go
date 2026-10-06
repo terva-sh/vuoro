@@ -70,7 +70,12 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 	must(c.Resolve(ctx, ref, "abc123", true))
 	must(c.Approve(ctx, ref, true))
 	must(c.Approve(ctx, ref, false))
-	must(c.Submit(ctx, ref))
+	must(c.Submit(ctx, ref, forge.VerdictCommented))
+	must(c.Submit(ctx, ref, forge.VerdictChangesRequested))
+	must(c.Submit(ctx, ref, forge.VerdictApproved))
+	if err := c.Submit(ctx, ref, "lgtm"); err == nil {
+		t.Fatal("an unknown verdict was submitted")
+	}
 
 	mr := "/api/v4/projects/gitlab-org%2Fcli/merge_requests/3991"
 	want := []struct{ method, path string }{
@@ -78,6 +83,8 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 		{"PUT", mr + "/draft_notes/41"}, {"DELETE", mr + "/draft_notes/41"},
 		{"PUT", mr + "/discussions/abc123"}, {"POST", mr + "/approve"}, {"POST", mr + "/unapprove"},
 		{"POST", mr + "/draft_notes/bulk_publish"},
+		{"POST", mr + "/draft_notes/bulk_publish"},
+		{"POST", mr + "/draft_notes/bulk_publish"}, {"POST", mr + "/approve"},
 	}
 	if len(*calls) != len(want) {
 		t.Fatalf("%d calls: %+v", len(*calls), *calls)
@@ -100,12 +107,18 @@ func TestWritesSendWhatGitLabExpects(t *testing.T) {
 	if (*calls)[5].Body["resolved"] != true {
 		t.Fatalf("resolve %v", (*calls)[5].Body)
 	}
+	if (*calls)[8].Body != nil || (*calls)[10].Body != nil {
+		t.Fatalf("a commented or approving batch carried a reviewer state: %v %v", (*calls)[8].Body, (*calls)[10].Body)
+	}
+	if (*calls)[9].Body["reviewer_state"] != "requested_changes" {
+		t.Fatalf("request changes %v", (*calls)[9].Body)
+	}
 }
 
 func TestAnAnonymousClientWritesNothing(t *testing.T) {
 	c, ref, calls := recorder(t)
 	c.token = config.Secret{}
-	if err := c.Submit(context.Background(), ref); !errors.Is(err, errNoToken) {
+	if err := c.Submit(context.Background(), ref, forge.VerdictCommented); !errors.Is(err, errNoToken) {
 		t.Fatalf("err %v", err)
 	}
 	if len(*calls) != 0 {

@@ -45,7 +45,10 @@ func (p *triageForge) CreateDraft(_ context.Context, _ forge.Ref, d forge.NewDra
 	p.pending = d
 	return forge.Draft{ID: "private-note", Body: d.Body, ThreadID: d.ThreadID}, nil
 }
-func (p *triageForge) Submit(context.Context, forge.Ref) error { p.published++; return nil }
+func (p *triageForge) Submit(context.Context, forge.Ref, forge.Verdict) error {
+	p.published++
+	return nil
+}
 
 func triageApp(t *testing.T) (*App, *triageForge, string) {
 	t.Helper()

@@ -13,7 +13,7 @@ import (
 
 // Confirmable are the actions that act on the forge as the person, where
 // others see the result. Each asks first unless the person waived it.
-var Confirmable = []string{"submit", "approve"}
+var Confirmable = []string{"submit", "approve", "request_changes"}
 
 // prefs are the person's choices made in the UI, kept in the state
 // directory rather than the config file, which is theirs to write.

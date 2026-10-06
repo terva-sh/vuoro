@@ -22,7 +22,13 @@ export interface FileDiff {
   patch: string; rebuilt: boolean; omitted: boolean
 }
 
-export interface Capabilities { drafts: boolean; resolve: boolean; approve: boolean }
+// Capabilities are the writes this forge, with these credentials, can do.
+// The UI offers only these; the server refuses the rest.
+export interface Capabilities {
+  drafts: boolean; reply: boolean; resolve: boolean; approve: boolean; unapprove: boolean; request_changes: boolean
+  // suggestions: the forge applies a suggestion block. Without it a suggestion posts as a plain replacement.
+  suggestions: boolean
+}
 
 export interface Change {
  kind: string; capabilities: Capabilities

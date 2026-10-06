@@ -67,7 +67,9 @@ describe('keepText', () => {
       status: 'pending', revision: 1, session: 's1', drafted_by: 'x', updated: '',
     } as const
     // The same vector as app/keep_test.go.
-    expect(keepText(d)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n```\nreturn a - b\n```\n\n```suggestion:-1+0\n\treturn a + b\n\t// sums\n```')
-    expect(keepText({ ...d, evidence: 'x := "```"', suggestion: undefined })).toBe('**Add subtracts**\n\nIt returns a - b.\n\n````\nx := "```"\n````')
+    expect(keepText(d, true)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n```\nreturn a - b\n```\n\n```suggestion:-1+0\n\treturn a + b\n\t// sums\n```')
+    expect(keepText({ ...d, evidence: 'x := "```"', suggestion: undefined }, true)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n````\nx := "```"\n````')
+    // A forge that cannot apply a suggestion gets a plain replacement (D43).
+    expect(keepText(d, false)).toBe('**Add subtracts**\n\nIt returns a - b.\n\n```\nreturn a - b\n```\n\nSuggested replacement for lines 3–4:\n\n```\n\treturn a + b\n\t// sums\n```')
   })
 })

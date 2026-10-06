@@ -48,7 +48,7 @@ export function ThreadView({ thread }: { thread: Thread }) {
           <Prose text={n.body} />
         </div>
       ))}
-      {w && (
+      {w && (w.caps.reply || (thread.resolvable && w.caps.resolve)) && (
         replying ? (
           <Composer
             placeholder="Reply, as a pending comment until you submit"
@@ -57,8 +57,8 @@ export function ThreadView({ thread }: { thread: Thread }) {
           />
         ) : (
           <div class="actions">
-            <button onClick={() => setReplying(true)}>Reply</button>
-            {thread.resolvable && (
+            {w.caps.reply && <button onClick={() => setReplying(true)}>Reply</button>}
+            {thread.resolvable && w.caps.resolve && (
               <button onClick={() => void w.act('/api/changes/resolve', { thread_id: thread.id, resolved: !thread.resolved }).catch(() => undefined)}>
                 {thread.resolved ? 'Unresolve' : 'Resolve'}
               </button>
@@ -115,13 +115,23 @@ export function suggestionBlock(d: Draft): string {
   return `${f}suggestion:-${d.anchor.end_line - d.anchor.start_line}+0\n${d.suggestion}\n${f}`
 }
 
+// replacementBlock is a suggestion for a forge that cannot apply one: the
+// replacement in a plain fence, under a line naming the lines it replaces.
+export function replacementBlock(d: Draft): string {
+  if (d.suggestion === undefined || d.anchor?.side !== 'head') return ''
+  const a = d.anchor
+  const lines = a.start_line < a.end_line ? `lines ${a.start_line}–${a.end_line}` : `line ${a.end_line}`
+  const f = fence(d.suggestion)
+  return `Suggested replacement for ${lines}:\n\n${f}\n${d.suggestion}\n${f}`
+}
+
 // keepText is what a kept draft says on the forge, as the server's keepBody
 // composes it. The two must agree, so unedited text is sent as no text.
-export function keepText(d: Draft): string {
+export function keepText(d: Draft, applies: boolean): string {
   let b = `**${d.title}**\n\n${d.description.trim()}`
   const e = d.evidence?.trim()
   if (e) b += `\n\n${fence(e)}\n${e}\n${fence(e)}`
-  const s = suggestionBlock(d)
+  const s = applies ? suggestionBlock(d) : replacementBlock(d)
   if (s) b += '\n\n' + s
   return b
 }
@@ -184,10 +194,10 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
       {editing && w && runID ? (
         <Composer
           placeholder="Edit before keeping"
-          initial={keepText(draft)}
+          initial={keepText(draft, w.caps.suggestions)}
           label="Keep as my pending comment"
           // Unchanged text is sent as no text, so vuoro does not mark it edited.
-          submit={(text) => w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, text === keepText(draft) ? {} : { body: text })}
+          submit={(text) => w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, text === keepText(draft, w.caps.suggestions) ? {} : { body: text })}
           onDone={() => setEditing(false)}
         />
       ) : (

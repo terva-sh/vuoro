@@ -619,3 +619,24 @@ against a sandbox PR). docs/plan.md section 5.3 records the evidence.
 - **A suggestion posts as a plain fenced replacement under a line that says
   so**, because Forgejo cannot apply one. The alternative, hiding suggestions
   on Forgejo, discards a finding's most useful part.
+
+### D44. Submit carries the person's verdict, and capabilities decide every write control
+
+Decided by the owner on 2026-10-06, choosing the Forgejo parity plan of
+TKT-01M47EFQ400T20P79H9X152NAZ (Forgejo parity: posting, verdicts, and the
+editor's push). docs/plan.md section 5 records the boundary.
+
+- **`Submit` takes a verdict: commented, approved, or changes requested.**
+  Forgejo publishes a review with its verdict in one call (D43), and GitLab
+  takes `reviewer_state=requested_changes` with the same batch. "Submit and
+  approve" moves into the adapter for the same reason. A separate
+  `RequestChanges` call was rejected, because the verdict and the comments it
+  explains would then land as two events. So was keeping approve as a second
+  call made by the application, because Forgejo cannot approve that way
+  without publishing a second review.
+- **Capabilities name every write a forge may lack.** `reply`, `unapprove`,
+  `request_changes` and `suggestions` join `drafts`, `resolve` and `approve`.
+  The UI shows a control only when its flag is set, and the application refuses
+  the write otherwise. Deciding by forge kind in the UI was rejected: a forge's
+  capabilities change with its credentials and its version, not with its
+  name.

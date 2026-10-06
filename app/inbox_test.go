@@ -24,7 +24,8 @@ type inboxReader struct {
 }
 
 func (p *inboxReader) Capabilities() forge.Capabilities {
-	return forge.Capabilities{Approve: p.kind == forge.GitLab}
+	gl := p.kind == forge.GitLab
+	return forge.Capabilities{Drafts: gl, Reply: gl, Resolve: gl, Approve: gl, Unapprove: gl, RequestChanges: gl, Suggestions: gl}
 }
 func (p *inboxReader) Discover(context.Context, string) ([]forge.Discovered, error) {
 	if p.err != nil {
@@ -59,7 +60,7 @@ func (*inboxReader) UpdateDraft(context.Context, forge.Ref, string, string) erro
 func (*inboxReader) DeleteDraft(context.Context, forge.Ref, string) error {
 	return forge.ErrUnsupported
 }
-func (*inboxReader) Submit(context.Context, forge.Ref) error {
+func (*inboxReader) Submit(context.Context, forge.Ref, forge.Verdict) error {
 	return forge.ErrUnsupported
 }
 func (*inboxReader) Resolve(context.Context, forge.Ref, string, bool) error {
