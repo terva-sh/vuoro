@@ -135,7 +135,9 @@ func (r *Repos) lock(ctx context.Context, gitDir string) (func(), error) {
 
 // git runs one git command. No hook runs, git never prompts, and an error
 // names the subcommand and git's last line of output, which carries no
-// credential: git keeps those in its helper.
+// credential: git keeps those in its helper. Automatic maintenance runs
+// inside the command rather than detached, so no git process outlives it to
+// race the repository lock, a worktree removal, or a delete on Windows.
 func (r *Repos) git(ctx context.Context, gitDir string, args ...string) (string, error) {
 	bin := r.Git
 	if bin == "" {
@@ -143,7 +145,8 @@ func (r *Repos) git(ctx context.Context, gitDir string, args ...string) (string,
 	}
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
-	full := []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "advice.detachedHead=false"}
+	full := []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "advice.detachedHead=false",
+		"-c", "maintenance.autoDetach=false", "-c", "gc.autoDetach=false"}
 	if gitDir != "" {
 		full = append(full, "--git-dir="+gitDir)
 	}
