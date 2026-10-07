@@ -831,6 +831,42 @@ receive-pack with hooks off, and touches nothing else there. A local run
 records its checkout for this; runs from before that cannot be fixed and
 are reviewed again.
 
+**Fixing in waves, and reviewing again** (D50). A change is revisited, and its
+findings are rarely all fixed at once, so a review keeps its findings and
+decisions across several fixes and several reviews.
+
+- *A fix records its commit.* A finding is fixed when a pushed commit names it
+  in its `Vuoro-Finding` or `Vuoro-Thread` trailer, and vuoro records the
+  commit on the finding (`FixedIn`). Before a push, vuoro checks each picked
+  finding against the trailers, and when the editor left a picked finding
+  unnamed while committing changes for it, it asks the editor in the same
+  session to add the trailer or say why the finding is left alone. The person
+  can also mark a finding fixed by one of the review's pushed commits, which
+  covers a fix made by hand. Only vuoro and the person record a fix; no MCP
+  tool can.
+- *A fixed finding folds away.* The review page lists fixed findings in a
+  folded "Fixed" group, each with "fixed in" and its commit, linked to the
+  commit on the forge, and without the reviewed-head warning. The warning on
+  the rest says when every commit since the review is one vuoro pushed for
+  it, so vuoro's own fixes do not read as the change having moved.
+- *A review takes several fix waves.* After an editor's work is pushed, the
+  person can pick more findings and start another editor on the same review.
+  It starts from the last pushed head, on the same branch, so a stacked change
+  (D39) or a local fix branch (D42) is updated rather than opened again. A
+  wave starts only while every commit since the review is vuoro's own push
+  for it; once anyone else pushes, the review is out of date and the person
+  reviews again first. The run keeps each wave, its findings, commits, and
+  push, and only the newest can be pushed or discarded. Unpushed work blocks a
+  new wave until it is pushed or discarded.
+- *Reviewing again carries the earlier review.* "Review again" on a moved
+  change starts a new run that follows the earlier one. Its reviewers are
+  given the earlier findings with where each stands (fixed, dismissed, or
+  open) and asked to report what is new or still unfixed. A draft that
+  restates an earlier finding names it, and comes in with that finding's
+  decision: one the person dismissed arrives dismissed, with the earlier
+  dismissal shown. The run links to the run it follows and back, and its page
+  shows the earlier findings in a folded group.
+
 ### 6.4 Other actions
 
 Summarising a change, summarising what changed since my last review, and the

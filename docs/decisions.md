@@ -757,3 +757,30 @@ docs/plan.md section 6.8 records the design.
   commits not pushed, undecided findings in a local run, and a fix branch
   waiting to be merged. Its review is counted in the Reviews tab, and
   counting it in both was rejected.
+
+### D50. A review is fixed in waves, reviewed again with its earlier findings, and records each fix's commit
+
+Decided by the owner on 2026-10-07, after fixing findings on their own merge
+request: the editor's push moved the change, after which no second editor
+could start on the review and a new review would have lost the earlier
+decisions; and two fixes whose commits lacked the `Vuoro-Finding` trailer
+stayed undecided and showed as reviewed two commits behind. docs/plan.md
+section 6.3 records the design.
+
+- **A new fix wave starts while only vuoro moved the change.** Every commit
+  since the review must be one vuoro pushed for it; the new editor starts
+  from the last pushed head on the same branch. The alternative, starting
+  from the change's current head after anyone's push, was rejected because
+  findings could then point at lines that have changed.
+- **Reviewing again carries the earlier findings and their decisions.**
+  Reviewers see them with where each stands and report what is new or still
+  unfixed; a restated finding keeps the person's decision. A review linked
+  to the earlier one but starting fresh was rejected, since it raises
+  dismissed findings again.
+- **A fix is linked by its trailer, then by asking the editor, then by
+  hand.** Before a push, vuoro asks the editor about a picked finding no
+  commit names. Leaving a missing trailer only to the person was rejected as
+  routine busywork after every wave.
+- **Fixed findings fold into a "Fixed" group** showing their commit, rather
+  than staying in place with a badge, so the open ones are what the page
+  shows first.
