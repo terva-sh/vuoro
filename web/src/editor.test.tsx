@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, post } from './api'
 import { Editor, PushBar, PushDialog } from './editor'
 import { RunView } from './run'
+import { HeadContext } from './head'
+import { RefsContext } from './markdown'
 import type { Draft, Run, Session } from './types'
 
 const draft = (id: string, decision?: 'kept' | 'dropped') =>
@@ -142,5 +144,30 @@ describe('Editor', () => {
     expect(start.textContent).toContain('(1)')
     await act(async () => start.click())
     expect(post).toHaveBeenCalledWith('/api/runs/r1/editor', { url: 'u', items: ['d1'] })
+  })
+
+  it('folds fixed findings into a Fixed group, linked to their commits, and counts them apart', () => {
+    vi.mocked(api).mockResolvedValue({})
+    const fixed = { ...draft('d2'), fixed_in: 'f55c45591234', fixed_subject: 'Describe the selector', fixed_by: 'editor' } as Draft
+    const own = run({ web_url: 'https://gitlab.com/g/p/-/merge_requests/7', drafts: [draft('d1'), fixed, draft('d3', 'dropped')] })
+    const root = document.createElement('div')
+    act(() => render(
+      <RefsContext.Provider value={{ base: 'https://gitlab.com/g/p', kind: 'gitlab' }}>
+        <HeadContext.Provider value={{ reviewed_head: 'abcdef1234', current_head: 'f55c45591234', relation: 'ahead', commits_behind: 1, ours: true }}>
+          <RunView run={own} url="u" own onClose={() => {}} onPick={() => {}} onRun={() => {}} />
+        </HeadContext.Provider>
+      </RefsContext.Provider>, root))
+    const head = root.querySelector('.run-section-head.triage')!.textContent!
+    expect(head).toContain('✓ 1 fixed')
+    expect(head).toContain('○ 1 to decide')
+    const group = root.querySelector('details.fixed-findings')!
+    expect(group.querySelector('summary')!.textContent).toBe('Fixed · 1')
+    expect(group.textContent).toContain('Finding d2')
+    expect([...root.querySelectorAll('.findings')][0].textContent).not.toContain('Finding d2')
+    // The commit links to the forge, and a fixed finding carries no reviewed-head warning.
+    expect(group.querySelector('.fix-link a')!.getAttribute('href')).toBe('https://gitlab.com/g/p/-/commit/f55c45591234')
+    expect(group.querySelector('.head-badge')).toBeNull()
+    // The others' warning says the commit since is vuoro's own fix.
+    expect(root.querySelector('.findings .head-badge')!.textContent).toBe("reviewed at abcdef12, 1 commit behind, vuoro's fix")
   })
 })

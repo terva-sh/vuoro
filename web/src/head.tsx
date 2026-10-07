@@ -8,13 +8,22 @@ export interface HeadState {
   reviewed_head: string; current_head: string
   relation: 'same' | 'ahead' | 'rewritten' | 'unavailable' | 'checking' | 'outdated'
   commits_behind?: number
+  // ours says every commit since the review is one vuoro pushed for it: the
+  // change's head is the editor's newest push, which stands on the reviewed
+  // head (D50).
+  ours?: boolean
 }
 export const HeadContext = createContext<HeadState | undefined>(undefined)
 export const useHead = () => useContext(HeadContext)
 
 // A response belongs only to its exact run and pair of commits. Comparing
 // history is independent of agent polling and never starts a review.
-export function useRunHead(id: string | undefined, reviewed: string | undefined, change: Change): HeadState | undefined {
+export function useRunHead(id: string | undefined, reviewed: string | undefined, change: Change, pushed?: string): HeadState | undefined {
+  const state = useHeadState(id, reviewed, change)
+  return state && state.relation === 'ahead' && !!pushed && state.current_head === pushed ? { ...state, ours: true } : state
+}
+
+function useHeadState(id: string | undefined, reviewed: string | undefined, change: Change): HeadState | undefined {
   const [result, setResult] = useState<{ id: string; state: HeadState }>()
   const current = change.diff.head
   const url = change.web_url
@@ -40,7 +49,12 @@ export function useRunHead(id: string | undefined, reviewed: string | undefined,
 
 export function HeadBadge({ state, label = 'reviewed' }: { state?: HeadState; label?: string }) {
   if (!state) return null
-  const suffix = state.relation === 'ahead' && state.commits_behind !== undefined ? `${state.commits_behind} commit${state.commits_behind === 1 ? '' : 's'} behind`
+  const n = state.commits_behind
+  if (state.ours && n !== undefined) {
+    const whose = n === 1 ? "vuoro's fix" : n === 2 ? "both vuoro's fixes" : "all vuoro's fixes"
+    return <span class="badge head-badge" title="Every commit since the review is one vuoro pushed for it">{label} at {short(state.reviewed_head)}, {n} commit{n === 1 ? '' : 's'} behind, {whose}</span>
+  }
+  const suffix = state.relation === 'ahead' && n !== undefined ? `${n} commit${n === 1 ? '' : 's'} behind`
     : state.relation === 'rewritten' ? 'history rewritten'
     : state.relation === 'checking' ? 'head changed · checking commit distance'
     : state.relation === 'outdated' ? 'change advanced again · refresh to compare'

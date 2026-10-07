@@ -464,3 +464,5 @@ main { padding: var(--ui-space-4); }
 .fix-link { margin: var(--ui-space-1) 0; }
 .fix-pick { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; }
 .push-bar .notice { color: var(--ui-warn); }
+.fixed-findings { margin-top: var(--ui-space-3); }
+.fixed-findings > summary { cursor: pointer; color: var(--ui-muted); }

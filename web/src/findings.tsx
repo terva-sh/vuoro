@@ -1,10 +1,11 @@
 // The findings of a run, each opened in place with its marks, and the
 // hand-off report of the kept ones.
-import { useState } from 'preact/hooks'
+import { useContext, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { post } from './api'
 import { DraftCard } from './comments'
 import { HeadBadge, useHead } from './head'
+import { commitURL, RefsContext } from './markdown'
 import { TextEditor } from './textedit'
 import type { Draft, Level, Run } from './types'
 import { ConfidenceBadge, levelMark, SeverityBadge, severityOrder, short } from './ui'
@@ -36,23 +37,31 @@ export function Drafts({ run, onPick, onRun, pick: picker }: { run: Run; onPick:
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
   const profile = new Map(run.sessions.map((s) => [s.id, s.profile]))
   const shown = [...shownDrafts(run)].sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity))
+  // Fixed findings fold away, so the open ones come first (D50).
+  const open = shown.filter((d) => !d.fixed_in)
+  const fixed = shown.filter((d) => d.fixed_in)
   const shownIDs = new Set(shown.map((d) => d.id))
   const cited = new Set(shown.flatMap((d) => d.sources ?? []))
   // What the synthesizer did not carry forward, and what agents withdrew.
   const rest = run.drafts.filter((d) => !shownIDs.has(d.id) && !cited.has(d.id))
   const pick = (d: Draft) => (d.anchor ? () => onPick(d.anchor!.path) : undefined)
+  const checking = run.sessions.some((s) => s.role === 'verifier' && (s.status === 'waiting' || s.status === 'working' || s.status === 'preparing'))
+  const finding = (d: Draft) => (
+    <Finding draft={d} key={d.id} runID={run.id} url={run.web_url} onPick={pick(d)} onRun={onRun} picker={picker} checking={checking}
+      from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
+      sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
+      profile={profile} />
+  )
 
   return (
     <>
-      <div class="findings">
-        {shown.map((d) => (
-          <Finding draft={d} key={d.id} runID={run.id} url={run.web_url} onPick={pick(d)} onRun={onRun} picker={picker}
-            checking={run.sessions.some((s) => s.role === 'verifier' && (s.status === 'waiting' || s.status === 'working' || s.status === 'preparing'))}
-            from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
-            sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
-            profile={profile} />
-        ))}
-      </div>
+      <div class="findings">{open.map(finding)}</div>
+      {fixed.length > 0 && (
+        <details class="fixed-findings">
+          <summary>Fixed · {fixed.length}</summary>
+          <div class="findings">{fixed.map(finding)}</div>
+        </details>
+      )}
       {rest.length > 0 && (
         <details class="not-carried">
           <summary>Not carried forward or withdrawn: {rest.length}</summary>
@@ -72,6 +81,7 @@ function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources,
   from: string; sources: Draft[]; profile: Map<string, string>; picker?: Pick
 }) {
   const [error, setError] = useState<string>()
+  const head = useHead()
   const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(errorText(e)))
   const mark = d.override ?? d.confidence
   const a = d.anchor
@@ -91,7 +101,8 @@ function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources,
           <span class="finding-title">{d.title}</span>
           {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
           {decided && <span class="badge">{decided}</span>}
-          <HeadBadge state={useHead()} />
+          {/* A fixed finding's lines are the fix's business, not the reviewed head's. */}
+          {!d.fixed_in && <HeadBadge state={head} />}
         </summary>
         <div class="finding-body">
           <Marks draft={d} runID={runID} onRun={onRun} checking={checking} />
@@ -122,6 +133,7 @@ interface FixCommit { sha: string; subject: string }
 // and the change's since it was reviewed, or take back a link they made.
 // Nothing reaches the forge.
 export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: string; url: string; onRun: (r: Run) => void }) {
+  const refs = useContext(RefsContext)
   const [commits, setCommits] = useState<FixCommit[]>()
   const [sha, setSHA] = useState('')
   const act = useAction()
@@ -129,10 +141,12 @@ export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: 
     onRun(await post<Run>(`/api/runs/${runID}/drafts/${d.id}/fixed`, { url, sha: to }))
     setCommits(undefined)
   })
+  const link = d.fixed_in ? commitURL(refs, d.fixed_in) : undefined
   if (d.fixed_in) {
     return (
       <p class="fix-link">
-        ✓ Fixed in <span class="mono">{short(d.fixed_in)}</span>{d.fixed_subject && <> · {d.fixed_subject}</>}
+        ✓ Fixed in {link ? <a class="mono" href={link} target="_blank" rel="noreferrer">{short(d.fixed_in)}</a> : <span class="mono">{short(d.fixed_in)}</span>}
+        {d.fixed_subject && <> · {d.fixed_subject}</>}
         <span class="muted"> · {d.fixed_by === 'person' ? 'linked by you' : "named in the commit's trailer"}</span>
         {d.fixed_by === 'person' && <> <button class="link" disabled={act.busy} onClick={() => void mark('')}>Not fixed</button></>}
         {act.error && <span class="alert" role="alert"> ⚠ {act.error}</span>}

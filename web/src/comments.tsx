@@ -168,7 +168,7 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
         {draft.decision === 'dropped' && ' · ✗ dropped by you'}
       </div>
       {label && <div class="draft-label">{label}</div>}
-      <HeadBadge state={head} />
+      {!draft.fixed_in && <HeadBadge state={head} />}
       {editing && w && runID ? (
         <Composer
           placeholder="Edit before keeping"

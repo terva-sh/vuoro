@@ -30,7 +30,7 @@ function useRunPoll(id: string | undefined, onRun: (r: Run) => void) {
 }
 
 export function RunPanel({ change, setup, onPick, onDrafts }: {
-  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string, head?: string) => void
+  change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string, head?: string, pushed?: string) => void
 }) {
   const [runs, setRuns] = useState<Run[]>([])
   const [selected, setSelected] = useState<string>()
@@ -58,7 +58,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   // A review of the person's own change posts nothing (D42).
   const me = setup?.forges.find((f) => { try { return new URL(f.url).host === change.ref.host } catch { return false } })
   const own = !!me && me.username.toLowerCase() === change.author.username.toLowerCase()
-  useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head), [run])
+  useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head, run?.editor?.pushed?.sha), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
   const start = () => act(async () => {
@@ -136,6 +136,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
   const shown = shownDrafts(run)
   const kept = shown.filter((d) => d.decision === 'kept').length
   const dropped = shown.filter((d) => d.decision === 'dropped').length
+  const fixed = shown.filter((d) => d.fixed_in).length
   const marked = (l: Level) => shown.filter((d) => (d.override ?? d.confidence)?.level === l).length
   const unchecked = shown.filter((d) => !(d.override ?? d.confidence)).length
   return (
@@ -169,7 +170,8 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
           <h3>Findings · {shown.length}</h3>
           <span>✓ {kept} kept</span>
           <span>✗ {dropped} dropped</span>
-          <span>○ {shown.length - kept - dropped} to decide</span>
+          {fixed > 0 && <span>✓ {fixed} fixed</span>}
+          <span>○ {shown.filter((d) => !d.decision && !d.fixed_in).length} to decide</span>
           {run.sessions.some((s) => s.role === 'verifier') && (
             <span class="muted">
               {(['confirmed', 'plausible', 'doubtful'] as Level[]).map((l) => `${levelMark[l]} ${marked(l)} ${l}`).join(' · ')}

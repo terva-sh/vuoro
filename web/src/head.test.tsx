@@ -43,3 +43,15 @@ it('finishes a comparison when the forge has advanced past the workspace snapsho
   expect(root.textContent).not.toContain('3 commits behind')
   expect(post).not.toHaveBeenCalled()
 })
+
+it("says when every commit since the review is vuoro's own push", async () => {
+  vi.mocked(api).mockResolvedValue({ reviewed_head: 'old', current_head: 'pushed', relation: 'ahead', commits_behind: 2 })
+  function Ours({ pushed }: { pushed?: string }) { return <HeadBadge state={useRunHead('r1', 'old', change('pushed'), pushed)} /> }
+  root = document.createElement('div')
+  await act(async () => render(<Ours pushed="pushed" />, root)); await act(async () => {})
+  expect(root.textContent).toBe("reviewed at old, 2 commits behind, both vuoro's fixes")
+  expect(root.querySelector('.warn')).toBeNull()
+  // Someone else's push on top is not vuoro's.
+  await act(async () => render(<Ours pushed="earlier" />, root)); await act(async () => {})
+  expect(root.textContent).toBe('⚠ reviewed at old, 2 commits behind')
+})

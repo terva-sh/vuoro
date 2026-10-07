@@ -27,7 +27,8 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
   const [error, setError] = useState<string>()
   const [runID, setRunID] = useState<string>()
   const [reviewedHead, setReviewedHead] = useState<string>()
-  const headState = useRunHead(runID, reviewedHead, change)
+  const [pushed, setPushed] = useState<string>()
+  const headState = useRunHead(runID, reviewedHead, change, pushed)
   const moved = !!reviewedHead && reviewedHead !== change.diff.head
   const [commenting, setCommenting] = useState(false)
   const writer = useMemo(() => makeWriter(change.web_url, change.capabilities, (c) => { setError(undefined); onChange(c) }, setError), [change.web_url, change.capabilities, onChange])
@@ -157,7 +158,7 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
         </>
       )}
       <div hidden={tab !== 'review'}>
-        <RunPanel change={change} setup={setup} onPick={pick} onDrafts={(ds, id, head) => { setDrafts(ds); setRunID(id); setReviewedHead(head) }} />
+        <RunPanel change={change} setup={setup} onPick={pick} onDrafts={(ds, id, head, sha) => { setDrafts(ds); setRunID(id); setReviewedHead(head); setPushed(sha) }} />
       </div>
     </div>
     </HeadContext.Provider>

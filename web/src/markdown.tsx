@@ -21,6 +21,13 @@ export function projectURL(mrURL: string): string | undefined {
   return i > 0 ? mrURL.slice(0, i) : undefined
 }
 
+// commitURL is a commit's page on the project's forge, when the project is
+// known.
+export function commitURL(refs: Refs, sha: string): string | undefined {
+  if (!refs.base) return undefined
+  return refs.kind === 'gitlab' ? `${refs.base}/-/commit/${sha}` : `${refs.base}/commit/${sha}`
+}
+
 export function Markdown({ text, refs, class: cls = '' }: { text: string; refs?: Refs; class?: string }) {
   const ctx = useContext(RefsContext)
   refs ??= ctx
