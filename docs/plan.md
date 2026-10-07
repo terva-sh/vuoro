@@ -869,6 +869,21 @@ decisions across several fixes and several reviews.
   decision: one the person dismissed arrives dismissed, with the earlier
   dismissal shown. The run links to the run it follows and back, and its page
   shows the earlier findings in a folded group.
+- *A fix keeps its patch* (D51). The commit a fix names is not durable on
+  its own: closing the run drops the editor's repository and its refs in the
+  cache, a pushed branch goes when it is merged and deleted, and a local fix
+  branch goes when the person deletes it. So when vuoro pushes the editor's
+  work, it saves each pushed commit as a patch, from `git format-patch`, in
+  `runs/<id>/patches/<sha>.patch` beside the run record. A commit the person
+  links with "Mark fixed…" is saved too, when vuoro's cache has it. A patch
+  is read from the cache, with no forge call, and holds only the commit's
+  message and diff. It lasts as long as the run record, past the run's close
+  and the branch's deletion. A patch over the size cap is not saved; the
+  run keeps the commit's list of files and says the patch was too large. The
+  run lists the patches it saved, and the window shows each again in the
+  diff viewer: from a commit of an earlier wave, from "fixed in" on a fixed
+  finding, and from a fix branch on the Local tab. Work the person discards
+  is deleted, as Discard says, and no patch of it is kept.
 
 ### 6.4 Other actions
 

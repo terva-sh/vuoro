@@ -784,3 +784,24 @@ section 6.3 records the design.
 - **Fixed findings fold into a "Fixed" group** showing their commit, rather
   than staying in place with a badge, so the open ones are what the page
   shows first.
+
+### D51. vuoro saves a patch of each fix it pushes and of each fix linked by hand, for as long as the run
+
+Decided by the owner on 2026-10-07, after D50's fix links landed: a fix was
+recorded as a commit's SHA and subject, and its diff lived only in git, in
+the editor's repository that closing the run drops, and on a branch that
+goes when it is merged or deleted. docs/plan.md section 6.3, "A fix keeps
+its patch", records the design.
+
+- **Patches are saved at each push.** What the person accepted and pushed is
+  what is kept. Saving discarded waves too was rejected, since Discard
+  promises to delete the work. Saving at the end of every editor turn was
+  rejected as history the person rarely needs, most of it revised before
+  the push.
+- **Fixes linked by hand get a patch too**, when vuoro's cache has the
+  commit, so every "fixed in" can show its diff. Saving only the editor's
+  commits was rejected.
+- **A patch lasts as long as the run record**, with a size cap per patch.
+  Dropping a patch once its commit is merged, since the forge then holds it,
+  was rejected: merged history would then need the forge, and a local fix
+  has no forge.
