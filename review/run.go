@@ -175,7 +175,9 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 // review prev of the same change (D50). Its reviewers are told the earlier
 // findings and where each stands, a draft that restates one comes in with
 // the person's decision on it, and the two runs are linked both ways. An
-// empty prev follows nothing.
+// empty prev follows nothing. A local range's project is named for the
+// checkout it was read from, so a local review follows any earlier local one:
+// the caller matches it to the branch, as the Local tab does.
 func (m *Manager) Follow(ch *forge.Change, src Source, reviewers []Reviewer, synth, verifier *Reviewer, prev string) (*Run, error) {
 	var earlier *Run
 	if prev != "" {
@@ -185,7 +187,7 @@ func (m *Manager) Follow(ch *forge.Change, src Source, reviewers []Reviewer, syn
 			return nil, ErrNoRun
 		case earlier.Mode != "":
 			return nil, errors.New("review: only a review can be reviewed again")
-		case earlier.Ref != ch.Ref || earlier.Kind != ch.Kind:
+		case earlier.Kind != ch.Kind || earlier.Ref != ch.Ref && ch.Kind != Local:
 			return nil, errors.New("review: the earlier run belongs to another change")
 		}
 	}

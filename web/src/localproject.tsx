@@ -149,7 +149,8 @@ function BranchRow({ project: p, branch: b, dirty, reviewing, onOpen, onOpenRun 
         <span class="muted">{b.ahead} ahead · {ago(b.committed)}</span>
         <span class="local-branch-actions">
           {change && <button onClick={() => onOpen?.(change.web_url)}>Review the change</button>}
-          <button disabled={act.busy || !!reviewing.unavailable} title={reviewing.unavailable} onClick={() => void review()}>
+          <button disabled={act.busy || !!reviewing.unavailable} onClick={() => void review()}
+            title={reviewing.unavailable ?? (b.run ? 'Follows the last review: its findings go to the reviewers, and what you decided on them carries over' : undefined)}>
             {act.busy ? 'Starting…' : 'Review local commits'}
           </button>
         </span>

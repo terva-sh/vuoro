@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-07T18:59:34Z
-updated_at: 2026-10-07T19:34:10Z
+updated_at: 2026-10-07T20:24:28Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -36,6 +36,12 @@ extensions: {}
 D50 and docs/plan.md section 6.3, "Fixing in waves, and reviewing again". A review keeps its findings and decisions across several fixes and several reviews: each fix records its commit, fixed findings fold away, a review takes several editor waves while only vuoro moved the change, and reviewing again carries the earlier findings and their decisions.
 
 Found on the owner's own merge request on 2026-10-07 (gitlab.com/flywheel-io/infrastructure/terraform!2893): after the editor pushed, no second editor could start; two fixes whose commits lacked the Vuoro-Finding trailer stayed undecided; and every finding showed "reviewed at eb370b4b, 2 commits behind", both commits vuoro's own.
+
+## Notes
+
+**agent:claude/frontend-modules-2026-10-06** at 2026-10-07T20:24:28Z
+
+The one gap left open, a local review following the branch's last run, is closed; see the latest note on TKT-01M4BVRFX.
 
 ## Summary
 

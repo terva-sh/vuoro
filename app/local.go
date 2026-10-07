@@ -387,8 +387,16 @@ func (a *App) reviewBranch(w http.ResponseWriter, r *http.Request) {
 			out.Uncommitted = append(out.Uncommitted, wt.Path)
 		}
 	}
+	// A branch reviewed before is reviewed again: the new run follows its
+	// newest review, and keeps what the person decided there (D50).
+	var follows string
+	for _, b := range a.matchRuns(r.Context(), p, localRuns(a.Runs), nil) {
+		if b.Name == branch.Name && b.Run != nil {
+			follows = b.Run.ID
+		}
+	}
 	a.probeTools()
-	run, err := a.Runs.Start(lt.Change, lt.Source, reviewers, synth, verifier)
+	run, err := a.Runs.Follow(lt.Change, lt.Source, reviewers, synth, verifier, follows)
 	if err != nil {
 		writeError(w, err)
 		return

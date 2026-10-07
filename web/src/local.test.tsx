@@ -176,6 +176,8 @@ describe('a branch row', () => {
     expect(openRun).toHaveBeenLastCalledWith('r0')
     const select = root.querySelector('.local-actions select') as HTMLSelectElement
     await act(async () => { select.value = 'deep'; select.dispatchEvent(new Event('change')) })
+    // A branch reviewed before is reviewed again, following that review (D50).
+    expect(button('Review local commits').title).toContain('Follows the last review')
     await act(async () => button('Review local commits').click())
     await settle()
     expect(post).toHaveBeenCalledWith('/api/local/review', { key: '/w/p/.git', branch: 'feature', preset: 'deep' })

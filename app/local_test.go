@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -435,6 +436,21 @@ func TestABranchIsReviewedFromTheWindowAndItsCheckoutIsLeftAlone(t *testing.T) {
 	}
 	if after := git("for-each-ref") + git("status", "--porcelain") + git("-C", wt, "status", "--porcelain"); after != before {
 		t.Fatalf("the review wrote to the checkout:\n%s\nthen\n%s", before, after)
+	}
+
+	// Reviewed again, the branch's next run follows its last one (D50).
+	code, out = call(t, h, "/api/local/review", map[string]any{"key": key, "branch": "feature"})
+	if code != http.StatusCreated {
+		t.Fatalf("review again: %d %v", code, out)
+	}
+	b, _ = json.Marshal(out)
+	var again branchReview
+	json.Unmarshal(b, &again)
+	if again.Run.Follows != started.Run.ID {
+		t.Fatalf("the second review follows %q, want %q", again.Run.Follows, started.Run.ID)
+	}
+	if v := run.View(); !slices.Equal(v.FollowedBy, []string{again.Run.ID}) {
+		t.Fatalf("the first review is followed by %v", v.FollowedBy)
 	}
 }
 

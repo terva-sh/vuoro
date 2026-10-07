@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-07T18:59:35Z
-updated_at: 2026-10-07T19:34:02Z
+updated_at: 2026-10-07T20:24:28Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -55,6 +55,12 @@ A run that follows an earlier one (D50, fourth bullet).
 - review: `Manager.Follow(ch, src, reviewers, synth, verifier, prevID)` checks that the earlier run is a review of the same change. It snapshots the earlier run's shown findings, adds them to the first message with where each stands, and links the runs both ways (`follows`, `followed_by`). Both links and `earlier` are persisted in the record.
 - app: POST /api/runs takes `follows`.
 - web: the run panel offers "Review again" when the selected run's head is not the change's head. The run page names the run it follows and the runs that follow it, folds "Earlier findings · N", and a draft card says which earlier finding it restates and whether its decision was carried.
+
+## Notes
+
+**agent:claude/frontend-modules-2026-10-06** at 2026-10-07T20:24:28Z
+
+Supersedes the summary's line about the Local tab: "Review local commits" on a branch with a matched review now follows that branch's newest review. POST /api/local/review finds it with matchRuns. Follow accepts any earlier local run, since a local Ref is named for the checkout it was read from. The button's tooltip says it follows. Tested in TestABranchIsReviewedFromTheWindowAndItsCheckoutIsLeftAlone. A headless screenshot of the run page (waves, Fixed and Earlier groups, carried badges, follow links) looked right in Light.
 
 ## Summary
 

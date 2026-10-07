@@ -1206,8 +1206,10 @@ offers the second alone. Reviewing local commits runs section 6.7's local range,
 the window, where the person talks to the reviewers, picks findings, and hands
 them to the editor as for any review of their own work (D42). It reviews
 commits only. A worktree with uncommitted changes says that they are not in
-the review. The run stays open, as a window run does, until the person closes
-it. The route, `POST /api/local/review`, takes only a branch the tab lists,
+the review. A branch reviewed before is reviewed again: the run follows the
+branch's newest review (D50), so its reviewers are told the earlier findings
+and the person's decisions carry over. The run stays open, as a window run
+does, until the person closes it. The route, `POST /api/local/review`, takes only a branch the tab lists,
 reads the project again so the base and tip are today's, and answers with the
 run and the worktrees holding the branch with uncommitted changes. Refresh
 picks up the CLI's runs once they are over (closed, failed, or cancelled); a
