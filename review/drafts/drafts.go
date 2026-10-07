@@ -69,9 +69,13 @@ type Draft struct {
 	Category  Category `json:"category,omitempty"`
 	Reason    string   `json:"reason,omitempty"`
 	ThreadKey string   `json:"thread_key,omitempty"`
-	// FixedIn is the pushed commit that fixes the thread, which vuoro, not an
-	// agent, records (D41).
-	FixedIn string `json:"fixed_in,omitempty"`
+	// FixedIn is the pushed commit that fixes the draft, which vuoro or the
+	// person, never an agent, records (D41, D50). FixedSubject is that
+	// commit's subject, and FixedBy says who linked it: "editor", from the
+	// commit's trailer, or "person".
+	FixedIn      string `json:"fixed_in,omitempty"`
+	FixedSubject string `json:"fixed_subject,omitempty"`
+	FixedBy      string `json:"fixed_by,omitempty"`
 
 	Status   Status `json:"status"`
 	Revision int    `json:"revision"`

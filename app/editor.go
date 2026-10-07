@@ -273,3 +273,78 @@ func (a *App) pushEditor(w http.ResponseWriter, r *http.Request) {
 	}
 	a.getRun(w, r)
 }
+
+// fixSource is what the change of a run reads as now, for the commits a
+// finding can be marked fixed by: nil for a local range, which has no forge.
+func (a *App) fixSource(ctx context.Context, runID, url string) (*review.Source, error) {
+	run := a.Runs.Get(runID)
+	if run == nil {
+		return nil, review.ErrNoRun
+	}
+	if run.Kind == review.Local {
+		return nil, nil
+	}
+	ch, err := a.open(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	if run.Ref != ch.Ref || run.Kind != ch.Kind {
+		return nil, errors.New("This run belongs to another change.")
+	}
+	src, err := a.source(ch)
+	if err != nil {
+		return nil, err
+	}
+	return &src, nil
+}
+
+// fixCommits lists the commits a finding can be marked fixed by (D50).
+func (a *App) fixCommits(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	src, err := a.fixSource(ctx, r.PathValue("id"), req.URL)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	commits, err := a.Runs.FixCommits(ctx, r.PathValue("id"), src)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, commits)
+}
+
+// markFixed is the person linking a finding to the commit that fixed it, or,
+// with no sha, taking back a link they made. It is local state; nothing
+// reaches the forge.
+func (a *App) markFixed(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL string `json:"url"`
+		SHA string `json:"sha"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	var src *review.Source
+	if req.SHA != "" {
+		var err error
+		if src, err = a.fixSource(ctx, r.PathValue("id"), req.URL); err != nil {
+			writeError(w, err)
+			return
+		}
+	}
+	if err := a.Runs.MarkFixed(ctx, r.PathValue("id"), r.PathValue("did"), req.SHA, src); err != nil {
+		writeError(w, err)
+		return
+	}
+	a.getRun(w, r)
+}

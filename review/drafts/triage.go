@@ -70,23 +70,41 @@ func (st *Store) AcceptReply(id string, accept func(Draft) (string, bool, error)
 }
 
 // CiteFix records that a pushed commit fixes a draft: a reply's thread
-// (D41), or a finding of the person's own review (D42). A thread's
-// reply then names the commit, unless the person edited it, whose words
-// stand. A reply already accepted keeps its text, since the forge holds it.
-// No MCP tool reaches this method, and the agent can no longer revise the
-// reply afterwards.
-func (st *Store) CiteFix(id, sha, body string) error {
+// (D41), or a finding (D42, D50). by is "editor", when the commit's
+// trailer names the draft, or "person". A thread's reply then names the
+// commit, unless the person edited it, whose words stand. A reply already
+// accepted keeps its text, since the forge holds it. No MCP tool reaches
+// this method, and the agent can no longer revise the draft afterwards.
+func (st *Store) CiteFix(id, sha, subject, by, body string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	d := st.find(id)
 	if d == nil || d.Status != Pending {
 		return &RuleError{"draft.pending", "id", "a pending draft"}
 	}
-	d.FixedIn = sha
+	d.FixedIn, d.FixedSubject, d.FixedBy = sha, subject, by
 	// A finding has no reply to rewrite; only a thread's does.
 	if d.ThreadID != "" && !d.Edited && d.Decision == "" {
 		d.Description = body
 	}
+	d.Revision++
+	d.Updated = st.now()
+	return nil
+}
+
+// ClearFix takes back a fix the person linked by hand. A fix an editor's
+// commit names stands, since the commit says so.
+func (st *Store) ClearFix(id string) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	d := st.find(id)
+	if d == nil || d.FixedIn == "" {
+		return &RuleError{"draft.fixed", "id", "a draft marked fixed"}
+	}
+	if d.FixedBy != "person" {
+		return &RuleError{"draft.fixed_by", "id", "a fix you linked by hand"}
+	}
+	d.FixedIn, d.FixedSubject, d.FixedBy = "", "", ""
 	d.Revision++
 	d.Updated = st.now()
 	return nil

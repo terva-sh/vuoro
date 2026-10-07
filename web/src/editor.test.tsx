@@ -77,6 +77,23 @@ describe('Editor', () => {
     root.remove()
   })
 
+  it('shows the editor being asked when a push stops for an unnamed finding', async () => {
+    const preview = { branch: 'feature', target: 'feature', sha: 'f00d', commits: 1, files: ['calc.go'], own: true }
+    vi.mocked(post).mockRejectedValue(new Error('review: no commit names d2, so vuoro asked the editor to add the trailer or say why; read its answer, then push again'))
+    const asked = vi.fn()
+    const closed = vi.fn()
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<PushDialog run={run()} url="u" preview={preview} onClose={closed} onRun={() => {}} onAsked={asked} />, root))
+    expect(root.textContent).toContain('asks the editor once about any no commit names')
+    for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve() })
+    await act(async () => { [...root.querySelectorAll('button')].find((b) => b.textContent === 'Push')!.click() })
+    for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve() })
+    expect(asked).toHaveBeenCalledWith('no commit names d2, so vuoro asked the editor to add the trailer or say why; read its answer, then push again')
+    expect(root.querySelector('[role="alert"]')).toBeNull()
+    root.remove()
+  })
+
   it('names a Forgejo change a pull request', () => {
     const preview = { branch: 'vuoro/fix-7-abc', target: 'fix/total', sha: 'f00d', commits: 1, files: ['calc.go'], moved: true, title: 't', description: 'd' }
     const root = document.createElement('div')

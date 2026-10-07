@@ -51,6 +51,7 @@ export interface DraftAnchor { path: string; side: 'head' | 'base'; start_line: 
 export type TriageCategory = "must_fix" | "discuss" | "nit"
 export interface Draft {
   thread_id?: string; category?: TriageCategory; reason?: string; thread_key?: string; fixed_in?: string
+  fixed_subject?: string; fixed_by?: 'editor' | 'person' // the fixing commit's subject, and who linked it (D50)
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
   suggestion?: string // replaces the anchor's head-side lines

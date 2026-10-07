@@ -541,3 +541,93 @@ func commitFix(t *testing.T, message *string, trailer string) func(agent.Spec, s
 		return "fixed"
 	}
 }
+
+// A push first asks the editor, once, about each picked finding no commit's
+// trailer names (D50). The editor rewords its commit, and the push records
+// each named finding's fix with its commit and subject. The person can link
+// a fix by hand to one of the review's commits, and take back only a link
+// they made.
+func TestAPushAsksTheEditorAboutUnnamedFindingsAndThePersonCanLinkAFix(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		call("propose_draft", map[string]any{"severity": "medium", "title": "Add needs a comment", "description": "d"})
+		call("propose_draft", map[string]any{"severity": "low", "title": "Name it", "description": "d"})
+		return "done"
+	})
+	var message, asked string
+	first := commitFix(t, &message, "Vuoro-Finding: d1")
+	d.edit = func(spec agent.Spec, text string) string {
+		if !strings.Contains(text, "No commit names these") {
+			return first(spec, text)
+		}
+		asked = text
+		cmd := exec.Command("git", "commit", "-q", "--amend", "-m", "Add adds", "-m", "Vuoro-Finding: d1\nVuoro-Finding: d2")
+		cmd.Dir, cmd.Env = spec.Dir, append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + spec.Dir}, spec.Editor.Env...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("git commit --amend: %s", out)
+		}
+		return "Reworded the commit to name d2."
+	}
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	ctx, who := context.Background(), Identity{Name: "Pat", Email: "pat@example.com"}
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Own: true, Items: []string{"d1", "d2"}}); err != nil {
+		t.Fatal(err)
+	}
+	editorIdle := func(v RunView) bool {
+		return len(v.Sessions) == 2 && v.Sessions[1].FirstComplete && v.Sessions[1].Status == Idle
+	}
+	wait(t, r, editorIdle)
+	detail, _ := m.Editor(ctx, r.ID)
+	sha := detail.Commits[0].SHA
+	exec.Command("git", "-C", src.Remote, "switch", "-q", "main").Run()
+	target := forge.StackTarget{Branch: "feature", Head: ch.Diff.Head}
+
+	var ask *AskedError
+	if _, err := m.PushEditor(ctx, r.ID, src.Remote, target, sha, nil); !errors.As(err, &ask) || strings.Join(ask.IDs, ",") != "d2" {
+		t.Fatalf("a push with d2 unnamed: %v", err)
+	}
+	if out, _ := exec.Command("git", "-C", src.Remote, "rev-parse", "feature").Output(); strings.TrimSpace(string(out)) != ch.Diff.Head {
+		t.Fatal("a push that stopped to ask pushed anyway")
+	}
+	wait(t, r, func(v RunView) bool { return editorIdle(v) && asked != "" })
+	if !strings.Contains(asked, "d2: Add needs a comment") || strings.Contains(asked, "d1:") || !strings.Contains(asked, "Vuoro-Finding: <id>") {
+		t.Fatalf("the editor was asked %q", asked)
+	}
+	detail, _ = m.Editor(ctx, r.ID)
+	sha = detail.Commits[0].SHA
+	if _, err := m.PushEditor(ctx, r.ID, src.Remote, target, sha, nil); err != nil {
+		t.Fatalf("the push after the editor answered: %v", err)
+	}
+	for _, d := range r.View().Drafts[:2] {
+		if d.FixedIn != sha || d.FixedSubject != "Add adds" || d.FixedBy != "editor" {
+			t.Fatalf("%s's fix: %+v", d.ID, d)
+		}
+	}
+
+	// The person links d3 by hand, to a commit of the review only.
+	commits, err := m.FixCommits(ctx, r.ID, nil)
+	if err != nil || len(commits) != 1 || commits[0].SHA != sha {
+		t.Fatalf("fix commits %+v %v", commits, err)
+	}
+	if err := m.MarkFixed(ctx, r.ID, "d3", ch.Diff.Base, nil); err == nil {
+		t.Fatal("a commit outside the review was linked as a fix")
+	}
+	if err := m.MarkFixed(ctx, r.ID, "d3", sha, nil); err != nil {
+		t.Fatal(err)
+	}
+	if d3 := r.View().Drafts[2]; d3.FixedIn != sha || d3.FixedBy != "person" {
+		t.Fatalf("d3 %+v", d3)
+	}
+	if err := m.MarkFixed(ctx, r.ID, "d1", "", nil); err == nil {
+		t.Fatal("the person took back a fix the editor's commit names")
+	}
+	if err := m.MarkFixed(ctx, r.ID, "d3", "", nil); err != nil || r.View().Drafts[2].FixedIn != "" {
+		t.Fatalf("taking back d3's fix: %v", err)
+	}
+	m.Close(ctx, r.ID)
+}

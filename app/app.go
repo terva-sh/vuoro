@@ -109,6 +109,8 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/editor/discard", a.discardEditor)
 	mux.HandleFunc("POST /api/runs/{id}/editor/stack", a.previewStack)
 	mux.HandleFunc("POST /api/runs/{id}/editor/push", a.pushEditor)
+	mux.HandleFunc("POST /api/runs/{id}/fixes", a.fixCommits)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/fixed", a.markFixed)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/dismiss", a.dismiss)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
@@ -545,7 +547,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
 	var api *forge.APIError
+	var asked *review.AskedError
 	switch {
+	case errors.As(err, &asked):
+		status = http.StatusConflict
 	case errors.Is(err, review.ErrNoRun), errors.Is(err, forge.ErrNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, forge.ErrUnsupported):

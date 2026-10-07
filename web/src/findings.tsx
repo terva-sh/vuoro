@@ -1,7 +1,7 @@
 // The findings of a run, each opened in place with its marks, and the
 // hand-off report of the kept ones.
 import { useState } from 'preact/hooks'
-import { errorText } from './action'
+import { errorText, useAction } from './action'
 import { post } from './api'
 import { DraftCard } from './comments'
 import { HeadBadge, useHead } from './head'
@@ -46,7 +46,7 @@ export function Drafts({ run, onPick, onRun, pick: picker }: { run: Run; onPick:
     <>
       <div class="findings">
         {shown.map((d) => (
-          <Finding draft={d} key={d.id} runID={run.id} onPick={pick(d)} onRun={onRun} picker={picker}
+          <Finding draft={d} key={d.id} runID={run.id} url={run.web_url} onPick={pick(d)} onRun={onRun} picker={picker}
             checking={run.sessions.some((s) => s.role === 'verifier' && (s.status === 'waiting' || s.status === 'working' || s.status === 'preparing'))}
             from={d.sources?.length ? sourceLabel(d, byID, profile) : `${profile.get(d.session) ?? d.session} reviewer`}
             sources={(d.sources ?? []).map((id) => byID.get(id)).filter((x): x is Draft => !!x)}
@@ -67,8 +67,8 @@ export function Drafts({ run, onPick, onRun, pick: picker }: { run: Run; onPick:
 }
 
 // Finding is one row of the findings list, opened in place.
-function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, profile, picker }: {
-  draft: Draft; runID: string; onPick?: () => void; onRun: (r: Run) => void; checking: boolean
+function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources, profile, picker }: {
+  draft: Draft; runID: string; url: string; onPick?: () => void; onRun: (r: Run) => void; checking: boolean
   from: string; sources: Draft[]; profile: Map<string, string>; picker?: Pick
 }) {
   const [error, setError] = useState<string>()
@@ -101,6 +101,7 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
             </div>
           )}
           {error && <p class="alert" role="alert">⚠ {error}</p>}
+          {d.decision !== 'dropped' && <FixLink draft={d} runID={runID} url={url} onRun={onRun} />}
           <DraftCard draft={d} runID={runID} onPick={onPick} label={from} compact />
           {sources.length > 1 && (
             <details class="sources">
@@ -110,6 +111,60 @@ function Finding({ draft: d, runID, onPick, onRun, checking, from, sources, prof
           )}
         </div>
       </details>
+    </div>
+  )
+}
+
+interface FixCommit { sha: string; subject: string }
+
+// FixLink says which commit fixed a finding, and who linked it (D50). The
+// person can link one by hand, from the commits vuoro pushed for the review
+// and the change's since it was reviewed, or take back a link they made.
+// Nothing reaches the forge.
+export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: string; url: string; onRun: (r: Run) => void }) {
+  const [commits, setCommits] = useState<FixCommit[]>()
+  const [sha, setSHA] = useState('')
+  const act = useAction()
+  const mark = (to: string) => act.run(async () => {
+    onRun(await post<Run>(`/api/runs/${runID}/drafts/${d.id}/fixed`, { url, sha: to }))
+    setCommits(undefined)
+  })
+  if (d.fixed_in) {
+    return (
+      <p class="fix-link">
+        ✓ Fixed in <span class="mono">{short(d.fixed_in)}</span>{d.fixed_subject && <> · {d.fixed_subject}</>}
+        <span class="muted"> · {d.fixed_by === 'person' ? 'linked by you' : "named in the commit's trailer"}</span>
+        {d.fixed_by === 'person' && <> <button class="link" disabled={act.busy} onClick={() => void mark('')}>Not fixed</button></>}
+        {act.error && <span class="alert" role="alert"> ⚠ {act.error}</span>}
+      </p>
+    )
+  }
+  const open = () => act.run(async () => {
+    const cs = await post<FixCommit[]>(`/api/runs/${runID}/fixes`, { url })
+    setCommits(cs)
+    setSHA(cs[cs.length - 1]?.sha ?? '')
+  })
+  return (
+    <div class="fix-link">
+      {!commits ? (
+        <button disabled={act.busy} onClick={() => void open()} title="Link this finding to the commit that fixed it. Nothing is posted.">
+          {act.busy ? '⧗ Reading commits…' : 'Mark fixed…'}
+        </button>
+      ) : commits.length === 0 ? (
+        <span class="muted">No commit since the review to link. <button class="link" onClick={() => setCommits(undefined)}>Close</button></span>
+      ) : (
+        <span class="fix-pick">
+          <label>
+            Fixed by{' '}
+            <select value={sha} onChange={(e) => setSHA((e.target as HTMLSelectElement).value)}>
+              {commits.map((c) => <option value={c.sha} key={c.sha}>{short(c.sha)} {c.subject}</option>)}
+            </select>
+          </label>
+          <button class="primary" disabled={act.busy || !sha} onClick={() => void mark(sha)}>Mark fixed</button>
+          <button onClick={() => setCommits(undefined)}>Cancel</button>
+        </span>
+      )}
+      {act.error && <p class="alert" role="alert">⚠ {act.error}</p>}
     </div>
   )
 }

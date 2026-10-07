@@ -837,13 +837,16 @@ decisions across several fixes and several reviews.
 
 - *A fix records its commit.* A finding is fixed when a pushed commit names it
   in its `Vuoro-Finding` or `Vuoro-Thread` trailer, and vuoro records the
-  commit on the finding (`FixedIn`). Before a push, vuoro checks each picked
-  finding against the trailers, and when the editor left a picked finding
-  unnamed while committing changes for it, it asks the editor in the same
-  session to add the trailer or say why the finding is left alone. The person
-  can also mark a finding fixed by one of the review's pushed commits, which
-  covers a fix made by hand. Only vuoro and the person record a fix; no MCP
-  tool can.
+  commit on the finding (`FixedIn`), with its subject and whether the trailer
+  or the person linked it. Before a push, vuoro checks each picked finding
+  against the trailers, and asks the editor, once per finding, in the same
+  session, to reword an unpushed commit to add the trailer or say why the
+  finding is left alone; that push stops (409) until the person has read the
+  answer and pushes again. The person
+  can also mark a finding fixed by one of the commits vuoro pushed for the
+  review or one of the change's since it was reviewed, which covers a fix made
+  by hand, and take back only a link they made. Only vuoro and the person
+  record a fix; no MCP tool can.
 - *A fixed finding folds away.* The review page lists fixed findings in a
   folded "Fixed" group, each with "fixed in" and its commit, linked to the
   commit on the forge, and without the reviewed-head warning. The warning on

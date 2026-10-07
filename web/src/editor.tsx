@@ -138,6 +138,7 @@ export function PushBar({ run, url, detail, working, onRun }: {
   run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
 }) {
   const [preview, setPreview] = useState<StackPreview>()
+  const [asked, setAsked] = useState<string>()
   const { busy: loading, error, run: perform } = useAction()
   const pushed = run.editor?.pushed
   const own = !!run.editor?.own
@@ -166,16 +167,21 @@ export function PushBar({ run, url, detail, working, onRun }: {
           {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : `⇪ Push and open a draft ${word}…`}
         </button>
       )}
+      {asked && <p class="notice" role="status">⧗ {asked}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {preview && <PushDialog run={run} url={url} preview={preview} onClose={() => setPreview(undefined)} onRun={onRun} />}
+      {preview && <PushDialog run={run} url={url} preview={preview} onClose={() => setPreview(undefined)} onRun={onRun}
+        onAsked={(text) => { setAsked(text); setPreview(undefined) }} />}
     </div>
   )
 }
 
 // PushDialog is the confirmation, with the title and description to edit.
 // Cancel has the focus, so a stray Enter pushes nothing.
-export function PushDialog({ run, url, preview: p, onClose, onRun }: {
-  run: Run; url: string; preview: StackPreview; onClose: () => void; onRun: (r: Run) => void
+// A push that stopped to ask the editor about a picked finding no commit's
+// trailer names (D50) answers 409; its text says so, and onAsked shows it
+// while the editor answers in its session.
+export function PushDialog({ run, url, preview: p, onClose, onRun, onAsked }: {
+  run: Run; url: string; preview: StackPreview; onClose: () => void; onRun: (r: Run) => void; onAsked?: (text: string) => void
 }) {
   const [title, setTitle] = useState(p.title ?? '')
   const [description, setDescription] = useState(p.description ?? '')
@@ -183,7 +189,14 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
   const cancel = useRef<HTMLButtonElement>(null)
   const word = changeWord(run.kind)
   const push = () => perform(async () => {
-    onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
+    try {
+      onRun(await post<Run>(`/api/runs/${run.id}/editor/push`, { url, confirm: 'push', sha: p.sha, title, description }))
+    } catch (e) {
+      const text = errorText(e)
+      if (!onAsked || !text.includes('vuoro asked the editor')) throw e
+      onAsked(text.replace(/^review: /, ''))
+      return
+    }
     onClose()
   })
   return (
@@ -202,6 +215,7 @@ export function PushDialog({ run, url, preview: p, onClose, onRun }: {
           <li>{p.opened ? <>Updates the open <a href={p.opened} target="_blank" rel="noreferrer">{p.not_draft ? '' : 'draft '}{word}</a>.</> : <>Opens a draft {word} onto <span class="mono">{p.target}</span>, the source branch of the reviewed change.</>}</li>
         </>}
         <li>Changes {p.files.length} file{p.files.length === 1 ? '' : 's'}: <span class="mono">{p.files.join(', ')}</span></li>
+        <li>First, vuoro checks each picked {run.mode === 'triage' ? 'thread' : 'finding'} against the commits' trailers, and asks the editor once about any no commit names before pushing.</li>
         {p.ci && p.ci.length > 0 && <li class="warn">⚠ Changes CI configuration ({p.ci.join(', ')}), which runs when the branch is pushed.</li>}
         {p.moved && <li class="warn">⚠ <span class="mono">{p.target}</span> has moved since {p.own ? 'triage, so the push will be refused; run triage again on the new head' : `the review, so the ${word} may need a rebase`}.</li>}
       </ul>

@@ -263,3 +263,24 @@ func TestOverMCPASuggestionSessionSetsOnlyItsDraftsSuggestion(t *testing.T) {
 		t.Fatal("the other draft got a suggestion")
 	}
 }
+
+// Only vuoro and the person record a fix (D50): no tool takes the fields.
+func TestOverMCPNoToolRecordsAFix(t *testing.T) {
+	st, srv, url := setup(t)
+	tok := srv.Register(st, alice)
+	for _, field := range []string{"fixed_in", "fixed_subject", "fixed_by"} {
+		text, isErr := callTool(t, url, tok, "propose_draft", map[string]any{
+			"severity": "high", "title": "x", "description": "y", field: "abc",
+		})
+		if !isErr || !strings.Contains(text, "rule arguments.shape") {
+			t.Fatalf("propose_draft with %s: got %q, isError %v", field, text, isErr)
+		}
+	}
+	callTool(t, url, tok, "propose_draft", map[string]any{"severity": "high", "title": "x", "description": "y"})
+	if text, isErr := callTool(t, url, tok, "revise_draft", map[string]any{"id": "d1", "fixed_in": "abc"}); !isErr || !strings.Contains(text, "rule arguments.shape") {
+		t.Fatalf("revise_draft with fixed_in: got %q, isError %v", text, isErr)
+	}
+	if d := st.All()[0]; d.FixedIn != "" || d.FixedBy != "" {
+		t.Fatalf("a tool recorded a fix: %+v", d)
+	}
+}

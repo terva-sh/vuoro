@@ -87,3 +87,25 @@ func (m *Manager) CompareHead(ctx context.Context, id string, ch *forge.Change, 
 	}
 	return m.Repos.compare(ctx, src, r.Head), nil
 }
+
+// commitsSince fetches the change at src and answers its commits after old,
+// oldest first, as "sha NUL subject RS" records. A rewritten change, whose
+// head does not descend from old, has none to offer.
+func (r *Repos) commitsSince(ctx context.Context, src Source, old string) (string, error) {
+	if !commitRE.MatchString(old) || !commitRE.MatchString(src.Head) || !keyRE.MatchString(src.Key) || strings.Contains(src.Key, "..") {
+		return "", errors.New("review: the change's head cannot be read")
+	}
+	gitDir := filepath.Join(r.Dir, filepath.FromSlash(src.Key)+".git")
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	if err := r.fetch(ctx, gitDir, src); err != nil {
+		return "", err
+	}
+	if _, err := r.git(ctx, gitDir, "merge-base", "--is-ancestor", old, src.Head); err != nil {
+		return "", errors.New("review: the change was rewritten since it was reviewed; review it again")
+	}
+	return r.git(ctx, gitDir, "log", "--reverse", "--format=%H%x00%s%x1e", old+".."+src.Head)
+}

@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M4BVRFAY1DN7317TACJXXXRA
 title: Fix a review in waves, and review again with its earlier findings
 type: epic
-status: draft
+status: in-progress
 status_reason: null
 priority: normal
 due_on: null
@@ -18,10 +18,17 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim: null
+claim:
+  actor: agent:claude/frontend-modules-2026-10-06
+  branch: TKT-01M4BVRFD-fix-links
+  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
+  commit: 0b74f4c37e89433d171fac86d1ee3589a3eb9f74
+  session: null
+  claimed_at: 2026-10-07T19:12:14Z
+  expires_at: null
 archive: null
 created_at: 2026-10-07T18:59:34Z
-updated_at: 2026-10-07T18:59:34Z
+updated_at: 2026-10-07T19:12:14Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""

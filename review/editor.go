@@ -35,6 +35,9 @@ type EditorState struct {
 	// Items are the drafts it was given: kept findings, or picked threads or
 	// findings.
 	Items []string `json:"items,omitempty"`
+	// Asked are the picked items vuoro asked the editor about before a
+	// push, because no commit's trailer named them (D50). It asks once.
+	Asked []string `json:"asked,omitempty"`
 
 	pushing bool // a push is under way
 }
@@ -551,6 +554,43 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 	if len(detail.Commits) == 0 {
 		return nil, errors.New("review: the editor has committed nothing to push")
 	}
+	// Ask the editor, once, about each picked item no commit's trailer
+	// names and nothing has fixed, before pushing anything.
+	v := r.View()
+	named := map[string]bool{}
+	for _, c := range detail.Commits {
+		for _, id := range c.Findings {
+			named[id] = true
+		}
+	}
+	for _, d := range v.Drafts {
+		if d.FixedIn != "" {
+			named[d.ID] = true
+		}
+	}
+	r.mu.Lock()
+	var ask []string
+	for _, id := range e.Items {
+		if !named[id] && !slices.Contains(e.Asked, id) {
+			ask = append(ask, id)
+		}
+	}
+	e.Asked = append(e.Asked, ask...)
+	r.mu.Unlock()
+	if len(ask) > 0 {
+		from := base
+		if last != "" {
+			from = last
+		}
+		if err := m.askAboutTrailers(r, e, v, ask, from); err != nil {
+			r.mu.Lock()
+			e.Asked = slices.DeleteFunc(e.Asked, func(id string) bool { return slices.Contains(ask, id) })
+			r.mu.Unlock()
+			return nil, err
+		}
+		r.save()
+		return nil, &AskedError{IDs: ask}
+	}
 	gitDir, err := m.Repos.gitDir(r.repoKey)
 	if err != nil {
 		return nil, err
@@ -583,11 +623,9 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 	np := p
 	e.Pushed = &np
 	r.mu.Unlock()
-	if own || local {
-		for _, c := range detail.Commits {
-			for _, id := range c.Findings {
-				_ = r.store.CiteFix(id, c.SHA, fixedReply(c))
-			}
+	for _, c := range detail.Commits {
+		for _, id := range c.Findings {
+			_ = r.store.CiteFix(id, c.SHA, c.Subject, "editor", fixedReply(c))
 		}
 	}
 	r.save()
@@ -604,6 +642,126 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 		r.save()
 	}
 	return &p, nil
+}
+
+// AskedError means a push stopped to ask the editor about picked items no
+// commit's trailer names (D50). The editor's answer is in its session, and
+// pushing again goes ahead.
+type AskedError struct{ IDs []string }
+
+func (e *AskedError) Error() string {
+	return fmt.Sprintf("review: no commit names %s, so vuoro asked the editor to add the trailer or say why; read its answer, then push again", strings.Join(e.IDs, ", "))
+}
+
+// askAboutTrailers sends the editor one turn about picked items its
+// commits do not name. Only commits after from, which nothing has pushed,
+// may be reworded.
+func (m *Manager) askAboutTrailers(r *Run, e *EditorState, v RunView, ids []string, from string) error {
+	r.mu.Lock()
+	var s *Session
+	for _, x := range r.sessions {
+		if x.ID == e.Session {
+			s = x
+		}
+	}
+	threads := r.Mode == "triage"
+	r.mu.Unlock()
+	if s == nil {
+		return errors.New("review: the editor's session is gone")
+	}
+	trailer, item := "Vuoro-Finding", "finding"
+	if threads {
+		trailer, item = "Vuoro-Thread", "thread"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Before vuoro pushes, it checks each picked %s against your commits' %s trailers. No commit names these:\n\n", item, trailer)
+	for _, id := range ids {
+		title := ""
+		for _, d := range v.Drafts {
+			if d.ID == id {
+				title = d.Title
+			}
+		}
+		fmt.Fprintf(&b, "- %s: %s\n", id, title)
+	}
+	fmt.Fprintf(&b, "\nFor each one, if a commit after %s fixes it, reword that commit's message to add the trailer `%s: <id>`. Change no code, and reword no commit at or before %s, which may already be pushed. If you left one alone, say why in one line. Then say which commits you reworded.", short(from), trailer, short(from))
+	return m.send(r, s, b.String(), false)
+}
+
+// FixCommits are the commits a finding of the run can be marked fixed by
+// (D50): those vuoro pushed for it, and, given the change's source as the
+// forge reports it now, the change's commits since the reviewed head.
+func (m *Manager) FixCommits(ctx context.Context, runID string, src *Source) ([]EditorCommit, error) {
+	r := m.Get(runID)
+	if r == nil {
+		return nil, ErrNoRun
+	}
+	r.mu.Lock()
+	var e EditorState
+	if r.editor != nil {
+		e = *r.editor
+	}
+	head := r.Head
+	r.mu.Unlock()
+	gitDir, err := m.Repos.gitDir(r.repoKey)
+	if err != nil {
+		return nil, err
+	}
+	out := []EditorCommit{}
+	seen := map[string]bool{}
+	add := func(log string) {
+		for _, rec := range strings.Split(log, "\x1e") {
+			f := strings.SplitN(strings.TrimSpace(rec), "\x00", 2)
+			if len(f) == 2 && f[0] != "" && !seen[f[0]] {
+				seen[f[0]] = true
+				out = append(out, EditorCommit{SHA: f[0], Subject: f[1], Findings: []string{}})
+			}
+		}
+	}
+	g := localGit{bin: m.Repos.Git, dir: gitDir}
+	if e.Pushed != nil && commitRE.MatchString(e.Pushed.SHA) && commitRE.MatchString(e.Base) {
+		if log, err := g.run(ctx, maxLocalLog, "log", "--reverse", "--format=%H%x00%s%x1e", e.Base+".."+e.Pushed.SHA); err == nil {
+			add(log)
+		}
+	}
+	if src != nil && src.Head != head {
+		log, err := m.Repos.commitsSince(ctx, *src, head)
+		if err != nil {
+			return nil, err
+		}
+		add(log)
+	}
+	return out, nil
+}
+
+// MarkFixed is the person linking a finding to the commit that fixed it,
+// one of FixCommits, or, with an empty sha, taking back a link they made.
+func (m *Manager) MarkFixed(ctx context.Context, runID, draftID, sha string, src *Source) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	if sha == "" {
+		if err := r.store.ClearFix(draftID); err != nil {
+			return err
+		}
+		r.save()
+		return nil
+	}
+	commits, err := m.FixCommits(ctx, runID, src)
+	if err != nil {
+		return err
+	}
+	for _, c := range commits {
+		if c.SHA == sha {
+			if err := r.store.CiteFix(draftID, c.SHA, c.Subject, "person", fixedReply(c)); err != nil {
+				return err
+			}
+			r.save()
+			return nil
+		}
+	}
+	return errors.New("review: that commit is not one vuoro pushed for this review, nor one of the change's since it was reviewed")
 }
 
 // openStacked opens the stacked change. One the forge opened as an ordinary
