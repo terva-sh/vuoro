@@ -7,7 +7,7 @@ import { diffStat } from './diff'
 import { DiffBrowser, Stat, useFilePicker } from './diffview'
 import { Modal } from './modal'
 import { TextEditor } from './textedit'
-import type { Draft, EditorDetail, FileDiff, Run, StackPreview } from './types'
+import type { Draft, EditorDetail, EditorState, FileDiff, Run, StackPreview } from './types'
 import { changeWord } from './types'
 import { WriteContext } from './write'
 import { short, StatusBadge } from './ui'
@@ -26,7 +26,7 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
   const [discarding, setDiscarding] = useState(false)
   const threads = run.mode === 'triage'
   const own = threads || picks || run.kind === 'local'
-  const kept = run.drafts.filter((d) => d.decision === 'kept')
+  const kept = run.drafts.filter((d) => d.decision === 'kept' && !d.fixed_in)
   const name = describe ?? ((d: Draft) => d.title)
   const ed = run.editor && !run.editor.discarded ? run.editor : undefined
   const session = ed && run.sessions.find((s) => s.id === ed.session)
@@ -42,22 +42,34 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
     setDiscarding(false)
   })
   if (run.mode && !threads) return null
-  if (!ed) {
+  const byID = new Map(run.drafts.map((d) => [d.id, d]))
+  const title = (id: string) => { const d = byID.get(id); return d ? name(d) : '' }
+  const waves = (run.waves ?? []).filter((w) => w.pushed)
+  // A start, first or after a push. A later wave goes on from the last push
+  // and is given only what no wave has fixed (D50).
+  const start = (again: boolean) => {
     const items = own ? picked ?? [] : kept
     const what = threads ? 'thread' : 'finding'
     const why = items.length > 0 ? '' : own ? `Pick a ${what} first` : 'Keep a finding first'
+    const label = own ? `the picked ${what}s` : 'the kept findings'
+    return (
+      <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, own ? { url, items: items.map((d) => d.id) } : { url })}
+        title={why || `An agent fixes ${label} ${again ? 'on the pushed branch, from its last push' : 'on a local branch'}, in a sandbox, with no forge credential. Nothing is pushed.`}>
+        {busy ? '⧗ Starting the editor…'
+          : again ? `⚒ Fix ${label} in another wave (${items.length})`
+          : own ? `⚒ Fix ${label} in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
+      </button>
+    )
+  }
+  if (!ed) {
     return (
       <div class="editor-panel">
-        <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, own ? { url, items: items.map((d) => d.id) } : { url })}
-          title={why || `An agent fixes ${own ? `the picked ${what}s` : 'the kept findings'} on a local branch, in a sandbox, with no forge credential. Nothing is pushed.`}>
-          {busy ? '⧗ Starting the editor…' : own ? `⚒ Fix the picked ${what}s in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
-        </button>
+        {waves.length > 0 && <Waves waves={waves} title={title} />}
+        {start(waves.length > 0)}
         {error && <p class="alert" role="alert">⚠ {error}</p>}
       </div>
     )
   }
-  const byID = new Map(run.drafts.map((d) => [d.id, d]))
-  const title = (id: string) => { const d = byID.get(id); return d ? name(d) : '' }
   const fixed = new Set(detail?.commits.flatMap((c) => c.findings) ?? [])
   const given = own ? (ed.items ?? []).map((id) => byID.get(id)).filter((d): d is Draft => !!d) : kept
   const left = given.filter((d) => !fixed.has(d.id))
@@ -67,7 +79,9 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
         <strong>⚒ Editor</strong>
         <span class="mono">{ed.branch}</span>
         {session && <StatusBadge status={session.status} />}
-        <span class="muted">from <span class="mono">{short(ed.base)}</span>{ed.pushed ? '' : ', local only'}</span>
+        <span class="muted">
+          {ed.continues ? 'from its last push, ' : 'from '}<span class="mono">{short(ed.base)}</span>{ed.pushed ? '' : ', local only'}
+        </span>
         {discarding ? (
           <span class="push">
             Delete the branch and its work?{' '}
@@ -78,6 +92,7 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
           <button class="push" disabled={busy} onClick={() => setDiscarding(true)}>Discard…</button>
         )}
       </header>
+      {waves.length > 0 && <Waves waves={waves} title={title} />}
       {working && <p class="muted">⧗ The editor is working. Open its session above to follow it or talk to it.</p>}
       {detail && (
         <>
@@ -103,11 +118,49 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
             </p>
           )}
           <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} />
+          {ed.pushed && !working && detail.commits.at(-1)?.sha === ed.pushed.sha && (
+            <div class="editor-again">
+              <p class="muted">All of this wave is pushed. Another wave goes on from <span class="mono">{short(ed.pushed.sha)}</span>.</p>
+              {start(true)}
+            </div>
+          )}
           {detail.files.length > 0 && <EditorDiff files={detail.files} />}
         </>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
+  )
+}
+
+// Waves are a review's earlier editors, each with what it pushed, folded
+// away (D50).
+function Waves({ waves, title }: { waves: EditorState[]; title: (id: string) => string }) {
+  return (
+    <details class="editor-waves">
+      <summary>{waves.length === 1 ? '1 earlier wave' : `${waves.length} earlier waves`}</summary>
+      <ol>
+        {waves.map((w) => (
+          <li key={w.session}>
+            <span class="mono">{w.branch}</span>{' '}
+            <span class="muted">pushed <span class="mono">{short(w.pushed!.sha)}</span> to {w.pushed!.target}</span>
+            {w.pushed!.url && <> · <a href={w.pushed!.url} target="_blank" rel="noreferrer">its change</a></>}
+            <ol class="editor-commits">
+              {(w.commits ?? []).map((c) => (
+                <li key={c.sha}>
+                  <span class="commit-sha">{short(c.sha)}</span>
+                  <div class="commit-body">
+                    <div class="commit-subject">{c.subject}</div>
+                    {c.findings.map((id) => (
+                      <div class="commit-answers" key={id}>↳ answers <span class="badge">{id}</span> {title(id)}</div>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </li>
+        ))}
+      </ol>
+    </details>
   )
 }
 

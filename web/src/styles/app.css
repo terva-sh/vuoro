@@ -344,6 +344,12 @@ main { padding: var(--ui-space-4); }
 .editor-commits { list-style: none; margin: 0 0 var(--ui-space-3); padding: 0; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); background: var(--ui-raised); }
 .editor-commits li { display: flex; gap: var(--ui-space-3); align-items: baseline; padding: var(--ui-space-2) var(--ui-space-3); border-bottom: 1px solid var(--ui-line); }
 .editor-commits li:last-child { border-bottom: none; }
+.editor-waves { margin-bottom: var(--ui-space-3); }
+.editor-waves > summary { cursor: pointer; color: var(--ui-muted); }
+.editor-waves > ol { list-style: none; margin: var(--ui-space-2) 0 0; padding: 0; }
+.editor-waves > ol > li { display: block; margin-bottom: var(--ui-space-2); }
+.editor-waves .editor-commits { margin: var(--ui-space-2) 0 0; }
+.editor-again { margin-top: var(--ui-space-3); }
 .commit-sha { flex: none; font: var(--ui-fs-detail) var(--ui-font-mono); color: var(--ui-accent); }
 .commit-body { min-width: 0; overflow-wrap: anywhere; }
 .commit-subject { color: var(--ui-heading); font-weight: 600; }

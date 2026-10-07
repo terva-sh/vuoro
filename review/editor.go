@@ -38,6 +38,11 @@ type EditorState struct {
 	// Asked are the picked items vuoro asked the editor about before a
 	// push, because no commit's trailer named them (D50). It asks once.
 	Asked []string `json:"asked,omitempty"`
+	// Continues is the earlier wave's push this wave stands on, when it is
+	// not the review's first (D50): its branch and change are updated, not
+	// opened again. Commits are this wave's commits as last pushed.
+	Continues *Pushed        `json:"continues,omitempty"`
+	Commits   []EditorCommit `json:"commits,omitempty"`
 
 	pushing bool // a push is under way
 }
@@ -89,14 +94,32 @@ func (m *Manager) editorDir(runID string) string {
 	return filepath.Join(m.StateDir, "editor", runID)
 }
 
-// ErrEditorBusy means the run already has an editor whose work is not
-// discarded.
-var ErrEditorBusy = errors.New("review: this review already has an editor; discard its work to start another")
+// ErrEditorBusy means the run's editor has work not yet pushed, which a new
+// wave would strand.
+var ErrEditorBusy = errors.New("review: this review's editor has work not pushed; push or discard it to start another")
+
+// lastPush is the newest push of the run's editors, the one a new wave
+// stands on, or nil. r.mu is held.
+func (r *Run) lastPush() *Pushed {
+	if r.editor != nil && r.editor.Pushed != nil {
+		return r.editor.Pushed
+	}
+	for i := len(r.waves) - 1; i >= 0; i-- {
+		if r.waves[i].Pushed != nil {
+			return r.waves[i].Pushed
+		}
+	}
+	return nil
+}
 
 // StartEditor starts the run's editor (D39, D41, D42). now is the change as
 // the forge reports it at the person's click, and the run must still be at
-// its head; a local range has no forge, and passes nil. The run may be
-// closed.
+// its head, or, on the person's own change, at the editor's last push; a
+// local range has no forge, and passes nil. The run may be closed.
+//
+// A review is fixed in waves (D50). Once an editor's work is pushed, another
+// starts from that push on the same branch, and the earlier one is kept in
+// the run's waves. Findings an earlier wave fixed are not offered again.
 //
 // On a review of somebody else's change, the editor fixes the findings the
 // person kept. On a triage of their own, it fixes the threads named by the
@@ -124,8 +147,8 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 		return nil, errors.New("review: the change could not be read")
 	case !local && (r.Ref != now.Ref || r.Kind != now.Kind):
 		return nil, errors.New("review: this run belongs to another change")
-	case !local && now.Diff.Head != r.Head:
-		return nil, fmt.Errorf("review: the change has moved since this run read it at %s; run it again before fixing anything", short(r.Head))
+	case !local && now.Diff.Head != r.Head && !(own && pushedHead(r) == now.Diff.Head):
+		return nil, fmt.Errorf("review: the change has moved since this run read it at %s, by more than vuoro's own pushes; review it again before fixing anything", short(r.Head))
 	case who.Name == "" || who.Email == "":
 		return nil, errors.New("review: set git's user.name and user.email, which the editor's commits carry")
 	}
@@ -137,7 +160,8 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	case own || local:
 		picked, err = pickFindings(v, task.Items)
 	default:
-		if picked = kept(v.Drafts); len(picked) == 0 {
+		picked = slices.DeleteFunc(kept(v.Drafts), func(d drafts.Draft) bool { return d.FixedIn != "" })
+		if len(picked) == 0 {
 			err = errors.New("review: keep at least one finding first; the editor fixes the findings you kept")
 		}
 	}
@@ -148,10 +172,44 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	for i, d := range picked {
 		ids[i] = d.ID
 	}
+	// An editor whose work is all pushed makes way for the next wave; one
+	// with commits not pushed holds the review.
 	r.mu.Lock()
-	if r.editor.Active() {
-		r.mu.Unlock()
+	prev := r.editor
+	active, pushed := prev.Active(), prev != nil && prev.Pushed != nil
+	r.mu.Unlock()
+	if active && !pushed {
 		return nil, ErrEditorBusy
+	}
+	if active {
+		detail, err := m.Editor(ctx, runID)
+		if err != nil {
+			return nil, err
+		}
+		if n := len(detail.Commits); n > 0 && detail.Commits[n-1].SHA != detail.Pushed.SHA {
+			return nil, ErrEditorBusy
+		}
+	}
+	r.mu.Lock()
+	if r.editor != prev {
+		r.mu.Unlock()
+		return nil, ErrEditorBusy // another start or push won the race
+	}
+	var closing agent.Session
+	if prev != nil && prev.Pushed != nil {
+		for _, x := range r.sessions {
+			if x.ID == prev.Session {
+				closing, x.live = x.live, nil
+				x.Status = Closed
+			}
+		}
+		r.waves = append(r.waves, *prev)
+		r.editor = nil
+	}
+	start, cont := r.Head, (*Pushed)(nil)
+	if lp := r.lastPush(); lp != nil {
+		c := *lp
+		start, cont = lp.SHA, &c
 	}
 	var lead *Session
 	for _, s := range r.sessions {
@@ -165,6 +223,12 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	}
 	tool, model := lead.Tool, lead.Model
 	r.mu.Unlock()
+	if closing != nil {
+		_ = closing.Close()
+	}
+	if prev != nil && prev.Pushed != nil {
+		r.save()
+	}
 
 	base := m.editorDir(runID)
 	if err := os.RemoveAll(base); err != nil {
@@ -175,7 +239,7 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	if local {
 		branch = "vuoro/fix-" + runID
 	}
-	if err := m.Repos.SeedEditor(ctx, r.repoKey, runID, r.Head, branch, wt); err != nil {
+	if err := m.Repos.SeedEditor(ctx, r.repoKey, runID, start, branch, wt); err != nil {
 		os.RemoveAll(base)
 		_ = m.Repos.DropEditor(ctx, r.repoKey, runID)
 		return nil, err
@@ -197,7 +261,7 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 		Role: drafts.Editor, Status: Preparing, driver: d,
 	}
 	r.sessions = append(r.sessions, s)
-	r.editor = &EditorState{Session: s.ID, Branch: branch, Base: r.Head, Started: time.Now().UTC(), Own: own, Local: local, Items: ids}
+	r.editor = &EditorState{Session: s.ID, Branch: branch, Base: start, Started: time.Now().UTC(), Own: own, Local: local, Items: ids, Continues: cont}
 	s.spec = agent.Spec{SystemPrompt: editorPrompt(r.editor.kind(r.Mode)), Model: model}
 	r.who = who
 	ed := *r.editor
@@ -213,6 +277,16 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	}
 	go m.begin(r, s, first)
 	return &ed, nil
+}
+
+// pushedHead is the run's editors' newest push, or empty.
+func pushedHead(r *Run) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if p := r.lastPush(); p != nil {
+		return p.SHA
+	}
+	return ""
 }
 
 // pickThreads are the thread replies the person picked, each still pending
@@ -235,6 +309,8 @@ func pickThreads(v RunView, now *forge.Change, items []string) ([]drafts.Draft, 
 		switch {
 		case !ok || d.ThreadID == "" || d.Status != drafts.Pending:
 			return nil, fmt.Errorf("review: %s is not a triaged thread in this run", id)
+		case d.FixedIn != "":
+			return nil, fmt.Errorf("review: %s is already fixed in %s", id, short(d.FixedIn))
 		case open[d.ThreadID] == "" || open[d.ThreadID] != d.ThreadKey:
 			return nil, fmt.Errorf("review: the thread for %s changed or was resolved since triage; run triage again", id)
 		case slices.ContainsFunc(out, func(x drafts.Draft) bool { return x.ID == id }):
@@ -263,6 +339,8 @@ func pickFindings(v RunView, items []string) ([]drafts.Draft, error) {
 			return nil, fmt.Errorf("review: %s is not a finding in this run", id)
 		case d.Decision != "":
 			return nil, fmt.Errorf("review: %s was %s", id, d.Decision)
+		case d.FixedIn != "":
+			return nil, fmt.Errorf("review: %s is already fixed in %s", id, short(d.FixedIn))
 		case slices.ContainsFunc(out, func(x drafts.Draft) bool { return x.ID == id }):
 			continue
 		}
@@ -534,8 +612,14 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 	}
 	e.pushing = true
 	own, local, base, last := e.Own, e.Local, e.Base, ""
-	if e.Pushed != nil {
-		last = e.Pushed.SHA
+	// A later wave pushes on from the earlier wave's push, as the same
+	// branch and the same stacked change.
+	prior := e.Pushed
+	if prior == nil {
+		prior = e.Continues
+	}
+	if prior != nil {
+		last = prior.SHA
 	}
 	r.mu.Unlock()
 	defer func() {
@@ -614,14 +698,15 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 	}
 	r.mu.Lock()
 	p := Pushed{Branch: branch, Target: target.Branch, SHA: sha, At: time.Now().UTC()}
-	if e.Pushed != nil {
-		p.URL = e.Pushed.URL
+	if prior != nil {
+		p.URL, p.NotDraft = prior.URL, prior.NotDraft
 	}
 	if own || local {
 		p.URL = r.WebURL // nothing to open: the change itself, or none
 	}
 	np := p
 	e.Pushed = &np
+	e.Commits = detail.Commits
 	r.mu.Unlock()
 	for _, c := range detail.Commits {
 		for _, id := range c.Findings {
@@ -702,6 +787,10 @@ func (m *Manager) FixCommits(ctx context.Context, runID string, src *Source) ([]
 		e = *r.editor
 	}
 	head := r.Head
+	var earlier []EditorCommit
+	for _, w := range r.waves {
+		earlier = append(earlier, w.Commits...)
+	}
 	r.mu.Unlock()
 	gitDir, err := m.Repos.gitDir(r.repoKey)
 	if err != nil {
@@ -716,6 +805,12 @@ func (m *Manager) FixCommits(ctx context.Context, runID string, src *Source) ([]
 				seen[f[0]] = true
 				out = append(out, EditorCommit{SHA: f[0], Subject: f[1], Findings: []string{}})
 			}
+		}
+	}
+	for _, c := range earlier {
+		if !seen[c.SHA] {
+			seen[c.SHA] = true
+			out = append(out, EditorCommit{SHA: c.SHA, Subject: c.Subject, Findings: []string{}})
 		}
 	}
 	g := localGit{bin: m.Repos.Git, dir: gitDir}

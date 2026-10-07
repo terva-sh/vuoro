@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -25,9 +26,11 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 		return "done"
 	})
 	var message string
+	pass := 0
 	d.edit = func(spec agent.Spec, text string) string {
 		message = text
-		os.WriteFile(filepath.Join(spec.Dir, "calc.go"), []byte("package calc\n\nfunc Add(a, b int) int { return a + b }\n"), 0o644)
+		pass++ // each turn changes something, so each has a commit to make
+		os.WriteFile(filepath.Join(spec.Dir, "calc.go"), []byte(fmt.Sprintf("package calc\n\nfunc Add(a, b int) int { return a + b }\n\n// pass %d\n", pass)), 0o644)
 		for _, args := range [][]string{{"add", "calc.go"}, {"commit", "-q", "-m", "Add adds", "-m", "Vuoro-Finding: d1"}} {
 			cmd := exec.Command("git", args...)
 			cmd.Dir, cmd.Env = spec.Dir, append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + spec.Dir}, spec.Editor.Env...)
@@ -146,6 +149,15 @@ func TestTheEditorFixesKeptFindingsInARepositoryOfItsOwn(t *testing.T) {
 	if err := m.Say(r.ID, v.Sessions[1].ID, "carry on"); err == nil {
 		t.Fatal("a discarded editor was resumed")
 	}
+	// d1 is fixed by the pushed commit, so it is not handed over again
+	// (D50); a newly kept finding is.
+	if got := r.View().Drafts[0]; got.FixedIn != sha {
+		t.Fatalf("d1 after its push: %+v", got)
+	}
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); err == nil {
+		t.Fatal("an editor started with only a fixed finding kept")
+	}
+	m.Decide(r.ID, "d2", drafts.Kept, "42", false)
 	if _, err := m.StartEditor(context.Background(), r.ID, ch, who, EditorTask{}); err != nil {
 		t.Fatalf("an editor after a discard: %v", err)
 	}
@@ -628,6 +640,167 @@ func TestAPushAsksTheEditorAboutUnnamedFindingsAndThePersonCanLinkAFix(t *testin
 	}
 	if err := m.MarkFixed(ctx, r.ID, "d3", "", nil); err != nil || r.View().Drafts[2].FixedIn != "" {
 		t.Fatalf("taking back d3's fix: %v", err)
+	}
+	m.Close(ctx, r.ID)
+}
+
+// fixFinding is an editor turn that commits a change naming the first
+// finding it was handed.
+func fixFinding(t *testing.T) func(agent.Spec, string) string {
+	pass := 0
+	return func(spec agent.Spec, text string) string {
+		m := regexp.MustCompile(`Finding 1 is (d\d+)`).FindStringSubmatch(text)
+		if m == nil {
+			return "nothing to fix"
+		}
+		pass++
+		os.WriteFile(filepath.Join(spec.Dir, "calc.go"), []byte(fmt.Sprintf("package calc\n\nfunc Add(a, b int) int { return a + b }\n\n// wave %d\n", pass)), 0o644)
+		cmd := exec.Command("git", "commit", "-qam", "Fix "+m[1], "-m", "Vuoro-Finding: "+m[1])
+		cmd.Dir, cmd.Env = spec.Dir, append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + spec.Dir}, spec.Editor.Env...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("git commit: %s", out)
+		}
+		return "fixed " + m[1]
+	}
+}
+
+// A review is fixed in waves (D50): once the first editor's work is pushed
+// to the person's own branch, a second starts from that push with findings
+// not yet fixed, and pushes on top of it. The first is kept in the run's
+// waves with its commits. Anyone else's push stops a new wave.
+func TestAReviewIsFixedInWavesFromTheLastPush(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		call("propose_draft", map[string]any{"severity": "medium", "title": "Add needs a comment", "description": "d"})
+		return "done"
+	})
+	d.edit = fixFinding(t)
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	ctx, who := context.Background(), Identity{Name: "Pat", Email: "pat@example.com"}
+	editorIdle := func(n int) func(RunView) bool {
+		return func(v RunView) bool {
+			return len(v.Sessions) == n && v.Sessions[n-1].FirstComplete && v.Sessions[n-1].Status == Idle
+		}
+	}
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Own: true, Items: []string{"d1"}}); err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, editorIdle(2))
+	// Work not pushed holds the review.
+	if _, err := m.StartEditor(ctx, r.ID, ch, who, EditorTask{Own: true, Items: []string{"d2"}}); !errors.Is(err, ErrEditorBusy) {
+		t.Fatalf("a second wave before the first was pushed: %v", err)
+	}
+	detail, _ := m.Editor(ctx, r.ID)
+	first := detail.Commits[0].SHA
+	exec.Command("git", "-C", src.Remote, "switch", "-q", "main").Run()
+	if _, err := m.PushEditor(ctx, r.ID, src.Remote, forge.StackTarget{Branch: "feature", Head: ch.Diff.Head}, first, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// The change is now at vuoro's own push, which does not count as moved.
+	now := *ch
+	now.Diff.Head = first
+	if _, err := m.StartEditor(ctx, r.ID, &now, who, EditorTask{Own: true, Items: []string{"d1"}}); err == nil {
+		t.Fatal("a fixed finding was handed to a new wave")
+	}
+	ed, err := m.StartEditor(ctx, r.ID, &now, who, EditorTask{Own: true, Items: []string{"d2"}})
+	if err != nil {
+		t.Fatalf("a second wave: %v", err)
+	}
+	if ed.Base != first || ed.Continues == nil || ed.Continues.SHA != first || ed.Branch != detail.Branch {
+		t.Fatalf("the second wave %+v", ed)
+	}
+	v := wait(t, r, editorIdle(3))
+	if len(v.Waves) != 1 || v.Waves[0].Pushed.SHA != first || len(v.Waves[0].Commits) != 1 || v.Sessions[1].Status != Closed {
+		t.Fatalf("waves %+v, first editor %s", v.Waves, v.Sessions[1].Status)
+	}
+	detail, _ = m.Editor(ctx, r.ID)
+	if len(detail.Commits) != 1 || detail.Commits[0].Subject != "Fix d2" {
+		t.Fatalf("the second wave's commits %+v", detail.Commits)
+	}
+	second := detail.Commits[0].SHA
+	if _, err := m.PushEditor(ctx, r.ID, src.Remote, forge.StackTarget{Branch: "feature", Head: first}, second, nil); err != nil {
+		t.Fatalf("the second wave's push: %v", err)
+	}
+	if out, _ := exec.Command("git", "-C", src.Remote, "rev-parse", "feature").Output(); strings.TrimSpace(string(out)) != second {
+		t.Fatalf("the change's branch is at %q", out)
+	}
+	if got := r.View().Drafts[1]; got.FixedIn != second {
+		t.Fatalf("d2 %+v", got)
+	}
+	if commits, err := m.FixCommits(ctx, r.ID, nil); err != nil || len(commits) != 2 {
+		t.Fatalf("fix commits across waves %+v %v", commits, err)
+	}
+
+	// A push by anyone else stops another wave.
+	moved := now
+	moved.Diff.Head = "0123456789abcdef0123456789abcdef01234567"
+	if _, err := m.StartEditor(ctx, r.ID, &moved, who, EditorTask{Own: true, Items: []string{"d2"}}); err == nil || !strings.Contains(err.Error(), "review it again") {
+		t.Fatalf("a wave on a change someone else moved: %v", err)
+	}
+
+	// Waves outlive a restart.
+	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: m.Drivers, Drafts: m.Drafts, MCPURL: m.MCPURL}
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if back := m2.Get(r.ID).View(); len(back.Waves) != 1 || back.Editor == nil || back.Editor.Continues == nil {
+		t.Fatalf("reloaded waves %+v editor %+v", back.Waves, back.Editor)
+	}
+	m.Close(ctx, r.ID)
+}
+
+// On a local range, a second wave moves vuoro's own fix branch on from the
+// first wave's push, and still never a branch the person holds (D42, D50).
+func TestALocalRangesSecondWaveMovesItsOwnBranchOn(t *testing.T) {
+	m, d, _, _ := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		call("propose_draft", map[string]any{"severity": "medium", "title": "Add needs a comment", "description": "d"})
+		return "done"
+	})
+	d.edit = fixFinding(t)
+	repo, _, _ := remote(t)
+	ctx := context.Background()
+	lt, err := LocalChange(ctx, "", repo, "main..feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := m.Start(lt.Change, lt.Source, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	who := Identity{Name: "Pat", Email: "pat@example.com"}
+	git := func(args ...string) string {
+		out, _ := exec.Command("git", append([]string{"-C", repo}, args...)...).Output()
+		return strings.TrimSpace(string(out))
+	}
+	for i, item := range []string{"d1", "d2"} {
+		ed, err := m.StartEditor(ctx, r.ID, nil, who, EditorTask{Items: []string{item}})
+		if err != nil {
+			t.Fatalf("wave %d: %v", i+1, err)
+		}
+		wait(t, r, func(v RunView) bool {
+			n := len(v.Sessions)
+			return n == 2+i && v.Sessions[n-1].FirstComplete && v.Sessions[n-1].Status == Idle
+		})
+		detail, _ := m.Editor(ctx, r.ID)
+		sha := detail.Commits[len(detail.Commits)-1].SHA
+		if _, err := m.PushEditor(ctx, r.ID, "ignored", forge.StackTarget{}, sha, nil); err != nil {
+			t.Fatalf("wave %d's push: %v", i+1, err)
+		}
+		if got := git("rev-parse", "refs/heads/"+ed.Branch); got != sha {
+			t.Fatalf("wave %d: the branch is at %q, want %s", i+1, got, sha)
+		}
+	}
+	if v := r.View(); len(v.Waves) != 1 || v.Drafts[0].FixedIn == "" || v.Drafts[1].FixedIn == "" {
+		t.Fatalf("waves %d, drafts %+v", len(v.Waves), v.Drafts)
 	}
 	m.Close(ctx, r.ID)
 }

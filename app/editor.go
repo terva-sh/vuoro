@@ -163,8 +163,10 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 		return nil, nil, p, errors.New("The editor has committed nothing to push.")
 	}
 	v := run.View()
+	// A stacked change's target moved when it is no longer the reviewed head;
+	// a later wave's base is the stacked branch, not the target (D50).
 	p = stackPreview{Branch: d.Branch, Target: target.Branch, SHA: d.Commits[len(d.Commits)-1].SHA, Commits: len(d.Commits),
-		Moved: target.Head != d.Base, Own: d.Own, Files: []string{}, head: target.Head}
+		Moved: target.Head != v.Head, Own: d.Own, Files: []string{}, head: target.Head}
 	if d.Own {
 		if !a.isAuthor(ch) {
 			return nil, nil, p, errors.New("The editor pushes to your own change only.")
@@ -180,8 +182,12 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 			p.CI = append(p.CI, f.NewPath)
 		}
 	}
-	if d.Pushed != nil && !d.Own {
-		p.Opened, p.NotDraft = d.Pushed.URL, d.Pushed.NotDraft
+	prior := d.Pushed
+	if prior == nil {
+		prior = d.Continues // a later wave updates the change its first opened
+	}
+	if prior != nil && !d.Own {
+		p.Opened, p.NotDraft = prior.URL, prior.NotDraft
 	}
 	return ch, st, p, nil
 }

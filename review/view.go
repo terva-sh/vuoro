@@ -2,6 +2,7 @@ package review
 
 import (
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/terva-sh/vuoro/agent"
@@ -30,6 +31,8 @@ type RunView struct {
 	Sessions       []SessionView  `json:"sessions"`
 	Drafts         []drafts.Draft `json:"drafts"`
 	Editor         *EditorState   `json:"editor,omitempty"`
+	// Waves are the review's earlier editors, oldest first, each pushed.
+	Waves []EditorState `json:"waves,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -65,6 +68,14 @@ func (r *Run) View() RunView {
 			e.Pushed = &p
 		}
 		v.Editor = &e
+	}
+	for _, w := range r.waves {
+		if w.Pushed != nil {
+			p := *w.Pushed
+			w.Pushed = &p
+		}
+		w.Commits = slices.Clone(w.Commits)
+		v.Waves = append(v.Waves, w)
 	}
 	if r.Summary != nil {
 		sr := *r.Summary
@@ -115,7 +126,7 @@ func (r *Run) record() record {
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
 	}
-	if r.editor != nil {
+	if r.editor != nil || len(r.waves) > 0 {
 		who := r.who
 		rec.Who = &who
 	}
@@ -170,6 +181,7 @@ func (m *Manager) load(keep func(Status) bool) error {
 			store:   drafts.Restore(rec.Drafts),
 			path:    path,
 			editor:  rec.Editor,
+			waves:   rec.Waves,
 			origin:  rec.Origin,
 		}
 		if rec.Who != nil {

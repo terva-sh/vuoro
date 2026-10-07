@@ -105,8 +105,9 @@ type Run struct {
 	prepared       chan struct{}
 	summaryStopped atomic.Bool
 	editor         *EditorState
-	who            Identity // the editor's git identity
-	origin         string   // a local range's checkout, where its fixes go (D42)
+	waves          []EditorState // the review's earlier editors, each pushed (D50)
+	who            Identity      // the editor's git identity
+	origin         string        // a local range's checkout, where its fixes go (D42)
 }
 
 // Origin is a local range's checkout, or empty for a forge change's run.

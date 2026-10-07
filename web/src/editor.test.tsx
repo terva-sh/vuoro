@@ -170,4 +170,49 @@ describe('Editor', () => {
     // The others' warning says the commit since is vuoro's own fix.
     expect(root.querySelector('.findings .head-badge')!.textContent).toBe("reviewed at abcdef12, 1 commit behind, vuoro's fix")
   })
+
+  it('lists the earlier waves and offers another once all of a wave is pushed', async () => {
+    const pushed = { branch: 'vuoro/fix-7-abc123', sha: '0123456789', target: 'feature', url: 'https://h/p/-/merge_requests/8', at: '' }
+    vi.mocked(api).mockResolvedValue({
+      session: 's3', branch: 'vuoro/fix-7-abc123', base: '0123456789', started: '', continues: pushed, pushed: { ...pushed, sha: '9876543210' },
+      commits: [{ sha: '9876543210', subject: 'Check the count', findings: ['d2'] }], files: [],
+    })
+    const session = { id: 's3', profile: 'editor', tool: 'claude', role: 'editor', status: 'idle', usage: { cost_usd: 0 }, log: [] } as unknown as Session
+    const fixed = { ...draft('d1', 'kept'), fixed_in: '0123456789' } as Draft
+    const r = run({
+      drafts: [fixed, { ...draft('d2', 'kept'), fixed_in: '9876543210' } as Draft, draft('d3', 'kept')], sessions: [session],
+      waves: [{ session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '', pushed, commits: [{ sha: '0123456789', subject: 'Add adds', findings: ['d1'] }] }],
+      editor: { session: 's3', branch: 'vuoro/fix-7-abc123', base: '0123456789', started: '', continues: pushed, pushed: { ...pushed, sha: '9876543210' } },
+    })
+    vi.mocked(post).mockResolvedValue(r)
+    const root = document.createElement('div')
+    await act(async () => render(<Editor run={r} url="u" onRun={() => {}} />, root))
+    await act(async () => {})
+    expect(root.querySelector('.editor-head')!.textContent).toContain('from its last push, 01234567')
+    const waves = root.querySelector('details.editor-waves')!
+    expect(waves.querySelector('summary')!.textContent).toBe('1 earlier wave')
+    expect(waves.textContent).toContain('Add adds')
+    expect(waves.textContent).toContain('answers d1 Finding d1')
+    // Only the kept finding no wave fixed goes to the next one.
+    const again = [...root.querySelectorAll('button')].find((b) => b.textContent!.includes('another wave'))!
+    expect(again.textContent).toBe('⚒ Fix the kept findings in another wave (1)')
+    await act(async () => again.click())
+    expect(post).toHaveBeenCalledWith('/api/runs/r1/editor', { url: 'u' })
+  })
+
+  it('offers no other wave while the editor has commits not pushed', async () => {
+    const pushed = { branch: 'vuoro/fix-7-abc123', sha: '0123456789', target: 'feature', at: '' }
+    vi.mocked(api).mockResolvedValue({
+      session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '', pushed,
+      commits: [{ sha: '0123456789', subject: 'Add adds', findings: ['d1'] }, { sha: 'fedcba9876', subject: 'More', findings: [] }], files: [],
+    })
+    const session = { id: 's2', profile: 'editor', tool: 'claude', role: 'editor', status: 'idle', usage: { cost_usd: 0 }, log: [] } as unknown as Session
+    const r = run({ sessions: [session], editor: { session: 's2', branch: 'vuoro/fix-7-abc123', base: 'abcdef1234', started: '', pushed } })
+    const root = document.createElement('div')
+    await act(async () => render(<Editor run={r} url="u" onRun={() => {}} />, root))
+    await act(async () => {})
+    expect(root.textContent).toContain('More')
+    expect(root.textContent).not.toContain('another wave')
+    expect(root.querySelector('details.editor-waves')).toBeNull()
+  })
 })

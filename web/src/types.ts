@@ -84,6 +84,7 @@ export interface Run {
   created: string; status: Status; error?: string; cost_usd: number
   sessions: Session[]; drafts: Draft[]
   editor?: EditorState
+  waves?: EditorState[] // the editors before this one, each pushed (D50)
 }
 
 // EditorState is a run's editor, which fixes the kept findings on a local
@@ -92,8 +93,11 @@ export interface EditorState {
   session: string; branch: string; base: string; started: string; discarded?: boolean
   own?: boolean; items?: string[] // a fix of the person's own change, and the drafts it was given (D41, D42)
   local?: boolean // a local range's fix, handed back as a branch in the person's repository (D42)
-  pushed?: { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; at: string }
+  pushed?: Pushed
+  continues?: Pushed // a later wave's starting point, the last wave's push (D50)
+  commits?: EditorCommit[] // an earlier wave's commits, as pushed
 }
+export interface Pushed { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; at: string }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.
 export interface StackPreview {
