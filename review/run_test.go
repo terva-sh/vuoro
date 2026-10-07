@@ -779,3 +779,71 @@ func TestDriversCanBeReplacedWhileRunsStart(t *testing.T) {
 		t.Fatalf("the only driver: %q %v", name, err)
 	}
 }
+
+func TestAReviewAgainFollowsTheEarlierOneAndKeepsWhatThePersonDecided(t *testing.T) {
+	var told string
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
+		if !strings.Contains(text, "<earlier-finding") {
+			call("propose_draft", map[string]any{"severity": "low", "title": "Name the sum", "description": "d"})
+			call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d",
+				"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+			return "two"
+		}
+		told = text
+		if _, isErr := call("propose_draft", map[string]any{"severity": "low", "title": "Name the sum, still", "description": "d", "earlier": "d1"}); isErr {
+			return "the restated draft was refused"
+		}
+		call("propose_draft", map[string]any{"severity": "medium", "title": "Something new", "description": "d"})
+		return "again"
+	})
+	first, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, first, idle)
+	if err := m.Decide(first.ID, "d1", drafts.Dropped, "", false); err != nil {
+		t.Fatal(err)
+	}
+
+	other := *ch
+	other.Ref.Number = 8
+	if _, err := m.Follow(&other, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil, first.ID); err == nil {
+		t.Fatal("a review of another change followed this one")
+	}
+	again, err := m.Follow(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil, first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, again, idle)
+	for _, want := range []string{
+		"This change was reviewed before, at " + ch.Diff.Head,
+		`<earlier-finding id="d1" severity="low" where="the change as a whole" standing="dismissed" agent-written="true">`,
+		`id="d2" severity="high" where="calc.go:3-3 (head)" standing="open"`,
+	} {
+		if !strings.Contains(told, want) {
+			t.Fatalf("the reviewers were not told %q:\n%s", want, told)
+		}
+	}
+	if len(v.Drafts) != 2 || v.Drafts[0].Earlier != "d1" || v.Drafts[0].Decision != drafts.Dropped || !v.Drafts[0].Carried || v.Drafts[1].Decision != "" {
+		t.Fatalf("drafts %+v", v.Drafts)
+	}
+	if v.Follows != first.ID || len(v.Earlier) != 2 || v.Earlier[0].Standing != drafts.StandingDismissed {
+		t.Fatalf("the run does not follow the earlier one: %+v %+v", v.Follows, v.Earlier)
+	}
+	if fv := first.View(); !slices.Equal(fv.FollowedBy, []string{again.ID}) {
+		t.Fatalf("the earlier run does not link to the one following it: %v", fv.FollowedBy)
+	}
+
+	// The links and the earlier findings outlive a restart.
+	m.Shutdown()
+	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: m.Drivers, Drafts: drafts.NewServer(), MCPURL: m.MCPURL}
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if v := m2.Get(again.ID).View(); v.Follows != first.ID || len(v.Earlier) != 2 {
+		t.Fatalf("reloaded follower %+v %+v", v.Follows, v.Earlier)
+	}
+	if v := m2.Get(first.ID).View(); !slices.Equal(v.FollowedBy, []string{again.ID}) {
+		t.Fatalf("reloaded earlier run %v", v.FollowedBy)
+	}
+}

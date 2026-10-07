@@ -33,6 +33,12 @@ type RunView struct {
 	Editor         *EditorState   `json:"editor,omitempty"`
 	// Waves are the review's earlier editors, oldest first, each pushed.
 	Waves []EditorState `json:"waves,omitempty"`
+	// Follows is the review this run follows, and FollowedBy the runs that
+	// follow it. Earlier are the findings of the one it follows, with where
+	// each stood when it started (D50).
+	Follows    string           `json:"follows,omitempty"`
+	FollowedBy []string         `json:"followed_by,omitempty"`
+	Earlier    []drafts.Earlier `json:"earlier,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -59,7 +65,7 @@ func (r *Run) View() RunView {
 	v := RunView{
 		ID: r.ID, Kind: r.Kind, Mode: r.Mode, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
 		Created: r.Created, Status: r.Status, Error: r.Error,
-		Drafts: r.store.All(),
+		Drafts: r.store.All(), Follows: r.follows, FollowedBy: slices.Clone(r.followedBy), Earlier: r.store.Earlier(),
 	}
 	if r.editor != nil {
 		e := *r.editor
@@ -175,15 +181,18 @@ func (m *Manager) load(keep func(Status) bool) error {
 		r := &Run{
 			ID: rec.ID, Kind: rec.Kind, Mode: rec.Mode, Threads: rec.Threads, first: rec.First, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
 			Created: rec.Created, Status: rec.Status, Error: rec.Error, Summary: rec.Summary,
-			dir:     filepath.Join(m.StateDir, "worktrees", rec.ID),
-			repoKey: rec.Repo,
-			anchors: rec.Anchors,
-			store:   drafts.Restore(rec.Drafts),
-			path:    path,
-			editor:  rec.Editor,
-			waves:   rec.Waves,
-			origin:  rec.Origin,
+			dir:        filepath.Join(m.StateDir, "worktrees", rec.ID),
+			repoKey:    rec.Repo,
+			anchors:    rec.Anchors,
+			store:      drafts.Restore(rec.Drafts),
+			path:       path,
+			editor:     rec.Editor,
+			waves:      rec.Waves,
+			origin:     rec.Origin,
+			follows:    rec.Follows,
+			followedBy: rec.FollowedBy,
 		}
+		r.store.SetEarlier(rec.Earlier)
 		if rec.Who != nil {
 			r.who = *rec.Who
 		}

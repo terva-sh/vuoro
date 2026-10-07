@@ -1041,7 +1041,9 @@ drafts MCP server to each agent session) and held in `review/drafts`:
   holds.
 - A draft has a severity, a title, a description, optional evidence, an
   optional anchor (path, side, start and end line), an optional suggestion
-  on head-side lines, and, from the synthesizer, sources. These follow terva-action-code-review's review-result.v1. A
+  on head-side lines, from the synthesizer, sources, and, in a review that
+  follows another, the id of the earlier finding it restates (D50), which a
+  synthesizer's draft takes from its sources. These follow terva-action-code-review's review-result.v1. A
   proposal that breaks a rule comes back as a tool error that names the rule
   and the field, such as `rule anchor.range at anchor/end_line`, and never
   quotes the proposal. A withdrawn draft stays in the store, marked, so the

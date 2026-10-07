@@ -76,6 +76,10 @@ type Draft struct {
 	FixedIn      string `json:"fixed_in,omitempty"`
 	FixedSubject string `json:"fixed_subject,omitempty"`
 	FixedBy      string `json:"fixed_by,omitempty"`
+	// Earlier is the finding of the review this run follows that the draft
+	// restates, and Carried says its decision came from that finding (D50).
+	Earlier string `json:"earlier,omitempty"`
+	Carried bool   `json:"carried,omitempty"`
 
 	Status   Status `json:"status"`
 	Revision int    `json:"revision"`
@@ -125,6 +129,7 @@ type Proposal struct {
 	ThreadID    string   `json:"thread_id,omitempty"`
 	Category    Category `json:"category,omitempty"`
 	Reason      string   `json:"reason,omitempty"`
+	Earlier     string   `json:"earlier,omitempty"`
 }
 
 // Role is what a session may do with the run's drafts.
@@ -250,8 +255,9 @@ type Store struct {
 	// CheckThread binds a triage proposal to the run's immutable snapshot.
 	CheckThread func(string) (string, error)
 
-	mu     sync.Mutex
-	drafts []*Draft
+	mu      sync.Mutex
+	drafts  []*Draft
+	earlier []Earlier
 	// keeping holds the drafts whose Keep is writing to the forge, so a
 	// second Keep, a drop, or an agent's change waits for the outcome.
 	keeping map[string]bool
@@ -298,6 +304,10 @@ func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 		Session: s.ID, Drafted: s.Drafted, Updated: st.now(),
 	}
 	d.apply(p)
+	if err := st.carry(d, p); err != nil {
+		st.next--
+		return Draft{}, err
+	}
 	if p.ThreadID != "" {
 		d.ThreadKey, _ = st.CheckThread(p.ThreadID)
 	}
@@ -325,7 +335,12 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 	if err := st.checkSources(p.Sources); err != nil {
 		return Draft{}, err
 	}
+	was := *d
 	d.apply(p)
+	if err := st.carry(d, p); err != nil {
+		*d = was
+		return Draft{}, err
+	}
 	d.Revision++
 	d.Updated = st.now()
 	return *d, nil

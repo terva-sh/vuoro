@@ -251,6 +251,7 @@ func Tools(role Role) []map[string]any {
 			},
 		},
 	}
+	proposal["earlier"] = map[string]any{"type": "string", "description": "When this restates a finding of the earlier review listed in the first message: that finding's id. The draft comes in with the person's decision on it."}
 	required := []string{"severity", "title", "description"}
 	if role == Triage {
 		proposal = map[string]any{

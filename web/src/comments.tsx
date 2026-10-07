@@ -164,8 +164,9 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
         )}
         {draft.revision > 1 && draft.status === 'pending' && ` · revised ${draft.revision - 1}×`}
         {draft.status === 'withdrawn' && ' · withdrawn by the agent'}
-        {draft.decision === 'kept' && ` · ✓ kept${draft.edited ? ', edited,' : ''} as your pending comment`}
-        {draft.decision === 'dropped' && ' · ✗ dropped by you'}
+        {draft.earlier && ` · restates earlier finding ${draft.earlier}`}
+        {draft.decision === 'kept' && (draft.carried ? ' · ✓ kept in the earlier review, as your comment' : ` · ✓ kept${draft.edited ? ', edited,' : ''} as your pending comment`)}
+        {draft.decision === 'dropped' && (draft.carried ? ' · ✗ dropped by you in the earlier review' : ' · ✗ dropped by you')}
       </div>
       {label && <div class="draft-label">{label}</div>}
       {!draft.fixed_in && <HeadBadge state={head} />}

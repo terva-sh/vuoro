@@ -85,7 +85,8 @@ function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources,
   const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(errorText(e)))
   const mark = d.override ?? d.confidence
   const a = d.anchor
-  const decided = d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : ''
+  const decided = (d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : '')
+    + (d.carried && !d.fixed_in ? ' earlier' : '')
   return (
     <div class="finding-row">
       {/* Outside the summary, whose click would swallow the checkbox's. */}
@@ -101,6 +102,7 @@ function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources,
           <span class="finding-title">{d.title}</span>
           {a && <span class="mono muted finding-place">{a.path.split('/').pop()}:{a.start_line}</span>}
           {decided && <span class="badge">{decided}</span>}
+          {d.earlier && <span class="badge muted" title="It restates a finding of the review this one follows">↺ earlier {d.earlier}</span>}
           {/* A fixed finding's lines are the fix's business, not the reviewed head's. */}
           {!d.fixed_in && <HeadBadge state={head} />}
         </summary>

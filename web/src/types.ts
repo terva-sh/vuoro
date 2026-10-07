@@ -57,6 +57,7 @@ export interface Draft {
   suggestion?: string // replaces the anchor's head-side lines
   status: 'pending' | 'withdrawn'; revision: number; session: string; drafted_by: string; updated: string
   decision?: 'kept' | 'dropped'; note_id?: string; edited?: boolean
+  earlier?: string; carried?: boolean // the earlier finding it restates, and whether its decision came from there (D50)
   confidence?: Confidence // the verifier's mark
   override?: Confidence // the person's, which wins
 }
@@ -85,6 +86,14 @@ export interface Run {
   sessions: Session[]; drafts: Draft[]
   editor?: EditorState
   waves?: EditorState[] // the editors before this one, each pushed (D50)
+  follows?: string; followed_by?: string[] // the review this one follows, and the ones following it (D50)
+  earlier?: Earlier[] // the findings of the review it follows
+}
+// Earlier is a finding of the review a run follows, with where it stood when
+// the run started (D50).
+export interface Earlier {
+  id: string; severity: Severity; title: string; anchor?: DraftAnchor
+  standing: 'fixed' | 'dismissed' | 'kept' | 'open'; fixed_in?: string; fixed_subject?: string; decision?: 'kept' | 'dropped'
 }
 
 // EditorState is a run's editor, which fixes the kept findings on a local

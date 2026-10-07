@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M4BVRFAY1DN7317TACJXXXRA
 title: Fix a review in waves, and review again with its earlier findings
 type: epic
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/frontend-modules-2026-10-06
-  branch: TKT-01M4BVRFD-fix-links
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 0b74f4c37e89433d171fac86d1ee3589a3eb9f74
-  session: null
-  claimed_at: 2026-10-07T19:12:14Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-07T18:59:34Z
-updated_at: 2026-10-07T19:12:14Z
+updated_at: 2026-10-07T19:34:10Z
 created_by:
   id: agent:claude/frontend-modules-2026-10-06
   name: ""
@@ -43,3 +36,18 @@ extensions: {}
 D50 and docs/plan.md section 6.3, "Fixing in waves, and reviewing again". A review keeps its findings and decisions across several fixes and several reviews: each fix records its commit, fixed findings fold away, a review takes several editor waves while only vuoro moved the change, and reviewing again carries the earlier findings and their decisions.
 
 Found on the owner's own merge request on 2026-10-07 (gitlab.com/flywheel-io/infrastructure/terraform!2893): after the editor pushed, no second editor could start; two fixes whose commits lacked the Vuoro-Finding trailer stayed undecided; and every finding showed "reviewed at eb370b4b, 2 commits behind", both commits vuoro's own.
+
+## Summary
+
+All four children are done:
+- TKT-01M4BVRFD (fix links: trailer, then ask, then by hand)
+- TKT-01M4BVRFJ (Fixed group, linked commits, vuoro's own fixes not read as a move)
+- TKT-01M4BVRFR (editor waves from the last push)
+- TKT-01M4BVRFX (review again carrying the earlier findings and decisions)
+
+Each failure seen on terraform!2893 now has an answer:
+- A second editor starts after a push.
+- An unnamed fix is asked about, or linked by hand.
+- The reviewed-head warning names vuoro's own fixes.
+
+Left open: a Local-tab review of local commits does not yet follow the branch's last run.

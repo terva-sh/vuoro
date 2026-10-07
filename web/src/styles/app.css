@@ -472,3 +472,8 @@ main { padding: var(--ui-space-4); }
 .push-bar .notice { color: var(--ui-warn); }
 .fixed-findings { margin-top: var(--ui-space-3); }
 .fixed-findings > summary { cursor: pointer; color: var(--ui-muted); }
+.earlier-findings { margin-top: var(--ui-space-3); }
+.earlier-findings > summary { cursor: pointer; color: var(--ui-muted); }
+.earlier-findings ul { list-style: none; margin: var(--ui-space-2) 0 0; padding: 0; }
+.earlier-findings li { padding: var(--ui-space-1) 0; }
+.run-follows { margin: 0 0 var(--ui-space-2); }

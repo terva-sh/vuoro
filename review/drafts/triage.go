@@ -25,7 +25,7 @@ func validateTriage(p Proposal) error {
 		return &RuleError{"triage.reason", "reason", "a reason of 1 to 512 bytes"}
 	case len(p.Description) > maxText:
 		return &RuleError{"reply.length", "description", "a reply of at most 20000 bytes"}
-	case p.Anchor != nil || p.Suggestion != nil || len(p.Sources) > 0 || p.Severity != "" || p.Title != "" || p.Evidence != "":
+	case p.Anchor != nil || p.Suggestion != nil || len(p.Sources) > 0 || p.Severity != "" || p.Title != "" || p.Evidence != "" || p.Earlier != "":
 		return &RuleError{"triage.shape", "arguments", "thread_id, category, reason and optional description only"}
 	}
 	return nil

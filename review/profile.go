@@ -137,6 +137,38 @@ func firstMessage(ch *forge.Change) string {
 	return b.String()
 }
 
+// earlierMessage tells a review that follows another what that review found
+// and where each finding stands, so its reviewers report what is new or
+// still unfixed, and name what they restate (D50).
+func earlierMessage(head string, list []drafts.Earlier) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nThis change was reviewed before, at %s. ", head)
+	if len(list) == 0 {
+		b.WriteString("That review found nothing.\n")
+		return b.String()
+	}
+	b.WriteString(`These are that review's findings, with where each stands:
+- fixed: a pushed commit fixes it. Raise it again only if the code still shows the problem.
+- dismissed: the person set it aside. Raise it again only if the change has made it worse.
+- kept: the person posted it as a comment, and it is not fixed yet.
+- open: the person has not decided it.
+Report what is new, and what is still not fixed. When a draft restates one of these, pass that finding's id as earlier to propose_draft; the draft then comes in with the person's decision on it.
+
+`)
+	for _, e := range list {
+		where := "the change as a whole"
+		if a := e.Anchor; a != nil {
+			where = fmt.Sprintf("%s:%d-%d (%s)", a.Path, a.StartLine, a.EndLine, a.Side)
+		}
+		fixed := ""
+		if e.FixedIn != "" {
+			fixed = fmt.Sprintf(" fixed-in=%q", e.FixedIn)
+		}
+		fmt.Fprintf(&b, "<earlier-finding id=%q severity=%q where=%q standing=%q%s agent-written=\"true\">\n%s\n</earlier-finding>\n", e.ID, e.Severity, where, e.Standing, fixed, e.Title)
+	}
+	return b.String()
+}
+
 func fileHeader(f forge.FileDiff) string {
 	old, cur := "a/"+f.OldPath, "b/"+f.NewPath
 	switch {

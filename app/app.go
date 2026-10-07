@@ -387,6 +387,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Reviewers   []review.Reviewer `json:"reviewers,omitempty"`
 		Synthesizer *review.Reviewer  `json:"synthesizer,omitempty"`
 		Verifier    *review.Reviewer  `json:"verifier,omitempty"`
+		Follows     string            `json:"follows,omitempty"` // an earlier review of the change (D50)
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -408,7 +409,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	run, err := a.Runs.Start(ch, src, reviewers, synth, verifier)
+	run, err := a.Runs.Follow(ch, src, reviewers, synth, verifier, req.Follows)
 	if err != nil {
 		writeError(w, err)
 		return

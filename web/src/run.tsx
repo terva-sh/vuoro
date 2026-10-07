@@ -8,10 +8,10 @@ import { Drafts, HandOff, shownDrafts } from './findings'
 import { HeadBadge, useHead } from './head'
 import { usePoll } from './poll'
 import { SessionPane } from './session'
-import type { Change, Draft, Level, Run, Session, Setup } from './types'
+import type { Change, Draft, Earlier, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
 import { WriteContext } from './write'
-import { ago, levelMark, short, StatusBadge, usd } from './ui'
+import { ago, levelMark, SeverityBadge, short, StatusBadge, usd } from './ui'
 
 // useRunPoll reads a run, quickly while anything works and slowly otherwise.
 function useRunPoll(id: string | undefined, onRun: (r: Run) => void) {
@@ -61,8 +61,10 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   useEffect(() => onDrafts(run ? shownDrafts(run) : [], run?.id, run?.head, run?.editor?.pushed?.sha), [run])
 
   const tools = setup?.tools.filter((t) => !t.error) ?? []
-  const start = () => act(async () => {
-    const r = await post<Run>('/api/runs', { url: change.web_url, preset: preset ?? setup?.presets[0]?.name })
+  // A review again follows the run it supersedes, whose findings its
+  // reviewers are told of (D50).
+  const start = (follows?: string) => act(async () => {
+    const r = await post<Run>('/api/runs', { url: change.web_url, preset: preset ?? setup?.presets[0]?.name, follows })
     setRuns([r, ...runs])
     setSelected(r.id)
     setRun(r)
@@ -95,7 +97,13 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
                 ))}
               </select>
             </label>
-            <button class="primary" disabled={busy} onClick={start}>{busy ? 'Starting…' : 'Start a review'}</button>
+            <button class="primary" disabled={busy} onClick={() => void start()}>{busy ? 'Starting…' : 'Start a review'}</button>
+            {run && !run.mode && run.head !== change.diff.head && (
+              <button disabled={busy} onClick={() => void start(run.id)}
+                title={`A new review of the change's head, told this run's ${shownDrafts(run).length} findings and what you decided on each`}>
+                Review again
+              </button>
+            )}
             <span class="muted">{tools.map((t) => `${t.tool} ${t.version}${t.account ? `, ${t.account}` : ''}`).join(' · ')}</span>
           </>
         )}
@@ -111,7 +119,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} />}
+      {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} onSelect={setSelected} />}
     </div>
   )
 }
@@ -119,8 +127,9 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
 // RunView is one run. own marks a review of the person's own work, a merge
 // request of theirs or a local range, whose findings are picked for the
 // editor or dismissed, and never posted (D42).
-export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
+export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelect }: {
   run: Run; url: string; own?: boolean; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
+  onSelect?: (id: string) => void // opens another run of the change, such as the one this follows
 }) {
   const self = own || run.kind === 'local'
   // The findings to hand the editor: pending and undecided ones above low
@@ -150,6 +159,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
           {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
         </header>
         {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
+        <Follows run={run} onSelect={onSelect} />
         <div class="session-strip">
           {run.sessions.map((s) => (
             <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
@@ -189,6 +199,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
         ) : (
           <Drafts run={run} onPick={onPick} onRun={onRun} />
         )}
+        {run.earlier && <EarlierFindings run={run} earlier={run.earlier} />}
       </section>
       <section class="run-section">
         <header class="run-section-head"><h3>{self ? 'Fix' : 'Hand back'}</h3><span class="muted">{self ? 'the findings you picked, on a branch' : 'the kept findings, as a report or as fixes'}</span></header>
@@ -196,6 +207,44 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun }: {
         <Editor run={run} url={url} onRun={onRun} picks={self} picked={self ? shownDrafts(run).filter(isPicked) : undefined} />
       </section>
     </div>
+  )
+}
+
+// Follows links a run to the review it follows and to those following it
+// (D50).
+function Follows({ run, onSelect }: { run: Run; onSelect?: (id: string) => void }) {
+  const link = (id: string, text: string) => onSelect ? <button class="link" onClick={() => onSelect(id)}>{text}</button> : <span>{text}</span>
+  const next = run.followed_by?.at(-1) // the latest, when it was reviewed again more than once
+  if (!run.follows && !next) return null
+  return (
+    <p class="run-follows muted">
+      {run.follows && <>↺ This review follows {link(run.follows, 'an earlier review')}, and was told its findings. </>}
+      {next && <>↻ This change was {link(next, 'reviewed again')} since.</>}
+    </p>
+  )
+}
+
+const standingWords: Record<Earlier['standing'], string> = { fixed: '✓ fixed', dismissed: '✗ dismissed', kept: '✓ kept as a comment', open: '○ open' }
+
+// EarlierFindings are the findings of the review a run follows, as they
+// stood when it started, folded away, each with the draft that restates it.
+function EarlierFindings({ run, earlier }: { run: Run; earlier: Earlier[] }) {
+  const restated = new Map(shownDrafts(run).filter((d) => d.earlier).map((d) => [d.earlier!, d.id]))
+  return (
+    <details class="earlier-findings">
+      <summary>Earlier findings · {earlier.length}</summary>
+      {earlier.length === 0 ? <p class="muted">The review this one follows found nothing.</p> : (
+        <ul>
+          {earlier.map((e) => (
+            <li key={e.id}>
+              <SeverityBadge severity={e.severity} /> <span class="badge muted">{e.id}</span> {e.title}{' '}
+              <span class="badge">{standingWords[e.standing]}{e.fixed_in ? ` in ${short(e.fixed_in)}` : ''}</span>{' '}
+              <span class="muted">{restated.has(e.id) ? `restated as ${restated.get(e.id)}` : 'not raised again'}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   )
 }
 

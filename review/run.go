@@ -95,7 +95,9 @@ type Run struct {
 	store         *drafts.Store
 	sessions      []*Session
 	path          string
-	first         string // the first message, for a session that restarts
+	first         string   // the first message, for a session that restarts
+	follows       string   // the run this review follows (D50)
+	followedBy    []string // the runs that follow this one
 	summaryCancel context.CancelFunc
 	summaryDone   chan struct{}
 	// stopPrepare ends the checkout a new run starts with, and prepared is
@@ -166,6 +168,27 @@ const maxToolText = 4 << 10
 // finding the person works from once the reviewers and any synthesizer have
 // reported (D31). The Profile of either is ignored.
 func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synth, verifier *Reviewer) (*Run, error) {
+	return m.Follow(ch, src, reviewers, synth, verifier, "")
+}
+
+// Follow begins a review of ch, as Start does, that follows the earlier
+// review prev of the same change (D50). Its reviewers are told the earlier
+// findings and where each stands, a draft that restates one comes in with
+// the person's decision on it, and the two runs are linked both ways. An
+// empty prev follows nothing.
+func (m *Manager) Follow(ch *forge.Change, src Source, reviewers []Reviewer, synth, verifier *Reviewer, prev string) (*Run, error) {
+	var earlier *Run
+	if prev != "" {
+		earlier = m.Get(prev)
+		switch {
+		case earlier == nil:
+			return nil, ErrNoRun
+		case earlier.Mode != "":
+			return nil, errors.New("review: only a review can be reviewed again")
+		case earlier.Ref != ch.Ref || earlier.Kind != ch.Kind:
+			return nil, errors.New("review: the earlier run belongs to another change")
+		}
+	}
 	if len(reviewers) == 0 {
 		return nil, errors.New("review: a run needs at least one reviewer")
 	}
@@ -208,10 +231,17 @@ func (m *Manager) Start(ch *forge.Change, src Source, reviewers []Reviewer, synt
 		})
 	}
 
-	return m.start(ch, src, sessions, "", firstMessage(ch), nil)
+	first := firstMessage(ch)
+	var list []drafts.Earlier
+	if earlier != nil {
+		v := earlier.View()
+		list = drafts.EarlierOf(Shown(v))
+		first += earlierMessage(v.Head, list)
+	}
+	return m.start(ch, src, sessions, "", first, nil, earlier, list)
 }
 
-func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread) (*Run, error) {
+func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread, prev *Run, earlier []drafts.Earlier) (*Run, error) {
 	id := newRunID()
 	// The checkout's lifecycle is set before the run is visible, so a Close
 	// or a Shutdown that finds the run can always stop and wait for it.
@@ -238,6 +268,10 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	if mode == "triage" {
 		r.bindThreads()
 	}
+	if prev != nil {
+		r.follows = prev.ID
+		r.store.SetEarlier(earlier)
+	}
 	m.mu.Lock()
 	// Shutdown sets down before it lists the runs, so a run is either one it
 	// waits for or one refused here.
@@ -252,6 +286,12 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	m.runs[id] = r
 	m.mu.Unlock()
 	r.save()
+	if prev != nil {
+		prev.mu.Lock()
+		prev.followedBy = append(prev.followedBy, id)
+		prev.mu.Unlock()
+		prev.save()
+	}
 
 	go m.prepare(ctx, r, src)
 	return r, nil
