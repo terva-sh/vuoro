@@ -39,6 +39,8 @@ type RunView struct {
 	Follows    string           `json:"follows,omitempty"`
 	FollowedBy []string         `json:"followed_by,omitempty"`
 	Earlier    []drafts.Earlier `json:"earlier,omitempty"`
+	// Patches are the fixes the run saved as patches, oldest first (D51).
+	Patches []Patch `json:"patches,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -74,6 +76,10 @@ func (r *Run) View() RunView {
 			e.Pushed = &p
 		}
 		v.Editor = &e
+	}
+	for _, p := range r.patches {
+		p.Files = slices.Clone(p.Files)
+		v.Patches = append(v.Patches, p)
 	}
 	for _, w := range r.waves {
 		if w.Pushed != nil {
@@ -191,6 +197,7 @@ func (m *Manager) load(keep func(Status) bool) error {
 			origin:     rec.Origin,
 			follows:    rec.Follows,
 			followedBy: rec.FollowedBy,
+			patches:    rec.Patches,
 		}
 		r.store.SetEarlier(rec.Earlier)
 		if rec.Who != nil {

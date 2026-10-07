@@ -114,6 +114,10 @@ type tiedChange struct {
 type fixBranch struct {
 	Branch  string `json:"branch"`
 	Waiting bool   `json:"waiting"`
+	// Run is the review whose editor pushed it, and Patches its commits as
+	// that run saved them, which outlive the branch (D51).
+	Run     string         `json:"run"`
+	Patches []review.Patch `json:"patches"`
 }
 
 // scanRecord is the last scan, kept in cache/local.json.
@@ -595,7 +599,13 @@ func (a *App) matchRuns(ctx context.Context, p *local.Project, runs []localRun, 
 			}
 			if ed := r.view.Editor; ed != nil && ed.Local && !ed.Discarded && ed.Pushed != nil {
 				if _, ok := p.Fixes[ed.Pushed.Branch]; ok {
-					b.Fixes = append(b.Fixes, fixBranch{Branch: ed.Pushed.Branch, Waiting: !p.Merged(ctx, ed.Pushed.Branch, b.Name)})
+					f := fixBranch{Branch: ed.Pushed.Branch, Waiting: !p.Merged(ctx, ed.Pushed.Branch, b.Name), Run: r.view.ID, Patches: []review.Patch{}}
+					for _, c := range ed.Commits {
+						if i := slices.IndexFunc(r.view.Patches, func(x review.Patch) bool { return x.SHA == c.SHA }); i >= 0 {
+							f.Patches = append(f.Patches, r.view.Patches[i])
+						}
+					}
+					b.Fixes = append(b.Fixes, f)
 				}
 			}
 		}

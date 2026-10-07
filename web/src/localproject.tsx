@@ -4,7 +4,9 @@
 import { useState } from 'preact/hooks'
 import { useAction } from './action'
 import { post } from './api'
-import { changeNumber, type LocalBranch, type LocalChange, type LocalProject, type Run } from './types'
+import { Modal } from './modal'
+import { PatchesContext, SavedPatch } from './patch'
+import { changeNumber, type LocalBranch, type LocalChange, type LocalProject, type Patch, type Run } from './types'
 import { ago, StatusBadge } from './ui'
 
 // pageSize is how many branch rows a project shows at a time.
@@ -139,6 +141,7 @@ function BranchRow({ project: p, branch: b, dirty, reviewing, onOpen, onOpenRun 
     if (r) onOpenRun?.(r.run.id)
   }
   const change = b.change
+  const [showing, setShowing] = useState<LocalBranch['fixes'][number]>()
   return (
     <li class="local-branch" aria-label={b.name}>
       <div class="local-branch-head">
@@ -164,8 +167,12 @@ function BranchRow({ project: p, branch: b, dirty, reviewing, onOpen, onOpenRun 
           </span>
         )}
         {b.fixes.map((f) => (
-          <span class="local-tag" key={f.branch}>{f.branch} · {f.waiting ? 'waits to be merged' : 'merged'}</span>
+          <span class="local-tag" key={f.branch}>
+            {f.branch} · {f.waiting ? 'waits to be merged' : 'merged'}
+            {f.patches.length > 0 && <> · <button class="link" onClick={() => setShowing(f)}>Show the fix</button></>}
+          </span>
         ))}
+        {showing && <FixPatches branch={showing.branch} run={showing.run} patches={showing.patches} onClose={() => setShowing(undefined)} />}
       </div>
       {b.needs.length > 0 && <p class="local-needs">Needs you: {b.needs.join('; ')}</p>}
       {uncommitted.length > 0 && (
@@ -173,5 +180,22 @@ function BranchRow({ project: p, branch: b, dirty, reviewing, onOpen, onOpenRun 
       )}
       {act.error && <p class="alert" role="alert">⚠ {act.error}</p>}
     </li>
+  )
+}
+
+// FixPatches shows a fix branch's commits as its review saved them, which
+// outlive the branch once it is merged and deleted (D51).
+function FixPatches({ branch, run, patches, onClose }: { branch: string; run: string; patches: Patch[]; onClose: () => void }) {
+  return (
+    <Modal title={<>The fix on <span class="mono">{branch}</span></>} onClose={onClose} class="fix-patches">
+      <PatchesContext.Provider value={{ runID: run, patches }}>
+        {patches.map((p) => (
+          <div key={p.sha}>
+            {p.too_large && <p><span class="mono">{p.sha.slice(0, 8)}</span> {p.subject}<SavedPatch sha={p.sha} /></p>}
+            {!p.too_large && <SavedPatch sha={p.sha} open />}
+          </div>
+        ))}
+      </PatchesContext.Provider>
+    </Modal>
   )
 }

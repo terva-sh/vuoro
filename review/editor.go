@@ -713,6 +713,9 @@ func (m *Manager) PushEditor(ctx context.Context, runID, remote string, target f
 			_ = r.store.CiteFix(id, c.SHA, c.Subject, "editor", fixedReply(c))
 		}
 	}
+	// What was pushed is kept as patches, past the run's close and the
+	// branch's deletion (D51).
+	m.savePatches(ctx, r, detail.Commits, "editor")
 	r.save()
 	if p.URL == "" && open != nil && !local {
 		url, notDraft, err := openStacked(open)
@@ -852,6 +855,7 @@ func (m *Manager) MarkFixed(ctx context.Context, runID, draftID, sha string, src
 			if err := r.store.CiteFix(draftID, c.SHA, c.Subject, "person", fixedReply(c)); err != nil {
 				return err
 			}
+			m.savePatches(ctx, r, []EditorCommit{c}, "person")
 			r.save()
 			return nil
 		}

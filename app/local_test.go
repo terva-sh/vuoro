@@ -187,7 +187,10 @@ func TestABranchKnowsItsNewestReviewWhatMovedSinceAndItsWaitingFix(t *testing.T)
 			map[string]any{"id": "d2", "status": "pending", "severity": "low", "title": "t", "description": "x", "revision": 1, "session": "s1", "decision": "dropped"},
 		},
 		"editor": map[string]any{"session": "e1", "branch": "vuoro/fix-r1", "base": reviewed, "started": time.Now().UTC(), "local": true,
-			"pushed": map[string]any{"branch": "vuoro/fix-r1", "sha": "x", "target": "", "at": time.Now().UTC()}},
+			"pushed":  map[string]any{"branch": "vuoro/fix-r1", "sha": "x", "target": "", "at": time.Now().UTC()},
+			"commits": []any{map[string]any{"sha": "ab", "subject": "the fix", "findings": []any{}}}},
+		// The fix's commit was saved as a patch, beside one linked by hand (D51).
+		"patches": []any{map[string]any{"sha": "ab", "subject": "the fix", "by": "editor"}, map[string]any{"sha": "cd", "subject": "by hand", "by": "person"}},
 	}
 	b, _ := json.Marshal(rec)
 	os.MkdirAll(filepath.Join(stateDir, "runs", "r1"), 0o700)
@@ -205,7 +208,7 @@ func TestABranchKnowsItsNewestReviewWhatMovedSinceAndItsWaitingFix(t *testing.T)
 	if feature.Run.ID != "r1" || !feature.Run.Moved || feature.Run.Undecided != 1 {
 		t.Fatalf("feature's review: %+v", feature.Run)
 	}
-	if len(feature.Fixes) != 1 || !feature.Fixes[0].Waiting {
+	if len(feature.Fixes) != 1 || !feature.Fixes[0].Waiting || feature.Fixes[0].Run != "r1" || len(feature.Fixes[0].Patches) != 1 || feature.Fixes[0].Patches[0].SHA != "ab" {
 		t.Fatalf("feature's fixes: %+v", feature.Fixes)
 	}
 	want := []string{"moved since its review", "1 finding undecided", "vuoro/fix-r1 waits to be merged"}
@@ -492,4 +495,41 @@ func sameFile(a, b string) bool {
 	x, err1 := os.Stat(a)
 	y, err2 := os.Stat(b)
 	return err1 == nil && err2 == nil && os.SameFile(x, y)
+}
+
+func TestASavedPatchIsReadAgainFromTheRunRecord(t *testing.T) {
+	stateDir := t.TempDir()
+	sha := strings.Repeat("ab", 20)
+	rec := map[string]any{
+		"id": "r1", "kind": "local", "ref": map[string]any{"host": "local", "project": "proj-1"}, "title": "one", "web_url": "",
+		"head": "x", "base": "", "created": time.Now().UTC(), "status": "closed", "cost_usd": 0, "sessions": []any{}, "drafts": []any{},
+		"repo": "", "resume": map[string]any{},
+		"patches": []any{map[string]any{"sha": sha, "subject": "Fix d1", "by": "editor"}},
+	}
+	b, _ := json.Marshal(rec)
+	os.MkdirAll(filepath.Join(stateDir, "runs", "r1", "patches"), 0o700)
+	os.WriteFile(filepath.Join(stateDir, "runs", "r1", "run.json"), b, 0o600)
+	patch := "Subject: [PATCH] Fix d1\n\n---\n calc.go | 2 +-\n\ndiff --git a/calc.go b/calc.go\nindex 1..2 100644\n--- a/calc.go\n+++ b/calc.go\n@@ -1 +1 @@\n-a - b\n+a + b\n"
+	os.WriteFile(filepath.Join(stateDir, "runs", "r1", "patches", sha+".patch"), []byte(patch), 0o600)
+	m := &review.Manager{StateDir: stateDir}
+	if err := m.Load(); err != nil {
+		t.Fatal(err)
+	}
+	h := (&App{StateDir: stateDir, Runs: m}).Handler()
+	get := func(path string) (int, review.PatchDetail) {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		var p review.PatchDetail
+		json.Unmarshal(w.Body.Bytes(), &p)
+		return w.Code, p
+	}
+	code, p := get("/api/runs/r1/patches/" + sha)
+	if code != http.StatusOK || p.Raw != patch || len(p.FileDiff) != 1 || p.FileDiff[0].Patch != "@@ -1 +1 @@\n-a - b\n+a + b\n" {
+		t.Fatalf("patch %d %+v", code, p)
+	}
+	for _, bad := range []string{strings.Repeat("cd", 20), "..%2Frun.json", "HEAD"} {
+		if code, _ := get("/api/runs/r1/patches/" + bad); code != http.StatusNotFound {
+			t.Fatalf("%s answered %d", bad, code)
+		}
+	}
 }

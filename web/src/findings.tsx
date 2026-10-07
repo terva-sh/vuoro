@@ -6,6 +6,7 @@ import { post } from './api'
 import { DraftCard } from './comments'
 import { HeadBadge, useHead } from './head'
 import { commitURL, RefsContext } from './markdown'
+import { SavedPatch } from './patch'
 import { TextEditor } from './textedit'
 import type { Draft, Level, Run } from './types'
 import { ConfidenceBadge, levelMark, SeverityBadge, severityOrder, short } from './ui'
@@ -150,6 +151,7 @@ export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: 
         ✓ Fixed in {link ? <a class="mono" href={link} target="_blank" rel="noreferrer">{short(d.fixed_in)}</a> : <span class="mono">{short(d.fixed_in)}</span>}
         {d.fixed_subject && <> · {d.fixed_subject}</>}
         <span class="muted"> · {d.fixed_by === 'person' ? 'linked by you' : "named in the commit's trailer"}</span>
+        <SavedPatch sha={d.fixed_in} />
         {d.fixed_by === 'person' && <> <button class="link" disabled={act.busy} onClick={() => void mark('')}>Not fixed</button></>}
         {act.error && <span class="alert" role="alert"> ⚠ {act.error}</span>}
       </p>

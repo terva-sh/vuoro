@@ -111,6 +111,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/editor/push", a.pushEditor)
 	mux.HandleFunc("POST /api/runs/{id}/fixes", a.fixCommits)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/fixed", a.markFixed)
+	mux.HandleFunc("GET /api/runs/{id}/patches/{sha}", a.getPatch)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/dismiss", a.dismiss)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/messages", a.say)
 	mux.HandleFunc("POST /api/runs/{id}/sessions/{sid}/stop", a.stop)
@@ -552,7 +553,7 @@ func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.As(err, &asked):
 		status = http.StatusConflict
-	case errors.Is(err, review.ErrNoRun), errors.Is(err, forge.ErrNotFound):
+	case errors.Is(err, review.ErrNoRun), errors.Is(err, review.ErrNoPatch), errors.Is(err, forge.ErrNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, forge.ErrUnsupported):
 		status = http.StatusUnprocessableEntity

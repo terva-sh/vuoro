@@ -6,6 +6,7 @@ import { api, post } from './api'
 import { diffStat } from './diff'
 import { DiffBrowser, Stat, useFilePicker } from './diffview'
 import { Modal } from './modal'
+import { SavedPatch } from './patch'
 import { TextEditor } from './textedit'
 import type { Draft, EditorDetail, EditorState, FileDiff, Run, StackPreview } from './types'
 import { changeWord } from './types'
@@ -149,7 +150,7 @@ function Waves({ waves, title }: { waves: EditorState[]; title: (id: string) => 
                 <li key={c.sha}>
                   <span class="commit-sha">{short(c.sha)}</span>
                   <div class="commit-body">
-                    <div class="commit-subject">{c.subject}</div>
+                    <div class="commit-subject">{c.subject}<SavedPatch sha={c.sha} /></div>
                     {c.findings.map((id) => (
                       <div class="commit-answers" key={id}>↳ answers <span class="badge">{id}</span> {title(id)}</div>
                     ))}

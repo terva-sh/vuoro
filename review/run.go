@@ -98,6 +98,7 @@ type Run struct {
 	first         string   // the first message, for a session that restarts
 	follows       string   // the run this review follows (D50)
 	followedBy    []string // the runs that follow this one
+	patches       []Patch  // the fixes saved as patches (D51)
 	summaryCancel context.CancelFunc
 	summaryDone   chan struct{}
 	// stopPrepare ends the checkout a new run starts with, and prepared is

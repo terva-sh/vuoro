@@ -6,6 +6,7 @@ import { api, post } from './api'
 import { Editor } from './editor'
 import { Drafts, HandOff, shownDrafts } from './findings'
 import { HeadBadge, useHead } from './head'
+import { PatchesContext } from './patch'
 import { usePoll } from './poll'
 import { SessionPane } from './session'
 import type { Change, Draft, Earlier, Level, Run, Session, Setup } from './types'
@@ -149,6 +150,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
   const marked = (l: Level) => shown.filter((d) => (d.override ?? d.confidence)?.level === l).length
   const unchecked = shown.filter((d) => !(d.override ?? d.confidence)).length
   return (
+    <PatchesContext.Provider value={{ runID: run.id, patches: run.patches ?? [] }}>
     <div class="run">
       <section class="run-section">
         <header class="run-section-head">
@@ -207,6 +209,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
         <Editor run={run} url={url} onRun={onRun} picks={self} picked={self ? shownDrafts(run).filter(isPicked) : undefined} />
       </section>
     </div>
+    </PatchesContext.Provider>
   )
 }
 

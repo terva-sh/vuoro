@@ -304,6 +304,17 @@ func (a *App) fixSource(ctx context.Context, runID, url string) (*review.Source,
 	return &src, nil
 }
 
+// getPatch answers a fix saved as a patch, read from the run's record with no
+// git or forge call (D51).
+func (a *App) getPatch(w http.ResponseWriter, r *http.Request) {
+	p, err := a.Runs.Patch(r.PathValue("id"), r.PathValue("sha"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
 // fixCommits lists the commits a finding can be marked fixed by (D50).
 func (a *App) fixCommits(w http.ResponseWriter, r *http.Request) {
 	var req struct {

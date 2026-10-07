@@ -88,7 +88,12 @@ export interface Run {
   waves?: EditorState[] // the editors before this one, each pushed (D50)
   follows?: string; followed_by?: string[] // the review this one follows, and the ones following it (D50)
   earlier?: Earlier[] // the findings of the review it follows
+  patches?: Patch[] // the fixes it saved as patches (D51)
 }
+// Patch is a fix's commit, saved beside the run's record so its diff outlives
+// the branch (D51). One over the size cap keeps only the files it touched.
+export interface Patch { sha: string; subject: string; by: 'editor' | 'person'; too_large?: boolean; files?: string[]; at: string }
+export interface PatchDetail extends Patch { patch?: string; diff: FileDiff[] }
 // Earlier is a finding of the review a run follows, with where it stood when
 // the run started (D50).
 export interface Earlier {
@@ -145,7 +150,7 @@ export interface LocalBranch {
   upstream_remote?: string; upstream_branch?: string
   change?: LocalChange
   run?: { id: string; status: Status; head: string; created: string; moved: boolean; undecided: number }
-  fixes: { branch: string; waiting: boolean }[]
+  fixes: { branch: string; waiting: boolean; run: string; patches: Patch[] }[]
   needs: string[] // why it needs the person, empty when it does not
   quiet: boolean // no commit for the view's quiet_days, so unreviewed is not counted (D48)
 }
