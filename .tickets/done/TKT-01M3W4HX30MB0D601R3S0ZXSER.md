@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4HX30MB0D601R3S0ZXSER
 title: GitHub adapter for the forge interface
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ dependencies:
   - TKT-01M3W4HWTXC6EM9SS84A4WMEPG
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: github-adapter
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: 4b52d49f69119aa3bf8906cba7f21e01b1303380
-  session: null
-  claimed_at: 2026-10-08T04:40:31Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-08T05:42:40Z
+updated_at: 2026-10-08T06:12:24Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -169,3 +162,21 @@ It ran on warricksothr/vuoro-sandbox#1, a private repository made for it. docs/p
 
 ### Criterion 2 stays unticked
 Approve and request changes were not exercised live as a reviewer, which needs a second GitHub account. They are fixture-tested, and the live test confirms GitHub's own refusal for the author.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T06:12:13Z
+
+Criterion 2 is left unticked on purpose. Comment, reply, resolve and unresolve, and submit (as a comment) passed live on warricksothr/vuoro-sandbox#1 in `TestLiveWrite`, 2026-10-08. Approve and request changes passed live only as GitHub's refusal of the author's own verdict, which the test checks. A real approval needs a second account (D54), so  (Verify GitHub approve and request changes live from a second account) tracks it.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T06:12:24Z
+
+Supersedes the previous note's blank ticket ID: the follow-up for a live approval from a second account is TKT-01M4D283WTGMG60THDTWD3X59Y (Verify GitHub approve and request changes live from a second account).
+
+## Summary
+
+GitHub is a full forge in vuoro, in three PRs on Forgejo:
+
+- **#23, reading (D54):** pull requests in the inbox, with turns derived from GitHub's reviews, requests, dismissals, and force pushes. Discovery runs GitHub search across the author, review-requested, reviewed-by and assignee roles. The window reads pull requests with files paged up to GitHub's 3000-file listing. A token is required, because GitHub refuses anonymous GraphQL.
+- **#24, writing:** drafts are the person's GitHub pending review, and every comment and reply names it, because GitHub publishes a comment that names none at once. A comment on the whole change stays in vuoro until Submit. Edit and delete touch only pending comments, and say so when a submission on GitHub races them. Submit publishes the review with the chosen verdict and then posts replies, keeping any reply GitHub did not confirm. Resolve and unresolve work on review threads. Approve is supported and unapprove is not.
+- **#25, stacking:** the editor's fixes go up as a draft pull request onto the head branch, or an ordinary one where the plan has no drafts, or onto the person's own head branch. Forks are refused.
+
+Live tests passed on warricksothr/vuoro-sandbox for reading, writing, and stacking. docs/plan.md §5.4 records what the spikes showed. A live approval from a second account remains, in TKT-01M4D283WTGMG60THDTWD3X59Y (Verify GitHub approve and request changes live from a second account).
