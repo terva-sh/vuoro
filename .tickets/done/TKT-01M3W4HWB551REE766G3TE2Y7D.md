@@ -19,12 +19,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-02T16:22:58Z
+updated_at: 2026-10-08T14:10:37Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-mvp-1
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -81,6 +81,10 @@ Criterion 2 is ticked because `just ci` on this macOS workstation runs every ste
 Criterion 4 is not ticked. Both workflows are written, and their YAML parses. The Forgejo steps passed, word for word, in a docker.io golang:1.27-alpine container, standing in for the internal registry's image. But neither workflow has run on its forge, because the repository has no remote. Tick it after the first green run on Forgejo and on the GitHub mirror, after TKT-01M3YMST0M467K1FB4J5B2C7B2 (Move vuoro to terva-sh/vuoro on Forgejo once the skeleton lands).
 
 `.gitattributes` now pins `*.go` to LF, so a Windows checkout does not fail the gofmt check on CRLF.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T14:10:37Z
+
+2026-10-08 audit: the unticked box "Forgejo and GitHub workflows run the same steps as just ci" stays unticked on purpose. Forgejo's workflow runs those steps inline, but D52 (2026-10-07) removed GitHub CI, so the GitHub half no longer describes anything. Nothing remains to do here.
 
 ## Summary
 

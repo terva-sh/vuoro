@@ -28,7 +28,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-06T15:15:21Z
+updated_at: 2026-10-08T14:11:17Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -49,7 +49,7 @@ all from the window. Hand-edited config keeps working.
 - [ ] A fresh install reaches a first review without editing a file
 - [x] The UI never displays a stored token
 - [x] Hand-edited config keeps working, and a save never overwrites a file changed or broken since it was read
-- [ ] A forge's token source can be tested from the window, and the test names the account it signs in as
+- [x] A forge's token source can be tested from the window, and the test names the account it signs in as
 
 ## Implementation plan
 
@@ -169,3 +169,20 @@ terva-review run a9dd2ea9 (high): an editor left open while the panel refreshed 
 **agent:claude/forgejo-parity-20261006** at 2026-10-06T15:15:21Z
 
 terva-review run 511ede38 (medium): a failed Check again was swallowed and left stale results on screen. Tools now catches it and says the check did not run, with a test for a rejected request. The same review asked whether replacing drivers live is synchronized with the run manager. It wasn't: Manager.driver read m.Drivers unlocked while a reprobe now replaces the map. Manager.SetDrivers now guards it with an RWMutex, which driver() reads under. TestDriversCanBeReplacedWhileRunsStart exercises this, and -race catches a regression on CI's darwin leg.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T14:11:17Z
+
+2026-10-08 audit: criterion 4 (a forge's token source can be tested from the window, and the test names the account) is ticked.
+
+- **The route.** `POST /api/setup/test` resolves the form's token source and asks the forge whose it is through `forge.Account.Me`. All three adapters implement `Me`.
+- **The window.** It shows "Signed in as @login" and warns about another account (web/src/setup.tsx). Save waits for a passing test.
+- **Offline tests.** `TestSetupAddsTestsChangesAndRemovesAForge` and `web/src/setup.test.tsx`.
+- **Live, new today.** `TestLiveSetupTest` (app/setup_live_test.go) drives the same route with the real adapters and an environment token source. Against github.com it named the account as warricksothr. It reported `matches:false` for another username, and refused a token GitHub did not accept with "The forge did not accept the token". The token appeared in no reply. The earlier live runs against Forgejo and gitlab.com covered only failing sources. This is the first recorded success.
+
+The live run went through the route, not a click in the window. The button only posts the form to that route, and its web test covers that.
+
+**Criterion 1 (a fresh install reaches a first review without editing a file) stays open.** Missing:
+- An automated path from an empty config and state directory, through saving a forge, to `POST /api/runs` starting the default code reviewer.
+- The owner's real fresh-install run.
+
+Also open: whether "detect terva" belongs here or in TKT-01M3YK0CJ (Agent driver for terva over terva rpc). Only Claude Code is wired today, and nothing records that split.

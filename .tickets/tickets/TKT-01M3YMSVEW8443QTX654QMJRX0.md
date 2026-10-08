@@ -30,12 +30,12 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-05T23:53:36Z
+updated_at: 2026-10-08T14:11:08Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude-code/editor-20261005
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -59,9 +59,9 @@ else's change, comes after v1.0.0.
 ## Acceptance criteria
 
 - [ ] The editor addresses selected threads with one commit each, on a local branch
-- [ ] I can review the editor's commits as a diff before anything is pushed
-- [ ] Accepting pushes to the merge request branch, and discarding leaves the forge untouched
-- [ ] The editor's environment has no forge credential, and a test proves it
+- [x] I can review the editor's commits as a diff before anything is pushed
+- [x] Accepting pushes to the merge request branch, and discarding leaves the forge untouched
+- [x] The editor's environment has no forge credential, and a test proves it
 
 ## Implementation plan
 
@@ -77,3 +77,26 @@ D41. The editor generalizes from kept findings to triaged threads.
 **agent:claude-code/editor-20261005** at 2026-10-05T23:53:36Z
 
 Built and tested (review, app, web): triaged-thread picks, the own-change editor, fast-forward push to the source branch refused when moved, replies citing pushed commits (person-edited replies stand; the agent can no longer revise a fixed reply). Not yet run on a real change; next-gen-compute!144 is the candidate. The owner raised the three flows (reviewing others, answering your own threads, reviewing your own work to dogfood) mid-build; the third is not covered yet.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T14:11:08Z
+
+2026-10-08 audit against main, with `CGO_ENABLED=0 go test ./...` green.
+
+**Ticked:**
+- **2 (review the commits as a diff before any push).**
+  - `Manager.Editor` returns the commits and their diff against the base (review/editor.go:400).
+  - The push must name the SHA the person saw, and a newer one is refused (review/git.go:315).
+  - Only the confirmed push route pushes or opens a stacked change: `TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest`.
+- **3 (accept pushes, discard leaves the forge untouched).**
+  - Accepting fast-forwards the change's own branch and refuses one that moved: `TestTheEditorFixesPickedThreadsAndPushesToTheChangesOwnBranch`.
+  - The discard half had no test before today. `TestDiscardingUnpushedWorkLeavesTheForgeUntouched` now discards unpushed commits and checks three things: every ref of the change's repository is unchanged, the commit never reached it, and the editor no longer offers the commits for a push.
+- **4 (no forge credential, proven by a test).** `TestTheEditorIsSandboxedAndHoldsNoForgeCredential` (agent/claude) sets `GITLAB_TOKEN`, a test token and `SSH_AUTH_SOCK`, and asserts all three are stripped. The editor's git runs with `GIT_CONFIG_GLOBAL=/dev/null`, and its repository has no forge remote.
+
+**Left unticked, 1 (one commit per selected thread).** Selection and the local branch are met. `pickThreads` takes only pending triaged threads whose discussion is unchanged, and the editor works on `vuoro/fix-N-*` in a repository of its own. "One commit each" is asked for but not enforced:
+- The prompt asks for one commit per item.
+- At push time vuoro asks the editor once about any item no commit's trailer names (review/editor.go:641-677).
+- Nothing refuses a commit that names several items, or one that names none.
+
+That is a design call for the owner. Either enforce it at push time, or reword the criterion to "each selected thread is named by a commit's `Vuoro-Thread` trailer, and vuoro asks about any that is not". The second matches D41 and the code as built.
+
+**Still open from the 2026-10-05 note:** a run on a real change (next-gen-compute!144 was the candidate). The note's other open item, reviewing your own work, is now built (D42, `TestTheEditorFixesPickedFindingsOfAnOwnReviewOnItsBranch`).

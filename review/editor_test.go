@@ -804,3 +804,62 @@ func TestALocalRangesSecondWaveMovesItsOwnBranchOn(t *testing.T) {
 	}
 	m.Close(ctx, r.ID)
 }
+
+// Discarding the editor's work before a push leaves the forge as it was:
+// every ref of the change's repository is unchanged, and the editor's
+// commits are gone from vuoro too.
+func TestDiscardingUnpushedWorkLeavesTheForgeUntouched(t *testing.T) {
+	m, d, ch, src := setup(t, func(call toolCaller, text string) string {
+		call("propose_draft", map[string]any{"title": "Add subtracts", "description": "It subtracts.", "severity": "high",
+			"anchor": map[string]any{"path": "calc.go", "start_line": 3}})
+		return "done"
+	})
+	d.edit = func(spec agent.Spec, text string) string {
+		os.WriteFile(filepath.Join(spec.Dir, "calc.go"), []byte("package calc\n\nfunc Add(a, b int) int { return a + b }\n"), 0o644)
+		for _, args := range [][]string{{"add", "calc.go"}, {"commit", "-q", "-m", "Add adds", "-m", "Vuoro-Finding: d1"}} {
+			cmd := exec.Command("git", args...)
+			cmd.Dir, cmd.Env = spec.Dir, append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + spec.Dir}, spec.Editor.Env...)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return "git: " + string(out)
+			}
+		}
+		return "d1: fixed"
+	}
+	refs := func() string {
+		out, err := exec.Command("git", "-C", src.Remote, "for-each-ref", "--format=%(refname) %(objectname)").Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	before := refs()
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake", Model: "m1"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	m.Decide(r.ID, "d1", drafts.Kept, "41", false)
+	if _, err := m.StartEditor(context.Background(), r.ID, ch, Identity{Name: "Pat", Email: "pat@example.com"}, EditorTask{}); err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, func(v RunView) bool { return idle(v) && len(v.Sessions) == 2 && v.Sessions[1].FirstComplete })
+	detail, err := m.Editor(context.Background(), r.ID)
+	if err != nil || len(detail.Commits) != 1 {
+		t.Fatalf("the editor committed %+v %v", detail, err)
+	}
+	if err := m.DiscardEditor(context.Background(), r.ID); err != nil {
+		t.Fatal(err)
+	}
+	if after := refs(); after != before {
+		t.Fatalf("the change's repository moved on a discard:\nbefore %s\nafter  %s", before, after)
+	}
+	if exec.Command("git", "-C", src.Remote, "cat-file", "-e", detail.Commits[0].SHA).Run() == nil {
+		t.Fatal("the discarded commit reached the change's repository")
+	}
+	if v := r.View(); v.Editor == nil || !v.Editor.Discarded || v.Editor.Pushed != nil {
+		t.Fatalf("editor after the discard: %+v", v.Editor)
+	}
+	if _, err := m.Editor(context.Background(), r.ID); err == nil {
+		t.Fatal("the discarded editor's commits are still offered for a push")
+	}
+}

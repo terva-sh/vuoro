@@ -28,12 +28,12 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-03T02:01:28Z
+updated_at: 2026-10-08T14:11:39Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:codex/windows-roadmap-20261002
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -54,15 +54,15 @@ terva 0.139.7 cannot be locked down. It moves to the v1.0.0 epic.
 
 ## Acceptance criteria
 
-- [ ] A GitLab review I am requested on appears in the inbox with the reason it is my turn
-- [ ] A review I wrote shows as my turn when a reviewer replies, with the age
-- [ ] I can comment inline, reply, resolve, approve, and submit a batch review without opening GitLab
-- [ ] just ci passes with CGO_ENABLED=0 and cross-builds linux, darwin, and windows
-- [ ] A synthesizer session merges the reviewers' drafts and keeps each finding's sources
+- [x] A GitLab review I am requested on appears in the inbox with the reason it is my turn
+- [x] A review I wrote shows as my turn when a reviewer replies, with the age
+- [x] I can comment inline, reply, resolve, approve, and submit a batch review without opening GitLab
+- [x] just ci passes with CGO_ENABLED=0 and cross-builds linux, darwin, and windows
+- [x] A synthesizer session merges the reviewers' drafts and keeps each finding's sources
 - [ ] I can talk to any reviewer while it works, and nothing posts without my action
 - [ ] Every session shows its tool, model, tokens, and cost
-- [ ] I can open a GitLab merge request by URL and run several Claude Code reviewers on it in parallel
-- [ ] GitLab and Forgejo authored/requested changes appear in one inbox with correct turn, reason and earliest-unanswered age.
+- [x] I can open a GitLab merge request by URL and run several Claude Code reviewers on it in parallel
+- [x] GitLab and Forgejo authored/requested changes appear in one inbox with correct turn, reason and earliest-unanswered age.
 
 ## Notes
 
@@ -71,3 +71,34 @@ terva 0.139.7 cannot be locked down. It moves to the v1.0.0 epic.
 Owner-selected priority: one GitLab-and-Forgejo inbox ordered by whose turn it is. D34 records that outcome and moves Forgejo discovery/inbox into the MVP while writes remain later. The executable backlog is shared discovery/refresh (TKT-01M3ZQXC5CPRDM3CD937C6PC3Q), the existing pure turn ticket, both adapters (new Forgejo slice TKT-01M3ZQXC6SWB7M9D46AN0QJAP8), then the mixed inbox. Structured dependencies connect the slices. The new read-only Forgejo task does not inherit blocked GitLab live-write validation. The broader Forgejo ticket now tracks only writes.
 
 All implementation tickets remain draft. docs/roadmap.md maps the existing implementation, completion gates and subsequent MVP/v1.0 work; docs/plan.md remains authoritative. Considered alternatives were Forgejo posting first and more agent workflows first; the owner chose the inbox because it supplies the missing whose-turn workflow across both existing readers. Older relocation/publication/usage tickets are flagged for evidence-based reconciliation, not silently closed, and the earlier adoption claim is left untouched.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T14:11:39Z
+
+2026-10-08 audit against main at fa91bac, with `CGO_ENABLED=0 go test ./...` green. Nothing has been released: there are no tags, and no decision records a release.
+
+### Ticked
+1. **Requested GitLab reviews appear with the reason.** Rule R1 is in `turn/turn.go`, and the inbox shows the reasons. Tested from recorded GitLab facts: `TestRecordedGitLabTurns`, `TestEveryRuleFromRecordedModel`. Live, the GitLab inbox was checked only while empty.
+2. **My review shows as my turn when a reviewer replies, with the age.** Rules A1 and A2 cover it, and the inbox shows an age badge. Tests: `TestWaitingAges`, `TestNoiseAndEarliestUnanswered`. The same live caveat applies.
+3. **Comment, reply, resolve, approve and submit without opening GitLab.** `forge/gitlab/write.go`, and `TestLiveWrite` passed on drewshort/vuoro-sandbox!1 on 2026-10-05.
+4. **`just ci` with cgo off, cross-building three platforms.** Forgejo CI runs the same steps inline: vet for three platforms, tests, `-race` (D53), cross-builds for linux, darwin and windows on amd64 and arm64, the web checks, and the ticket check. It passed on PRs #22 to #26. `just ci` passed locally on 2026-10-08.
+5. **The synthesizer merges drafts and keeps their sources.** `TestASynthesizerMergesDraftsAndNamesItsSources`, `TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem`.
+8. **Open a GitLab MR by URL and run several Claude Code reviewers in parallel.** `TestParseGitLabURL`, `TestAMergeRequestOpensWithItsDiffAndThreads`, and the parallel-run test. It was used on the sandbox MR.
+9. **GitLab and Forgejo changes in one inbox with turn, reason and age.** `TestMixedAccountsRefreshAndFailure`, `TestMixedForgesRoute…`. A live Forgejo comparison passed for 24 PRs. GitHub has joined since (#23).
+
+### Not ticked, and why
+6. **"I can talk to any reviewer while it works."** `review/run.go:558` refuses a message while a session is working ("the session is still working; wait, or stop it"). You can talk between turns, or stop a reviewer and resume it. The "nothing posts without my action" half is met: `TestAnAgentDraftsAndOnlyThePersonPosts`. The owner should decide between two options. One is to queue the message, or interrupt the turn, so it can be sent while a session works. The other is to reword the criterion to "between turns, or after stopping it".
+7. **"Every session shows its tool, model, tokens, and cost."** Sessions and runs show all four. But `usd()` in `web/src/ui.tsx` renders a cost the tool did not report as `$0.00` rather than marking it unknown. TKT-01M3YMSST3CNA34862NNERKMN2 (Show tokens and cost per session and per review run) is still a draft and covers this.
+
+### Children still open
+- **Drafts:**
+  - TKT-01M3W4HX0 (Decide how a change finds its git-ticket store and ticket)
+  - TKT-01M3W4HX1 (Show a change's ticket, and give it to reviewers as context)
+  - TKT-01M3YMSST (Show tokens and cost per session and per review run)
+  - TKT-01M3YMSSX (Keep review runs until the change closes, then 30 days)
+- **Done tickets with an unticked box:**
+  - TKT-01M3W4HWSGA04D4VQ8WHBEJC2D: since-my-last-review mode.
+  - TKT-01M3YK0CM0SWMYXMM7A7M7J2QX: a real change with either driver, and settings read at the base commit.
+  - TKT-01M3YK0CPYG132897XVVZ9G4EF: three reviewers on two drivers, which waits on terva.
+  - TKT-01M3W4HWB551REE766G3TE2Y7D: the GitHub workflow, which D52 made obsolete.
+
+The epic stays open until 6 and 7 are settled, the drafts are done or moved to v1.0.0, and the owner cuts v0.1.0.

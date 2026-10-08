@@ -1401,7 +1401,7 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    URL. Run a preset's reviewers in parallel on Claude Code (D28).
    Talk to them, let a synthesizer merge their drafts, edit the drafts, and
    submit the review. Forgejo open-by-URL reading, checkout and agent reviews also
-   land here (D33); its posting controls remain unavailable. Presets and profiles live in vuoro's own config, and code,
+   land here (D33); its posting came later, with Forgejo parity (section 5.3). Presets and profiles live in vuoro's own config, and code,
    security, and documentation profiles are built in. Cost is shown, and runs
    are pinned to their head SHA and flagged when it moves.
 3. **The shared inbox, next (D34).** Discover the open GitLab changes and

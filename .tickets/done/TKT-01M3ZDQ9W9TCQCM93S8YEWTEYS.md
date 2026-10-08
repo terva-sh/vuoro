@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3ZDQ9W9TCQCM93S8YEWTEYS
 title: Adopt terva-review and the two-forge process on Forgejo
 type: chore
-status: in-progress
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -19,22 +19,15 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/9c7c9cd7
-  branch: terva-review-adoption
-  worktree: /home/sothr/workspace/git.local.sothr.com/terva-sh/vuoro
-  commit: 1db8913f0452847f5eb809ec2b2afd06ec6db02e
-  session: null
-  claimed_at: 2026-10-02T23:03:29Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-02T23:03:23Z
-updated_at: 2026-10-02T23:33:40Z
+updated_at: 2026-10-08T14:10:31Z
 created_by:
   id: agent:claude-code/9c7c9cd7
   name: ""
 updated_by:
-  id: agent:claude-code/9c7c9cd7
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -82,3 +75,7 @@ The review showed the workflow end to end on a private repository: the bot publi
 **agent:claude-code/9c7c9cd7** at 2026-10-02T23:33:40Z
 
 The second terva-review (run d91ab8c6, request after-fixes-1, Actions run 19686) passed head d2f8b8a with no findings at the failure threshold. CI run 19687 is green on the same head. The commit that records this touches only .tickets/, so it is carried with --input carry=true rather than re-reviewed. Merging PR #1 and the first just sync-github --yes are left to the owner.
+
+## Summary
+
+terva-review runs on every Forgejo pull request from .forgejo/workflows/terva-review.yml, and just sync-github keeps GitHub's main equal to Forgejo's without force-pushing. The adopting PR #1 merged after a clean second review (run d91ab8c6). Since then the process has reviewed every PR, most recently #22 to #26 on 2026-10-08, and docs/pr-reviews.md describes it. Closed in the 2026-10-08 ticket audit; the old claim was released with it.

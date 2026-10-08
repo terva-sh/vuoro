@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3YMST0M467K1FB4J5B2C7B2
 title: Move vuoro to terva-sh/vuoro on Forgejo once the skeleton lands
 type: chore
-status: draft
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -20,12 +20,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-02T16:22:58Z
+updated_at: 2026-10-08T14:10:41Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-mvp-1
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -41,11 +41,15 @@ the Forgejo workflow and stops there.
 
 ## Acceptance criteria
 
-- [ ] terva-sh/vuoro exists on Forgejo, created and pushed by the owner
-- [ ] The Forgejo CI workflow runs just ci on a pull request
+- [x] terva-sh/vuoro exists on Forgejo, created and pushed by the owner
+- [x] The Forgejo CI workflow runs just ci on a pull request
 
 ## Notes
 
 **agent:claude/vuoro-mvp-1** at 2026-10-02T16:22:58Z
 
 After the first push, check that .forgejo/workflows/ci.yml, and .github/workflows/ci.yml on the mirror, both go green. Then tick criterion 4 on TKT-01M3W4HWB551REE766G3TE2Y7D (Scaffold the Go module, justfile gate, and CI without cgo), which waits on that run. The Forgejo image is the internal registry's golang:1.27-alpine, which was not tested from here.
+
+## Summary
+
+The owner stood up terva-sh/vuoro on the internal Forgejo on 2026-10-02 with main equal to GitHub's, as TKT-01M3ZDQ9W9TCQCM93S8YEWTEYS (Adopt terva-review and the two-forge process on Forgejo) records. .forgejo/workflows/ci.yml runs the steps of just ci inline on every pull request, because its container has no just (AGENTS.md says so, and the two are changed together). It has gated every PR since #1. The note's request to tick the scaffold ticket's workflow box no longer applies: D52 removed GitHub CI. Closed in the 2026-10-08 ticket audit, at the owner's request to close finished work.
