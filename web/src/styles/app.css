@@ -509,6 +509,25 @@ a.button:hover { background: var(--ui-accent-soft); }
 .copy { display: flex; align-items: stretch; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-control); background: var(--ui-bg); overflow: hidden; }
 .copy code { flex: 1; padding: var(--ui-space-2) var(--ui-space-3); font-family: var(--ui-font-mono); font-size: var(--ui-fs-detail); user-select: all; overflow-x: auto; white-space: pre; }
 .copy button { border: 0; border-left: 1px solid var(--ui-line); border-radius: 0; }
+/* The access gauge (D57): can't read, read only, full, too broad. */
+.gauge { margin: var(--ui-space-3) 0 0; padding: var(--ui-space-3) var(--ui-space-4); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-bg); text-align: center; }
+.gauge svg { width: 220px; max-width: 100%; display: block; margin: 0 auto; }
+.gauge .zone { fill: none; stroke-width: 16; opacity: 0.35; }
+.gauge .zone.on { opacity: 1; }
+.gauge .zone.none, .gauge .zone.broad { stroke: var(--ui-danger); }
+.gauge .zone.read { stroke: color-mix(in srgb, var(--ui-ok) 60%, var(--ui-bg)); }
+.gauge .zone.full { stroke: var(--ui-ok); }
+.gauge.unknown .zone { stroke: var(--ui-line-strong); opacity: 0.6; }
+.gauge .needle { transform-box: view-box; transform-origin: 100px 100px; transition: transform 700ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+.gauge .needle line { stroke: var(--ui-heading); stroke-width: 3; stroke-linecap: round; }
+.gauge .hub { fill: var(--ui-heading); }
+.gauge .zones { display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; padding: 0; margin: var(--ui-space-1) auto var(--ui-space-2); max-width: 300px; font-size: var(--ui-fs-detail); color: var(--ui-muted); }
+.gauge .zones [aria-current] { color: var(--ui-heading); font-weight: 600; }
+.gauge .verdict { margin: 0 0 var(--ui-space-1); }
+.gauge.none .verdict strong, .gauge.broad .verdict strong { color: var(--ui-danger); }
+.gauge.read .verdict strong, .gauge.full .verdict strong { color: var(--ui-ok); }
+.gauge .scopes { font-size: var(--ui-fs-detail); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .gauge .needle { transition: none; } }
 details.advanced { margin: var(--ui-space-3) 0 0; }
 details.advanced > summary { cursor: pointer; color: var(--ui-muted); font-size: var(--ui-fs-ui); margin-bottom: var(--ui-space-2); }
 details.advanced .field .muted { font-size: var(--ui-fs-detail); }

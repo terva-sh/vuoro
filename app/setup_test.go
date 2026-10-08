@@ -96,6 +96,11 @@ func TestSetupAddsTestsChangesAndRemovesAForge(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"username":"pat"`) || !strings.Contains(body, `"matches":true`) {
 		t.Fatalf("test: %d %s", code, body)
 	}
+	// A forge that cannot say how far a token reaches leaves it unknown,
+	// and the test still passes.
+	if !strings.Contains(body, `"access":{"level":"unknown"}`) {
+		t.Fatalf("access: %s", body)
+	}
 	if len(dialled) != 1 || dialled[0] != "forgejo https://forge.example "+setupSecret {
 		t.Fatalf("dialled %q", dialled)
 	}

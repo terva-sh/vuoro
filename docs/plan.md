@@ -530,7 +530,10 @@ walks through it one step at a time: the forge, chosen from GitHub, GitLab,
 Codeberg, or the person's own; its token, made on the forge's own page, kept in
 a store this machine has, and checked; the agent tools; and the background
 settings. A forge is saved when its token step ends, so leaving setup early
-keeps it. A person can still
+keeps it. The token's check ends on a gauge of how far it reaches (D57): can't
+read, read only, full, or too broad, learnt only from what the forge reports
+and from reads. A token that can't read is not saved; a broad one is, with a
+warning that names the scopes it does not need. A person can still
 write it by hand. An example, with no
 secret in it:
 

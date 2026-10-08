@@ -79,7 +79,7 @@ func TestAFreshInstallReachesAFirstReviewWithoutEditingAFile(t *testing.T) {
 	}
 
 	form := forgeForm{Name: "work", Kind: "gitlab", URL: "https://" + host, TokenEnv: "VUORO_TEST_TOKEN", Clone: "https"}
-	if code, _, body := post(t, h, "/api/setup/test", form); code != 200 || !strings.Contains(body, `"username":"me"`) {
+	if code, _, body := post(t, h, "/api/setup/test", form); code != 200 || !strings.Contains(body, `"username":"me"`) || !strings.Contains(body, `"level":"full"`) {
 		t.Fatalf("testing the token: %d %s", code, body)
 	}
 	form.Username = "me"

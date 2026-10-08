@@ -92,6 +92,49 @@ describe('ForgeEditor', () => {
   })
 })
 
+describe('the access gauge', () => {
+  const check = async (access: object) => {
+    vi.mocked(post).mockResolvedValueOnce({ username: 'pat', matches: true, access })
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<ForgeEditor setup={setup()} onSaved={() => {}} />, root))
+    type(input(root, 'Address'), 'https://forge.example')
+    await click(root, 'Check the token')
+    return root
+  }
+
+  it('refuses a token that cannot read reviews, and says what it needs', async () => {
+    const root = await check({ level: 'none', missing: ['read:repository', 'read:issue'] })
+    expect(root.querySelector('.gauge.none')).not.toBeNull()
+    expect(root.textContent).toContain('This token cannot read your reviews. Make one with read:repository, read:issue.')
+    expect(button(root, 'Add this forge').disabled).toBe(true)
+    root.remove()
+  })
+
+  it('names what to leave out of a token that is broad and still cannot read', async () => {
+    const root = await check({ level: 'none', missing: ['read:repository'], broad: ['write:admin'] })
+    expect(root.textContent).toContain('Make one with read:repository. Leave out write:admin, which vuoro does not need.')
+    expect(button(root, 'Add this forge').disabled).toBe(true)
+    root.remove()
+  })
+
+  it('saves a token broader than vuoro needs, and warns about what it holds', async () => {
+    const root = await check({ level: 'broad', scopes: ['all'], broad: ['all'] })
+    expect(root.querySelector('.gauge.broad .zones [aria-current]')!.textContent).toBe('Too broad')
+    expect(root.textContent).toContain('Broader than vuoro needs. It also holds all.')
+    expect(button(root, 'Add this forge').disabled).toBe(false)
+    root.remove()
+  })
+
+  it('says when the forge cannot tell, without a reading', async () => {
+    const root = await check({ level: 'unknown', note: 'GitHub does not tell vuoro what a fine-grained token may do.' })
+    expect(root.querySelector('.gauge.unknown .needle')).toBeNull()
+    expect(root.textContent).toContain('fine-grained')
+    expect(button(root, 'Add this forge').disabled).toBe(false)
+    root.remove()
+  })
+})
+
 describe('a GitHub forge', () => {
   it('links to the token page with the repo scope', () => {
     const root = document.createElement('div')

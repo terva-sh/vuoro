@@ -32,6 +32,10 @@ func TestLiveSetupTest(t *testing.T) {
 	if strings.Contains(body, os.Getenv("VUORO_LIVE_SETUP_TOKEN")) {
 		t.Fatal("the reply holds the token")
 	}
+	if !strings.Contains(body, `"access":{"level":"`) {
+		t.Fatalf("no access: %s", body)
+	}
+	t.Logf("access: %s", body[strings.Index(body, `"access"`):])
 	form.Username = user + "-someone-else"
 	if _, _, body := post(t, h, "/api/setup/test", form); !strings.Contains(body, `"matches":false`) {
 		t.Fatalf("another account: %s", body)

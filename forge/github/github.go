@@ -85,20 +85,26 @@ func (c *Client) scrub(s string) string {
 // sent as JSON. Errors never carry the token, and a redirect is refused
 // rather than followed with it.
 func (c *Client) do(ctx context.Context, method, target, path string, body any) ([]byte, error) {
+	b, _, err := c.send(ctx, method, target, path, body)
+	return b, err
+}
+
+// send is do, with the response's headers.
+func (c *Client) send(ctx context.Context, method, target, path string, body any) ([]byte, http.Header, error) {
 	if c.token.Empty() {
-		return nil, ErrNoToken
+		return nil, nil, ErrNoToken
 	}
 	var payload io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		payload = bytes.NewReader(b)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, target, payload)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
@@ -109,21 +115,21 @@ func (c *Client) do(ctx context.Context, method, target, path string, body any) 
 	res, err := c.http.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		}
 		var ue *url.Error
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return nil, fmt.Errorf("github: %s %s: %s", method, path, c.scrub(err.Error()))
+		return nil, nil, fmt.Errorf("github: %s %s: %s", method, path, c.scrub(err.Error()))
 	}
 	defer res.Body.Close()
 	b, err := io.ReadAll(io.LimitReader(res.Body, maxBody+1))
 	if err != nil {
-		return nil, fmt.Errorf("github: reading response: %s", c.scrub(err.Error()))
+		return nil, nil, fmt.Errorf("github: reading response: %s", c.scrub(err.Error()))
 	}
 	if len(b) > maxBody {
-		return nil, errors.New("github: response exceeds 32 MiB")
+		return nil, nil, errors.New("github: response exceeds 32 MiB")
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		// A validation failure says what failed in its errors list.
@@ -140,9 +146,9 @@ func (c *Client) do(ctx context.Context, method, target, path string, body any) 
 				msg += ": " + e.Message
 			}
 		}
-		return nil, &forge.APIError{Forge: forge.GitHub, Method: method, Path: path, Status: res.StatusCode, Message: clip(c.scrub(msg))}
+		return nil, nil, &forge.APIError{Forge: forge.GitHub, Method: method, Path: path, Status: res.StatusCode, Message: clip(c.scrub(msg))}
 	}
-	return b, nil
+	return b, res.Header, nil
 }
 
 func clip(s string) string {

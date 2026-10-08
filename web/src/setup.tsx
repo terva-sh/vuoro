@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { post } from './api'
 import { EditForm } from './textedit'
-import type { Background as BackgroundView, ForgeForm, Setup, TokenSource, Tool } from './types'
+import { Gauge } from './gauge'
+import type { Access, Background as BackgroundView, ForgeForm, Setup, TokenSource, Tool } from './types'
 
 // splitCommand splits a command line into its words as a shell would,
 // honouring single quotes, double quotes, and backslashes, and expanding
@@ -93,7 +94,7 @@ function useForgeForm(setup: Setup, initial?: ForgeForm, original?: string) {
   const [sourceID, setSourceID] = useState(initial ? (initial.token_env ? 'env' : 'command') : (setup.sources[0]?.id ?? 'env'))
   const [command, setCommand] = useState(initial?.token_command ? joinCommand(initial.token_command) : '')
   const [env, setEnv] = useState(initial?.token_env ?? '')
-  const [result, setResult] = useState<{ username: string; key: string }>()
+  const [result, setResult] = useState<{ username: string; key: string; access?: Access }>()
   // Testing and saving are apart, so each button says which one runs.
   const testing = useAction()
   const saving = useAction()
@@ -127,17 +128,20 @@ function useForgeForm(setup: Setup, initial?: ForgeForm, original?: string) {
   const key = JSON.stringify([kind, form.url, form.token_command, form.token_env])
   const tested = result && result.key === key ? result : undefined
   const mismatch = !!tested && !!form.username && tested.username.toLowerCase() !== form.username.toLowerCase()
-  const canSave = !!tested && !!form.username && !mismatch && !!form.name
+  // A token that cannot read reviews is not saved; one that reaches further
+  // than vuoro needs is, with the gauge's warning (D57).
+  const unreadable = tested?.access?.level === 'none'
+  const canSave = !!tested && !!form.username && !mismatch && !!form.name && !unreadable
   const ready = !!host && (isEnv || (argv.length > 0 && !commandError))
 
   const test = async () => {
     saving.setError(undefined)
-    const r = await testing.run(() => post<{ username: string; matches: boolean }>('/api/setup/test', form))
+    const r = await testing.run(() => post<{ username: string; matches: boolean; access?: Access }>('/api/setup/test', form))
     if (!r) {
       setResult(undefined)
       return
     }
-    setResult({ username: r.username, key })
+    setResult({ username: r.username, key, access: r.access })
     if (!form.username) setUsername(r.username)
   }
   const save = (onSaved: (s: Setup) => void) => {
@@ -215,6 +219,7 @@ function TokenSteps({ f, setup }: { f: Forge; setup: Setup }) {
           {f.tested && !f.mismatch && <span class="ok">✓ Signed in to {where} as @{f.tested.username}</span>}
         </p>
         {f.mismatch && <p class="warn">The token is @{f.tested!.username}'s, not @{f.form.username}'s.</p>}
+        {f.tested?.access && !f.mismatch && <Gauge access={f.tested.access} />}
       </li>
     </ol>
   )
@@ -268,7 +273,7 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   const label = original ? 'Save' : 'Add this forge'
   return (
     <EditForm class="forge-editor" onSave={() => f.save(onSaved)} onCancel={onCancel} busy={f.busy} canSave={f.canSave}
-      save={label} saving={f.saving.busy ? 'Saving…' : label} hint={f.canSave ? undefined : 'Check the token first'}
+      save={label} saving={f.saving.busy ? 'Saving…' : label} hint={f.canSave ? undefined : f.tested ? 'This token cannot be saved' : 'Check the token first'}
       error={f.error}>
       <div class="row">
         <label class="field">Forge
@@ -569,7 +574,7 @@ function ForgeSteps({ setup, step, onStep, onSaved, onSkip, onDone }: {
       <div class="step-actions">
         <button type="button" disabled={f.busy} onClick={() => onStep('forge')}>Back</button>
         <span class="spacer" />
-        <button class="primary" disabled={f.busy || !f.canSave} title={f.canSave ? undefined : 'Check the token first'}>{f.saving.busy ? 'Saving…' : 'Save and continue'}</button>
+        <button class="primary" disabled={f.busy || !f.canSave} title={f.canSave ? undefined : f.tested ? 'This token cannot be saved' : 'Check the token first'}>{f.saving.busy ? 'Saving…' : 'Save and continue'}</button>
       </div>
     </form>
   )

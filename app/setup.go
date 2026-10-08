@@ -357,7 +357,17 @@ func (a *App) testForge(w http.ResponseWriter, r *http.Request) {
 		writeError(w, fmt.Errorf("The forge did not accept the token: %w", err))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"username": me, "matches": f.Username == "" || strings.EqualFold(me, f.Username)})
+	// How far the token reaches places it on setup's gauge (D57). A forge
+	// that cannot say leaves it unknown; that never fails the test.
+	access := forge.Access{Level: forge.AccessUnknown}
+	if r, ok := c.(forge.AccessReader); ok {
+		if got, err := r.Access(ctx); err == nil {
+			access = got
+		} else {
+			access.Note = "vuoro could not ask the forge what this token may do."
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"username": me, "matches": f.Username == "" || strings.EqualFold(me, f.Username), "access": access})
 }
 
 // saveForge adds a forge, or replaces the one named original, and reloads.

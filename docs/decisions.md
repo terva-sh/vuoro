@@ -920,3 +920,36 @@ records the design.
   `~/.local/share`. tuohi leaves alone an entry it did not write, such as one
   a package installs. Writing nothing, and keeping tuohi's mark under
   Wayland, was rejected.
+
+### D57. Setup places a token on a gauge from what the forge reports, and never writes to learn it
+
+The owner asked on 2026-10-09, under TKT-01M4EP0RRT9QA7ZQQKQA30E6K4 (Show on a gauge how far a forge
+token reaches), for setup to show how far a token reaches on a gauge, with
+read only and full in the green and administration in the red. The owner
+invited design opinions, and the agent proposed the rest. It stands until
+the owner says otherwise.
+
+- **The gauge has four zones: can't read, read only, full, and too broad.**
+  Read only is fine: vuoro reviews, and the person posts by hand. Full also
+  posts what the person sends. Too broad holds scopes or roles beyond
+  reviewing, such as administration, deleting repositories, organization
+  writes, or Actions workflows. A token the forge does not describe gets no
+  reading, and the gauge says what to check instead.
+- **Only what the forge reports, and reads, place the token.** GitHub's
+  `X-OAuth-Scopes` header describes a classic token. GitLab's
+  `/personal_access_tokens/self` describes a personal access token, and
+  `is_admin` marks an administrator's `api` token as broad. Forgejo lists
+  a person's tokens, with their scopes, to a token holding `read:user`, and
+  vuoro finds its own by the last eight characters. Where that list is
+  refused, reads of a repository that cannot exist show which read scopes
+  are missing, because Forgejo checks scope before it looks for the
+  repository. vuoro never sends a write to see whether a write would
+  succeed, so posting rights a forge does not report stay unknown. Probing
+  with a write that fails was rejected: it is a write to the person's forge
+  that the person did not ask for.
+- **Can't read blocks the save. Too broad warns and saves.** A token that
+  cannot read reviews is no use to vuoro. A broad one works, and the person
+  may have reasons for it, so the gauge names the extra scopes and suggests
+  a narrower token. Refusing broad tokens was rejected.
+- **GitHub's fine-grained tokens are unknown.** GitHub gives an application
+  no way to read their permissions, so the gauge says which to grant.

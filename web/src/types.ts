@@ -128,6 +128,9 @@ export interface ForgeForm {
   name: string; kind: string; url: string; username: string
   token_command?: string[]; token_env?: string; clone?: string
 }
+// Access is how far a token reaches, as its forge tells it (D57).
+export type AccessLevel = 'unknown' | 'none' | 'read' | 'full' | 'broad'
+export interface Access { level: AccessLevel; scopes?: string[]; broad?: string[]; missing?: string[]; note?: string }
 // TokenSource is a place this machine can keep a token. {host} in read and
 // store stands for the forge's host.
 export interface TokenSource { id: string; label: string; read?: string[]; store?: string[]; note?: string }

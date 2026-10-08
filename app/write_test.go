@@ -57,6 +57,8 @@ func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 			w.Write([]byte(`[{"old_path":"label_list.go","new_path":"label_list.go","diff":"@@ -1,3 +1,3 @@\n package list\n-// old\n+// new\n tail\n"}]`))
 		case r.Method == "GET" && r.URL.Path == "/api/v4/user":
 			w.Write([]byte(`{"username": "me"}`))
+		case r.Method == "GET" && r.URL.Path == "/api/v4/personal_access_tokens/self":
+			w.Write([]byte(`{"scopes": ["api"]}`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/draft_notes"):
 			w.Write([]byte(`[]`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/merge_requests/3991"):
