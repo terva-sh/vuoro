@@ -464,6 +464,8 @@ main { padding: var(--ui-space-4); }
 .forge-editor .steps { padding-left: var(--ui-space-5); }
 .forge-editor .steps li + li { margin-top: var(--ui-space-3); }
 .forge-editor code.copyable { user-select: all; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
+.background label { display: block; margin: var(--ui-space-2) 0; }
+.background input[type="number"] { width: 5em; }
 .forge-editor .ok, .tools .ok { color: var(--ui-ok); }
 .forge-editor .warn, .tools .warn { color: var(--ui-warn); }
 .forges ul, .tools ul { padding-left: var(--ui-space-4); margin: var(--ui-space-1) 0; }

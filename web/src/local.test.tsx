@@ -158,7 +158,7 @@ describe('a branch row', () => {
   const setup = (over: Partial<Setup> = {}): Setup => ({
     editable: true, base: 'b', config_path: '', forges: [], tools: [{ tool: 'claude', version: '2', account: 'me' } as Setup['tools'][number]],
     presets: [{ name: 'quick', reviewers: [{ profile: 'code' }] }, { name: 'deep', reviewers: [{ profile: 'code' }, { profile: 'security' }] }],
-    profiles: [], waived: [], scheme: '', tab: '', sources: [], ...over,
+    profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true }, scheme: '', tab: '', sources: [], ...over,
   })
 
   it('reviews local commits with the picked preset, opens the run, and says what is not reviewed', async () => {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The test binary stands in for a token command: with fakeEnv set, it prints
@@ -166,6 +167,28 @@ func TestTheEnvironmentIsTheFallback(t *testing.T) {
 	t.Setenv("VUORO_TEST_TOKEN", "")
 	if _, err := (Forge{Name: "g", TokenEnv: "VUORO_TEST_TOKEN"}).Token(context.Background()); err == nil {
 		t.Fatal("an empty variable was accepted")
+	}
+}
+
+func TestTheBackgroundRefreshAndNotificationsHaveDefaults(t *testing.T) {
+	c, err := Parse([]byte(`{"forges":[]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.RefreshEvery() != 15*time.Minute || !c.Notifies() {
+		t.Fatalf("defaults: every %v, notify %v", c.RefreshEvery(), c.Notifies())
+	}
+	c, err = Parse([]byte(`{"forges":[],"inbox":{"refresh_minutes":5,"notify":false}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.RefreshEvery() != 5*time.Minute || c.Notifies() {
+		t.Fatalf("set: every %v, notify %v", c.RefreshEvery(), c.Notifies())
+	}
+	for _, bad := range []string{`{"inbox":{"refresh_minutes":-1}}`, `{"inbox":{"refresh_minutes":1441}}`} {
+		if _, err := Parse([]byte(bad)); err == nil || !strings.Contains(err.Error(), "refresh_minutes") {
+			t.Errorf("%s: %v", bad, err)
+		}
 	}
 }
 

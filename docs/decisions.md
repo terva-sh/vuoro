@@ -870,3 +870,27 @@ docs/plan.md section 5.4 records the design.
 - **Live write tests use a private sandbox repository under the owner's
   account.** Approving and requesting changes need a second account, so those
   stay tested from fixtures until there is one.
+
+### D55. vuoro hides to the tray, refreshes every 15 minutes by default, and nudges once per refresh
+
+Decided by the owner on 2026-10-08, at the start of
+TKT-01M3YMSVBDTFZ17PS86GXAC4ZK (Tray, background refresh, and quiet turn
+notifications). It carries out D24. docs/plan.md section 3.3 records the design.
+
+- **Closing the window hides vuoro to the tray.** The process keeps running
+  and refreshing. The tray menu opens the window again and quits. On a desktop
+  with no tray host, such as GNOME without the AppIndicator extension, closing
+  the window quits as it always has, so the window can never be lost. Asking
+  on the first close, and quitting on close with the tray only while the
+  window is open, were rejected.
+- **The background refresh runs every 15 minutes by default, and the person
+  sets it.** It is `inbox.refresh_minutes` in the config, and the window edits
+  it. Every 5 minutes and every 2 minutes were rejected as defaults: a turn
+  can wait a quarter hour, and the forges see fewer calls.
+- **Turn notifications are on by default and batched.** A refresh sends at
+  most one notification, at low urgency. It names the change and why it is
+  the person's turn, or gives a count when several changes turned at once.
+  `inbox.notify` turns them off. Off until enabled, and one notification per
+  change, were rejected.
+- **Start at login is off, with a toggle in the window.** Nothing is written
+  to the login items until the person asks. On by default was rejected.

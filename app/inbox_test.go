@@ -16,6 +16,10 @@ import (
 	"github.com/terva-sh/vuoro/server"
 )
 
+// requestedAt is when the fake forge's reviews were requested: an hour
+// before the tests began, and the same on every read, as a forge's record is.
+var requestedAt = time.Now().Add(-time.Hour).Truncate(time.Second)
+
 type inboxReader struct {
 	kind, host string
 	approved   bool
@@ -39,7 +43,7 @@ func (p *inboxReader) Open(ctx context.Context, ref forge.Ref) (*forge.Change, e
 func (p *inboxReader) ReadFacts(context.Context, forge.Ref) (*forge.Change, error) {
 	p.reads++
 	state := forge.Unreviewed
-	ch := &forge.Change{Kind: p.kind, Ref: forge.Ref{Host: p.host, Project: "team/repo", Number: 1}, State: forge.Open, WebURL: "https://" + p.host + "/team/repo/pulls/1", Title: "A change", Author: forge.User{Username: "author"}, Diff: forge.DiffRefs{Head: "head"}, Requests: []forge.ReviewRequest{{Reviewer: "me", At: time.Now().Add(-time.Hour)}}}
+	ch := &forge.Change{Kind: p.kind, Ref: forge.Ref{Host: p.host, Project: "team/repo", Number: 1}, State: forge.Open, WebURL: "https://" + p.host + "/team/repo/pulls/1", Title: "A change", Author: forge.User{Username: "author"}, Diff: forge.DiffRefs{Head: "head"}, Requests: []forge.ReviewRequest{{Reviewer: "me", At: requestedAt}}}
 	if p.approved {
 		state = forge.Approved
 		ch.Reviews = []forge.Review{{Reviewer: "me", Verdict: forge.VerdictApproved, At: time.Now(), SHA: "head"}}

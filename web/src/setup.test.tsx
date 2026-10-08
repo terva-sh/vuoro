@@ -3,14 +3,14 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { post } from './api'
-import { FirstRun, ForgeEditor, Forges, hostOf, joinCommand, splitCommand, Tools } from './setup'
+import { Background, FirstRun, ForgeEditor, Forges, hostOf, joinCommand, splitCommand, Tools } from './setup'
 import type { Setup, Tool } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 afterEach(() => vi.resetAllMocks())
 
 const setup = (over: Partial<Setup> = {}): Setup => ({
-  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], scheme: '', tab: '',
+  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true }, scheme: '', tab: '',
   sources: [
     { id: 'secret-service', label: 'Secret Service', read: ['secret-tool', 'lookup', 'service', 'vuoro', 'host', '{host}'], store: ['secret-tool', 'store', '--label=vuoro {host}', 'service', 'vuoro', 'host', '{host}'] },
     { id: 'env', label: 'An environment variable' },
@@ -195,5 +195,43 @@ describe('Forges', () => {
     expect(post).toHaveBeenCalledTimes(1)
     await act(async () => { finish(setup()); for (let i = 0; i < 5; i++) await Promise.resolve() })
     expect(onSetup).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Background', () => {
+  const checkbox = (root: Element, label: string) =>
+    [...root.querySelectorAll('label')].find((l) => l.textContent!.includes(label))!.querySelector('input') as HTMLInputElement
+
+  it('saves the refresh interval and the notifications switch together', async () => {
+    const after = setup({ base: 'b2', background: { refresh_minutes: 5, notify: false, autostart: false, login: true } })
+    vi.mocked(post).mockResolvedValueOnce(after)
+    const onSetup = vi.fn()
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<Background setup={setup()} onSetup={onSetup} />, root))
+    expect(button(root, 'Save').disabled).toBe(true) // nothing changed yet
+    const minutes = root.querySelector('input[type="number"]') as HTMLInputElement
+    expect(minutes.value).toBe('15')
+    type(minutes, '0')
+    expect(root.textContent).toContain('Choose from 1 to 1440 minutes.')
+    expect(button(root, 'Save').disabled).toBe(true)
+    type(minutes, '5')
+    act(() => { checkbox(root, 'Notify me').click() })
+    await click(root, 'Save')
+    expect(post).toHaveBeenCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 5, notify: false })
+    expect(onSetup).toHaveBeenCalledWith(after)
+    root.remove()
+  })
+
+  it('turns start at login on at once, and says so where the system cannot', async () => {
+    vi.mocked(post).mockResolvedValueOnce(setup())
+    const root = document.createElement('div')
+    document.body.append(root) // a checkbox fires change only in the document
+    act(() => render(<Background setup={setup()} onSetup={vi.fn()} />, root))
+    await act(async () => { checkbox(root, 'Start vuoro').click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(post).toHaveBeenCalledWith('/api/setup/autostart', { enabled: true })
+    act(() => render(<Background setup={setup({ background: { refresh_minutes: 15, notify: true, autostart: false, login: false } })} onSetup={vi.fn()} />, root))
+    expect(root.textContent).toContain('cannot start at login on this system')
+    root.remove()
   })
 })

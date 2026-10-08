@@ -51,6 +51,17 @@ type App struct {
 	// StateDir keeps the person's UI choices, in prefs.json. Empty keeps
 	// none, and every action asks first.
 	StateDir string
+	// Notify shows a desktop notification; nil sends none (D55).
+	Notify Notifier
+	// RefreshEvery overrides the configured background refresh interval;
+	// a test sets it.
+	RefreshEvery time.Duration
+	// Autostart starts vuoro at login; nil where the platform cannot.
+	Autostart Autostarter
+	// Log reports what the person cannot act on in the window; nil drops it.
+	Log     func(format string, args ...any)
+	nudgeMu sync.Mutex // guards told and nudges.json
+	told    *nudges    // what was notified, once read
 
 	prefsMu sync.Mutex
 	// background holds work a reply does not wait for, such as the inbox

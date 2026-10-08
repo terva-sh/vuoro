@@ -7,7 +7,7 @@ import { Inbox } from './inbox'
 import { LocalTab } from './local'
 import { RunList } from './runs'
 import { waive } from './confirm'
-import { FirstRun, Forges, Tools } from './setup'
+import { Background, FirstRun, Forges, Tools } from './setup'
 import { applyScheme, SchemePicker } from './scheme'
 import type { Change, HomeTab, LocalView, Run, Scheme, Setup } from './types'
 
@@ -163,6 +163,9 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
           </li>
           <li>
             Agent tools: <Tools setup={setup} onSetup={onSetup} />
+          </li>
+          <li>
+            In the background: <Background setup={setup} onSetup={onSetup} />
           </li>
           <li>
             Confirmations:{' '}

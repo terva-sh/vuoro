@@ -35,8 +35,9 @@ type setupView struct {
 		forgeForm
 		EnvSet bool `json:"env_set"`
 	}
-	Sources []tokenSource
-	Error   string
+	Sources    []tokenSource
+	Error      string
+	Background backgroundView
 }
 
 func getSetup(t *testing.T, h http.Handler) setupView {

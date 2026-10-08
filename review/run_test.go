@@ -160,6 +160,9 @@ func setup(t *testing.T, act func(toolCaller, string) string) (*Manager, *fakeDr
 		Drafts:   srv,
 		MCPURL:   hs.URL + "/mcp/",
 	}
+	// No session's goroutine may write the state directory once the test
+	// has returned; this runs before the directory is removed.
+	t.Cleanup(m.Shutdown)
 	ch := &forge.Change{
 		Ref:   forge.Ref{Host: "gitlab.example", Project: "g/calc", Number: 7},
 		Title: "Fix Add", Diff: forge.DiffRefs{Base: base, Head: head, Start: base},
@@ -659,6 +662,11 @@ func TestAVerifierMarksEveryFindingAfterTheSynthesizerAndIsSentBackOnce(t *testi
 		call("propose_draft", map[string]any{"severity": "high", "title": "Add subtracts", "description": "d"})
 		return "done"
 	})
+	// The run is finished once, when the verifier's second turn ends: not
+	// between the reviewers and the synthesizer, nor before the verifier is
+	// sent back.
+	finished := make(chan RunView, 8)
+	m.Finished = func(v RunView) { finished <- v }
 	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}, {Profile: "documentation"}}, &Reviewer{}, &Reviewer{Model: "opus"})
 	if err != nil {
 		t.Fatal(err)
@@ -666,6 +674,19 @@ func TestAVerifierMarksEveryFindingAfterTheSynthesizerAndIsSentBackOnce(t *testi
 	v := wait(t, r, func(v RunView) bool {
 		return len(v.Sessions) == 4 && v.Sessions[3].Status == Idle && len(v.Sessions[3].Log) >= 4
 	})
+	select {
+	case f := <-finished:
+		if f.ID != r.ID || f.Status != Idle || !f.ReviewComplete || len(f.Sessions) != 4 || len(f.Sessions[3].Log) < 4 {
+			t.Fatalf("finished early: %s, complete %v, %d sessions", f.Status, f.ReviewComplete, len(f.Sessions))
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the run never said it finished")
+	}
+	select {
+	case f := <-finished:
+		t.Fatalf("finished twice: %+v", f.Status)
+	case <-time.After(100 * time.Millisecond):
+	}
 	if s := v.Sessions[3]; s.Role != "verifier" || s.Model != "opus" {
 		t.Fatalf("verifier %+v", s)
 	}

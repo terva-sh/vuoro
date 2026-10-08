@@ -132,6 +132,74 @@ These were read from the internal Forgejo (`git.local.sothr.com/terva-sh`), whic
 is every terva-sh repository's `origin`. The GitHub mirrors trail it by days, so
 read a pin from Forgejo and never from a mirror.
 
+`github.com/godbus/dbus/v5` is a direct dependency, at the version tuohi pins,
+for one call: asking the session bus whether a tray host runs (section 3.3).
+
+### 3.3 The tray and nudges
+
+TKT-01M3YMSVBDTFZ17PS86GXAC4ZK (Tray, background refresh, and quiet turn
+notifications) carries out D24 with the owner's choices in D55. Each part is
+the platform's own, through tuohi, without cgo.
+
+- **One vuoro per person.** A window launch takes tuohi's single-instance
+  lock. A later launch hands it nothing but the request, and the running one
+  opens its window. Forwarded arguments are untrusted, so none are read.
+- **The tray.** Where the desktop shows a tray icon, closing the window leaves
+  vuoro running. Its menu holds Open vuoro, Refresh now, and Quit vuoro.
+  macOS and Windows always have a tray. On Linux and the BSDs the icon is a
+  StatusNotifierItem, and tuohi's tray starts without error even when no
+  StatusNotifierWatcher runs, so the icon never shows. vuoro therefore asks
+  the session bus itself, with `NameHasOwner`. Where there is no watcher, or
+  the bus cannot say, closing the window quits as before, so the window is
+  never lost. Whether closing hides or quits is fixed when the first window
+  opens, so on Linux and the BSDs the tray, which needs no UI loop there, is
+  set before it: if setting it fails, closing quits and vuoro does not start
+  hidden. On macOS and Windows the tray needs tuohi's loop and is set as it
+  starts, after closing is fixed to hide; a failure there, which takes a
+  broken session, is reported and vuoro quits, rather than run on with no
+  icon to quit it from. The toggles live in setup rather than in the tray menu, because
+  tuohi's menu is fixed for its lifetime and a checkbox there would go stale.
+- **Background refresh.** `App.Background` refreshes the inbox every
+  `inbox.refresh_minutes`, 15 by default, whether the window is open or not.
+  It reads the interval again after each wait, so a change in setup applies
+  without a restart. The window's own refresh, once a minute while it shows
+  the inbox, is unchanged.
+- **Nudges.** After every inbox refresh, from the window or the background,
+  the changes that are the person's turn are compared with the turns already
+  told, which are kept in `nudges.json` in the state directory.
+  - A change is told when it was not the person's turn before, or when its
+    turn began again.
+  - A refresh sends at most one notification, at low urgency. For one change
+    it gives the change and the first line of why; for several, a count and
+    the first three.
+  - Until an inbox refresh has recorded the person's turns, a refresh only
+    takes note, so a new install does not announce its whole inbox. A
+    review's end, kept in the same file, does not count as that record. A
+    launch at login tells what turned overnight.
+  - With `inbox.notify` off, nothing is shown and what turned is still noted,
+    so turning notifications on later announces nothing old.
+  - A notification the desktop does not show is not recorded, so the next
+    refresh, or a review's next finished turn, tries it again.
+  - What was told is read from the file once and kept in memory, so a state
+    directory that cannot be written repeats nothing while vuoro runs; the
+    failure is logged.
+- **A long review finishing.** `review.Manager.Finished` is told when a turn's
+  end leaves a run idle with no session about to start, so not between the
+  reviewers and the synthesizer, nor before a verifier is sent back. The app
+  tells, once per run and across restarts, a review that took two minutes or
+  more to complete. The turn that first completes the review decides: a short
+  review is recorded untold, so a later conversation with one of its sessions
+  cannot make it look long.
+- **Start at login** is off until the person turns it on in setup. It
+  registers `vuoro -background`, which starts with the window hidden. The
+  first window is still made at launch, on the main thread, because on Linux
+  that pins tuohi's UI thread, so a later launch can open the window from
+  another goroutine.
+- **The mark.** vuoro has no icon yet. The tray and notifications use one
+  drawn at launch: a disc in the selected violet with a white ring that does
+  not quite close. Windows notifications take no PNG from memory and use the
+  stock information icon.
+
 ## 4. The model
 
 Decided on 2026-10-02 by TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge
@@ -1443,7 +1511,7 @@ and a terva-sh release).
   new commits, with the earlier findings as context.
 - **Cost.** Optional per-run budget caps, and a monthly total.
 - **Nudges.** The tray, background refresh, and quiet, batched notifications
-  when it becomes my turn or a long run finishes.
+  when it becomes my turn or a long run finishes (D55, section 3.3).
 - **git-ticket, written.** Finding dispositions as ticket notes, and the
   linked ticket as context for the editor.
 - **A terva-sh release.** goreleaser archives for macOS, Linux, and Windows,

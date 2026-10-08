@@ -32,6 +32,100 @@ func (a *App) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/setup/forges", a.saveForge)
 	mux.HandleFunc("POST /api/setup/forges/remove", a.removeForge)
 	mux.HandleFunc("POST /api/setup/tools", a.checkTools)
+	mux.HandleFunc("POST /api/setup/background", a.saveBackground)
+	mux.HandleFunc("POST /api/setup/autostart", a.setAutostart)
+}
+
+// Autostarter starts vuoro at login (D55). The window turns it on and off;
+// nothing is registered until the person asks.
+type Autostarter interface {
+	Enabled() (bool, error)
+	Enable() error
+	Disable() error
+}
+
+// backgroundView is how vuoro runs with its window closed (D55).
+type backgroundView struct {
+	RefreshMinutes int  `json:"refresh_minutes"`
+	Notify         bool `json:"notify"`
+	// Autostart is whether vuoro starts at login, and Login whether this
+	// platform lets it.
+	Autostart bool   `json:"autostart"`
+	Login     bool   `json:"login"`
+	LoginErr  string `json:"login_error,omitempty"`
+}
+
+func (a *App) backgroundView(cfg *config.Config) backgroundView {
+	v := backgroundView{RefreshMinutes: int(cfg.RefreshEvery() / time.Minute), Notify: cfg.Notifies(), Login: a.Autostart != nil}
+	if a.Autostart != nil {
+		on, err := a.Autostart.Enabled()
+		v.Autostart = on
+		if err != nil {
+			v.LoginErr = "vuoro could not tell whether it starts at login."
+		}
+	}
+	return v
+}
+
+// saveBackground saves the background refresh interval and whether vuoro
+// notifies. The default interval is saved as no setting, so the file keeps
+// following the default.
+func (a *App) saveBackground(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Base           string `json:"base"`
+		RefreshMinutes int    `json:"refresh_minutes"`
+		Notify         bool   `json:"notify"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if req.RefreshMinutes < 1 || req.RefreshMinutes > 1440 {
+		writeError(w, errors.New("Refresh every 1 to 1440 minutes."))
+		return
+	}
+	a.editConfig(w, req.Base, func(c *config.Config) error {
+		if c.Inbox == nil {
+			c.Inbox = &config.Inbox{}
+		}
+		c.Inbox.RefreshMinutes = req.RefreshMinutes
+		if req.RefreshMinutes == config.DefaultRefreshMinutes {
+			c.Inbox.RefreshMinutes = 0
+		}
+		c.Inbox.Notify = nil
+		if !req.Notify {
+			off := false
+			c.Inbox.Notify = &off
+		}
+		if *c.Inbox == (config.Inbox{}) {
+			c.Inbox = nil
+		}
+		return nil
+	})
+}
+
+// setAutostart turns starting at login on or off.
+func (a *App) setAutostart(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if a.Autostart == nil {
+		writeError(w, fmt.Errorf("%w: vuoro cannot start at login on this system", forge.ErrUnsupported))
+		return
+	}
+	var err error
+	if req.Enabled {
+		err = a.Autostart.Enable()
+	} else {
+		err = a.Autostart.Disable()
+	}
+	if err != nil {
+		writeError(w, fmt.Errorf("Starting at login could not be changed: %w", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, a.setupView())
 }
 
 // forgeForm is one forge as the setup form edits it: everything but the
@@ -135,8 +229,10 @@ func (a *App) setupView() any {
 		Waived      []string         `json:"waived"` // confirmations the person turned off
 		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
 		Tab         string           `json:"tab"`    // the home page's tab used last
+		Background  backgroundView   `json:"background"`
 	}{ConfigPath: path, Editable: path != "" && cfgErr == nil, Base: base, Forges: []forgeView{}, Tools: []toolView{},
 		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetsOf(cfg), Profiles: review.Builtin}
+	out.Background = a.backgroundView(cfg)
 	prefs := a.loadPrefs()
 	out.Waived, out.Scheme, out.Tab = prefs.Waived, prefs.Scheme, prefs.Tab
 	if cfgErr != nil {

@@ -41,6 +41,31 @@ type Inbox struct {
 	// DormantDays folds a change with no human activity for this many days
 	// into the Dormant group. Zero means the default, 90.
 	DormantDays int `json:"dormant_days,omitempty"`
+	// RefreshMinutes is how often vuoro refreshes the inbox in the
+	// background, with the window closed or open. Zero means the default,
+	// 15 (D55).
+	RefreshMinutes int `json:"refresh_minutes,omitempty"`
+	// Notify, when false, turns off the notification sent when a change
+	// becomes the person's turn or a long review finishes. Unset means on
+	// (D55).
+	Notify *bool `json:"notify,omitempty"`
+}
+
+// DefaultRefreshMinutes is how often the inbox refreshes in the background.
+const DefaultRefreshMinutes = 15
+
+// RefreshEvery is how often the inbox refreshes in the background.
+func (c *Config) RefreshEvery() time.Duration {
+	minutes := DefaultRefreshMinutes
+	if c != nil && c.Inbox != nil && c.Inbox.RefreshMinutes > 0 {
+		minutes = c.Inbox.RefreshMinutes
+	}
+	return time.Duration(minutes) * time.Minute
+}
+
+// Notifies says whether vuoro sends notifications.
+func (c *Config) Notifies() bool {
+	return c == nil || c.Inbox == nil || c.Inbox.Notify == nil || *c.Inbox.Notify
 }
 
 // DefaultDormantDays is how long a change may be quiet before it folds away.
@@ -210,6 +235,9 @@ func Parse(b []byte) (*Config, error) {
 	}
 	if c.Inbox != nil && (c.Inbox.DormantDays < 0 || c.Inbox.DormantDays > 3650) {
 		return nil, errors.New("config: inbox.dormant_days: a number of days from 1 to 3650, or leave it out for 90")
+	}
+	if c.Inbox != nil && (c.Inbox.RefreshMinutes < 0 || c.Inbox.RefreshMinutes > 1440) {
+		return nil, errors.New("config: inbox.refresh_minutes: a number of minutes from 1 to 1440, or leave it out for 15")
 	}
 	profiles := map[string]bool{}
 	for i, p := range c.Profiles {

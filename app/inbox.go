@@ -54,7 +54,7 @@ func (a *App) refreshInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Refresh(r.Context())
-	writeJSON(w, http.StatusOK, s.Display(time.Now()))
+	writeJSON(w, http.StatusOK, a.nudge(s))
 }
 
 func (a *App) snoozeInbox(w http.ResponseWriter, r *http.Request) {

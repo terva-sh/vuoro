@@ -182,6 +182,16 @@ export interface Setup {
   waived: string[] // confirmations the person turned off
   scheme: Scheme // the pinned colour scheme, or empty for the system's
   tab: HomeTab // the home page's tab used last
+  background: Background
+}
+
+// Background is how vuoro runs with its window closed (D55).
+export interface Background {
+  refresh_minutes: number
+  notify: boolean
+  autostart: boolean // vuoro starts at login
+  login: boolean // this platform can start vuoro at login
+  login_error?: string
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`

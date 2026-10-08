@@ -21,7 +21,7 @@ const change: Change = {
 }
 const setup: Setup = { editable: true, base: '', sources: [],
   forges: [{ name: 'Forgejo', url: 'https://forge.example', username: 'me', kind: 'forgejo' }],
-  tools: [{ name: 'fake', tool: 'Fake Tool', state: 'ok' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [], scheme: '', tab: '',
+  tools: [{ name: 'fake', tool: 'Fake Tool', state: 'ok' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true }, scheme: '', tab: '',
 }
 
 describe('forge capabilities', () => {

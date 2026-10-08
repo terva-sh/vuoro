@@ -41,6 +41,11 @@ type Manager struct {
 	// EditorDomains are the hosts an editor's commands may reach; nil for
 	// DefaultEditorDomains.
 	EditorDomains []string
+	// Finished, when set, is told when a turn's end leaves a run with
+	// nothing left to do: idle, with no session about to start. It runs in a
+	// goroutine of its own, outside the run's lock. Set it before the manager
+	// serves.
+	Finished func(RunView)
 
 	mu   sync.Mutex
 	runs map[string]*Run
@@ -594,7 +599,7 @@ func (m *Manager) send(r *Run, s *Session, text string, fromPerson bool) error {
 func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 	var next []*Session
 	for ev := range live.Events() {
-		save := false
+		save, finished := false, false
 		nudge := ""
 		r.mu.Lock()
 		at := ev.At
@@ -644,7 +649,9 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 				s.nudged, s.nudging = true, true
 				nudge = "These findings have no mark yet. Check each against the code and mark it with rate_draft: " + strings.Join(missing, ", ")
 			}
+			working := r.Status == Working
 			r.settle()
+			finished = working && r.Status == Idle && len(next) == 0 && nudge == ""
 			save = true
 		}
 		r.mu.Unlock()
@@ -653,6 +660,9 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		}
 		m.advance(r, next)
 		next = nil
+		if finished && m.Finished != nil {
+			m.spawn(func() { m.Finished(r.View()) })
+		}
 		if nudge != "" {
 			m.spawn(func() {
 				_ = m.send(r, s, nudge, false)

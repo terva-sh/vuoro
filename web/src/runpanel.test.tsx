@@ -9,7 +9,7 @@ import type { Change, Run, Setup } from './types'
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 
 const change = { kind: 'gitlab', ref: { host: 'lab.test', project: 'team/repo', number: 2 }, web_url: 'https://lab.test/team/repo/-/merge_requests/2', diff: { head: 'head', base: 'base', start: 'base' }, files: [], threads: [], drafts: [] } as unknown as Change
-const setup: Setup = { editable: true, base: '', sources: [], forges: [], tools: [{ name: 'fake', tool: 'Fake Tool', state: 'ok' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [], scheme: '', tab: '' }
+const setup: Setup = { editable: true, base: '', sources: [], forges: [], tools: [{ name: 'fake', tool: 'Fake Tool', state: 'ok' }], presets: [{ name: 'default', reviewers: [{ profile: 'code' }] }], profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true }, scheme: '', tab: '' }
 const draft = { id: 'd1', severity: 'high', title: 'A finding', description: 'It is wrong.', status: 'pending', revision: 1, session: 's1', drafted_by: 'Fake', updated: '' } as const
 const preparing: Run = { id: 'r1', kind: 'gitlab', ref: change.ref, title: 'A change', web_url: change.web_url, head: 'head', base: 'base', created: '2026-10-05T00:00:00Z', status: 'preparing', cost_usd: 0, sessions: [], drafts: [] }
 const idle: Run = { ...preparing, status: 'idle', drafts: [draft] }

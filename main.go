@@ -4,7 +4,10 @@
 // window (docs/plan.md section 3). The server runs in a goroutine, and main
 // keeps the UI loop, which macOS requires to be on the main thread.
 //
-//	vuoro            open the window, until it is closed
+//	vuoro            open the window; closing it leaves vuoro in the tray,
+//	                 or quits where the desktop has no tray (D55)
+//	vuoro -background  start in the tray with the window closed, as start
+//	                 at login does
 //	vuoro -browser   serve on loopback and print the URL, until interrupted
 //	vuoro -check     load the page, check it reached the server and Go, and
 //	                 exit 0 or 1
@@ -13,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -22,11 +26,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/terva-sh/tuohi"
 	"github.com/terva-sh/tuohi/dialog"
+	"github.com/terva-sh/tuohi/instance"
+	"github.com/terva-sh/tuohi/tray"
 	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/agent/claude"
 	"github.com/terva-sh/vuoro/app"
@@ -58,6 +65,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	browser := fs.Bool("browser", false, "serve on loopback and print the URL, for a browser or debugging")
 	check := fs.Bool("check", false, "load the page, check it reached the server and Go, and exit 0 or 1")
 	addr := fs.String("addr", "127.0.0.1:0", "the loopback address to serve on")
+	background := fs.Bool(backgroundFlag[1:], false, "start in the tray with the window closed, as start at login does")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -70,6 +78,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	logger := log.New(stderr, "vuoro: ", 0)
+
+	// One vuoro runs per person: a later launch opens the running one's
+	// window and exits. It sends no arguments, and the running one reads
+	// none, since any local process can send them.
+	window := !*browser && !*check
+	opens := make(chan struct{}, 1)
+	if window {
+		lock, err := instance.Acquire(autostartID, func(instance.Message) {
+			select {
+			case opens <- struct{}{}:
+			default:
+			}
+		})
+		switch {
+		case errors.Is(err, instance.ErrAlreadyRunning):
+			if err := instance.Send(autostartID, nil); err != nil {
+				logger.Printf("vuoro is already running, and did not answer: %v", err)
+				return 1
+			}
+			return 0
+		case err != nil:
+			logger.Printf("vuoro cannot tell whether it is already running: %v", err)
+		default:
+			defer lock.Release()
+		}
+	}
 
 	ln, err := server.Listen(*addr)
 	if err != nil {
@@ -100,7 +134,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *browser {
 		return serveForBrowser(url, token, stdout)
 	}
-	return showWindow(url, token, *check, logger)
+	d := desktop{opens: opens}
+	if window {
+		mark := icon(64)
+		a.Notify, a.Autostart, a.Log = notifier(mark), startsAtLogin(), logger.Printf
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go a.Background(ctx)
+		d.tray = trayHost(runtime.GOOS, askWatcher)
+		d.hidden = *background && d.tray
+		d.mark = mark
+		d.refresh = func() { a.RefreshNow(ctx) }
+	}
+	return showWindow(url, token, *check, d, logger)
+}
+
+// desktop is how the window lives beside the tray (D55).
+type desktop struct {
+	tray    bool // the desktop shows a tray icon, so closing hides to it
+	hidden  bool // start with the window hidden in the tray
+	mark    []byte
+	refresh func()
+	opens   <-chan struct{} // a later launch asks for the window
 }
 
 // newApp loads the person's configuration and builds the API. A missing
@@ -135,6 +190,7 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 		Repos:    &review.Repos{Dir: filepath.Join(stateDir, "repos")},
 		Drafts:   srv,
 		MCPURL:   mcpURL,
+		Finished: a.RunFinished,
 	}
 	if a.Config != nil {
 		for _, p := range a.Config.Profiles {
@@ -182,8 +238,10 @@ func chooseFolder(show func(dialog.Options) ([]string, error)) func(title string
 }
 
 // showWindow opens the window on url and runs the UI loop on the main thread.
-func showWindow(url, token string, check bool, logger *log.Logger) int {
-	app := &tuohi.App{Name: "vuoro", Exit: true}
+// With a tray, closing the window leaves vuoro running in it, and the tray
+// opens the window again and quits.
+func showWindow(url, token string, check bool, d desktop, logger *log.Logger) int {
+	var app *tuohi.App
 	reports := make(chan report, 1)
 
 	var view *tuohi.View
@@ -212,6 +270,56 @@ func showWindow(url, token string, check bool, logger *log.Logger) int {
 			},
 		},
 	}
+	// The tray's clicks wait until the app and its first window exist: on
+	// Linux they arrive on the bus's goroutines, and the tray is up before
+	// the app is made. Closing ready also publishes app to them.
+	ready := make(chan struct{})
+	open := func() {
+		<-ready
+		if err := app.Show(view); err != nil {
+			logger.Printf("open the window: %v", err)
+		}
+	}
+	menu := tray.Config{Icon: d.mark, AppName: "vuoro", Title: "vuoro", Tooltip: "vuoro", OnClick: open,
+		Items: []tray.Item{
+			{Label: "Open vuoro", OnClick: open},
+			{Label: "Refresh now", OnClick: func() { go d.refresh() }},
+			{Separator: true},
+			{Label: "Quit vuoro", OnClick: func() { <-ready; app.Quit() }},
+		}}
+
+	// Whether closing the window hides vuoro or quits it is fixed when the
+	// first window opens, so the tray must be up by then wherever it can
+	// fail. On Linux and the BSDs it is the session bus's, needs no UI loop,
+	// and is set here; a failure there means closing quits, and vuoro does
+	// not start hidden. On macOS and Windows the tray needs the loop, so it
+	// is set as the loop starts, after closing has been fixed to hide. It
+	// fails there only in a broken session, and then vuoro reports it and
+	// quits rather than run on with no icon to quit it from.
+	inTray := d.tray
+	early := runtime.GOOS != "darwin" && runtime.GOOS != "windows"
+	if inTray && early {
+		if err := tray.Set(menu); err != nil {
+			logger.Printf("tray: %v; closing the window quits", err)
+			inTray = false
+		} else {
+			defer tray.Remove()
+		}
+	}
+	app = &tuohi.App{Name: "vuoro", Exit: !inTray}
+	if inTray && !early {
+		app.Start = func() error {
+			if err := tray.Set(menu); err != nil {
+				return fmt.Errorf("vuoro could not put its icon in the tray, so it has quit: %w", err)
+			}
+			if d.hidden {
+				view.Hide()
+			}
+			return nil
+		}
+		defer tray.Remove()
+	}
+
 	if check {
 		go func() {
 			time.Sleep(checkTimeout)
@@ -220,10 +328,22 @@ func showWindow(url, token string, check bool, logger *log.Logger) int {
 		}()
 	}
 
+	// The first window is made here, on the main thread, even when vuoro
+	// starts hidden: on Linux that pins the UI thread, so a later launch can
+	// open the window from another goroutine.
 	if err := app.Show(view); err != nil {
 		logger.Print(err)
 		return 1
 	}
+	if d.hidden && inTray && early {
+		view.Hide()
+	}
+	close(ready)
+	go func() {
+		for range d.opens {
+			open()
+		}
+	}()
 	if err := app.Wait(); err != nil {
 		logger.Print(err)
 		return 1

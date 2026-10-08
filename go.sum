@@ -1,5 +1,7 @@
 github.com/ebitengine/purego v0.11.1 h1:2zpWRSQNVKN4eKsKO9eM1ILDgWfYMY9GwqRmK6XeQ/0=
 github.com/ebitengine/purego v0.11.1/go.mod h1:DCHPP08djqhNSoTfImcnHYQRZmd0qhakvrozqaEYhGQ=
+github.com/godbus/dbus/v5 v5.2.2 h1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=
+github.com/godbus/dbus/v5 v5.2.2/go.mod h1:3AAv2+hPq5rdnr5txxxRwiGjPXamgoIHgz9FPBfOp3c=
 github.com/terva-sh/design v0.3.0 h1:thvHm+SOa2jHBp7cT7UIW8CQM9OVZ2c0Qvp879QR74I=
 github.com/terva-sh/design v0.3.0/go.mod h1:l6NhM8OKRHhV31zNZUU3i0mVgMEv+YsZto613CSiIYk=
 github.com/terva-sh/tuohi v0.1.0 h1:Ls/dJsBqgo9oDH780cWhr4l4rusasIpyi4Thfhda2CQ=

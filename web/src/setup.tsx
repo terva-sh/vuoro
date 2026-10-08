@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { post } from './api'
 import { EditForm } from './textedit'
-import type { ForgeForm, Setup, TokenSource, Tool } from './types'
+import type { Background as BackgroundView, ForgeForm, Setup, TokenSource, Tool } from './types'
 
 // splitCommand splits a command line into its words as a shell would,
 // honouring single quotes, double quotes, and backslashes, and expanding
@@ -284,6 +284,43 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
       ))}
       {setup.config_path && <p class="muted">Saved in <span class="mono">{setup.config_path}</span>, which you can also edit by hand.</p>}
       {!setup.editable && setup.config_error && <p class="warn">Setup cannot save until the file loads again. Fix it by hand, then reopen this panel.</p>}
+    </div>
+  )
+}
+
+// Background sets how vuoro runs with its window closed (D55): how often it
+// refreshes the inbox, whether it notifies, and whether it starts at login.
+// The first two are the configuration file's; start at login is the
+// system's, and applies at once.
+export function Background({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) => void }) {
+  const b: BackgroundView = setup.background
+  const [minutes, setMinutes] = useState(String(b.refresh_minutes))
+  const [notify, setNotify] = useState(b.notify)
+  const { busy, error, run } = useAction()
+  useEffect(() => { setMinutes(String(b.refresh_minutes)); setNotify(b.notify) }, [b.refresh_minutes, b.notify])
+  const n = Number(minutes)
+  const valid = Number.isInteger(n) && n >= 1 && n <= 1440
+  const changed = n !== b.refresh_minutes || notify !== b.notify
+  const save = () => run(async () => onSetup(await post<Setup>('/api/setup/background', { base: setup.base, refresh_minutes: n, notify })))
+  const login = (enabled: boolean) => run(async () => onSetup(await post<Setup>('/api/setup/autostart', { enabled })))
+  return (
+    <div class="background">
+      <form onSubmit={(e) => { e.preventDefault(); if (valid && changed) void save() }}>
+        <label>Refresh the inbox every{' '}
+          <input type="number" min={1} max={1440} step={1} inputMode="numeric" value={minutes} disabled={!setup.editable || busy}
+            onInput={(e) => setMinutes((e.currentTarget as HTMLInputElement).value)} /> minutes, with the window open or closed
+        </label>
+        <label><input type="checkbox" checked={notify} disabled={!setup.editable || busy}
+          onChange={(e) => setNotify((e.currentTarget as HTMLInputElement).checked)} /> Notify me when a change becomes my turn, or a long review finishes</label>
+        {setup.editable && <button type="submit" disabled={busy || !valid || !changed}>{busy ? 'Saving…' : 'Save'}</button>}
+        {!valid && <p class="warn">Choose from 1 to 1440 minutes.</p>}
+      </form>
+      {b.login ? (
+        <label><input type="checkbox" checked={b.autostart} disabled={busy}
+          onChange={(e) => void login((e.currentTarget as HTMLInputElement).checked)} /> Start vuoro in the tray when I log in</label>
+      ) : <p class="muted">vuoro cannot start at login on this system.</p>}
+      {b.login_error && <p class="warn">{b.login_error}</p>}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
   )
 }
