@@ -441,6 +441,76 @@ func TestShutdownEndsEveryLiveSession(t *testing.T) {
 	m.Close(context.Background(), r.ID)
 }
 
+// gatedDriver holds Start until its gate opens, so a session can start while
+// Shutdown runs.
+type gatedDriver struct {
+	*fakeDriver
+	entered, gate chan struct{}
+	mu            sync.Mutex
+	started       []*fakeSession
+}
+
+func (d *gatedDriver) Start(ctx context.Context, spec agent.Spec) (agent.Session, error) {
+	d.entered <- struct{}{}
+	<-d.gate
+	s, err := d.fakeDriver.Start(ctx, spec)
+	d.mu.Lock()
+	d.started = append(d.started, s.(*fakeSession))
+	d.mu.Unlock()
+	return s, err
+}
+
+// A session that starts once Shutdown has looked at the sessions is closed
+// rather than left running, and Shutdown returns only after the run's
+// goroutines have written its record for the last time.
+func TestShutdownClosesASessionThatStartsUnderItAndWaitsForTheRun(t *testing.T) {
+	m, d, ch, src := setup(t, func(toolCaller, string) string { return "ok" })
+	g := &gatedDriver{fakeDriver: d, entered: make(chan struct{}), gate: make(chan struct{})}
+	m.Drivers = map[string]agent.Driver{"fake": g}
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-g.entered // the checkout is done, and the session is starting
+	done := make(chan struct{})
+	go func() { m.Shutdown(); close(done) }()
+	for !m.down.Load() {
+		time.Sleep(time.Millisecond)
+	}
+	close(g.gate)
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Shutdown did not return")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.started) != 1 {
+		t.Fatalf("%d sessions started", len(g.started))
+	}
+	closed := make(chan struct{})
+	go func() {
+		for range g.started[0].events { // the Info event Start queued
+		}
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the session that started under Shutdown was left running")
+	}
+	// Nothing writes the run's record once Shutdown has returned.
+	path := r.path
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if after, err := os.Stat(path); err != nil || !after.ModTime().Equal(before.ModTime()) {
+		t.Fatalf("the run's record was written after Shutdown returned: %v", err)
+	}
+}
+
 func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
 	m, d, ch, src := setup(t, func(call toolCaller, _ string) string {
 		call("propose_draft", map[string]any{"severity": "low", "title": "first", "description": "d",

@@ -1303,11 +1303,13 @@ mode 0700, and files mode 0600.
 
 ## 9. Gates
 
-`just ci` is the gate, and CI runs the same steps:
+`just ci` is the gate, and CI runs the same steps, on linux on the internal
+Forgejo runners only (D52). darwin and windows are vetted and cross-built
+there, and tested only where someone runs `just ci` on one:
 
 - `gofmt` and `go vet`, with `CGO_ENABLED=0`
-- `go test ./...`, with `-race` on darwin, the only platform where the race
-  detector works without cgo
+- `go test ./...`, and again with `-race`. Off darwin the race detector
+  needs cgo, so that run builds the tests with cgo (D53)
 - cross builds for linux, darwin, and windows
 - the frontend typecheck and tests, and a check that `web/dist` matches source
 - `design-tokens export -check`

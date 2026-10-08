@@ -22,12 +22,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-02T15:47:52Z
+updated_at: 2026-10-08T03:01:56Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude/forgejo-parity-20261006
   name: ""
 extensions: {}
 ---
@@ -42,3 +42,9 @@ install, set up, run a first review, and what each agent can and cannot do.
 
 - [ ] The GitHub mirror exists and its CI runs on main
 - [ ] The README takes a new person from install to a first review
+
+## Notes
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T03:01:56Z
+
+D52 (2026-10-08) removed .github/workflows/ci.yml. GitHub Actions had stopped starting jobs for an account billing problem, and the owner limited testing to linux on the internal runners. Publishing now has to bring macOS and Windows CI back, with the race detector and window check on macOS, rather than keep it. The criterion 'The GitHub mirror exists and its CI runs on main' needs a new workflow.

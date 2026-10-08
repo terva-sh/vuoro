@@ -805,3 +805,44 @@ its patch", records the design.
   Dropping a patch once its commit is merged, since the forge then holds it,
   was rejected: merged history would then need the forge, and a local fix
   has no forge.
+
+### D52. vuoro is tested on linux, on the internal runners, and GitHub runs no CI
+
+Decided by the owner on 2026-10-08, when GitHub Actions stopped starting jobs
+for a billing problem on the account. `.github/workflows/ci.yml` ran `just
+ci`'s steps on ubuntu, macOS and Windows hosted runners, with the race detector
+and the window check on macOS. The Forgejo workflow, on the internal runners,
+is now the only CI. It tests on linux, and vets and cross-builds darwin and
+windows. docs/plan.md section 9 and docs/pr-reviews.md say so.
+
+- **The GitHub workflow is removed** rather than left failing, since a red
+  run on every push says nothing about the code. Keeping it until the billing
+  is fixed was rejected, for the same reason.
+- **macOS and Windows are not tested in CI.** That costs what the hosted legs
+  found: Windows-only failures, such as the temp directories in
+  TKT-01M47EFQ8M7TDAGN19F7RVZ2G6, the race detector, which works without cgo
+  only on darwin (D53 brings it back on linux), and the window check on macOS. Those now run only where
+  someone runs `just ci` or `just test-gui` on that platform. Testing them
+  again comes back with publishing (TKT-01M3YMSVN79DEXW47ZXB519KVE).
+- **go.mod's 1.26 minimum is not tested.** The internal image is Go 1.27, and
+  only the GitHub legs took Go from go.mod.
+
+### D53. The tests also run under the race detector, built with cgo, in the gate and in CI
+
+Decided by the owner on 2026-10-08, with D52. The race detector without cgo
+works only on darwin, so it ran only on GitHub's macOS leg, which D52 removed.
+`just race` runs the tests with `-race`, building them with cgo off darwin,
+and `just ci` and the Forgejo workflow run it after the plain test run.
+
+- **It builds tests only.** The rule against cgo is about what ships, and
+  the release build, the cross builds and the plain test run all stay
+  `CGO_ENABLED=0`. The race run tests a cgo build of the same code, which can
+  differ in the standard library's resolvers, so it is an extra run and does
+  not replace the plain one.
+- **`just ci` needs a C compiler off darwin**, gcc on linux, and says so when
+  one is missing. Leaving the race run out of `just ci`, in CI only, was
+  rejected: the gate and CI run the same steps.
+- **Its first run found a real bug.** `Manager.Shutdown` returned before the
+  sessions' goroutines finished, so a run's record could be written after it
+  returned, and a session that started during it was left running.
+  TKT-01M4CPAZX0WNTCCV7R3HJ5MAJP has the evidence and the fix.

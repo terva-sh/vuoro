@@ -3,11 +3,14 @@
 # The steps match `just ci`. The commands are inline because the container
 # does not install just, so a change to one belongs in the other.
 #
-# Everything runs with CGO_ENABLED=0, the way vuoro ships. The race detector
-# needs cgo on linux, so the tests here run without it; the macOS leg of
-# .github/workflows/ci.yml runs them with it. The image is 1.27 because the
-# internal registry is curated and has no proven 1.26 image; go.mod's 1.26
-# minimum is tested on the GitHub mirror. Checkout comes from the
+# This is vuoro's only CI (D52). The tests run on linux, on the internal
+# runners; darwin and windows are vetted and cross-built, not tested.
+#
+# Everything runs with CGO_ENABLED=0, the way vuoro ships, except the race
+# step. The race detector needs cgo on linux, so that step builds the tests
+# with it, and gcc, and nothing it builds ships (D53). The image is 1.27
+# because the internal registry is curated and has no proven 1.26 image, so
+# go.mod's 1.26 minimum is not what CI tests. Checkout comes from the
 # Actions-Mirrors org and Go from the internal registry's golang image, as in
 # the other terva-sh repositories.
 name: ci
@@ -31,7 +34,7 @@ jobs:
       image: container.local.sothr.com/library/golang:1.27-alpine
     steps:
       - name: Install dependencies
-        run: apk add --no-cache git bash nodejs npm
+        run: apk add --no-cache git bash nodejs npm gcc musl-dev
 
       - name: Checkout
         uses: Actions-Mirrors/forgejo-actions-checkout@v6
@@ -50,6 +53,9 @@ jobs:
 
       - name: go test
         run: go test ./...
+
+      - name: go test -race
+        run: CGO_ENABLED=1 go test -race ./...
 
       - name: Cross-build every target
         run: |

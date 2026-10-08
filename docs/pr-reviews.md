@@ -3,8 +3,8 @@
 vuoro has two forges. Internal work goes through the internal Forgejo
 (`origin`, `git.local.sothr.com/terva-sh/vuoro`), where `terva-review` runs.
 GitHub (`github`, `github.com/terva-sh/vuoro`) is where agents working outside
-the internal network push, and where the macOS and Windows legs of CI run. The
-two meet at `main`, which `just sync-github` keeps equal on both. There is no
+the internal network push. It runs no CI: vuoro is tested on linux, on the
+internal runners only (D52). The two meet at `main`, which `just sync-github` keeps equal on both. There is no
 push mirror, because a push mirror force-pushes and would overwrite anything
 merged on GitHub.
 
@@ -18,14 +18,13 @@ merged on GitHub.
 5. Post a disposition for each finding, and record it in the ticket, while
    the pull request is still open.
 6. Merge on Forgejo, then run `just sync-github --yes` to fast-forward
-   GitHub `main`. The GitHub workflow then runs on Linux, macOS, and Windows,
-   including the window check on macOS. A failure there is a regression to fix
-   on Forgejo.
+   GitHub `main`.
 
 ## Pull requests on GitHub
 
-Work that cannot reach the internal forge opens its pull request on GitHub,
-where `.github/workflows/ci.yml` runs. `terva-review` does not run there.
+Work that cannot reach the internal forge opens its pull request on GitHub.
+Neither CI nor `terva-review` runs there, so run `just ci` before asking for
+the merge.
 After a merge on GitHub, run `just sync-github --yes` to fast-forward Forgejo
 `main`. To give that work a model review, push its branch to `origin` and open
 a Forgejo pull request for it before merging anywhere.

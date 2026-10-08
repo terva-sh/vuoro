@@ -185,7 +185,8 @@ those two are the closest references.
 
 ### Rules
 
-- **No cgo, ever, in what ships.** Build and test with `CGO_ENABLED=0`.
+- **No cgo, ever, in what ships.** Build and test with `CGO_ENABLED=0`. The
+  one exception is the race run, `just race`, which builds tests only (D53).
   terva-sh releases are cross-compiled from one host, so a dependency that
   needs a C toolchain for any target is not acceptable. A SQLite driver means
   `modernc.org/sqlite`, and a keychain means calling the platform's own tool or
@@ -241,8 +242,10 @@ The Go line is 1.26, tuohi's line. vuoro imports no agent tool (decision D7),
 so terva's 1.27 does not apply. Install Go 1.26 or later. Do not rely on
 `GOTOOLCHAIN` to fetch one.
 
-With cgo off, the race detector works on darwin and refuses on linux, so
-`just test` adds `-race` on darwin only. Do not turn cgo on to get it on linux.
+With cgo off, the race detector works on darwin and refuses on linux. So
+`just race`, which `just ci` runs, builds the tests with cgo off darwin, and
+needs a C compiler there (D53). It builds only tests. Do not turn cgo on for
+anything else, and never for what ships.
 
 The frontend is Preact and TypeScript in `web/src`, built by Vite into
 `web/dist`, which is committed and embedded, so `go build` needs no Node.
@@ -250,8 +253,8 @@ After changing `web/src`, run `just web-build` and commit `web/dist`.
 `just ci` fails when the two differ. `just web-setup` installs the locked
 packages first.
 
-`just test` skips the test that opens a window. `just test-gui` runs it, and
-the GitHub workflow's macOS leg runs it in CI.
+`just test` skips the test that opens a window. `just test-gui` runs it. CI
+does not, because CI is linux on the internal runners only (D52).
 
 ### Commits and pull requests
 

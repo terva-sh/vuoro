@@ -47,6 +47,20 @@ type Manager struct {
 	// down is set by Shutdown, after which no run starts, and a checkout
 	// that finishes starts no session.
 	down atomic.Bool
+	// work counts the sessions' goroutines, which Shutdown waits for so that
+	// none writes a run's record after it returns.
+	work sync.WaitGroup
+}
+
+// spawn runs f in a goroutine Shutdown waits for. Once Shutdown has begun it
+// runs nothing. m.mu orders it against Shutdown, so no goroutine is counted
+// after Shutdown starts waiting.
+func (m *Manager) spawn(f func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.down.Load() {
+		m.work.Go(f)
+	}
 }
 
 // Reviewer is one reviewer a run starts: a profile on a tool and a model.
@@ -328,7 +342,7 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 	r.mu.Unlock()
 	for _, s := range r.sessions {
 		if s.Role == drafts.Reviewer || s.Role == drafts.Triage {
-			go m.begin(r, s, r.first)
+			m.spawn(func() { m.begin(r, s, r.first) })
 		}
 	}
 }
@@ -379,7 +393,7 @@ func (m *Manager) advance(r *Run, next []*Session) {
 			text = verificationMessage(r)
 		}
 		r.mu.Unlock()
-		go m.begin(r, s, text)
+		m.spawn(func() { m.begin(r, s, text) })
 	}
 }
 
@@ -508,9 +522,16 @@ func (m *Manager) started(r *Run, s *Session, spec agent.Spec) error {
 		r.save()
 		return err
 	}
+	// Shutdown sets down before it reads the sessions under r.mu, so a session
+	// is either one it closes or one closed here.
+	if m.down.Load() {
+		r.mu.Unlock()
+		_ = live.Close()
+		return ErrShuttingDown
+	}
 	s.live, s.Ref, s.Status, s.Error = live, live.Ref(), Idle, ""
 	r.mu.Unlock()
-	go m.pump(r, s, live)
+	m.spawn(func() { m.pump(r, s, live) })
 	return nil
 }
 
@@ -633,12 +654,12 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 		m.advance(r, next)
 		next = nil
 		if nudge != "" {
-			go func(text string) {
-				_ = m.send(r, s, text, false)
+			m.spawn(func() {
+				_ = m.send(r, s, nudge, false)
 				r.mu.Lock()
 				s.nudging = false
 				r.mu.Unlock()
-			}(nudge)
+			})
 		}
 	}
 	r.mu.Lock()
@@ -831,7 +852,7 @@ func (m *Manager) AskSuggestion(runID, id string) error {
 	r.settle()
 	r.mu.Unlock()
 	r.save()
-	go m.begin(r, s, suggestionMessage(d))
+	m.spawn(func() { m.begin(r, s, suggestionMessage(d)) })
 	return nil
 }
 
@@ -950,10 +971,13 @@ func (r *Run) endPrepare(ctx context.Context) error {
 	}
 }
 
-// Shutdown ends every live session, as vuoro exits, so no agent outlives it.
-// Runs stay open, and their sessions are resumable from their records.
+// Shutdown ends every live session, as vuoro exits, so no agent outlives it,
+// and returns once the sessions' goroutines have recorded their end. Runs stay
+// open, and their sessions are resumable from their records.
 func (m *Manager) Shutdown() {
+	m.mu.Lock()
 	m.down.Store(true)
+	m.mu.Unlock()
 	for _, r := range m.Runs() {
 		if r.prepared != nil {
 			r.stopPrepare()
@@ -979,6 +1003,7 @@ func (m *Manager) Shutdown() {
 		}
 		r.save()
 	}
+	m.work.Wait()
 }
 
 func (m *Manager) profile(name string) (Profile, bool) {

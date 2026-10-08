@@ -275,7 +275,7 @@ func (m *Manager) StartEditor(ctx context.Context, runID string, now *forge.Chan
 	case own || local:
 		first = findingsMessage(v, picked)
 	}
-	go m.begin(r, s, first)
+	m.spawn(func() { m.begin(r, s, first) })
 	return &ed, nil
 }
 

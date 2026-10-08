@@ -7,7 +7,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # What ships is built without cgo, so everything here is built and tested that
-# way (AGENTS.md).
+# way (AGENTS.md). `just race` is the one exception, and builds only tests (D53).
 export CGO_ENABLED := "0"
 
 # Every GOOS/GOARCH pair that must build.
@@ -39,12 +39,23 @@ vet:
     GOOS=darwin go vet ./...
     GOOS=windows go vet ./...
 
-# Run the tests; accepts go test flags. With cgo off the race detector works
-# on darwin and refuses on linux, so -race is added on darwin only.
+# Run the tests; accepts go test flags. `just race` runs them under the race
+# detector.
 [positional-arguments]
 test *args:
-    race=""; if [ "$(go env GOOS)" = darwin ]; then race="-race"; fi; \
-    go test $race "$@" ./...
+    go test "$@" ./...
+
+# Run the tests under the race detector; accepts go test flags. It needs cgo
+# everywhere but darwin, so this builds the tests with cgo, and a C compiler.
+# Nothing it builds ships (D53).
+[positional-arguments]
+race *args:
+    cgo=1; if [ "$(go env GOOS)" = darwin ]; then cgo=0; fi; \
+    cc=$(go env CC); cc=${cc%% *}; \
+    if [ $cgo = 1 ] && ! command -v "$cc" >/dev/null; then \
+        echo "just race needs a C compiler: install gcc (build-essential on Debian and Ubuntu)"; exit 1; \
+    fi; \
+    CGO_ENABLED=$cgo go test -race "$@" ./...
 
 # Open the window and check that the page reached the server and Go. It
 # needs a display, so `just test` skips it.
@@ -98,7 +109,7 @@ tickets-check:
     git ticket check --fix --dry-run --strict
 
 # The full gate. CI runs the same steps.
-ci: vet fmt-check test cross web-typecheck web-test dist-verify design-check tickets-check
+ci: vet fmt-check test race cross web-typecheck web-test dist-verify design-check tickets-check
 
 # Internal work merges on Forgejo (origin) and outside pull requests merge on
 # GitHub (github), so either main can move ahead of the other. This
