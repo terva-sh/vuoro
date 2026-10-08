@@ -8,7 +8,7 @@ import { DiffBrowser, Stat, useFilePicker } from './diffview'
 import { Modal } from './modal'
 import { SavedPatch } from './patch'
 import { TextEditor } from './textedit'
-import type { Draft, EditorDetail, EditorState, FileDiff, Run, StackPreview } from './types'
+import type { Delivery, Draft, EditorDetail, EditorState, FileDiff, Run, StackPreview, SuggestionPreview } from './types'
 import { changeWord } from './types'
 import { WriteContext } from './write'
 import { short, StatusBadge } from './ui'
@@ -18,15 +18,31 @@ import { short, StatusBadge } from './ui'
 // they answer (D39, D40). Nothing here touches the forge.
 // On a triage of the person's own change (D41), picked are the thread replies
 // to fix and describe names one; on a review, the kept findings are fixed.
-export function Editor({ run, url, onRun, picked, describe, picks = false }: {
+export function Editor({ run, url, onRun, picked, describe, picks = false, author }: {
   run: Run; url: string; onRun: (r: Run) => void; picked?: Draft[]; describe?: (d: Draft) => string
   picks?: boolean // a review of the person's own work, whose findings they pick (D42)
+  author?: string // the change's author, whose last choice of delivery is the default (D59)
 }) {
   const [detail, setDetail] = useState<EditorDetail>()
   const { busy, error, setError, run: perform } = useAction()
   const [discarding, setDiscarding] = useState(false)
   const threads = run.mode === 'triage'
   const own = threads || picks || run.kind === 'local'
+  // On somebody else's change, the fixes can go back as suggestions on the
+  // person's comments instead of a draft change (D59), as they last chose
+  // for the change's author.
+  const [delivery, setDelivery] = useState<Delivery>()
+  const [suggest, setSuggest] = useState(false)
+  useEffect(() => {
+    if (own || run.mode || !author) return
+    void (async () => {
+      try {
+        const d = await api<Delivery>(`/api/runs/${run.id}/editor/delivery?author=${encodeURIComponent(author)}`)
+        setDelivery(d)
+        setSuggest(!!d?.offered && d.deliver === 'suggestions')
+      } catch { /* without it, the fixes go back as a draft change */ }
+    })()
+  }, [run.id, author, own])
   const kept = run.drafts.filter((d) => d.decision === 'kept' && !d.fixed_in)
   const name = describe ?? ((d: Draft) => d.title)
   const ed = run.editor && !run.editor.discarded ? run.editor : undefined
@@ -45,21 +61,33 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
   if (run.mode && !threads) return null
   const byID = new Map(run.drafts.map((d) => [d.id, d]))
   const title = (id: string) => { const d = byID.get(id); return d ? name(d) : '' }
-  const waves = (run.waves ?? []).filter((w) => w.pushed)
-  // A start, first or after a push. A later wave goes on from the last push
-  // and is given only what no wave has fixed (D50).
+  const waves = (run.waves ?? []).filter((w) => w.pushed || w.suggested)
+  const word = changeWord(run.kind)
+  // A start, first or after a delivery. A later wave goes on from the last
+  // push, or, for suggestions, from the reviewed head, and is given only what
+  // no wave has fixed or suggested (D50, D59).
   const start = (again: boolean) => {
-    const items = own ? picked ?? [] : kept
+    const items = own ? picked ?? [] : kept.filter((d) => !d.suggested)
     const what = threads ? 'thread' : 'finding'
     const why = items.length > 0 ? '' : own ? `Pick a ${what} first` : 'Keep a finding first'
     const label = own ? `the picked ${what}s` : 'the kept findings'
+    const body = own ? { url, items: items.map((d) => d.id) } : suggest ? { url, deliver: 'suggestions' } : { url }
     return (
-      <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, own ? { url, items: items.map((d) => d.id) } : { url })}
-        title={why || `An agent fixes ${label} ${again ? 'on the pushed branch, from its last push' : 'on a local branch'}, in a sandbox, with no forge credential. Nothing is pushed.`}>
-        {busy ? '⧗ Starting the editor…'
-          : again ? `⚒ Fix ${label} in another wave (${items.length})`
-          : own ? `⚒ Fix ${label} in a branch (${items.length})` : `⚒ Fix these in a branch (${kept.length} kept)`}
-      </button>
+      <>
+        {delivery?.offered && !own && (
+          <fieldset class="editor-deliver">
+            <legend>The fixes go back as</legend>
+            <label><input type="radio" name={`deliver-${run.id}`} checked={suggest} onChange={() => setSuggest(true)} /> suggestions on your comments</label>
+            <label><input type="radio" name={`deliver-${run.id}`} checked={!suggest} onChange={() => setSuggest(false)} /> a draft {word}</label>
+          </fieldset>
+        )}
+        <button disabled={!!why || busy} onClick={() => void act(`/api/runs/${run.id}/editor`, body)}
+          title={why || `An agent fixes ${label} ${again && !suggest ? 'on the pushed branch, from its last push' : 'on a local branch'}, in a sandbox, with no forge credential. Nothing is pushed.${suggest ? ' It keeps to lines a suggestion can replace.' : ''}`}>
+          {busy ? '⧗ Starting the editor…'
+            : again ? `⚒ Fix ${label} in another wave (${items.length})`
+            : own ? `⚒ Fix ${label} in a branch (${items.length})` : `⚒ Fix these in a branch (${items.length} kept)`}
+        </button>
+      </>
     )
   }
   if (!ed) {
@@ -118,10 +146,16 @@ export function Editor({ run, url, onRun, picked, describe, picks = false }: {
               ○ No commit names {left.map((d) => `${d.id} ${name(d)}`).join(', ')}. Its reply in the session says why.
             </p>
           )}
-          <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} />
+          <PushBar run={run} url={url} detail={detail} working={working} onRun={onRun} delivery={delivery} />
           {ed.pushed && !working && detail.commits.at(-1)?.sha === ed.pushed.sha && (
             <div class="editor-again">
               <p class="muted">All of this wave is pushed. Another wave goes on from <span class="mono">{short(ed.pushed.sha)}</span>.</p>
+              {start(true)}
+            </div>
+          )}
+          {ed.suggested && !working && (
+            <div class="editor-again">
+              <p class="muted">This wave went back as suggestions. Another wave starts from the reviewed head, <span class="mono">{short(run.head)}</span>.</p>
               {start(true)}
             </div>
           )}
@@ -143,8 +177,10 @@ function Waves({ waves, title }: { waves: EditorState[]; title: (id: string) => 
         {waves.map((w) => (
           <li key={w.session}>
             <span class="mono">{w.branch}</span>{' '}
-            <span class="muted">pushed <span class="mono">{short(w.pushed!.sha)}</span> to {w.pushed!.target}</span>
-            {w.pushed!.url && <> · <a href={w.pushed!.url} target="_blank" rel="noreferrer">its change</a></>}
+            {w.pushed ? <>
+              <span class="muted">pushed <span class="mono">{short(w.pushed.sha)}</span> to {w.pushed.target}</span>
+              {w.pushed.url && <> · <a href={w.pushed.url} target="_blank" rel="noreferrer">its change</a></>}
+            </> : <span class="muted">✎ sent back as suggestions on {w.suggested!.comments} comment{w.suggested!.comments === 1 ? '' : 's'}</span>}
             <ol class="editor-commits">
               {(w.commits ?? []).map((c) => (
                 <li key={c.sha}>
@@ -188,21 +224,40 @@ const editorFiles = 'editor-'
 // PushBar offers the push of the editor's work and the stacked draft change,
 // and links it once open. The push always asks first: it is the
 // one action here that reaches the forge.
-export function PushBar({ run, url, detail, working, onRun }: {
-  run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void
+export function PushBar({ run, url, detail, working, onRun, delivery }: {
+  run: Run; url: string; detail: EditorDetail; working: boolean; onRun: (r: Run) => void; delivery?: Delivery
 }) {
   const [preview, setPreview] = useState<StackPreview>()
+  const [suggestions, setSuggestions] = useState<SuggestionPreview>()
   const [asked, setAsked] = useState<string>()
   const { busy: loading, error, run: perform } = useAction()
-  const pushed = run.editor?.pushed
-  const own = !!run.editor?.own
-  const local = !!run.editor?.local
+  const ed = run.editor
+  const pushed = ed?.pushed
+  const suggested = ed?.suggested
+  const own = !!ed?.own
+  const local = !!ed?.local
   const last = detail.commits[detail.commits.length - 1]
-  const fresh = !!last && last.sha !== pushed?.sha
+  const fresh = !!last && last.sha !== pushed?.sha && !suggested
   const word = changeWord(run.kind)
   const ask = () => perform(async () => setPreview(await post<StackPreview>(`/api/runs/${run.id}/editor/stack`, { url })))
+  const askSuggestions = () => perform(async () => setSuggestions(await post<SuggestionPreview>(`/api/runs/${run.id}/editor/suggestions`, { url })))
+  // Suggestions apply to the reviewed head, so only a wave standing on it
+  // can go back that way, and a wave started for suggestions cannot be
+  // pushed onto a stacked change an earlier wave holds (D59).
+  const canSuggest = !!delivery?.offered && !own && !local && !pushed && !!last && ed?.base === run.head
+  const canPush = !(ed?.deliver === 'suggestions' && !ed.continues && (run.waves ?? []).some((w) => w.pushed))
+  const suggestButton = canSuggest && !suggested && (
+    <button class={ed?.deliver === 'suggestions' ? 'primary' : ''} disabled={working || loading} onClick={() => void askSuggestions()}
+      title={working ? 'Wait for the editor to finish' : 'Shows each comment as it will read, and asks first. Nothing is posted until you submit your review.'}>
+      {loading ? '⧗ Reading…' : ed?.deliver === 'suggestions' ? '✎ Add as suggestions…' : '✎ Add as suggestions instead…'}
+    </button>
+  )
   return (
     <div class="push-bar">
+      {suggested && (
+        <span>✓ Sent back as suggestions on {suggested.comments} of your pending comment{suggested.comments === 1 ? '' : 's'}, from <span class="mono">{short(suggested.sha)}</span> · they are posted when you submit your review</span>
+      )}
+      {ed?.deliver === 'suggestions' && suggestButton}
       {pushed && local && (
         <span>✓ The branch <span class="mono">{pushed.branch}</span> is in your repository at <span class="mono">{short(pushed.sha)}</span>. Merge or cherry-pick it: <span class="mono">git merge {pushed.branch}</span></span>
       )}
@@ -215,17 +270,79 @@ export function PushBar({ run, url, detail, working, onRun }: {
           {pushed.not_draft && <span class="warn"> · ⚠ It opened as an ordinary {word}, not a draft, so it can be merged as it is. Mark it as a draft on the forge.</span>}
         </span>
       ))}
-      {(fresh || (!own && !local && pushed && !pushed.url)) && (
-        <button class="primary" disabled={working || loading} onClick={() => void ask()}
+      {canPush && (fresh || (!own && !local && pushed && !pushed.url)) && (
+        <button class={ed?.deliver === 'suggestions' ? '' : 'primary'} disabled={working || loading} onClick={() => void ask()}
           title={working ? 'Wait for the editor to finish' : 'Shows where it goes, and asks first'}>
-          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : `⇪ Push and open a draft ${word}…`}
+          {loading ? '⧗ Reading…' : pushed ? '⇪ Push the new commits…' : local ? '⇪ Hand back as a branch in your repository…' : own ? '⇪ Push to your branch…' : `⇪ Push and open a draft ${word}${ed?.deliver === 'suggestions' ? ' instead' : ''}…`}
         </button>
       )}
+      {ed?.deliver !== 'suggestions' && suggestButton}
       {asked && <p class="notice" role="status">⧗ {asked}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       {preview && <PushDialog run={run} url={url} preview={preview} onClose={() => setPreview(undefined)} onRun={onRun}
         onAsked={(text) => { setAsked(text); setPreview(undefined) }} />}
+      {suggestions && <SuggestDialog run={run} url={url} preview={suggestions} onClose={() => setSuggestions(undefined)} onRun={onRun}
+        onAsked={(text) => { setAsked(text); setSuggestions(undefined) }} />}
     </div>
+  )
+}
+
+// SuggestDialog is the confirmation before the editor's wave goes back as
+// suggestions (D59): each of the person's pending comments as it will read,
+// and each new one. Cancel has the focus, so a stray Enter sends nothing.
+// Nothing is posted: the comments stay pending until the person submits.
+export function SuggestDialog({ run, url, preview: p, onClose, onRun, onAsked }: {
+  run: Run; url: string; preview: SuggestionPreview; onClose: () => void; onRun: (r: Run) => void; onAsked?: (text: string) => void
+}) {
+  const { busy, error, run: perform } = useAction()
+  const cancel = useRef<HTMLButtonElement>(null)
+  const word = changeWord(run.kind)
+  const todo = p.fixes.filter((f) => !f.done)
+  const done = p.fixes.filter((f) => f.done)
+  const writes = todo.reduce((n, f) => n + f.new.length + (f.body ? 1 : 0), 0)
+  const attach = todo.filter((f) => f.overflow?.attach)
+  const send = () => perform(async () => {
+    try {
+      onRun(await post<Run>(`/api/runs/${run.id}/editor/suggest`, { url, confirm: 'suggest', sha: p.sha }))
+    } catch (e) {
+      const text = errorText(e)
+      if (!onAsked || !text.includes('vuoro asked the editor')) throw e
+      onAsked(text.replace(/^review: /, ''))
+      return
+    }
+    onClose()
+  })
+  return (
+    <Modal class="suggest-dialog" onClose={onClose} focus={cancel} locked={busy} title="Add the fixes as suggestions">
+      <ul>
+        <li>Writes {writes} of your pending comment{writes === 1 ? '' : 's'}, changed or new. Nothing is posted until you submit your review.</li>
+        <li>Nothing is pushed. The author applies each suggestion on the {word}.</li>
+        {attach.length > 0 && <li>Attaches {attach.length === 1 ? 'a patch' : `${attach.length} patches`} to the project, for {attach.length === 1 ? 'a fix' : 'fixes'} too large to show: <span class="mono">{attach.map((f) => f.overflow!.name).join(', ')}</span>. Anyone who can read the project can open an attached file from its link.</li>}
+        {p.left && p.left.length > 0 && <li class="warn">⚠ No commit names {p.left.join(', ')}. The editor's session says why.</li>}
+      </ul>
+      {todo.map((f) => (
+        <section class="suggest-fix" key={f.finding}>
+          <h4><span class="badge">{f.finding}</span> {f.title}</h4>
+          {f.body ? <>
+            <p class="muted">{f.missing ? 'Your comment is no longer on the forge, so it is written again:' : 'Your comment becomes:'}</p>
+            <pre class="suggest-body">{f.body}</pre>
+          </> : <p class="muted">Your comment is unchanged.</p>}
+          {f.new.map((c) => (
+            <div key={`${c.path}:${c.line}`}>
+              <p class="muted">A new comment on <span class="mono">{c.path}:{c.start === c.line ? c.line : `${c.start}–${c.line}`}</span>:</p>
+              <pre class="suggest-body">{c.body}</pre>
+            </div>
+          ))}
+          {f.misfits && f.misfits.length > 0 && <p class="warn">⚠ {f.misfits.length} change{f.misfits.length === 1 ? '' : 's'} cannot be a suggestion; the comment says why.</p>}
+        </section>
+      ))}
+      {done.length > 0 && <p class="muted">✓ Already sent: {done.map((f) => f.finding).join(', ')}.</p>}
+      {error && <p class="alert" role="alert">⚠ {error}</p>}
+      <div class="actions">
+        <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
+        <button class="primary" disabled={busy || todo.length === 0} onClick={() => void send()}>{busy ? '⧗ Sending…' : 'Add the suggestions'}</button>
+      </div>
+    </Modal>
   )
 }
 

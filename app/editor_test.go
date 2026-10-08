@@ -30,16 +30,22 @@ func TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest(t *testing.T) {
 				continue
 			}
 			ast.Inspect(fn, func(n ast.Node) bool {
-				if sel, ok := n.(*ast.SelectorExpr); ok && (sel.Sel.Name == "PushEditor" || sel.Sel.Name == "OpenStacked") {
+				if sel, ok := n.(*ast.SelectorExpr); ok {
 					callers[sel.Sel.Name] = append(callers[sel.Sel.Name], fn.Name.Name)
+				}
+				if id, ok := n.(*ast.Ident); ok && id.Name == "writeFix" && fn.Name.Name != "writeFix" {
+					callers["writeFix"] = append(callers["writeFix"], fn.Name.Name)
 				}
 				return true
 			})
 		}
 	}
-	for _, name := range []string{"PushEditor", "OpenStacked"} {
-		if got := slices.Compact(callers[name]); len(got) != 1 || got[0] != "pushEditor" {
-			t.Errorf("%s is called from %q, want only pushEditor", name, got)
+	// Suggestions go back the same way (D59): only the confirmed suggest
+	// route delivers them, and only its writer attaches a patch.
+	for name, want := range map[string]string{"PushEditor": "pushEditor", "OpenStacked": "pushEditor",
+		"DeliverSuggestions": "suggestEditor", "writeFix": "suggestEditor", "Upload": "writeFix"} {
+		if got := slices.Compact(callers[name]); len(got) != 1 || got[0] != want {
+			t.Errorf("%s is called from %q, want only %s", name, got, want)
 		}
 	}
 }

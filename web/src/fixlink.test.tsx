@@ -44,4 +44,11 @@ describe('FixLink', () => {
     await act(async () => button('Not fixed').click())
     expect(post).toHaveBeenLastCalledWith('/api/runs/r1/drafts/d9/fixed', { url: 'u', sha: '' })
   })
+
+  it('says a fix went back as suggestions, and can still be marked fixed by hand (D59)', () => {
+    const suggested = { commit: 'abcd12345678', subject: 'Return the sum', at: '', misfits: 1, hunks: [{ path: 'a.go', start: 3, end: 3, text: 'x' }] }
+    act(() => render(<FixLink draft={draft({ decision: 'kept', suggested })} runID="r1" url="u" onRun={() => {}} />, root))
+    expect(root.textContent).toContain('✎ Sent back as 1 suggestion from abcd1234 · Return the sum · 1 change could not be a suggestion')
+    expect(button('Mark fixed…')).toBeTruthy()
+  })
 })

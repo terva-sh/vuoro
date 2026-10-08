@@ -3,11 +3,14 @@ package app
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
+	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/state"
 )
 
@@ -33,7 +36,14 @@ type prefs struct {
 	Scheme string `json:"scheme,omitempty"`
 	// Tab is the home page's tab the person used last.
 	Tab string `json:"tab,omitempty"`
+	// Deliver is how the person last had an editor's fixes go back on a
+	// change by each author, by "host/username": review.Suggestions, or
+	// "change" for a stacked change (D59).
+	Deliver map[string]string `json:"deliver,omitempty"`
 }
+
+// deliveryKey names a change's author for prefs.Deliver.
+func deliveryKey(host, author string) string { return strings.ToLower(host + "/" + author) }
 
 func (a *App) prefsPath() string {
 	if a.StateDir == "" {
@@ -61,7 +71,26 @@ func (a *App) loadPrefs() prefs {
 	if !slices.Contains(Tabs, p.Tab) {
 		p.Tab = ""
 	}
+	maps.DeleteFunc(p.Deliver, func(_, v string) bool { return v != review.Suggestions && v != "change" })
 	return p
+}
+
+// rememberDelivery keeps how the person had an editor's fixes go back on a
+// change by this author, as the default for the next (D59).
+func (a *App) rememberDelivery(host, author, deliver string) {
+	if deliver == "" {
+		deliver = "change"
+	}
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	if p.Deliver == nil {
+		p.Deliver = map[string]string{}
+	}
+	p.Deliver[deliveryKey(host, author)] = deliver
+	if path := a.prefsPath(); path != "" {
+		_ = state.WriteJSON(path, p) // a default lost is only a default
+	}
 }
 
 // setConfirm turns the confirmation of one action on or off, and answers

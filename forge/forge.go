@@ -246,6 +246,13 @@ type Writer interface {
 	Approve(ctx context.Context, ref Ref, approve bool) error
 }
 
+// Uploader attaches a file to a change's project, for a pending comment to
+// link, and returns the Markdown that links it (D59). It is the person's
+// confirmed action, like every write.
+type Uploader interface {
+	Upload(ctx context.Context, ref Ref, name string, data []byte) (markdown string, err error)
+}
+
 // DraftStore keeps the person's pending comments on a change for a forge that
 // cannot keep them privately until they submit (D43). It is vuoro's own
 // state, never the forge's, and holds no credential.

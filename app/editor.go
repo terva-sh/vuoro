@@ -18,8 +18,9 @@ import (
 // (D41). The change must still be at the head the run read.
 func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		URL   string   `json:"url"`
-		Items []string `json:"items,omitempty"`
+		URL     string   `json:"url"`
+		Items   []string `json:"items,omitempty"`
+		Deliver string   `json:"deliver,omitempty"` // review.Suggestions, or empty for a stacked change (D59)
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -31,7 +32,7 @@ func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	task := review.EditorTask{Items: req.Items}
+	task := review.EditorTask{Items: req.Items, Deliver: req.Deliver}
 	var ch *forge.Change
 	if run.Kind != review.Local { // a local range has no forge to read
 		var err error
@@ -44,13 +45,53 @@ func (a *App) startEditor(w http.ResponseWriter, r *http.Request) {
 			writeError(w, errors.New("The editor fixes threads on your own change only."))
 			return
 		}
+		if task.Deliver != "" && !ch.Capabilities.Suggestions {
+			writeError(w, fmt.Errorf("suggestions: %w", forge.ErrUnsupported))
+			return
+		}
 	}
 	a.probeTools() // a run reloaded after a restart starts on a probed tool
 	if _, err := a.Runs.StartEditor(ctx, run.ID, ch, a.identity(ctx), task); err != nil {
 		writeError(w, err)
 		return
 	}
+	if ch != nil && run.Mode == "" && !task.Own && ch.Capabilities.Suggestions {
+		a.rememberDelivery(ch.Ref.Host, ch.Author.Username, task.Deliver)
+	}
 	a.getRun(w, r)
+}
+
+// delivery says whether an editor's fixes on the run's change, by author,
+// can go back as suggestions (D59), and how they went back last on a change
+// by that author. It reads the client's capabilities, not the change, so
+// showing a run makes no forge call.
+func (a *App) delivery(w http.ResponseWriter, r *http.Request) {
+	out := struct {
+		Offered bool   `json:"offered"`
+		Deliver string `json:"deliver"`
+	}{}
+	run := a.Runs.Get(r.PathValue("id"))
+	if run == nil {
+		writeError(w, review.ErrNoRun)
+		return
+	}
+	author := r.URL.Query().Get("author")
+	f := a.forgeFor(run.Ref.Host)
+	if run.Kind != review.Local && run.Mode == "" && author != "" && f != nil && !strings.EqualFold(f.Username, author) {
+		c, err := a.client(r.Context(), run.Ref.Host, run.Kind)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		caps := c.Capabilities()
+		out.Offered = caps.Suggestions && caps.Drafts
+		if out.Offered {
+			a.prefsMu.Lock()
+			out.Deliver = a.loadPrefs().Deliver[deliveryKey(run.Ref.Host, author)]
+			a.prefsMu.Unlock()
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // isAuthor says the signed-in person wrote the change.

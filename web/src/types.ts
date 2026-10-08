@@ -53,7 +53,8 @@ export interface DraftAnchor { path: string; side: 'head' | 'base'; start_line: 
 export type TriageCategory = "must_fix" | "discuss" | "nit"
 export interface Draft {
   thread_id?: string; category?: TriageCategory; reason?: string; thread_key?: string; fixed_in?: string
-  fixed_subject?: string; fixed_by?: 'editor' | 'person' // the fixing commit's subject, and who linked it (D50)
+  fixed_subject?: string; fixed_by?: 'editor' | 'person' | 'suggestion' // the fixing commit's subject, and who linked it (D50, D59)
+  suggested?: SuggestedFix // the editor's fix, sent back as suggestions on the comments (D59)
   id: string; severity: Severity; title: string; description: string; evidence?: string
   anchor?: DraftAnchor; sources?: string[]
   suggestion?: string // replaces the anchor's head-side lines
@@ -112,7 +113,31 @@ export interface EditorState {
   pushed?: Pushed
   continues?: Pushed // a later wave's starting point, the last wave's push (D50)
   commits?: EditorCommit[] // an earlier wave's commits, as pushed
+  deliver?: 'suggestions' // how the wave was started to go back: as suggestions, or as a draft change (D59)
+  suggested?: { sha: string; at: string; comments: number } // the wave went back as suggestions
 }
+// SuggestedFix is an editor's commit sent back as suggestions (D59).
+export interface SuggestedFix {
+  commit: string; subject: string; at: string; misfits?: number
+  hunks?: { path: string; start: number; end: number; text: string; note_id?: string }[]
+}
+// Delivery says whether the editor's fixes can go back as suggestions, and
+// how they went back last on a change by the same author.
+export interface Delivery { offered: boolean; deliver: string }
+// Placed is one suggestion: lines start to end at the reviewed head become text.
+export interface Placed { path: string; start: number; end: number; line: number; text: string; block: string }
+export interface PlannedFix {
+  finding: string; title: string; note_id: string; commits: EditorCommit[]
+  on_comment?: Placed; comments?: Placed[]; misfits?: { path: string; reason: string }[]
+  diff?: string; overflow?: { lines: number; files: number; bytes?: number; name: string; attach: boolean }
+  done?: boolean // sent by an earlier attempt
+}
+// FixPreview is one finding's part of a suggestion delivery, as it will read.
+export interface FixPreview extends PlannedFix {
+  before?: string; body?: string; missing?: boolean
+  new: { path: string; start: number; line: number; body: string }[]
+}
+export interface SuggestionPreview { sha: string; fixes: FixPreview[]; left?: string[] }
 export interface Pushed { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; at: string }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.

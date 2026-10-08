@@ -76,6 +76,10 @@ type Draft struct {
 	FixedIn      string `json:"fixed_in,omitempty"`
 	FixedSubject string `json:"fixed_subject,omitempty"`
 	FixedBy      string `json:"fixed_by,omitempty"`
+	// Suggested is the editor's fix sent back as suggestions on the
+	// person's pending comments, rather than pushed (D59). vuoro records it,
+	// never an agent, and it stands until a later head shows it applied.
+	Suggested *SuggestedFix `json:"suggested,omitempty"`
 	// Earlier is the finding of the review this run follows that the draft
 	// restates, and Carried says its decision came from that finding (D50).
 	Earlier string `json:"earlier,omitempty"`

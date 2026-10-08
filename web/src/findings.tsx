@@ -86,7 +86,7 @@ function Finding({ draft: d, runID, url, onPick, onRun, checking, from, sources,
   const dismiss = () => post<Run>(`/api/runs/${runID}/drafts/${d.id}/dismiss`).then(onRun, (e: unknown) => setError(errorText(e)))
   const mark = d.override ?? d.confidence
   const a = d.anchor
-  const decided = (d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : '')
+  const decided = (d.fixed_in ? `✓ fixed in ${short(d.fixed_in)}` : d.suggested ? '✎ suggested' : d.decision === 'kept' ? '✓ kept' : d.decision === 'dropped' ? (picker ? '✗ dismissed' : '✗ dropped') : '')
     + (d.carried && !d.fixed_in ? ' earlier' : '')
   return (
     <div class="finding-row">
@@ -150,9 +150,9 @@ export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: 
       <p class="fix-link">
         ✓ Fixed in {link ? <a class="mono" href={link} target="_blank" rel="noreferrer">{short(d.fixed_in)}</a> : <span class="mono">{short(d.fixed_in)}</span>}
         {d.fixed_subject && <> · {d.fixed_subject}</>}
-        <span class="muted"> · {d.fixed_by === 'person' ? 'linked by you' : "named in the commit's trailer"}</span>
+        <span class="muted"> · {d.fixed_by === 'person' ? 'linked by you' : d.fixed_by === 'suggestion' ? 'its suggested lines are in place' : "named in the commit's trailer"}</span>
         <SavedPatch sha={d.fixed_in} />
-        {d.fixed_by === 'person' && <> <button class="link" disabled={act.busy} onClick={() => void mark('')}>Not fixed</button></>}
+        {(d.fixed_by === 'person' || d.fixed_by === 'suggestion') && <> <button class="link" disabled={act.busy} onClick={() => void mark('')}>Not fixed</button></>}
         {act.error && <span class="alert" role="alert"> ⚠ {act.error}</span>}
       </p>
     )
@@ -162,8 +162,16 @@ export function FixLink({ draft: d, runID, url, onRun }: { draft: Draft; runID: 
     setCommits(cs)
     setSHA(cs[cs.length - 1]?.sha ?? '')
   })
+  const s = d.suggested
   return (
     <div class="fix-link">
+      {s && (
+        <p class="fix-suggested">
+          ✎ Sent back as {s.hunks?.length ?? 0} suggestion{s.hunks?.length === 1 ? '' : 's'} from <span class="mono">{short(s.commit)}</span> · {s.subject}
+          {!!s.misfits && <span class="muted"> · {s.misfits} change{s.misfits === 1 ? '' : 's'} could not be a suggestion</span>}
+          <SavedPatch sha={s.commit} />
+        </p>
+      )}
       {!commits ? (
         <button disabled={act.busy} onClick={() => void open()} title="Link this finding to the commit that fixed it. Nothing is posted.">
           {act.busy ? '⧗ Reading commits…' : 'Mark fixed…'}

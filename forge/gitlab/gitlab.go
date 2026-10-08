@@ -117,13 +117,19 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		target += "?" + query.Encode()
 	}
 	var rd io.Reader
+	contentType := ""
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
 			return nil, nil, err
 		}
-		rd = bytes.NewReader(b)
+		rd, contentType = bytes.NewReader(b), "application/json"
 	}
+	return c.send(ctx, method, path, target, contentType, rd)
+}
+
+// send makes one request with the token in its header, and reads the answer.
+func (c *Client) send(ctx context.Context, method, path, target, contentType string, rd io.Reader) ([]byte, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, method, target, rd)
 	if err != nil {
 		return nil, nil, err
@@ -132,8 +138,8 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		req.Header.Set("Authorization", "Bearer "+c.token.Reveal())
 	}
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	res, err := c.http.Do(req)
 	if err != nil {

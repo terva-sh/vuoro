@@ -120,7 +120,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} onSelect={setSelected} />}
+      {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} onSelect={setSelected} author={change.author?.username} />}
     </div>
   )
 }
@@ -128,9 +128,10 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
 // RunView is one run. own marks a review of the person's own work, a merge
 // request of theirs or a local range, whose findings are picked for the
 // editor or dismissed, and never posted (D42).
-export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelect }: {
+export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelect, author }: {
   run: Run; url: string; own?: boolean; onClose: () => void; onPick: (path: string) => void; onRun: (r: Run) => void
   onSelect?: (id: string) => void // opens another run of the change, such as the one this follows
+  author?: string // the change's author
 }) {
   const self = own || run.kind === 'local'
   // The findings to hand the editor: pending and undecided ones above low
@@ -206,7 +207,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
       <section class="run-section">
         <header class="run-section-head"><h3>{self ? 'Fix' : 'Hand back'}</h3><span class="muted">{self ? 'the findings you picked, on a branch' : 'the kept findings, as a report or as fixes'}</span></header>
         {!self && <HandOff run={run} kept={run.drafts.filter((d) => d.decision === 'kept').length} />}
-        <Editor run={run} url={url} onRun={onRun} picks={self} picked={self ? shownDrafts(run).filter(isPicked) : undefined} />
+        <Editor run={run} url={url} onRun={onRun} picks={self} picked={self ? shownDrafts(run).filter(isPicked) : undefined} author={author} />
       </section>
     </div>
     </PatchesContext.Provider>

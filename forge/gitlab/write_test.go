@@ -200,3 +200,34 @@ func TestARefusedApprovalSaysWhatA401UsuallyMeans(t *testing.T) {
 		t.Fatalf("the status is repeated: %v", err)
 	}
 }
+
+// A fix too large for a comment is attached as a file (D59): one multipart
+// upload to the project, with the token in the header, answered with the
+// Markdown that links it.
+func TestAnUploadAttachesAFileToTheProject(t *testing.T) {
+	var got struct{ path, name, data, auth string }
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.path, got.auth = r.URL.EscapedPath(), r.Header.Get("Authorization")
+		f, h, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `{"message":"no file"}`, 400)
+			return
+		}
+		b, _ := io.ReadAll(f)
+		got.name, got.data = h.Filename, string(b)
+		w.Write([]byte(`{"alt":"fix-d3.patch","url":"/uploads/abc/fix-d3.patch","markdown":"[fix-d3.patch](/uploads/abc/fix-d3.patch)"}`))
+	}))
+	defer srv.Close()
+	c, ref := client(t, srv, secret)
+	md, err := c.Upload(context.Background(), ref, "fix-d3.patch", []byte("From abc\n"))
+	if err != nil || md != "[fix-d3.patch](/uploads/abc/fix-d3.patch)" {
+		t.Fatalf("upload %q %v", md, err)
+	}
+	if got.path != "/api/v4/projects/gitlab-org%2Fcli/uploads" || got.name != "fix-d3.patch" || got.data != "From abc\n" || got.auth != "Bearer "+secret {
+		t.Fatalf("sent %+v", got)
+	}
+	anon, ref := client(t, srv, "")
+	if _, err := anon.Upload(context.Background(), ref, "x.patch", []byte("x")); err == nil {
+		t.Fatal("an upload went without a token")
+	}
+}

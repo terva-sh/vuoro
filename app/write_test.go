@@ -290,6 +290,20 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	if code, out := call(t, h, pushPath, map[string]any{"url": mrURL, "confirm": "push", "title": "t", "sha": "abc"}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "no editor") {
 		t.Fatalf("a push with no editor: %d %v", code, out)
 	}
+	// Suggestions go back only on the person's confirmation too (D59).
+	suggestPath := fmt.Sprintf("/api/runs/%s/editor/suggest", run.ID)
+	if code, out := call(t, h, suggestPath, map[string]any{"url": mrURL, "sha": "abc"}); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "confirmation") {
+		t.Fatalf("unconfirmed suggestions: %d %v", code, out)
+	}
+	for author, want := range map[string]bool{"unstable-code": true, "me": false, "": false} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", fmt.Sprintf("/api/runs/%s/editor/delivery?author=%s", run.ID, author), nil))
+		var out map[string]any
+		json.Unmarshal(rec.Body.Bytes(), &out)
+		if rec.Code != 200 || out["offered"] != want {
+			t.Fatalf("delivery for %q: %d %v", author, rec.Code, out)
+		}
+	}
 	g.mu.Lock()
 	g.fork = true
 	g.mu.Unlock()

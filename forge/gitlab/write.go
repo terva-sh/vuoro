@@ -1,10 +1,12 @@
 package gitlab
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,8 +16,9 @@ import (
 )
 
 var (
-	_ forge.Writer  = (*Client)(nil)
-	_ forge.Stacker = (*Client)(nil)
+	_ forge.Writer   = (*Client)(nil)
+	_ forge.Stacker  = (*Client)(nil)
+	_ forge.Uploader = (*Client)(nil)
 )
 
 func mrPath(ref forge.Ref) string {
@@ -233,4 +236,37 @@ func (c *Client) OpenStacked(ctx context.Context, ref forge.Ref, s forge.NewStac
 		return "", fmt.Errorf("gitlab: the new merge request: %v", err)
 	}
 	return mr.WebURL, nil
+}
+
+// Upload attaches a file to the change's project, for a pending comment to
+// link (D59). GitLab keeps it under the project's uploads, where only those
+// who can read the project can fetch it, and answers with the Markdown link.
+func (c *Client) Upload(ctx context.Context, ref forge.Ref, name string, data []byte) (string, error) {
+	if c.token.Empty() {
+		return "", errNoToken
+	}
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile("file", name)
+	if err == nil {
+		_, err = fw.Write(data)
+	}
+	if err == nil {
+		err = mw.Close()
+	}
+	if err != nil {
+		return "", err
+	}
+	path := projectPath(ref.Project) + "/uploads"
+	b, _, err := c.send(ctx, "POST", path, c.base.String()+path, mw.FormDataContentType(), &buf)
+	if err != nil {
+		return "", err
+	}
+	var out struct {
+		Markdown string `json:"markdown"`
+	}
+	if err := json.Unmarshal(b, &out); err != nil || out.Markdown == "" {
+		return "", errors.New("gitlab: GitLab did not say where the file went")
+	}
+	return out.Markdown, nil
 }

@@ -216,3 +216,62 @@ describe('Editor', () => {
     expect(root.querySelector('details.editor-waves')).toBeNull()
   })
 })
+
+describe('Suggestions (D59)', () => {
+  it('starts the editor for suggestions when they were chosen last for the author', async () => {
+    vi.mocked(api).mockResolvedValue({ offered: true, deliver: 'suggestions' } as never)
+    vi.mocked(post).mockResolvedValue(run() as never)
+    const root = document.createElement('div')
+    await act(async () => render(<Editor run={run()} url="u" onRun={() => {}} author="mason" />, root))
+    await act(async () => {})
+    const radios = [...root.querySelectorAll<HTMLInputElement>('.editor-deliver input')]
+    expect(radios.map((r) => r.checked)).toEqual([true, false])
+    expect(root.textContent).toContain('suggestions on your comments')
+    await act(async () => { [...root.querySelectorAll('button')].find((b) => b.textContent?.startsWith('⚒ Fix these'))!.click() })
+    expect(api).toHaveBeenCalledWith('/api/runs/r1/editor/delivery?author=mason')
+    expect(post).toHaveBeenLastCalledWith('/api/runs/r1/editor', { url: 'u', deliver: 'suggestions' })
+  })
+
+  it('offers no choice where the forge cannot apply a suggestion', async () => {
+    vi.mocked(api).mockResolvedValue({ offered: false, deliver: '' } as never)
+    const root = document.createElement('div')
+    await act(async () => render(<Editor run={run()} url="u" onRun={() => {}} author="mason" />, root))
+    await act(async () => {})
+    expect(root.querySelector('.editor-deliver')).toBeNull()
+  })
+
+  it('puts the suggestions first for a wave started for them, and sends them only from the dialog', async () => {
+    const detail = { session: 's2', branch: 'b', base: 'abcdef1234', started: '', commits: [{ sha: 'f00d', subject: 'Fix', findings: ['d1'] }], files: [] }
+    const r = run({ editor: { session: 's2', branch: 'b', base: 'abcdef1234', started: '', deliver: 'suggestions' } })
+    const preview = { sha: 'f00d', fixes: [
+      { finding: 'd1', title: 'Finding d1', note_id: '41', commits: [], before: 'c', body: 'c\n\nSuggested fix:\n\n```suggestion:-0+0\nx\n```', new: [{ path: 'a.go', start: 9, line: 9, body: 'Part of the fix for **Finding d1**' }], misfits: [{ path: 'N.md', reason: 'it adds the file' }] },
+      { finding: 'd2', title: 'Finding d2', note_id: '42', commits: [], done: true, new: [] },
+    ] }
+    vi.mocked(post).mockImplementation(async (path: string) => (path.endsWith('/suggestions') ? preview : run()) as never)
+    const root = document.createElement('div')
+    document.body.append(root)
+    await act(async () => render(<PushBar run={r} url="u" detail={detail} working={false} onRun={() => {}} delivery={{ offered: true, deliver: 'suggestions' }} />, root))
+    const buttons = [...root.querySelectorAll('button')]
+    expect(buttons.map((b) => b.textContent)).toEqual(['✎ Add as suggestions…', '⇪ Push and open a draft merge request instead…'])
+    expect(buttons[0].className).toBe('primary')
+    await act(async () => buttons[0].click())
+    expect(root.textContent).toContain('Writes 2 of your pending comments')
+    expect(root.textContent).toContain('Nothing is pushed')
+    expect(root.textContent).toContain('A new comment on a.go:9')
+    expect(root.textContent).toContain('1 change cannot be a suggestion')
+    expect(root.textContent).toContain('Already sent: d2')
+    expect(document.activeElement?.textContent).toBe('Cancel')
+    await act(async () => { [...root.querySelectorAll('button')].find((b) => b.textContent === 'Add the suggestions')!.click() })
+    expect(post).toHaveBeenLastCalledWith('/api/runs/r1/editor/suggest', { url: 'u', confirm: 'suggest', sha: 'f00d' })
+    root.remove()
+  })
+
+  it('says a wave went back as suggestions, and offers neither delivery again', async () => {
+    const detail = { session: 's2', branch: 'b', base: 'abcdef1234', started: '', commits: [{ sha: 'f00d', subject: 'Fix', findings: ['d1'] }], files: [] }
+    const r = run({ editor: { session: 's2', branch: 'b', base: 'abcdef1234', started: '', deliver: 'suggestions', suggested: { sha: 'f00d', at: '', comments: 3 } } })
+    const root = document.createElement('div')
+    await act(async () => render(<PushBar run={r} url="u" detail={detail} working={false} onRun={() => {}} delivery={{ offered: true, deliver: 'suggestions' }} />, root))
+    expect(root.textContent).toContain('Sent back as suggestions on 3 of your pending comments')
+    expect(root.querySelectorAll('button').length).toBe(0)
+  })
+})

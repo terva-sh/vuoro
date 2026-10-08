@@ -577,3 +577,9 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
   .settings-nav { position: static; }
   .forge-card { grid-template-columns: 1fr; }
 }
+.editor-deliver { border: 0; padding: 0; margin: 0 0 var(--ui-space-2); display: flex; gap: var(--ui-space-3); align-items: center; flex-wrap: wrap; }
+.editor-deliver legend { float: left; margin-right: var(--ui-space-2); color: var(--ui-muted); }
+.modal.suggest-dialog { max-width: 820px; max-height: 85vh; overflow: auto; }
+.suggest-fix { margin-bottom: var(--ui-space-3); }
+.suggest-fix h4 { margin: 0 0 var(--ui-space-1); }
+.suggest-body { background: var(--ui-raised); padding: var(--ui-space-2); border-radius: var(--ui-radius-inline); max-height: 18em; overflow: auto; white-space: pre-wrap; }
