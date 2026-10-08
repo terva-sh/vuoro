@@ -111,7 +111,9 @@ GitHub works through a configured account, since GitHub refuses anonymous
 reads of reviews. Your pending comments go into a GitHub pending review, which
 only you can see until you submit; a comment on the whole change stays in Vuoro
 until then, because GitHub cannot change a pending review's summary. A reviewer
-cannot withdraw an approval on GitHub, so Vuoro does not offer it.
+cannot withdraw an approval on GitHub, so Vuoro does not offer it. An editor's
+fixes on a GitHub pull request go up as a draft pull request onto its branch,
+or straight to the branch when the pull request is yours.
 
 ## Shared styling
 

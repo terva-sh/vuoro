@@ -126,11 +126,21 @@ func (c *Client) do(ctx context.Context, method, target, path string, body any) 
 		return nil, errors.New("github: response exceeds 32 MiB")
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
+		// A validation failure says what failed in its errors list.
 		var m struct {
 			Message string `json:"message"`
+			Errors  []struct {
+				Message string `json:"message"`
+			} `json:"errors"`
 		}
 		_ = json.Unmarshal(b, &m)
-		return nil, &forge.APIError{Forge: forge.GitHub, Method: method, Path: path, Status: res.StatusCode, Message: clip(c.scrub(m.Message))}
+		msg := m.Message
+		for _, e := range m.Errors {
+			if e.Message != "" {
+				msg += ": " + e.Message
+			}
+		}
+		return nil, &forge.APIError{Forge: forge.GitHub, Method: method, Path: path, Status: res.StatusCode, Message: clip(c.scrub(msg))}
 	}
 	return b, nil
 }

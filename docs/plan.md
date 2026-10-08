@@ -603,7 +603,7 @@ that was already submitted answers null and publishes nothing.
 | Operation | GitHub route | Notes |
 |---|---|---|
 | Pending review | `addPullRequestReview` with `commitOID` and no event | One per person per pull request: a second is refused, so vuoro uses the one the person started on GitHub. |
-| Inline draft | `addPullRequestReviewThread` with the review's id, a line and a side | A line outside the diff answers a null thread, with no error. A removed line is `LEFT`. A comment on an earlier head is refused before any write. |
+| Inline draft | `addPullRequestReviewThread` with the review's id, a line and a side | A line outside the diff answers a null thread, with no error. A removed line is `LEFT`. A comment on an earlier head is refused before any write, and so is one into a pending review started on an earlier commit, since GitHub reads the line against the review's commit. |
 | Reply in a review thread | `addPullRequestReviewThreadReply` with the review's id | Pending until Submit. |
 | Comment on the whole change, or a reply to one | Kept in vuoro until Submit | A pending review's body cannot be changed once the review exists. Submit sends the comments, joined, as the review's body, after any body started on GitHub, which vuoro shows and cannot edit. A reply to a general comment is posted with `addComment` after the review, as Forgejo's replies are. |
 | Edit, delete a draft | `updatePullRequestReviewComment`, `deletePullRequestReviewComment` | Both act on published comments too, so the comment must be in the person's pending review. GitHub has no conditional write, so a review submitted on GitHub in the moment between that check and the write takes the edit or the delete; both answer the comment's state, and vuoro reports it as a change to a published comment. Deleting the last comment of a pending review with no body removes the review. |
@@ -612,6 +612,8 @@ that was already submitted answers null and publishes nothing.
 | Withdraw an approval | None | Only a dismissal, by someone with write access, takes one back. |
 | Resolve, unresolve | `resolveReviewThread`, `unresolveReviewThread` | Review threads only. |
 | Suggestion | Off | GitHub applies a `suggestion` block over a line range, and vuoro's anchor holds one line. A suggestion posts as a plain fenced replacement until the anchor can hold a range. |
+| Stacked draft PR | `POST /repos/{o}/{r}/pulls` with `draft: true` | A repository whose plan has no drafts answers 422 naming drafts; vuoro then opens an ordinary pull request and reports it as not a draft. A new pull request whose head commit is already in its base is marked merged at once, so the editor's branch must hold commits the target lacks. |
+| Fork check | `isCrossRepository` and `headRepository.nameWithOwner` | A pull request from a deleted fork has no head repository and is refused as a fork. |
 
 ## 6. Agents
 
@@ -865,8 +867,11 @@ hand-off report lists, become the editor's task:
    push route is the only caller of the push and of the merge request's
    creation, and a test holds that. On Forgejo the change is a draft pull
    request, marked by a `WIP:` title prefix, and the CI files flagged are
-   `.forgejo/`, `.gitea/workflows/` and `.github/workflows/`. Forgejo's
-   `TestLiveStack` exercises both this route and the own-branch push (D41).
+   `.forgejo/`, `.gitea/workflows/` and `.github/workflows/`. On GitHub it
+   is a draft pull request, or an ordinary one where the repository's plan
+   has no drafts, and the CI files flagged are `.github/workflows/` and
+   `.github/actions/`. Forgejo's and GitHub's `TestLiveStack` exercise both
+   this route and the own-branch push (D41).
 
 **Fixing the person's own change from its threads** (D41). On the Threads
 tab, the person picks triaged threads, must fix ones by default, and
