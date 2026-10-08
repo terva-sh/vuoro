@@ -143,7 +143,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		go a.Background(ctx)
 		d.tray = trayHost(runtime.GOOS, askWatcher)
 		d.hidden = *background && d.tray
-		d.mark = mark
+		d.mark, d.face = mark, icon(256)
 		d.refresh = func() { a.RefreshNow(ctx) }
 	}
 	return showWindow(url, token, *check, d, logger)
@@ -151,9 +151,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 // desktop is how the window lives beside the tray (D55).
 type desktop struct {
-	tray    bool // the desktop shows a tray icon, so closing hides to it
-	hidden  bool // start with the window hidden in the tray
-	mark    []byte
+	tray    bool   // the desktop shows a tray icon, so closing hides to it
+	hidden  bool   // start with the window hidden in the tray
+	mark    []byte // the tray's and the notifications' mark
+	face    []byte // the window's, the taskbar's, and the dock's (D56)
 	refresh func()
 	opens   <-chan struct{} // a later launch asks for the window
 }
@@ -306,7 +307,9 @@ func showWindow(url, token string, check bool, d desktop, logger *log.Logger) in
 			defer tray.Remove()
 		}
 	}
-	app = &tuohi.App{Name: "vuoro", Exit: !inTray}
+	// The desktop entry is what gives a GTK3 window on Wayland its icon, and
+	// vuoro writes it wherever it runs (D56).
+	app = &tuohi.App{Name: "vuoro", Exit: !inTray, Icon: d.face, DesktopEntry: true}
 	if inTray && !early {
 		app.Start = func() error {
 			if err := tray.Set(menu); err != nil {

@@ -894,3 +894,29 @@ notifications). It carries out D24. docs/plan.md section 3.3 records the design.
   change, were rejected.
 - **Start at login is off, with a toggle in the window.** Nothing is written
   to the login items until the person asks. On by default was rejected.
+
+### D56. vuoro's mark is a white v with an amber dot on a violet tile, and it writes a desktop entry wherever it runs
+
+Decided by the owner on 2026-10-09, under TKT-01M4EHCC0H9KTWM09ZSW1NDD88 (Give
+vuoro its own mark on the window, taskbar, and tray). docs/plan.md section 3.3
+records the design.
+
+- **The mark is a white lowercase v on a violet tile, with an amber dot at
+  the tip of its right arm.** The v names vuoro, and the dot is the turn that
+  is the person's. The violet is vuoro's accent from terva-sh/design, and the
+  amber is the design's `hot` brand pigment. The window, the taskbar, the
+  dock, the tray, and the notifications all show it. Five other concepts were
+  rejected: an open ring with an arrow and two arrows passing a turn, which
+  read as refresh and sync; a turn travelling between two dots, which blurs
+  at tray size; the v inside a speech bubble, which is busier at tray size;
+  and a stack of inbox cards, which says nothing about review.
+- **The mark is drawn at launch, not shipped as an image.** It is a few
+  shapes, so drawing it costs a few milliseconds, and there is no file to fall
+  out of step with the code.
+- **vuoro has tuohi write a desktop entry wherever it runs.** Wayland has no
+  per-window icon, and a GTK3 window there finds its icon only through a
+  desktop entry matching its name. So vuoro writes a hidden entry and a
+  themed copy of the mark under the person's data directory, by default
+  `~/.local/share`. tuohi leaves alone an entry it did not write, such as one
+  a package installs. Writing nothing, and keeping tuohi's mark under
+  Wayland, was rejected.

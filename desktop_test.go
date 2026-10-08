@@ -38,20 +38,42 @@ func TestATrayIsUsedOnlyWhereTheDesktopShowsOne(t *testing.T) {
 	}
 }
 
-// The mark is a square PNG: a violet disc on a clear ground.
-func TestTheMarkIsAVioletDisc(t *testing.T) {
-	img, err := png.Decode(bytes.NewReader(icon(64)))
-	if err != nil {
-		t.Fatal(err)
+// The mark is a square PNG: a violet tile on a clear ground, with a white v
+// and an amber dot, at the window's size and the tray's.
+func TestTheMarkIsAWhiteVAndAnAmberDotOnViolet(t *testing.T) {
+	for _, size := range []int{256, 22} {
+		img, err := png.Decode(bytes.NewReader(icon(size)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b := img.Bounds(); b.Dx() != size || b.Dy() != size {
+			t.Fatalf("bounds %v", b)
+		}
+		at := func(x, y float64) [4]uint32 { // x and y run from -1 to 1
+			r, g, b, a := img.At(int((x+1)/2*float64(size)), int((y+1)/2*float64(size))).RGBA()
+			return [4]uint32{r >> 8, g >> 8, b >> 8, a >> 8}
+		}
+		for _, c := range []struct {
+			what string
+			x, y float64
+			want [4]uint32
+		}{
+			{"the corner", -0.99, -0.99, [4]uint32{0, 0, 0, 0}},
+			{"the tile", 0, -0.7, [4]uint32{0x75, 0x46, 0xA4, 0xFF}},
+			{"the v", -0.02, 0.36, [4]uint32{0xFF, 0xFF, 0xFF, 0xFF}},
+			{"the dot", 0.48, -0.46, [4]uint32{0xF2, 0xB8, 0x4B, 0xFF}},
+		} {
+			if got := at(c.x, c.y); got[3] != c.want[3] || got[3] != 0 && got != c.want {
+				t.Errorf("%d px: %s is %x, want %x", size, c.what, got, c.want)
+			}
+		}
 	}
-	if b := img.Bounds(); b.Dx() != 64 || b.Dy() != 64 {
-		t.Fatalf("bounds %v", b)
-	}
-	if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
-		t.Errorf("the corner is not clear: alpha %d", a)
-	}
-	r, g, b, a := img.At(32, 32).RGBA()
-	if r>>8 != 0x75 || g>>8 != 0x46 || b>>8 != 0xA4 || a>>8 != 0xFF {
-		t.Errorf("the centre is %x %x %x %x, want the violet", r>>8, g>>8, b>>8, a>>8)
+}
+
+// Drawing the marks is quick enough to do at every launch.
+func BenchmarkTheMarks(b *testing.B) {
+	for b.Loop() {
+		icon(64)
+		icon(256)
 	}
 }

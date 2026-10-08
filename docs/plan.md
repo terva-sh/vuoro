@@ -195,10 +195,14 @@ the platform's own, through tuohi, without cgo.
   first window is still made at launch, on the main thread, because on Linux
   that pins tuohi's UI thread, so a later launch can open the window from
   another goroutine.
-- **The mark.** vuoro has no icon yet. The tray and notifications use one
-  drawn at launch: a disc in the selected violet with a white ring that does
-  not quite close. Windows notifications take no PNG from memory and use the
-  stock information icon.
+- **The mark.** vuoro's mark is a white lowercase v on a violet tile, with an
+  amber dot at the tip of its right arm: the turn that is the person's (D56).
+  It is drawn at launch rather than shipped as a file, and it is the window's,
+  the taskbar's, the dock's, the tray's, and the notifications' icon. Wayland
+  has no per-window icon, so vuoro has tuohi write a hidden desktop entry and
+  a themed copy of the mark under the person's data directory, which is how a
+  GTK3 window there finds its icon. Windows notifications take no PNG from
+  memory and use the stock information icon.
 
 ## 4. The model
 
