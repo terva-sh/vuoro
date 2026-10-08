@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M4EP0RRT9QA7ZQQKQA30E6K4
 title: Show on a gauge how far a forge token reaches
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: token-gauge
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: 5f580d2ee7af161b4bb86ad8ff21a692a9e32d69
-  session: null
-  claimed_at: 2026-10-08T21:16:58Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-08T21:16:58Z
-updated_at: 2026-10-08T21:16:58Z
+updated_at: 2026-10-08T21:55:33Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -62,3 +55,7 @@ Add forge.Access and the optional forge.AccessReader. GitHub reads X-OAuth-Scope
 **agent:claude/forgejo-parity-20261006** at 2026-10-08T21:16:58Z
 
 Every reader is tested against an in-process fake that fails on any write. The gauge was screenshotted at each level, with the token check's reply stubbed, in headless Chromium in both schemes. No real token has been through it: GitLab's self endpoint version, and Forgejo's list-with-token support on older releases, come from source reading and are not verified live. TestLiveSetupTest now logs the access a real token gets.
+
+## Summary
+
+Merged in #34 (69a1aa7), recorded as D57. GitHub classic, GitLab, and Forgejo tokens are placed on the gauge from what the forge reports and from reads. GitHub fine-grained and GitLab OAuth tokens are unknown. Review rounds made missing reads outrank broad scopes, widened Forgejo's broad writes, and left a GitLab api token unknown when the admin lookup fails. Not yet run with a real token: TestLiveSetupTest logs the access when someone does.

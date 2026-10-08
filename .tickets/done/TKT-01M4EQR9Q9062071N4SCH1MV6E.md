@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M4EQR9Q9062071N4SCH1MV6E
 title: Give vuoro a settings page, with each forge's token gauge
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -16,17 +16,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: settings-page
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: 69a1aa7092b6f63dce177f9b9a50e68d7882dc60
-  session: null
-  claimed_at: 2026-10-08T21:47:18Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-08T21:47:18Z
-updated_at: 2026-10-08T21:47:18Z
+updated_at: 2026-10-08T21:55:33Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -55,3 +48,7 @@ Add POST /api/setup/access, which asks a configured forge's held client for its 
 **agent:claude/forgejo-parity-20261006** at 2026-10-08T21:47:18Z
 
 Checked in headless Chromium with two forges in a scratch config and stubbed access replies, in both schemes. Opening Settings asks each forge at once; that may resolve a token the inbox had not yet resolved, such as a pass entry that prompts.
+
+## Summary
+
+Merged in #35 (a9c1c19). Settings opens from the header with sections for forges, agent tools, background, appearance, confirmations, and about. Each forge card shows its token's gauge through POST /api/setup/access, which reuses the held client. Review found a double configuration read, fixed there and in forgeFor.
