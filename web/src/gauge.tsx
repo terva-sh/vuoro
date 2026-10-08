@@ -33,7 +33,7 @@ export function verdict(a: Access): { title: string; detail?: string } {
   }
 }
 
-export function Gauge({ access }: { access: Access }) {
+export function Gauge({ access, compact = false }: { access: Access; compact?: boolean }) {
   const i = zones.findIndex((z) => z.level === access.level)
   const known = i >= 0
   // The needle sweeps up from the left once it has a reading.
@@ -44,7 +44,7 @@ export function Gauge({ access }: { access: Access }) {
   }, [i, known])
   const { title, detail } = verdict(access)
   return (
-    <div class={`gauge ${known ? access.level : 'unknown'}`} role="status">
+    <div class={`gauge ${known ? access.level : 'unknown'}${compact ? ' compact' : ''}`} role="status">
       <svg viewBox="0 0 200 112" aria-hidden="true">
         {zones.map((z, n) => <path key={z.level} class={`zone ${z.level}${n === i ? ' on' : ''}`} d={arc(n * 45 + 1, n * 45 + 44)} />)}
         {known && <g class="needle" style={{ transform: `rotate(${angle - 90}deg)` }}>

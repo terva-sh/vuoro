@@ -116,7 +116,6 @@ main { padding: var(--ui-space-4); }
 .local-needs { color: var(--ui-warn); }
 .local-more { margin-top: var(--ui-space-2); }
 .local-actions label { display: flex; gap: var(--ui-space-1); align-items: center; }
-.setup { padding-left: var(--ui-space-5); }
 
 /* The runs so far: a folded card under the inbox, one row per change, which
    scrolls inside itself so the page does not grow with every run. */
@@ -424,11 +423,10 @@ main { padding: var(--ui-space-4); }
 .inbox-threads p { margin: var(--ui-space-1) 0 0; overflow-wrap: anywhere; }
 .inbox-keys { margin-top: var(--ui-space-5); font-size: var(--ui-fs-note); }
 .inbox-keys kbd { font-family: var(--ui-font-mono); font-size: 11px; border: 1px solid var(--ui-line); border-radius: 4px; padding: 0 4px; }
-.inbox-setup, .inbox-unread { margin-top: var(--ui-space-5); }
+.inbox-unread { margin-top: var(--ui-space-5); }
 .inbox-unread h2 { display: flex; gap: var(--ui-space-2); align-items: center; font-size: var(--ui-fs-body); color: var(--ui-heading); }
 .inbox-unread-row { padding: var(--ui-space-2) var(--ui-space-3); }
 .inbox-stale { margin: var(--ui-space-1) 0 0; color: var(--ui-warn); font-size: var(--ui-fs-note); }
-.inbox-setup summary { cursor: pointer; color: var(--ui-muted); }
 @media (max-width: 900px) {
   .inbox-layout { grid-template-columns: 1fr; }
   .inbox-detail { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--ui-line); padding: var(--ui-space-3) 0 0; }
@@ -548,3 +546,34 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .earlier-findings ul { list-style: none; margin: var(--ui-space-2) 0 0; padding: 0; }
 .earlier-findings li { padding: var(--ui-space-1) 0; }
 .run-follows { margin: 0 0 var(--ui-space-2); }
+
+/* Settings: a section for each part of the configuration, with a nav beside it. */
+.settings { display: grid; grid-template-columns: 200px minmax(0, 860px); gap: var(--ui-space-6); justify-content: center; padding: var(--ui-space-5) var(--ui-space-4); }
+.settings-nav { position: sticky; top: var(--ui-space-4); align-self: start; }
+.settings-nav h2 { margin: var(--ui-space-2) 0 var(--ui-space-3); color: var(--ui-heading); }
+.settings-nav ul { list-style: none; padding: 0; margin: 0; }
+.settings-nav li a { display: block; padding: var(--ui-space-1) var(--ui-space-2); border-radius: var(--ui-radius-control); color: var(--ui-fg); text-decoration: none; }
+.settings-nav li a:hover { background: var(--ui-hover); }
+.settings-body section { border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sheet); background: var(--ui-surface); padding: var(--ui-space-4) var(--ui-space-5); margin-bottom: var(--ui-space-4); scroll-margin-top: var(--ui-space-4); }
+.settings-body section > h2 { margin: 0 0 var(--ui-space-1); font-size: 18px; color: var(--ui-heading); }
+.settings-body .lead { color: var(--ui-muted); margin: 0 0 var(--ui-space-3); }
+.settings-body .tools ul { list-style: none; padding: 0; }
+.settings-body .field { display: flex; align-items: center; gap: var(--ui-space-2); }
+.forges .forge-cards { list-style: none; padding: 0; margin: 0 0 var(--ui-space-3); display: grid; gap: var(--ui-space-3); }
+.forge-card { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--ui-space-4); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-bg); padding: var(--ui-space-3) var(--ui-space-4); }
+.forge-card:has(.forge-editor) { grid-template-columns: 1fr; }
+.forge-facts h3 { margin: 0 0 var(--ui-space-1); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.forge-facts p { margin: 0 0 var(--ui-space-1); overflow-wrap: anywhere; }
+.forge-actions { margin-top: var(--ui-space-2) !important; }
+.forge-access { text-align: center; }
+.forge-access .gauge { margin: 0; }
+.gauge.compact { padding: var(--ui-space-2); border: 0; background: none; }
+.gauge.compact svg { width: 150px; }
+.gauge.compact .zones { font-size: 11px; max-width: 240px; }
+.gauge.compact .verdict, .gauge.compact .muted { font-size: var(--ui-fs-detail); }
+.bar .settings-button.on { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
+@media (max-width: 900px) {
+  .settings { grid-template-columns: 1fr; }
+  .settings-nav { position: static; }
+  .forge-card { grid-template-columns: 1fr; }
+}

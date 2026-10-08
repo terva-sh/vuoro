@@ -199,9 +199,12 @@ func presetsOf(c *config.Config) []config.Preset {
 
 // forgeFor returns the configured forge for host, or nil.
 func (a *App) forgeFor(host string) *config.Forge {
-	for i, f := range a.config().Forges {
+	// One snapshot of the file: a save between two reads could shorten or
+	// reorder the list.
+	forges := a.config().Forges
+	for i, f := range forges {
 		if u, err := url.Parse(f.URL); err == nil && strings.EqualFold(u.Host, host) {
-			return &a.config().Forges[i]
+			return &forges[i]
 		}
 	}
 	return nil

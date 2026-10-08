@@ -69,8 +69,8 @@ the window. Public GitLab and Forgejo changes can open anonymously; a GitHub
 change needs your GitHub account set up first. To read your own reviews, add your forges
 in the window: a fresh install opens at a guided setup that picks a forge,
 connects its token, checks your agent tools, and asks how vuoro runs in the
-background. "Accounts and review tools" on the home screen adds, edits, and
-removes forges later. vuoro never asks for a
+background. Settings, at the top right, adds, edits, and removes forges later,
+and shows how far each forge's token reaches. vuoro never asks for a
 token. You keep it in your keychain, a password manager, or an environment
 variable, and setup tests that source against the forge before it saves.
 

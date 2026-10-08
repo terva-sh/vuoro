@@ -225,3 +225,39 @@ func TestEachToolStateHasItsHint(t *testing.T) {
 		}
 	}
 }
+
+// accessForge is a forge that says how far its token reaches.
+type accessForge struct {
+	accountForge
+	asked *int
+}
+
+func (f *accessForge) Access(context.Context) (forge.Access, error) {
+	*f.asked++
+	return forge.Access{Level: forge.AccessBroad, Scopes: []string{"all"}, Broad: []string{"all"}}, nil
+}
+
+// The settings page asks how far each configured forge's token reaches,
+// through the client vuoro already holds, so the token is resolved once.
+func TestSettingsAsksHowFarAConfiguredTokenReaches(t *testing.T) {
+	t.Setenv("VUORO_SETTINGS_TOKEN", setupSecret)
+	dialled, asked := 0, 0
+	a := &App{StateDir: t.TempDir(), Config: &config.Config{Forges: []config.Forge{{Name: "internal", Kind: "forgejo", URL: "https://forge.example", Username: "pat", TokenEnv: "VUORO_SETTINGS_TOKEN"}}},
+		Dial: func(string, string, config.Secret) (forge.Provider, error) {
+			dialled++
+			return &accessForge{accountForge{me: "pat"}, &asked}, nil
+		}}
+	h := a.Handler()
+	for range 2 {
+		code, _, body := post(t, h, "/api/setup/access", map[string]string{"name": "internal"})
+		if code != 200 || !strings.Contains(body, `"level":"broad"`) {
+			t.Fatalf("access: %d %s", code, body)
+		}
+	}
+	if dialled != 1 || asked != 2 {
+		t.Fatalf("dialled %d, asked %d: the client is held, and each check asks again", dialled, asked)
+	}
+	if code, _, body := post(t, h, "/api/setup/access", map[string]string{"name": "elsewhere"}); code == 200 || !strings.Contains(body, `no forge is named`) {
+		t.Fatalf("an unknown forge: %d %s", code, body)
+	}
+}

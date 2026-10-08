@@ -80,7 +80,7 @@ function tokenPage(kind: string, url: string): { href: string; scopes: string } 
 
 // useForgeForm is one forge being added or changed: where it is, where its
 // token is kept, and the test that proves the two together. The guided first
-// run and the accounts panel's editor both show it.
+// run and Settings' forge editor both show it.
 function useForgeForm(setup: Setup, initial?: ForgeForm, original?: string) {
   // The form's fields come from the file as it was when the form opened, so
   // its save carries that file's hash: a file changed since, even one the
@@ -265,7 +265,7 @@ const kinds = [
 ]
 
 // ForgeEditor adds a forge, or changes the one named original, in the
-// accounts panel.
+// Settings page.
 export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   setup: Setup; initial?: ForgeForm; original?: string; onSaved: (s: Setup) => void; onCancel?: () => void
 }) {
@@ -335,7 +335,27 @@ function describeSource(f: ForgeForm & { env_set?: boolean }): string {
   return f.token_command ? joinCommand(f.token_command) : 'nothing'
 }
 
-// Forges lists the configured forges, with editing where the file allows it.
+// ForgeAccess asks how far a configured forge's token reaches (D57), as the
+// card opens and again on demand, through the client vuoro already holds.
+function ForgeAccess({ name }: { name: string }) {
+  const [access, setAccess] = useState<Access>()
+  const { busy, error, run } = useAction()
+  const check = () => run(async () => setAccess(await post<Access>('/api/setup/access', { name })))
+  useEffect(() => { void check() }, [name])
+  return (
+    <div class="forge-access">
+      {access && <Gauge access={access} compact />}
+      {!access && busy && <p class="muted">Asking the forge what this token may do…</p>}
+      {error && <p class="warn">{error}</p>}
+      <button type="button" class="link" disabled={busy} onClick={() => void check()}>{busy ? 'Checking…' : 'Check again'}</button>
+    </div>
+  )
+}
+
+const kindName = (k: string) => kinds.find((x) => x.id === k)?.label ?? k
+
+// Forges lists the configured forges as cards, each with how far its token
+// reaches, and edits them where the file allows it.
 export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) => void }) {
   const [editing, setEditing] = useState<string>() // a forge's name, or '' for a new one
   const [removing, setRemoving] = useState<string>()
@@ -348,20 +368,29 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
   return (
     <div class="forges">
       {setup.forges.length === 0 && <p>No forge yet, so changes open anonymously and only public projects work.</p>}
-      <ul>
+      <ul class="forge-cards">
         {setup.forges.map((f) => (
-          <li key={f.name}>
+          <li key={f.name} class="forge-card">
             {editing === f.name ? (
               <ForgeEditor setup={setup} initial={f} original={f.name} onSaved={saved} onCancel={() => setEditing(undefined)} />
             ) : (
               <>
-                <strong>{f.name}</strong> as @{f.username} <span class="muted">· token from <span class="mono">{describeSource(f)}</span></span>
-                {setup.editable && <>
-                  {' '}<button class="link" onClick={() => setEditing(f.name)}>Edit</button>
-                  {removing === f.name ? (
-                    <> · Remove {f.name}? <button class="link" disabled={busy} onClick={() => void remove(f.name)}>{busy ? 'Removing…' : 'Remove'}</button> <button class="link" disabled={busy} onClick={() => setRemoving(undefined)}>Keep</button></>
-                  ) : <> <button class="link" onClick={() => setRemoving(f.name)}>Remove</button></>}
-                </>}
+                <div class="forge-facts">
+                  <h3>{f.name}</h3>
+                  <p class="muted">{kindName(f.kind)} at <span class="mono">{f.url}</span></p>
+                  <p>Signs in as <strong>@{f.username}</strong></p>
+                  <p class="muted">Token from <span class="mono">{describeSource(f)}</span></p>
+                  <p class="muted">Fetches code over {f.clone === 'https' ? 'HTTPS' : 'SSH'}</p>
+                  {setup.editable && (
+                    <p class="forge-actions">
+                      <button type="button" onClick={() => setEditing(f.name)}>Edit</button>{' '}
+                      {removing === f.name ? (
+                        <>Remove {f.name}? <button type="button" disabled={busy} onClick={() => void remove(f.name)}>{busy ? 'Removing…' : 'Remove'}</button> <button type="button" disabled={busy} onClick={() => setRemoving(undefined)}>Keep</button></>
+                      ) : <button type="button" onClick={() => setRemoving(f.name)}>Remove</button>}
+                    </p>
+                  )}
+                </div>
+                <ForgeAccess name={f.name} key={`${f.name}@${setup.base}`} />
               </>
             )}
           </li>
@@ -374,7 +403,7 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
         <button type="button" onClick={() => setEditing('')}>Add a forge</button>
       ))}
       {setup.config_path && <p class="muted">Saved in <span class="mono">{setup.config_path}</span>, which you can also edit by hand.</p>}
-      {!setup.editable && setup.config_error && <p class="warn">Setup cannot save until the file loads again. Fix it by hand, then reopen this panel.</p>}
+      {!setup.editable && setup.config_error && <p class="warn">Settings cannot save until the file loads again. Fix it by hand, then open Settings again.</p>}
     </div>
   )
 }

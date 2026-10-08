@@ -6,10 +6,10 @@ import { LocalRun } from './run'
 import { Inbox } from './inbox'
 import { LocalTab } from './local'
 import { RunList } from './runs'
-import { waive } from './confirm'
 import { About } from './about'
-import { Background, FirstRun, Forges, Tools } from './setup'
-import { applyScheme, SchemePicker } from './scheme'
+import { Settings } from './settings'
+import { FirstRun } from './setup'
+import { applyScheme } from './scheme'
 import type { Change, HomeTab, LocalView, Run, Scheme, Setup } from './types'
 
 interface Hello {
@@ -28,6 +28,7 @@ export function App() {
   const [localRun, setLocalRun] = useState<string>()
   const [scheme, setScheme] = useState<Scheme>('')
   const [about, setAbout] = useState(false)
+  const [settings, setSettings] = useState(false)
 
   useEffect(() => applyScheme(scheme), [scheme])
 
@@ -59,6 +60,7 @@ export function App() {
     try {
       setChange(await post<Change>('/api/changes', { url: target.trim() }))
       setURL(target.trim())
+      setSettings(false)
     } catch (e) {
       setError(errorText(e))
     } finally {
@@ -69,7 +71,7 @@ export function App() {
   return (
     <div class="app">
       <header class="bar">
-        <button class="brand link" onClick={() => { setChange(undefined); setLocalRun(undefined); api<Run[]>('/api/runs').then(setRuns).catch(() => undefined) }}>vuoro</button>
+        <button class="brand link" onClick={() => { setChange(undefined); setLocalRun(undefined); setSettings(false); api<Run[]>('/api/runs').then(setRuns).catch(() => undefined) }}>vuoro</button>
         <form class="open" onSubmit={(e) => { e.preventDefault(); void open(url) }}>
           <input
             type="url"
@@ -82,13 +84,16 @@ export function App() {
           {change && <button type="button" disabled={opening} onClick={() => void open(url)}>Refresh</button>}
         </form>
         {hello && <button type="button" class="link version" title="About vuoro" onClick={() => setAbout(true)}>vuoro {hello.version}</button>}
-        <SchemePicker scheme={scheme} onScheme={setScheme} />
+        <button type="button" class={settings ? 'settings-button on' : 'settings-button'} aria-pressed={settings} onClick={() => setSettings((v) => !v)}>⚙ Settings</button>
       </header>
       {about && <About setup={setup} onClose={() => setAbout(false)} />}
       {setup?.config_error && <p class="alert" role="alert">⚠ The config file did not load: {setup.config_error}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       <main>
-        {change ? (
+        {settings && setup ? (
+          <Settings setup={setup} onSetup={setSetup} scheme={scheme} onScheme={setScheme} version={hello?.version}
+            onAbout={() => setAbout(true)} onClose={() => setSettings(false)} />
+        ) : change ? (
           <ChangeView change={change} setup={setup} onChange={setChange} onSetup={setSetup} key={`${change.web_url}@${change.diff.head}`} />
         ) : localRun ? (
           <LocalRun id={localRun} key={localRun} />
@@ -154,36 +159,6 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
       <div class="home-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" hidden={tab !== 'local'}>
         {localShown && <LocalTab setup={setup} onOpen={onOpen} onOpenRun={onOpenRun} onCount={(n) => setCounts((c) => ({ ...c, local: n }))} />}
       </div>
-      {setup && (
-        <details class="inbox-setup" onToggle={(e) => {
-          // Opening the panel reads setup again, which picks up a hand edit
-          // or a repaired file before anything is edited from it.
-          if ((e.currentTarget as HTMLDetailsElement).open) api<Setup>('/api/setup').then(onSetup).catch(() => undefined)
-        }}><summary>Accounts and review tools</summary>
-        <ul class="setup">
-          <li>
-            Forges: <Forges setup={setup} onSetup={onSetup} />
-          </li>
-          <li>
-            Agent tools: <Tools setup={setup} onSetup={onSetup} />
-          </li>
-          <li>
-            In the background: <Background setup={setup} onSetup={onSetup} />
-          </li>
-          <li>
-            Confirmations:{' '}
-            {setup.waived.length === 0 ? (
-              'vuoro asks before submitting a review or approving'
-            ) : (
-              <>
-                you turned off asking before {setup.waived.map((a) => (a === 'submit' ? 'submitting' : 'approving')).join(' and ')}.{' '}
-                <button class="link" onClick={() => void waive(setup.waived, true).then(onSetup).catch(() => undefined)}>Ask again</button>
-              </>
-            )}
-          </li>
-        </ul>
-        </details>
-      )}
       <RunList runs={runs} onOpen={onOpen} onOpenRun={onOpenRun} />
     </div>
   )

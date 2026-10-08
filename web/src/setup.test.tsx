@@ -280,21 +280,25 @@ describe('signedIn', () => {
   })
 })
 
-describe('the accounts panel', () => {
-  it('reads setup again each time it opens, to pick up a hand edit', async () => {
+describe('Settings', () => {
+  it('reads setup again as it opens, to pick up a hand edit, and shows each forge with its access', async () => {
     const { api } = await import('./api')
-    const { Home } = await import('./app')
+    const { Settings } = await import('./settings')
     const fresh = setup({ base: 'b2', forges: [{ name: 'edited by hand', kind: 'gitlab', url: 'https://gitlab.com', username: 'pat', token_env: 'T' }] })
-    vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/setup' ? fresh : { accounts: [], mine: [], theirs: [], snoozed: [], unread: [], dormant: [] }) as never)
+    vi.mocked(api).mockResolvedValue(fresh as never)
+    vi.mocked(post).mockResolvedValue({ level: 'full', scopes: ['api'] })
     const onSetup = vi.fn()
     const root = document.createElement('div')
     const existing = setup({ forges: [{ name: 'internal', kind: 'forgejo', url: 'https://forge.example', username: 'pat', token_env: 'T' }] })
-    await act(async () => render(<Home setup={existing} onSetup={onSetup} runs={[]} onOpen={() => {}} onOpenRun={() => {}} opening={false} />, root))
-    const panel = root.querySelector('details.inbox-setup') as HTMLDetailsElement
-    // The browser fires toggle itself, after open changes.
-    await act(async () => { panel.open = true; await new Promise((r) => setTimeout(r, 0)) })
+    await act(async () => { render(<Settings setup={existing} onSetup={onSetup} scheme="" onScheme={() => {}} onAbout={() => {}} onClose={() => {}} />, root); await new Promise((r) => setTimeout(r, 0)) })
     expect(api).toHaveBeenCalledWith('/api/setup')
     expect(onSetup).toHaveBeenCalledWith(fresh)
+    expect(post).toHaveBeenCalledWith('/api/setup/access', { name: 'internal' })
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    expect(root.querySelector('.forge-card .gauge.full')).not.toBeNull()
+    for (const section of ['Forges', 'Agent tools', 'Background', 'Appearance', 'Confirmations', 'About']) {
+      expect([...root.querySelectorAll('section > h2')].map((h) => h.textContent)).toContain(section)
+    }
     act(() => render(null, root))
   })
 })
@@ -302,7 +306,9 @@ describe('the accounts panel', () => {
 describe('Forges', () => {
   it('holds Remove and Keep while a removal runs', async () => {
     let finish!: (s: Setup) => void
-    vi.mocked(post).mockImplementation(() => new Promise((r) => { finish = r as typeof finish }))
+    vi.mocked(post).mockImplementation((path: string) => (path === '/api/setup/access'
+      ? Promise.resolve({ level: 'full' })
+      : new Promise((r) => { finish = r as typeof finish })) as never)
     const onSetup = vi.fn()
     const root = document.createElement('div')
     const forge = { name: 'Work', kind: 'gitlab', url: 'https://lab.example', username: 'pat', clone: 'ssh', token_env: 'VUORO_WORK_TOKEN', env_set: true }
@@ -311,7 +317,7 @@ describe('Forges', () => {
     await click(root, 'Remove')
     expect(button(root, 'Removing…').disabled).toBe(true)
     expect(button(root, 'Keep').disabled).toBe(true)
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(post).mock.calls.filter(([p]) => p === '/api/setup/forges/remove')).toHaveLength(1)
     await act(async () => { finish(setup()); for (let i = 0; i < 5; i++) await Promise.resolve() })
     expect(onSetup).toHaveBeenCalledTimes(1)
   })

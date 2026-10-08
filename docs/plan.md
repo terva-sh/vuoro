@@ -533,7 +533,11 @@ settings. A forge is saved when its token step ends, so leaving setup early
 keeps it. The token's check ends on a gauge of how far it reaches (D57): can't
 read, read only, full, or too broad, learnt only from what the forge reports
 and from reads. A token that can't read is not saved; a broad one is, with a
-warning that names the scopes it does not need. A person can still
+warning that names the scopes it does not need. After the first run, the
+window's Settings page holds the same configuration: each forge as a card with
+its token's gauge, asked through the client vuoro already holds, so the token
+is not resolved again; the agent tools; the background settings; the colour
+scheme; the confirmations the person turned off; and the About pane. A person can still
 write it by hand. An example, with no
 secret in it:
 

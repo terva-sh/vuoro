@@ -29,6 +29,7 @@ import (
 func (a *App) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup", a.setup)
 	mux.HandleFunc("POST /api/setup/test", a.testForge)
+	mux.HandleFunc("POST /api/setup/access", a.forgeAccess)
 	mux.HandleFunc("POST /api/setup/forges", a.saveForge)
 	mux.HandleFunc("POST /api/setup/forges/remove", a.removeForge)
 	mux.HandleFunc("POST /api/setup/tools", a.checkTools)
@@ -126,6 +127,51 @@ func (a *App) setAutostart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, a.setupView())
+}
+
+// forgeAccess says how far a configured forge's token reaches (D57), for
+// the settings page. It asks through the client vuoro already holds, so a
+// token resolved for the inbox is not asked for again.
+func (a *App) forgeAccess(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	// One snapshot of the file: a save between two reads could shorten or
+	// reorder the list.
+	var f *config.Forge
+	for _, c := range a.config().Forges {
+		if c.Name == req.Name {
+			f = &c
+			break
+		}
+	}
+	if f == nil {
+		writeError(w, fmt.Errorf("no forge is named %q", req.Name))
+		return
+	}
+	u, err := url.Parse(f.URL)
+	if err != nil || u.Host == "" {
+		writeError(w, fmt.Errorf("%s has no usable address", f.Name))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+	defer cancel()
+	c, err := a.client(ctx, u.Host, f.Kind)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	access := forge.Access{Level: forge.AccessUnknown}
+	if ar, ok := c.(forge.AccessReader); ok {
+		if access, err = ar.Access(ctx); err != nil {
+			writeError(w, fmt.Errorf("The forge did not say what this token may do: %w", err))
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, access)
 }
 
 // forgeForm is one forge as the setup form edits it: everything but the
