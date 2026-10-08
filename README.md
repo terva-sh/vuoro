@@ -107,8 +107,11 @@ configuration file.
 Forgejo posts reviews too. Its pending comments stay in Vuoro until you
 submit, because Forgejo would show them to others sooner, and it cannot
 resolve a thread or withdraw an approval, so Vuoro offers neither there.
-GitHub reads into the inbox and the window through a configured account,
-since GitHub refuses anonymous reads of reviews. Posting on GitHub comes next.
+GitHub works through a configured account, since GitHub refuses anonymous
+reads of reviews. Your pending comments go into a GitHub pending review, which
+only you can see until you submit; a comment on the whole change stays in Vuoro
+until then, because GitHub cannot change a pending review's summary. A reviewer
+cannot withdraw an approval on GitHub, so Vuoro does not offer it.
 
 ## Shared styling
 

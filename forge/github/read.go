@@ -350,8 +350,22 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	if err := forge.ValidateCheckout(ch.Checkout, ref.Host); err != nil {
 		return nil, fmt.Errorf("github: %w", err)
 	}
-	if err := convert(ch, p); err != nil {
+	if err := convert(ch, p, workspace); err != nil {
 		return nil, err
+	}
+	// The person's comments kept in vuoro follow those in their pending
+	// review.
+	if workspace {
+		c.draftMu.Lock()
+		s := c.drafts
+		c.draftMu.Unlock()
+		if s != nil {
+			local, err := s.Drafts(ref)
+			if err != nil {
+				return nil, err
+			}
+			ch.Drafts = append(ch.Drafts, local...)
+		}
 	}
 	if !workspace && p.paged {
 		if err := c.unmoved(ctx, ref, p); err != nil {
@@ -375,8 +389,9 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	return ch, nil
 }
 
-// convert fills ch's review facts from p's connections.
-func convert(ch *forge.Change, p *gqlPR) error {
+// convert fills ch's review facts from p's connections, and with drafts its
+// viewer's pending review as drafts.
+func convert(ch *forge.Change, p *gqlPR, drafts bool) error {
 	requested, err := nodes[struct {
 		RequestedReviewer *gqlRequested `json:"requestedReviewer"`
 	}](p, "reviewRequests")
@@ -428,7 +443,12 @@ func convert(ch *forge.Change, p *gqlPR) error {
 		}
 	}
 	// A pending review has no submit time. It is the person's draft, which
-	// stays out of the facts.
+	// stays out of the facts. GitHub shows only the viewer their own.
+	for _, r := range reviews {
+		if r.State == "PENDING" && drafts && strings.TrimSpace(r.Body) != "" {
+			ch.Drafts = append(ch.Drafts, forge.Draft{ID: "review-" + r.ID, Body: r.Body})
+		}
+	}
 	reviews = slices.DeleteFunc(reviews, func(r gqlReview) bool { return r.State == "PENDING" || r.SubmittedAt == nil })
 	slices.SortStableFunc(reviews, func(a, b gqlReview) int { return a.SubmittedAt.Compare(*b.SubmittedAt) })
 	for _, r := range reviews {
@@ -468,9 +488,15 @@ func convert(ch *forge.Change, p *gqlPR) error {
 	}
 	for _, t := range threads {
 		th := forge.Thread{ID: t.ID, Resolvable: true, Resolved: t.IsResolved}
-		for _, n := range t.Comments.Nodes {
+		for i, n := range t.Comments.Nodes {
 			if n.Review != nil && n.Review.State == "PENDING" {
-				continue // a draft
+				// A draft: a new thread's first comment, or a reply.
+				if drafts && i == 0 {
+					ch.Drafts = append(ch.Drafts, forge.Draft{ID: n.ID, Body: n.Body, Anchor: anchor(t, n)})
+				} else if drafts {
+					ch.Drafts = append(ch.Drafts, forge.Draft{ID: n.ID, Body: n.Body, ThreadID: t.ID})
+				}
+				continue
 			}
 			if th.Anchor == nil {
 				th.Anchor = anchor(t, n)

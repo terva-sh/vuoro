@@ -584,9 +584,34 @@ stacker. D54 records the owner's choices.
   `review-requested:`, `reviewed-by:` and `assignee:` the person. `reviewed-by`
   keeps a pull request whose request GitHub dropped when the person answered
   it. A search over GitHub's thousand-result cap is refused, not read in part.
-- **Drafts are a GitHub pending review** (slice 2). GitHub keeps a pending
-  review private to its author, unlike Forgejo, so the reason for D43 does not
-  apply. Its writes are GraphQL.
+- **Drafts are a GitHub pending review.** GitHub keeps a pending review private
+  to its author, unlike Forgejo, so the reason for D43 does not apply. Its
+  writes are GraphQL.
+
+#### GitHub writes
+
+A spike on a private sandbox pull request, on 2026-10-08, settled how each
+write behaves. `forge/github/write_live_test.go` repeats it.
+
+**Never send a comment without the pending review's id.** A reply or an inline
+comment that names no pending review is published at once, and a reply joins
+an existing pending review only by chance. So every comment names the person's
+pending review, which vuoro starts at the head when there is none, and a write
+that comes back published is reported as published. A write naming a review
+that was already submitted answers null and publishes nothing.
+
+| Operation | GitHub route | Notes |
+|---|---|---|
+| Pending review | `addPullRequestReview` with `commitOID` and no event | One per person per pull request: a second is refused, so vuoro uses the one the person started on GitHub. |
+| Inline draft | `addPullRequestReviewThread` with the review's id, a line and a side | A line outside the diff answers a null thread, with no error. A removed line is `LEFT`. A comment on an earlier head is refused before any write. |
+| Reply in a review thread | `addPullRequestReviewThreadReply` with the review's id | Pending until Submit. |
+| Comment on the whole change, or a reply to one | Kept in vuoro until Submit | A pending review's body cannot be changed once the review exists. Submit sends the comments, joined, as the review's body, after any body started on GitHub, which vuoro shows and cannot edit. A reply to a general comment is posted with `addComment` after the review, as Forgejo's replies are. |
+| Edit, delete a draft | `updatePullRequestReviewComment`, `deletePullRequestReviewComment` | Both act on published comments too, so the comment must be in the person's pending review. GitHub has no conditional write, so a review submitted on GitHub in the moment between that check and the write takes the edit or the delete; both answer the comment's state, and vuoro reports it as a change to a published comment. Deleting the last comment of a pending review with no body removes the review. |
+| Submit | `submitPullRequestReview` with the event and the body, or `addPullRequestReview` with them when only a verdict is given | An empty review is refused. |
+| Approve, request changes | The events `APPROVE` and `REQUEST_CHANGES` | The author can do neither. Approve on its own refuses while pending comments would publish with it. |
+| Withdraw an approval | None | Only a dismissal, by someone with write access, takes one back. |
+| Resolve, unresolve | `resolveReviewThread`, `unresolveReviewThread` | Review threads only. |
+| Suggestion | Off | GitHub applies a `suggestion` block over a line range, and vuoro's anchor holds one line. A suggestion posts as a plain fenced replacement until the anchor can hold a range. |
 
 ## 6. Agents
 

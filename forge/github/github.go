@@ -38,6 +38,11 @@ type Client struct {
 	token   config.Secret
 	http    *http.Client
 
+	// drafts keeps the person's comments on the whole change until they
+	// submit (write.go); nil until the application gives the client a store.
+	draftMu sync.Mutex
+	drafts  forge.DraftStore
+
 	meMu  sync.Mutex
 	login string
 }
@@ -59,8 +64,15 @@ func New(base string, token config.Secret) (*Client, error) {
 
 func ParseURL(raw string) (forge.Ref, error) { return forge.URLRef(raw, "/pull/", 2) }
 
-// Capabilities are the writes this client offers, none yet.
-func (c *Client) Capabilities() forge.Capabilities { return forge.Capabilities{} }
+// Capabilities are the writes this client offers. A reviewer cannot withdraw
+// their own approval on GitHub, and vuoro anchors to one line, which a
+// GitHub suggestion over several lines needs more than.
+func (c *Client) Capabilities() forge.Capabilities {
+	c.draftMu.Lock()
+	write := !c.token.Empty() && c.drafts != nil
+	c.draftMu.Unlock()
+	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write}
+}
 
 func (c *Client) scrub(s string) string {
 	if t := c.token.Reveal(); t != "" {
@@ -159,10 +171,7 @@ func (c *Client) query(ctx context.Context, q string, vars map[string]any, out a
 	}
 	if len(res.Errors) > 0 {
 		e := res.Errors[0]
-		status := 0
-		if e.Type == "NOT_FOUND" {
-			status = http.StatusNotFound
-		}
+		status := map[string]int{"NOT_FOUND": http.StatusNotFound, "FORBIDDEN": http.StatusForbidden, "UNPROCESSABLE": http.StatusUnprocessableEntity}[e.Type]
 		return &forge.APIError{Forge: forge.GitHub, Method: http.MethodPost, Path: "/graphql", Status: status, Message: clip(c.scrub(e.Message))}
 	}
 	if err := json.Unmarshal(res.Data, out); err != nil {

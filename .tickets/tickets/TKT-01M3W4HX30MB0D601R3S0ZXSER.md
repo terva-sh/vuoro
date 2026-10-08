@@ -28,7 +28,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-01T16:25:25Z
-updated_at: 2026-10-08T05:09:12Z
+updated_at: 2026-10-08T05:42:40Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -134,3 +134,38 @@ Slice 1 is built: the reader, discovery, Me, registration, and every place that 
 
 ### Kind sites
 - An empty kind is a GitLab-era record, so GitLab stays the fallback everywhere. GitHub is named next to Forgejo at each site.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T05:42:40Z
+
+Slice 2, the writer, is built and validated live. Slice 1 landed as PR #23.
+
+### The spike, on 2026-10-08
+It ran on warricksothr/vuoro-sandbox#1, a private repository made for it. docs/plan.md §5.4 "GitHub writes" has the full table.
+- **The finding that shapes the design:** a reply that names no pending review is published immediately (state SUBMITTED), and one sent while a pending review exists joins it. So every comment and reply names the pending review. A write that comes back other than PENDING is an error, and a write naming a submitted review answers null and publishes nothing.
+- **A pending review's body cannot be edited** ("Could not edit a review with a missing body"). Comments on the whole change, and replies to them, therefore stay local until Submit, as Forgejo's do.
+- **Smaller findings:**
+  - A thread on a line outside the diff answers a null thread with no error.
+  - A second pending review is refused.
+  - An empty review is refused.
+  - The author cannot approve or request changes.
+  - Resolve and unresolve work.
+
+### Validation
+- **Fixture GitHub.** `write_test.go` runs against a fake that keeps a pending review and records every mutation. It covers:
+  - Every comment names the pending review.
+  - A published or refused answer is an error.
+  - An inline comment on an earlier head is refused before any write.
+  - General comments stay local.
+  - Only pending comments are edited or deleted, and a web-UI body is read-only.
+  - Submit's body order and replies, a verdict alone, and a verdict already standing.
+  - A retry posts only the replies.
+  - Approve refuses while comments are pending, and Unapprove is unsupported.
+  - Resolve works on review threads only.
+  - Open shows pending-review drafts.
+- **Live.** `TestLiveWrite` round-tripped all of it on the sandbox:
+  - It kept an inline comment, a reply, a summary, an edit and a delete pending, and confirmed none reached ReadFacts.
+  - It published them as one review, then resolved and reopened the thread.
+  - GitHub refused approve and request-changes from the author, with the expected messages.
+
+### Criterion 2 stays unticked
+Approve and request changes were not exercised live as a reviewer, which needs a second GitHub account. They are fixture-tested, and the live test confirms GitHub's own refusal for the author.
