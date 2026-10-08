@@ -3,8 +3,8 @@ schema: 3
 id: TKT-01M3YMSVBDTFZ17PS86GXAC4ZK
 title: Tray, background refresh, and quiet turn notifications
 type: task
-status: in-progress
-status_reason: null
+status: blocked
+status_reason: "Merged in #29. Only criterion 1 is left: the tray must be seen on a desktop, and the agent session had no display. The latest note lists the checks."
 priority: normal
 due_on: null
 labels:
@@ -18,17 +18,10 @@ dependencies:
   - TKT-01M3W4HWR5K8TXA6S6HBVXDXX5
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: tray
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: 27c8a16462d77f69755fe8540d9401ed0d6500f0
-  session: null
-  claimed_at: 2026-10-08T14:33:15Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-08T14:44:09Z
+updated_at: 2026-10-08T15:10:12Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -117,3 +110,7 @@ To tick it, someone at a desktop checks:
 6. macOS and Windows, when available. An unbundled macOS binary gets `notify.ErrUnavailable`, which vuoro ignores, so notifications there need the bundled `.app` from the release ticket.
 
 **Added beyond the plan:** tuohi's single-instance lock. Without it, hide-to-tray plus a second launch, or start at login plus a manual launch, would run two vuoros with two refreshes and doubled notifications. A later launch now opens the running one's window instead.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T15:10:12Z
+
+in-progress to blocked: Merged in #29. Only criterion 1 is left: the tray must be seen on a desktop, and the agent session had no display. The latest note lists the checks.
