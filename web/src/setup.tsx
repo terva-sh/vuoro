@@ -2,7 +2,7 @@
 // it where they choose, and the config names the command or the variable
 // that supplies it (D29). The form tests that source against the forge
 // before it saves.
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { post } from './api'
 import { EditForm } from './textedit'
@@ -77,12 +77,12 @@ function tokenPage(kind: string, url: string): { href: string; scopes: string } 
   return { href: `${base}/user/settings/applications`, scopes: 'read and write on repository and issue, and read on user' }
 }
 
-// ForgeEditor adds a forge, or changes the one named original.
-export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
-  setup: Setup; initial?: ForgeForm; original?: string; onSaved: (s: Setup) => void; onCancel?: () => void
-}) {
-  // The editor's fields come from the file as it was when the editor opened,
-  // so its save carries that file's hash: a file changed since, even one the
+// useForgeForm is one forge being added or changed: where it is, where its
+// token is kept, and the test that proves the two together. The guided first
+// run and the accounts panel's editor both show it.
+function useForgeForm(setup: Setup, initial?: ForgeForm, original?: string) {
+  // The form's fields come from the file as it was when the form opened, so
+  // its save carries that file's hash: a file changed since, even one the
   // window has read again meanwhile, is refused rather than overwritten.
   const [base] = useState(setup.base)
   const [kind, setKind] = useState(initial?.kind ?? 'forgejo')
@@ -90,7 +90,6 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   const [name, setName] = useState(initial?.name ?? '')
   const [username, setUsername] = useState(initial?.username ?? '')
   const [clone, setClone] = useState(initial?.clone || 'ssh')
-  const commandSources = setup.sources.filter((s) => s.id !== 'env')
   const [sourceID, setSourceID] = useState(initial ? (initial.token_env ? 'env' : 'command') : (setup.sources[0]?.id ?? 'env'))
   const [command, setCommand] = useState(initial?.token_command ? joinCommand(initial.token_command) : '')
   const [env, setEnv] = useState(initial?.token_env ?? '')
@@ -126,8 +125,9 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
   }
   // The test proves this source on this forge; changing either asks again.
   const key = JSON.stringify([kind, form.url, form.token_command, form.token_env])
-  const tested = result && result.key === key
-  const canSave = tested && !!form.username && result.username.toLowerCase() === form.username.toLowerCase() && !!form.name
+  const tested = result && result.key === key ? result : undefined
+  const mismatch = !!tested && !!form.username && tested.username.toLowerCase() !== form.username.toLowerCase()
+  const canSave = !!tested && !!form.username && !mismatch && !!form.name
   const ready = !!host && (isEnv || (argv.length > 0 && !commandError))
 
   const test = async () => {
@@ -140,82 +140,168 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
     setResult({ username: r.username, key })
     if (!form.username) setUsername(r.username)
   }
-  const save = () => {
+  const save = (onSaved: (s: Setup) => void) => {
     testing.setError(undefined)
     void saving.run(async () => onSaved(await post<Setup>('/api/setup/forges', { base, original: original ?? '', forge: form })))
   }
-  const page = tokenPage(kind, url)
-  const label = original ? 'Save' : 'Add this forge'
+  return {
+    kind, setKind, url, setURL, name, setName, username, setUsername, clone, setClone,
+    sourceID, setSourceID: (id: string) => { setSourceID(id); setResult(undefined) },
+    command, setCommand, env, setEnv, host, source, isEnv, argv, commandError, effectiveEnv,
+    form, tested, mismatch, canSave, ready, test, save, testing, saving, busy,
+    error: testing.error ?? saving.error,
+  }
+}
+type Forge = ReturnType<typeof useForgeForm>
+
+// Copy is a command to run in a terminal, with a button that copies it. The
+// clipboard can refuse, and the command can still be selected by hand.
+function Copy({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => setCopied(false), [text])
   return (
-    <EditForm class="forge-editor" onSave={save} onCancel={onCancel} busy={busy} canSave={!!canSave}
-      save={label} saving={saving.busy ? 'Saving…' : label} hint={canSave ? undefined : 'Test the token first'}
-      error={testing.error ?? saving.error}>
-      <div class="row">
-        <label class="field">Forge
-          <select value={kind} onChange={(e) => setKind((e.target as HTMLSelectElement).value)}>
-            <option value="forgejo">Forgejo</option>
-            <option value="gitlab">GitLab</option>
-            <option value="github">GitHub</option>
-          </select>
-        </label>
-        <label class="field grow">Address
-          <input type="url" placeholder={{ gitlab: 'https://gitlab.com', github: 'https://github.com' }[kind] ?? 'https://codeberg.org'} value={url} onInput={(e) => setURL((e.target as HTMLInputElement).value)} />
-        </label>
-      </div>
-      {url.trim() && !host && <p class="warn">Use the forge's https address, such as https://gitlab.com, with nothing after the host.</p>}
-      <ol class="steps">
-        <li>
-          Make a personal access token{page ? <> on <a href={page.href} target="_blank" rel="noreferrer">{host}</a></> : ' on the forge'}, with {page?.scopes ?? 'the access vuoro needs'}. vuoro never asks for the token itself.
-        </li>
-        <li>
-          <label class="field">Keep it in
-            <select value={sourceID} onChange={(e) => { setSourceID((e.target as HTMLSelectElement).value); setResult(undefined) }}>
-              {setup.sources.map((s) => <option value={s.id} key={s.id}>{s.label}</option>)}
-            </select>
+    <div class="copy">
+      <code>{text}</code>
+      <button type="button" onClick={() => void navigator.clipboard?.writeText(text).then(() => setCopied(true), () => undefined)}>{copied ? 'Copied' : 'Copy'}</button>
+    </div>
+  )
+}
+
+// TokenSteps walks the person through making a token, keeping it, and
+// checking that vuoro can read it and the forge accepts it.
+function TokenSteps({ f, setup }: { f: Forge; setup: Setup }) {
+  const page = tokenPage(f.kind, f.url)
+  const where = f.host || 'the forge'
+  return (
+    <ol class="token-steps">
+      <li>
+        <h4>Make a token</h4>
+        {page ? (
+          <p><a class="button" href={page.href} target="_blank" rel="noreferrer">Make a token on {f.host} ↗</a> It needs {page.scopes}.</p>
+        ) : <p class="muted">Enter the forge's address first, and vuoro links to the page that makes one.</p>}
+      </li>
+      <li>
+        <h4>Keep it somewhere safe</h4>
+        <p class="muted">vuoro never asks for the token. You keep it in a store you trust, and vuoro asks that store for it when it needs it.</p>
+        <fieldset class="sources">
+          <legend>Keep it in</legend>
+          {setup.sources.map((s) => (
+            <label key={s.id} class={f.sourceID === s.id ? 'chosen' : ''}>
+              <input type="radio" name="source" value={s.id} checked={f.sourceID === s.id} onChange={() => f.setSourceID(s.id)} /> {s.label}
+            </label>
+          ))}
+        </fieldset>
+        {f.source?.store && <>
+          <p>Run this in a terminal, and paste the token when it asks:</p>
+          <Copy text={joinCommand(f.source.store.map((w) => fill(w, f.host)))} />
+        </>}
+        {f.source?.note && <p class="muted">{fill(f.source.note, f.host)}</p>}
+        {f.isEnv ? (
+          <label class="field">Variable
+            <input class="mono" placeholder={f.effectiveEnv} value={f.env} onInput={(e) => f.setEnv((e.target as HTMLInputElement).value)} />
           </label>
-          {source?.store && <p>In a terminal, store it with <code class="copyable">{joinCommand(source.store.map((w) => fill(w, host)))}</code></p>}
-          {source?.note && <p class="muted">{fill(source.note, host)}</p>}
-          {isEnv ? (
-            <label class="field">Variable
-              <input class="mono" placeholder={effectiveEnv} value={env} onInput={(e) => setEnv((e.target as HTMLInputElement).value)} />
-            </label>
-          ) : (
-            <label class="field">vuoro reads it with
-              <input class="mono" value={command} placeholder={commandSources.length > 1 ? '' : 'a program and its arguments'} onInput={(e) => setCommand((e.target as HTMLInputElement).value)} />
-            </label>
-          )}
-          {commandError && <p class="warn">The command: {commandError}.</p>}
-          {!isEnv && argv.length > 0 && !commandError && <p class="muted">vuoro will run <span class="mono">{argv.map((a) => `‹${a}›`).join(' ')}</span>, without a shell, whenever it needs the token.</p>}
-        </li>
-        <li>
-          <button type="button" disabled={busy || !ready} onClick={() => void test()}>{testing.busy ? 'Testing…' : 'Test'}</button>{' '}
-          {tested && <span class="ok">✓ Signed in as @{result.username}</span>}
-          {tested && form.username && result.username.toLowerCase() !== form.username.toLowerCase() && <p class="warn">The token is @{result.username}'s, not @{form.username}'s.</p>}
-        </li>
-      </ol>
+        ) : f.source?.read ? (
+          <details class="advanced">
+            <summary>Change how vuoro reads it</summary>
+            <ReadCommand f={f} />
+          </details>
+        ) : <ReadCommand f={f} />}
+        {f.commandError && <p class="warn">The command: {f.commandError}.</p>}
+      </li>
+      <li>
+        <h4>Check that it works</h4>
+        <p>
+          <button type="button" class={f.ready && !f.tested ? 'primary' : ''} disabled={f.busy || !f.ready} onClick={() => void f.test()}>{f.testing.busy ? 'Checking…' : 'Check the token'}</button>{' '}
+          {f.tested && !f.mismatch && <span class="ok">✓ Signed in to {where} as @{f.tested.username}</span>}
+        </p>
+        {f.mismatch && <p class="warn">The token is @{f.tested!.username}'s, not @{f.form.username}'s.</p>}
+      </li>
+    </ol>
+  )
+}
+
+function ReadCommand({ f }: { f: Forge }) {
+  return (
+    <label class="field">vuoro reads it with
+      <input class="mono" value={f.command} placeholder="a program and its arguments" onInput={(e) => f.setCommand((e.target as HTMLInputElement).value)} />
+      <span class="muted">vuoro runs it without a shell, and reads the token from what it prints.</span>
+    </label>
+  )
+}
+
+// MoreOptions are what a forge needs that the test fills in or a default
+// covers: whose account it is, its name in vuoro, and how code is fetched.
+function MoreOptions({ f, open }: { f: Forge; open?: boolean }) {
+  return (
+    <details class="advanced" open={open}>
+      <summary>More options</summary>
       <div class="row">
         <label class="field">Your username
-          <input value={username} placeholder="filled in by the test" onInput={(e) => setUsername((e.target as HTMLInputElement).value)} />
+          <input value={f.username} placeholder="from the token check" onInput={(e) => f.setUsername((e.target as HTMLInputElement).value)} />
         </label>
-        <label class="field">Name
-          <input value={name} placeholder={host || 'shown in vuoro'} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+        <label class="field">Name in vuoro
+          <input value={f.name} placeholder={f.host || 'the forge’s host'} onInput={(e) => f.setName((e.target as HTMLInputElement).value)} />
         </label>
         <label class="field">Fetch code over
-          <select value={clone} onChange={(e) => setClone((e.target as HTMLSelectElement).value)}>
+          <select value={f.clone} onChange={(e) => f.setClone((e.target as HTMLSelectElement).value)}>
             <option value="ssh">SSH, with your keys</option>
             <option value="https">HTTPS, with your credential helper</option>
           </select>
         </label>
       </div>
+    </details>
+  )
+}
+
+const kinds = [
+  { id: 'forgejo', label: 'Forgejo or Gitea' },
+  { id: 'gitlab', label: 'GitLab' },
+  { id: 'github', label: 'GitHub' },
+]
+
+// ForgeEditor adds a forge, or changes the one named original, in the
+// accounts panel.
+export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
+  setup: Setup; initial?: ForgeForm; original?: string; onSaved: (s: Setup) => void; onCancel?: () => void
+}) {
+  const f = useForgeForm(setup, initial, original)
+  const label = original ? 'Save' : 'Add this forge'
+  return (
+    <EditForm class="forge-editor" onSave={() => f.save(onSaved)} onCancel={onCancel} busy={f.busy} canSave={f.canSave}
+      save={label} saving={f.saving.busy ? 'Saving…' : label} hint={f.canSave ? undefined : 'Check the token first'}
+      error={f.error}>
+      <div class="row">
+        <label class="field">Forge
+          <select value={f.kind} onChange={(e) => f.setKind((e.target as HTMLSelectElement).value)}>
+            {kinds.map((k) => <option value={k.id} key={k.id}>{k.label}</option>)}
+          </select>
+        </label>
+        <label class="field grow">Address
+          <input type="url" placeholder={{ gitlab: 'https://gitlab.com', github: 'https://github.com' }[f.kind] ?? 'https://codeberg.org'} value={f.url} onInput={(e) => f.setURL((e.target as HTMLInputElement).value)} />
+        </label>
+      </div>
+      {f.url.trim() && !f.host && <p class="warn">Use the forge's https address, such as https://gitlab.com, with nothing after the host.</p>}
+      <TokenSteps f={f} setup={setup} />
+      <MoreOptions f={f} open={!!original} />
     </EditForm>
   )
+}
+
+// signedIn words how a tool is signed in. Claude Code reports its login
+// method and plan as words of its own, such as oauth_token max.
+export function signedIn(account?: string): string {
+  const words = (account ?? '').split(/\s+/).filter(Boolean)
+  const how: Record<string, string> = { 'claude.ai': 'with a Claude account', oauth_token: 'with a Claude token', api_key: 'with an API key', apikey: 'with an API key' }
+  const method = words.map((w) => how[w.toLowerCase()]).find(Boolean)
+  const plan = words.find((w) => !how[w.toLowerCase()])
+  return ['signed in', method, plan && `(${plan[0].toUpperCase()}${plan.slice(1)} plan)`].filter(Boolean).join(' ')
 }
 
 // toolHelp is what to do about a tool in each state.
 function toolHelp(t: Tool): string {
   const name = t.tool === 'claude' ? 'Claude Code' : t.tool
   switch (t.state) {
-    case 'ok': return `✓ ${name} ${t.version ?? ''}${t.account ? `, signed in (${t.account})` : ''}`
+    case 'ok': return `✓ ${name} ${t.version ?? ''}, ${signedIn(t.account)}`
     case 'missing': return `${name} is not installed. ${t.error ?? ''}`
     case 'too_old': return `${name} needs updating${t.tool === 'claude' ? ': run claude update' : ''}. ${t.error ?? ''}`
     case 'signed_out': return `${name} ${t.version ?? ''} is installed but not signed in${t.tool === 'claude' ? ': run claude in a terminal and sign in with /login' : ''}.`
@@ -291,33 +377,43 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
 // Background sets how vuoro runs with its window closed (D55): how often it
 // refreshes the inbox, whether it notifies, and whether it starts at login.
 // The first two are the configuration file's; start at login is the
-// system's, and applies at once.
-export function Background({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) => void }) {
+// system's. Each change is saved as it is made, and onSaving is given each
+// save as it starts, answering whether it succeeded, so a caller about to
+// leave can wait for it and stay when it failed.
+export function Background({ setup, onSetup, onSaving }: { setup: Setup; onSetup: (s: Setup) => void; onSaving?: (saved: Promise<boolean>) => void }) {
   const b: BackgroundView = setup.background
   const [minutes, setMinutes] = useState(String(b.refresh_minutes))
-  const [notify, setNotify] = useState(b.notify)
   const { busy, error, run } = useAction()
-  useEffect(() => { setMinutes(String(b.refresh_minutes)); setNotify(b.notify) }, [b.refresh_minutes, b.notify])
+  useEffect(() => setMinutes(String(b.refresh_minutes)), [b.refresh_minutes])
   const n = Number(minutes)
   const valid = Number.isInteger(n) && n >= 1 && n <= 1440
-  const changed = n !== b.refresh_minutes || notify !== b.notify
-  const save = () => run(async () => onSetup(await post<Setup>('/api/setup/background', { base: setup.base, refresh_minutes: n, notify })))
-  const login = (enabled: boolean) => run(async () => onSetup(await post<Setup>('/api/setup/autostart', { enabled })))
+  const track = (path: string, body: object) => {
+    const saved = run(async () => { onSetup(await post<Setup>(path, body)); return true }).then((ok) => {
+      // A save that failed leaves the file as it was, so the field shows
+      // what is saved rather than what was tried.
+      if (!ok) setMinutes(String(b.refresh_minutes))
+      return ok === true
+    })
+    onSaving?.(saved)
+  }
+  const save = (refresh: number, notify: boolean) => {
+    if (refresh !== b.refresh_minutes || notify !== b.notify) track('/api/setup/background', { base: setup.base, refresh_minutes: refresh, notify })
+  }
+  const login = (enabled: boolean) => track('/api/setup/autostart', { enabled })
+  const off = !setup.editable || busy
   return (
     <div class="background">
-      <form onSubmit={(e) => { e.preventDefault(); if (valid && changed) void save() }}>
-        <label>Refresh the inbox every{' '}
-          <input type="number" min={1} max={1440} step={1} inputMode="numeric" value={minutes} disabled={!setup.editable || busy}
-            onInput={(e) => setMinutes((e.currentTarget as HTMLInputElement).value)} /> minutes, with the window open or closed
-        </label>
-        <label><input type="checkbox" checked={notify} disabled={!setup.editable || busy}
-          onChange={(e) => setNotify((e.currentTarget as HTMLInputElement).checked)} /> Notify me when a change becomes my turn, or a long review finishes</label>
-        {setup.editable && <button type="submit" disabled={busy || !valid || !changed}>{busy ? 'Saving…' : 'Save'}</button>}
-        {!valid && <p class="warn">Choose from 1 to 1440 minutes.</p>}
-      </form>
+      <label>Refresh the inbox every{' '}
+        <input type="number" min={1} max={1440} step={1} inputMode="numeric" value={minutes} disabled={off}
+          onInput={(e) => setMinutes((e.currentTarget as HTMLInputElement).value)}
+          onChange={() => { if (valid) save(n, b.notify) }} /> minutes, with the window open or closed
+      </label>
+      {!valid && <p class="warn">Choose from 1 to 1440 minutes.</p>}
+      <label><input type="checkbox" checked={b.notify} disabled={off}
+        onChange={(e) => save(b.refresh_minutes, (e.currentTarget as HTMLInputElement).checked)} /> Notify me when a change becomes my turn, or a long review finishes</label>
       {b.login ? (
         <label><input type="checkbox" checked={b.autostart} disabled={busy}
-          onChange={(e) => void login((e.currentTarget as HTMLInputElement).checked)} /> Start vuoro in the tray when I log in</label>
+          onChange={(e) => login((e.currentTarget as HTMLInputElement).checked)} /> Start vuoro in the tray when I log in</label>
       ) : <p class="muted">vuoro cannot start at login on this system.</p>}
       {b.login_error && <p class="warn">{b.login_error}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
@@ -325,25 +421,156 @@ export function Background({ setup, onSetup }: { setup: Setup; onSetup: (s: Setu
   )
 }
 
-// FirstRun walks a fresh install through adding its forges and checking its
-// agent tools.
+// presets are the public forges most people review on, so choosing one
+// fills in its kind and address; a forge of the person's own is the last.
+const presets = [
+  { id: 'github', label: 'GitHub', detail: 'github.com', kind: 'github', url: 'https://github.com' },
+  { id: 'gitlab', label: 'GitLab', detail: 'gitlab.com', kind: 'gitlab', url: 'https://gitlab.com' },
+  { id: 'codeberg', label: 'Codeberg', detail: 'codeberg.org', kind: 'forgejo', url: 'https://codeberg.org' },
+  { id: 'own', label: 'Your own', detail: 'Forgejo, Gitea, GitLab, or GitHub Enterprise', kind: 'forgejo', url: '' },
+]
+
+type Step = 'forge' | 'token' | 'tools' | 'background'
+const steps: { id: Step; label: string }[] = [
+  { id: 'forge', label: 'Forge' },
+  { id: 'token', label: 'Token' },
+  { id: 'tools', label: 'Agent tools' },
+  { id: 'background', label: 'Background' },
+]
+
+// FirstRun walks a fresh install through setup one step at a time: the
+// forge, its token, the agent tools, and how vuoro runs in the background.
+// The forge is saved at the end of its token step, so leaving setup early
+// keeps what was finished.
 export function FirstRun({ setup, onSetup, onDone }: { setup: Setup; onSetup: (s: Setup) => void; onDone: () => void }) {
+  const [step, setStep] = useState<Step>('forge')
+  // Each forge added gets a fresh form.
+  const [form, setForm] = useState(0)
+  // Going on without a forge skips the forge's steps rather than doing them.
+  const [skipped, setSkipped] = useState(false)
+  // The background step's last save. Leaving the step waits for it, and a
+  // save that failed keeps the step open once, with its error showing. The
+  // step then shows what is saved, so the next Back or Finish leaves with it.
+  const saving = useRef<Promise<boolean>>()
+  const [leaving, setLeaving] = useState(false)
+  const leave = async (then: () => void) => {
+    setLeaving(true)
+    const ok = await (saving.current ?? Promise.resolve(true))
+    saving.current = undefined
+    setLeaving(false)
+    if (ok) then()
+  }
+  const go = (to: Step) => {
+    if (to === 'forge' || to === 'token') setSkipped(false)
+    setStep(to)
+  }
+  const at = steps.findIndex((s) => s.id === step)
   return (
     <section class="first-run" aria-labelledby="first-run-title">
       <h2 id="first-run-title">Set up vuoro</h2>
-      <p>Add the forges you review on, and vuoro finds the reviews that wait for you. It reads and posts with a token of yours, kept where you choose; vuoro's configuration names that place, never the token.</p>
-      <h3>1. Your forges</h3>
-      {setup.forges.length === 0 ? (
-        <ForgeEditor setup={setup} onSaved={onSetup} />
+      <ol class="stepper" aria-label="Setup steps">
+        {steps.map((s, i) => {
+          const state = i < at && i < 2 && skipped ? 'skipped' : i < at ? 'done' : i === at ? 'current' : ''
+          return (
+            <li key={s.id} class={state} aria-current={i === at ? 'step' : undefined}>
+              <span class="dot">{state === 'done' ? '✓' : state === 'skipped' ? '–' : i + 1}</span> {s.label}
+            </li>
+          )
+        })}
+      </ol>
+      {step === 'forge' || step === 'token' ? (
+        <ForgeSteps key={form} setup={setup} step={step} onStep={go} onDone={onDone}
+          onSkip={() => { setSkipped(setup.forges.length === 0); setStep('tools') }}
+          onSaved={(s) => { onSetup(s); setForm((n) => n + 1); setStep('tools') }} />
+      ) : step === 'tools' ? (
+        <div class="step">
+          <h3>Check your agent tools</h3>
+          <p class="lead">vuoro runs reviews with the agent tools you already have. You can read your inbox and open changes without one.</p>
+          <Tools setup={setup} onSetup={onSetup} />
+          <div class="step-actions">
+            <button type="button" onClick={() => go('forge')}>Back</button>
+            <span class="spacer" />
+            <button type="button" class="primary" onClick={() => setStep('background')}>Next</button>
+          </div>
+        </div>
       ) : (
-        <Forges setup={setup} onSetup={onSetup} />
+        <div class="step">
+          <h3>When the window is closed</h3>
+          <p class="lead">vuoro can keep your inbox fresh from the tray, and tell you when it is your turn. Each choice is saved as you make it.</p>
+          <Background setup={setup} onSetup={onSetup} onSaving={(p) => { saving.current = p }} />
+          <div class="step-actions">
+            <button type="button" disabled={leaving} onClick={() => void leave(() => setStep('tools'))}>Back</button>
+            <span class="spacer" />
+            <button type="button" class="primary" disabled={leaving} onClick={() => void leave(onDone)}>{leaving ? 'Saving…' : setup.forges.length > 0 ? 'Show my inbox' : 'Finish'}</button>
+          </div>
+        </div>
       )}
-      <h3>2. Agent tools</h3>
-      <Tools setup={setup} onSetup={onSetup} />
-      <div class="actions">
-        <button class={setup.forges.length > 0 ? 'primary' : ''} onClick={onDone}>{setup.forges.length > 0 ? 'Done, show my inbox' : 'Skip for now'}</button>
-      </div>
-      {setup.forges.length === 0 && <p class="muted">Without a forge you can still open a public change by its URL above.</p>}
     </section>
+  )
+}
+
+// ForgeSteps are the first run's first two steps: choosing a forge, and
+// connecting to it with a token.
+function ForgeSteps({ setup, step, onStep, onSaved, onSkip, onDone }: {
+  setup: Setup; step: Step; onStep: (s: Step) => void; onSaved: (s: Setup) => void; onSkip: () => void; onDone: () => void
+}) {
+  const f = useForgeForm(setup)
+  const [preset, setPreset] = useState<string>()
+  const choose = (p: typeof presets[number]) => {
+    setPreset(p.id)
+    f.setKind(p.kind)
+    f.setURL(p.url)
+  }
+  const added = setup.forges
+  if (step === 'forge') {
+    return (
+      <div class="step">
+        <h3>{added.length > 0 ? 'Add another forge?' : 'Where do you review code?'}</h3>
+        {added.length > 0 ? (
+          <ul class="added">{added.map((a) => <li key={a.name}>✓ <strong>{a.name}</strong> as @{a.username}</li>)}</ul>
+        ) : <p class="lead">vuoro gathers the reviews that wait for you from each forge you add. You can add more later.</p>}
+        <div class="presets" role="group" aria-label="Forge">
+          {presets.map((p) => (
+            <button type="button" key={p.id} class="preset" aria-pressed={preset === p.id} onClick={() => choose(p)}>
+              <strong>{p.label}</strong><span class="muted">{p.detail}</span>
+            </button>
+          ))}
+        </div>
+        {preset === 'own' && (
+          <div class="row own">
+            <label class="field">Software
+              <select value={f.kind} onChange={(e) => f.setKind((e.target as HTMLSelectElement).value)}>
+                {kinds.map((k) => <option value={k.id} key={k.id}>{k.label}</option>)}
+              </select>
+            </label>
+            <label class="field grow">Address
+              <input type="url" placeholder="https://git.example.com" value={f.url} autoFocus onInput={(e) => f.setURL((e.target as HTMLInputElement).value)} />
+            </label>
+          </div>
+        )}
+        {preset === 'own' && f.url.trim() && !f.host && <p class="warn">Use the forge's https address, such as https://git.example.com, with nothing after the host.</p>}
+        <div class="step-actions">
+          <button type="button" class="link" onClick={onDone}>{added.length > 0 ? 'Finish later' : 'Skip setup for now'}</button>
+          <span class="spacer" />
+          <button type="button" onClick={onSkip}>{added.length > 0 ? 'No, continue' : 'Continue without a forge'}</button>
+          <button type="button" class="primary" disabled={!f.host} onClick={() => onStep('token')}>Next</button>
+        </div>
+        {added.length === 0 && <p class="muted">Without a forge you can still open a public change by its URL above.</p>}
+      </div>
+    )
+  }
+  return (
+    <form class="step" onSubmit={(e) => { e.preventDefault(); if (f.canSave && !f.busy) f.save(onSaved) }}>
+      <h3>Connect to {f.host}</h3>
+      <p class="lead">vuoro reads your reviews and posts the ones you send with a personal access token of yours.</p>
+      <TokenSteps f={f} setup={setup} />
+      <MoreOptions f={f} />
+      {f.error && <p class="alert" role="alert">⚠ {f.error}</p>}
+      <div class="step-actions">
+        <button type="button" disabled={f.busy} onClick={() => onStep('forge')}>Back</button>
+        <span class="spacer" />
+        <button class="primary" disabled={f.busy || !f.canSave} title={f.canSave ? undefined : 'Check the token first'}>{f.saving.busy ? 'Saving…' : 'Save and continue'}</button>
+      </div>
+    </form>
   )
 }

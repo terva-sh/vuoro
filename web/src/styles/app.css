@@ -453,21 +453,60 @@ main { padding: var(--ui-space-4); }
 
 .bar .scheme { font-size: var(--ui-fs-ui); padding: var(--ui-space-1) var(--ui-space-2); }
 
-/* Setup (D45): the first-run card, and the forge form it shares with the accounts panel. */
-.first-run { max-width: 760px; }
-.first-run h2 { margin: 0 0 var(--ui-space-2); color: var(--ui-heading); }
-.first-run h3 { margin: var(--ui-space-5) 0 var(--ui-space-2); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+/* Setup (D45): the guided first run, and the forge form it shares with the accounts panel. */
+.home > .first-run { max-width: 720px; margin: var(--ui-space-6) auto; }
+.first-run h2 { margin: 0 0 var(--ui-space-4); color: var(--ui-heading); }
+.first-run h3 { margin: 0 0 var(--ui-space-2); font-size: 20px; color: var(--ui-heading); }
+.first-run .lead { color: var(--ui-muted); margin: 0 0 var(--ui-space-4); }
+.stepper { display: flex; gap: var(--ui-space-2); list-style: none; padding: 0; margin: 0 0 var(--ui-space-5); font-size: var(--ui-fs-ui); color: var(--ui-muted); }
+.stepper li { display: flex; align-items: center; gap: var(--ui-space-2); }
+.stepper li + li { flex: 1; }
+.stepper li + li::before { content: ''; flex: 1; min-width: var(--ui-space-4); height: 1px; background: var(--ui-line); margin-right: var(--ui-space-1); }
+.stepper .dot { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--ui-line); font-size: var(--ui-fs-detail); flex: none; }
+.stepper .current { color: var(--ui-heading); font-weight: 600; }
+.stepper .current .dot { background: var(--ui-accent); border-color: var(--ui-accent); color: var(--ui-on-accent); }
+.stepper .skipped { opacity: 0.7; }
+.stepper .done .dot { background: var(--ui-accent-soft); border-color: var(--ui-accent); color: var(--ui-accent); }
+.first-run .step { border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sheet); padding: var(--ui-space-5); background: var(--ui-surface); }
+.step-actions { display: flex; align-items: center; gap: var(--ui-space-2); margin-top: var(--ui-space-5); padding-top: var(--ui-space-4); border-top: 1px solid var(--ui-line); }
+.step-actions .spacer { flex: 1; }
+.presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--ui-space-3); }
+.preset { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ui-space-1); padding: var(--ui-space-3) var(--ui-space-4); text-align: left; border-radius: var(--ui-radius); min-height: 76px; }
+.preset strong { font-size: var(--ui-fs-body); }
+.preset .muted { font-size: var(--ui-fs-detail); }
+.preset[aria-pressed="true"] { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent); background: var(--ui-accent-soft); }
+.first-run .own { margin-top: var(--ui-space-4); }
+.first-run .tools ul { list-style: none; padding: 0; }
+.first-run .added { list-style: none; padding: 0; margin: 0 0 var(--ui-space-4); }
+.first-run .added li { color: var(--ui-ok); }
+.first-run .added strong { color: var(--ui-fg); }
 .forge-editor { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); padding: var(--ui-space-3) var(--ui-space-4); margin: var(--ui-space-2) 0; background: var(--ui-surface); }
-.forge-editor .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
-.forge-editor .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-2); }
-.forge-editor .field.grow { flex: 1; min-width: 240px; }
-.forge-editor .steps { padding-left: var(--ui-space-5); }
-.forge-editor .steps li + li { margin-top: var(--ui-space-3); }
-.forge-editor code.copyable { user-select: all; font-family: var(--ui-font-mono); font-size: var(--ui-fs-note); }
+.forge-editor .row, .first-run .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
+.forge-editor .field, .first-run .field { display: flex; flex-direction: column; gap: var(--ui-space-1); margin-bottom: var(--ui-space-2); }
+.forge-editor .field.grow, .first-run .field.grow { flex: 1; min-width: 240px; }
+.token-steps { list-style: none; counter-reset: token; padding: 0; margin: var(--ui-space-3) 0; }
+.token-steps > li { counter-increment: token; position: relative; padding-left: 36px; }
+.token-steps > li + li { margin-top: var(--ui-space-4); }
+.token-steps > li::before { content: counter(token); position: absolute; left: 0; top: 0; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--ui-accent-soft); color: var(--ui-accent); font-size: var(--ui-fs-detail); font-weight: 600; }
+.token-steps h4 { margin: 2px 0 var(--ui-space-2); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.token-steps p { margin: var(--ui-space-1) 0 var(--ui-space-2); }
+a.button { display: inline-block; padding: var(--ui-space-1) var(--ui-space-3); border: 1px solid var(--ui-accent); border-radius: var(--ui-radius-control); color: var(--ui-accent); text-decoration: none; margin-right: var(--ui-space-2); }
+a.button:hover { background: var(--ui-accent-soft); }
+.sources { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); border: 0; padding: 0; margin: var(--ui-space-2) 0 var(--ui-space-3); }
+.sources legend { padding: 0; margin-bottom: var(--ui-space-2); font-size: var(--ui-fs-ui); color: var(--ui-muted); }
+.sources label { display: flex; align-items: center; gap: var(--ui-space-2); padding: var(--ui-space-1) var(--ui-space-3); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-pill); cursor: pointer; font-size: var(--ui-fs-ui); background: var(--ui-bg); }
+.sources label.chosen { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
+.sources input { margin: 0; }
+.copy { display: flex; align-items: stretch; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-control); background: var(--ui-bg); overflow: hidden; }
+.copy code { flex: 1; padding: var(--ui-space-2) var(--ui-space-3); font-family: var(--ui-font-mono); font-size: var(--ui-fs-detail); user-select: all; overflow-x: auto; white-space: pre; }
+.copy button { border: 0; border-left: 1px solid var(--ui-line); border-radius: 0; }
+details.advanced { margin: var(--ui-space-3) 0 0; }
+details.advanced > summary { cursor: pointer; color: var(--ui-muted); font-size: var(--ui-fs-ui); margin-bottom: var(--ui-space-2); }
+details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .background label { display: block; margin: var(--ui-space-2) 0; }
 .background input[type="number"] { width: 5em; }
-.forge-editor .ok, .tools .ok { color: var(--ui-ok); }
-.forge-editor .warn, .tools .warn { color: var(--ui-warn); }
+.forge-editor .ok, .tools .ok, .first-run .ok { color: var(--ui-ok); }
+.forge-editor .warn, .tools .warn, .first-run .warn { color: var(--ui-warn); }
 .forges ul, .tools ul { padding-left: var(--ui-space-4); margin: var(--ui-space-1) 0; }
 
 /* A finding's fix (D50): the commit that fixed it, or a way to link one. */

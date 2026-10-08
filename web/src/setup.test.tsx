@@ -3,7 +3,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { post } from './api'
-import { Background, FirstRun, ForgeEditor, Forges, hostOf, joinCommand, splitCommand, Tools } from './setup'
+import { Background, FirstRun, ForgeEditor, Forges, hostOf, joinCommand, signedIn, splitCommand, Tools } from './setup'
 import type { Setup, Tool } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
@@ -64,10 +64,10 @@ describe('ForgeEditor', () => {
     expect(input(root, 'vuoro reads it with').value).toBe('secret-tool lookup service vuoro host forge.example')
     expect(root.textContent).toContain("secret-tool store '--label=vuoro forge.example' service vuoro host forge.example")
     expect(root.querySelector('a')!.getAttribute('href')).toBe('https://forge.example/user/settings/applications')
-    await click(root, 'Test')
+    await click(root, 'Check the token')
     const form = { name: 'forge.example', kind: 'forgejo', url: 'https://forge.example', username: '', clone: 'ssh', token_command: ['secret-tool', 'lookup', 'service', 'vuoro', 'host', 'forge.example'] }
     expect(post).toHaveBeenCalledWith('/api/setup/test', form)
-    expect(root.textContent).toContain('✓ Signed in as @pat')
+    expect(root.textContent).toContain('✓ Signed in to forge.example as @pat')
     expect(input(root, 'Your username').value).toBe('pat')
     await click(root, 'Add this forge')
     expect(post).toHaveBeenLastCalledWith('/api/setup/forges', { base: 'b1', original: '', forge: { ...form, username: 'pat' } })
@@ -78,15 +78,17 @@ describe('ForgeEditor', () => {
   it('asks for a new test when the source changes, and names a token that is someone else\'s', async () => {
     vi.mocked(post).mockResolvedValue({ username: 'robot', matches: false })
     const root = document.createElement('div')
+    document.body.append(root) // a radio fires change only in the document
     act(() => render(<ForgeEditor setup={setup()} onSaved={() => {}} />, root))
     type(input(root, 'Address'), 'https://forge.example')
     type(input(root, 'Your username'), 'pat')
-    await click(root, 'Test')
+    await click(root, 'Check the token')
     expect(root.textContent).toContain("The token is @robot's, not @pat's.")
     expect(button(root, 'Add this forge').disabled).toBe(true)
-    type(input(root, 'Keep it in'), 'env')
+    act(() => (root.querySelector('input[type="radio"][value="env"]') as HTMLInputElement).click())
     expect(root.textContent).not.toContain('Signed in')
     expect(input(root, 'Variable').placeholder).toBe('VUORO_FORGE_EXAMPLE_TOKEN')
+    root.remove()
   })
 })
 
@@ -112,7 +114,7 @@ describe('an editor opened before the file changed', () => {
     // The window reads the file again after a hand edit, and the open editor
     // gets the new snapshot.
     act(() => render(<ForgeEditor setup={setup({ base: 'new' })} initial={forge} original="internal" onSaved={() => {}} />, root))
-    await click(root, 'Test')
+    await click(root, 'Check the token')
     await click(root, 'Save')
     expect(post).toHaveBeenLastCalledWith('/api/setup/forges', expect.objectContaining({ base: 'old' }))
     expect(root.textContent).toContain('the file changed')
@@ -150,14 +152,88 @@ describe('Tools when the check fails', () => {
 })
 
 describe('FirstRun', () => {
-  it('starts with the forge form, and can be skipped', () => {
+  it('walks from a forge to its token, the agent tools, and the background, one step at a time', async () => {
+    const added = setup({ base: 'b2', forges: [{ name: 'github.com', kind: 'github', url: 'https://github.com', username: 'pat', clone: 'ssh', token_command: ['secret-tool', 'lookup', 'service', 'vuoro', 'host', 'github.com'] }] })
+    vi.mocked(post).mockResolvedValueOnce({ username: 'pat', matches: true }).mockResolvedValueOnce(added)
+    let current = setup()
+    const done = vi.fn()
+    const root = document.createElement('div')
+    document.body.append(root)
+    const draw = () => act(() => render(<FirstRun setup={current} onSetup={(s) => { current = s; draw() }} onDone={done} />, root))
+    draw()
+    const step = () => root.querySelector('[aria-current="step"]')!.textContent
+    expect(step()).toContain('Forge')
+    expect(button(root, 'Next').disabled).toBe(true)
+    act(() => { [...root.querySelectorAll('button.preset')].find((b) => b.textContent!.startsWith('GitHub'))!.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    act(() => button(root, 'Next').click())
+    expect(step()).toContain('Token')
+    expect(root.querySelector('.stepper .done')!.textContent).toContain('Forge')
+    expect(root.querySelector('h3')!.textContent).toBe('Connect to github.com')
+    expect(root.querySelector('a.button')!.getAttribute('href')).toBe('https://github.com/settings/tokens/new?description=vuoro&scopes=repo')
+    // The ready-made store's command is shown to copy, and how vuoro reads
+    // it back waits under a disclosure.
+    expect(root.querySelector('.copy code')!.textContent).toBe("secret-tool store '--label=vuoro github.com' service vuoro host github.com")
+    expect(root.querySelector('details.advanced input')).not.toBeNull()
+    expect(button(root, 'Save and continue').disabled).toBe(true)
+    await click(root, 'Check the token')
+    expect(root.textContent).toContain('✓ Signed in to github.com as @pat')
+    await click(root, 'Save and continue')
+    expect(post).toHaveBeenLastCalledWith('/api/setup/forges', expect.objectContaining({ base: 'b1', forge: expect.objectContaining({ kind: 'github', username: 'pat' }) }))
+    expect(step()).toContain('Agent tools')
+    act(() => button(root, 'Next').click())
+    expect(step()).toContain('Background')
+    await click(root, 'Show my inbox')
+    expect(done).toHaveBeenCalled()
+    act(() => render(null, root))
+    root.remove()
+  })
+
+  it('goes on without a forge, and can be left at the start', () => {
     const done = vi.fn()
     const root = document.createElement('div')
     act(() => render(<FirstRun setup={setup()} onSetup={() => {}} onDone={done} />, root))
     expect(root.textContent).toContain('Set up vuoro')
-    expect(root.querySelector('.forge-editor')).not.toBeNull()
-    act(() => button(root, 'Skip for now').click())
+    act(() => button(root, 'Continue without a forge').click())
+    expect(root.querySelector('[aria-current="step"]')!.textContent).toContain('Agent tools')
+    // The forge's steps were skipped, so they are not ticked.
+    expect(root.querySelectorAll('.stepper .skipped')).toHaveLength(2)
+    act(() => button(root, 'Back').click())
+    act(() => button(root, 'Skip setup for now').click())
     expect(done).toHaveBeenCalled()
+  })
+})
+
+describe('FirstRun leaving the background step', () => {
+  it('waits for a save, stays once with its error when the save failed, then lets the person go on', async () => {
+    let fail!: (e: Error) => void
+    vi.mocked(post).mockImplementation(() => new Promise((_, reject) => { fail = reject }))
+    const done = vi.fn()
+    const root = document.createElement('div')
+    document.body.append(root) // a checkbox fires change only in the document
+    act(() => render(<FirstRun setup={setup()} onSetup={() => {}} onDone={done} />, root))
+    act(() => button(root, 'Continue without a forge').click())
+    act(() => button(root, 'Next').click())
+    const notify = [...root.querySelectorAll('label')].find((l) => l.textContent!.includes('Notify me'))!.querySelector('input')!
+    act(() => notify.click())
+    await act(async () => { button(root, 'Finish').click(); await Promise.resolve() })
+    expect(button(root, 'Saving…').disabled).toBe(true)
+    await act(async () => { fail(new Error('config: the file changed since vuoro read it')); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(done).not.toHaveBeenCalled()
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain('the file changed')
+    expect(root.querySelector('[aria-current="step"]')!.textContent).toContain('Background')
+    // The step shows what is saved, and the person can leave with it.
+    await click(root, 'Finish')
+    expect(done).toHaveBeenCalled()
+    act(() => render(null, root))
+    root.remove()
+  })
+})
+
+describe('signedIn', () => {
+  it('words how Claude Code says it is signed in', () => {
+    expect(signedIn('oauth_token')).toBe('signed in with a Claude token')
+    expect(signedIn('claude.ai max')).toBe('signed in with a Claude account (Max plan)')
+    expect(signedIn('')).toBe('signed in')
   })
 })
 
@@ -202,24 +278,41 @@ describe('Background', () => {
   const checkbox = (root: Element, label: string) =>
     [...root.querySelectorAll('label')].find((l) => l.textContent!.includes(label))!.querySelector('input') as HTMLInputElement
 
-  it('saves the refresh interval and the notifications switch together', async () => {
-    const after = setup({ base: 'b2', background: { refresh_minutes: 5, notify: false, autostart: false, login: true } })
-    vi.mocked(post).mockResolvedValueOnce(after)
+  it('saves the refresh interval once it is changed, and the notifications switch at once', async () => {
+    vi.mocked(post).mockResolvedValue(setup())
     const onSetup = vi.fn()
     const root = document.createElement('div')
     document.body.append(root)
     act(() => render(<Background setup={setup()} onSetup={onSetup} />, root))
-    expect(button(root, 'Save').disabled).toBe(true) // nothing changed yet
+    expect(root.querySelector('button')).toBeNull() // nothing to press
     const minutes = root.querySelector('input[type="number"]') as HTMLInputElement
     expect(minutes.value).toBe('15')
     type(minutes, '0')
     expect(root.textContent).toContain('Choose from 1 to 1440 minutes.')
-    expect(button(root, 'Save').disabled).toBe(true)
+    act(() => { minutes.dispatchEvent(new Event('change')) })
+    expect(post).not.toHaveBeenCalled()
     type(minutes, '5')
-    act(() => { checkbox(root, 'Notify me').click() })
-    await click(root, 'Save')
-    expect(post).toHaveBeenCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 5, notify: false })
-    expect(onSetup).toHaveBeenCalledWith(after)
+    await act(async () => { minutes.dispatchEvent(new Event('change')); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(post).toHaveBeenLastCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 5, notify: true })
+    await act(async () => { checkbox(root, 'Notify me').click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(post).toHaveBeenLastCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 15, notify: false })
+    expect(onSetup).toHaveBeenCalledTimes(2)
+    root.remove()
+  })
+
+  it('shows the saved interval again when saving a new one failed', async () => {
+    vi.mocked(post).mockRejectedValueOnce(new Error('config: the file changed since vuoro read it')).mockResolvedValueOnce(setup())
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<Background setup={setup()} onSetup={vi.fn()} />, root))
+    const minutes = root.querySelector('input[type="number"]') as HTMLInputElement
+    type(minutes, '5')
+    await act(async () => { minutes.dispatchEvent(new Event('change')); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(root.textContent).toContain('the file changed')
+    expect(minutes.value).toBe('15')
+    // The next save carries the interval that is saved, which is the one shown.
+    await act(async () => { checkbox(root, 'Notify me').click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(post).toHaveBeenLastCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 15, notify: false })
     root.remove()
   })
 

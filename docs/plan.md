@@ -520,7 +520,12 @@ The config file is `config.json` in the platform config directory:
 `~/Library/Application Support/vuoro` on macOS, `$XDG_CONFIG_HOME/vuoro` or
 `~/.config/vuoro` on Linux, and `%AppData%\vuoro` on Windows. The window's
 setup writes it (D45): it adds, edits, and removes forges, tests each token
-source against the forge, and refuses to save over a hand edit. A person can still
+source against the forge, and refuses to save over a hand edit. A fresh install
+walks through it one step at a time: the forge, chosen from GitHub, GitLab,
+Codeberg, or the person's own; its token, made on the forge's own page, kept in
+a store this machine has, and checked; the agent tools; and the background
+settings. A forge is saved when its token step ends, so leaving setup early
+keeps it. A person can still
 write it by hand. An example, with no
 secret in it:
 
