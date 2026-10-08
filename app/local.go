@@ -719,7 +719,7 @@ func hostname(host string) string {
 
 // changeLabel is a change's number as its forge writes it: !2 or #2.
 func changeLabel(kind string, n int) string {
-	if kind == forge.Forgejo {
+	if kind == forge.Forgejo || kind == forge.GitHub {
 		return fmt.Sprintf("#%d", n)
 	}
 	return fmt.Sprintf("!%d", n)

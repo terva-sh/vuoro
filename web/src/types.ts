@@ -186,6 +186,9 @@ export interface Setup {
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`
 
-export const changeNumber = (kind: string | undefined, n: number) => `${kind === 'forgejo' ? '#' : '!'}${n}`
+// pullForge says the forge numbers pull requests with #, as Forgejo and GitHub
+// do. A change of no kind is from before vuoro read any forge but GitLab.
+const pullForge = (kind: string | undefined) => kind === 'forgejo' || kind === 'github'
+export const changeNumber = (kind: string | undefined, n: number) => `${pullForge(kind) ? '#' : '!'}${n}`
 // changeWord is what the forge calls a change.
-export const changeWord = (kind: string | undefined) => (kind === 'forgejo' ? 'pull request' : 'merge request')
+export const changeWord = (kind: string | undefined) => (pullForge(kind) ? 'pull request' : 'merge request')

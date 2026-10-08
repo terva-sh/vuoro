@@ -274,17 +274,17 @@ standalone approval or its withdrawal. The submit control offers comment always,
 do, unless the person waived it.
 
 `forge/adapters` owns the parser/factory registry. A configured host's kind wins;
-unconfigured URLs use the GitLab `/-/merge_requests/` or Forgejo `/pulls/` path
-shape and read anonymously. GitHub's public host is refused until its adapter
-exists. Each host has one configured account, and clients and credentials are
+unconfigured URLs use the GitLab `/-/merge_requests/`, Forgejo `/pulls/`, or
+GitHub `/pull/` path shape, and github.com is GitHub's. GitLab and Forgejo read
+anonymously; GitHub needs a configured account (D54, section 5.4). Each host has one configured account, and clients and credentials are
 cached by host and kind. Application code consumes neutral errors and metadata;
 it imports no individual adapter. A new forge extends the registry and contracts
 without adding API details to the application or review runner.
 
 Checkout metadata comes from the adapter: HTTPS and SSH clone URLs and the
 change's head ref in its target repository. GitLab uses
-`refs/merge-requests/N/head`; Forgejo uses `refs/pull/N/head`, including fork
-heads. Advertised Forgejo SSH URLs retain explicit ports. The application
+`refs/merge-requests/N/head`; Forgejo and GitHub use `refs/pull/N/head`,
+including fork heads. Advertised Forgejo SSH URLs retain explicit ports. The application
 validates hosts, credentials in URLs, refs and branch names before fetching,
 and git uses the person's own transport credentials. Run records retain forge
 kind for display; existing GitLab records and Ref identity keys stay compatible.
@@ -551,6 +551,42 @@ Submit will publish, and keeps the old body unless the person changes it.
 
 A later verdict from the same reviewer marks their earlier non-comment verdict
 dismissed. The inbox reader already treats that as superseded.
+
+### 5.4 GitHub
+
+TKT-01M3W4HX30MB0D601R3S0ZXSER (GitHub adapter for the forge interface) adds
+`forge/github`, in slices: the reader and discovery, then the writer, then the
+stacker. D54 records the owner's choices.
+
+- **The API is found from the web host.** A forge is configured by the host
+  people browse, `https://github.com`, which a Ref names. Its REST API is at
+  `api.github.com` and its GraphQL at `api.github.com/graphql`. Any other host
+  is GitHub Enterprise Server, with `/api/v3` and `/api/graphql` on the host.
+- **Reading needs a token.** GitHub answers anonymous GraphQL with 403, and
+  REST has no thread resolution, which turn rule A1 needs. So a GitHub change
+  opens only through a configured account. `Open` and `ReadFacts` send one
+  GraphQL query for the pull request, its review requests, reviews, review
+  threads with `isResolved`, issue comments, assignees, and the timeline's
+  review requests, dismissals and force pushes. A list past a hundred is paged
+  by cursor, and a pull request that moves between pages is refused. `Open`
+  adds the patches from REST `/pulls/{n}/files` and the merge base from
+  `/compare`, then checks that the pull request has not moved.
+- **What GitHub's model gives the turn rules.** GitHub lists a reviewer in
+  `reviewRequests` only while the request is unanswered, so a listed reviewer
+  is unreviewed. A dismissed review's verdict comes from its
+  `ReviewDismissedEvent`. GitHub records a time for a force push and for no
+  other push, so R2 compares the review's commit with the head. A team request
+  names nobody, and is skipped. A pending review is the viewer's draft and
+  stays out of the facts.
+- **A thread whose lines left the diff** has no current line. It is anchored at
+  its original line on its first comment's original commit.
+- **Discovery** runs GraphQL search for open pull requests with `author:`,
+  `review-requested:`, `reviewed-by:` and `assignee:` the person. `reviewed-by`
+  keeps a pull request whose request GitHub dropped when the person answered
+  it. A search over GitHub's thousand-result cap is refused, not read in part.
+- **Drafts are a GitHub pending review** (slice 2). GitHub keeps a pending
+  review private to its author, unlike Forgejo, so the reason for D43 does not
+  apply. Its writes are GraphQL.
 
 ## 6. Agents
 

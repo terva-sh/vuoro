@@ -48,5 +48,17 @@ describe('Forgejo references', () => {
     const { projectURL } = await import('./markdown')
     expect(projectURL('https://forge.example/o/r/pulls/2')).toBe('https://forge.example/o/r')
     expect(projectURL('https://gitlab.example/g/sub/p/-/merge_requests/2')).toBe('https://gitlab.example/g/sub/p')
+    expect(projectURL('https://github.com/o/r/pull/2')).toBe('https://github.com/o/r')
+  })
+})
+
+describe('GitHub references', () => {
+  it('links # references and numbers changes as GitHub does', async () => {
+    const root = document.createElement('div')
+    render(<Markdown text="See #2 and !7." refs={{ base: 'https://github.com/o/r', kind: 'github' }} />, root)
+    expect([...root.querySelectorAll('a')].map((a) => a.getAttribute('href'))).toEqual(['https://github.com/o/r/issues/2'])
+    const { changeNumber, changeWord } = await import('./types')
+    expect([changeNumber('github', 4), changeWord('github')]).toEqual(['#4', 'pull request'])
+    expect([changeNumber(undefined, 4), changeWord(undefined)]).toEqual(['!4', 'merge request'])
   })
 })

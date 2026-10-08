@@ -1,0 +1,542 @@
+{
+ "data": {
+  "repository": {
+   "nameWithOwner": "owner/repo",
+   "url": "https://github.com/owner/repo",
+   "sshUrl": "git@github.com:owner/repo.git",
+   "viewerPermission": "WRITE",
+   "pullRequest": {
+    "number": 14578,
+    "title": "Example change 14578",
+    "body": "Note 1.",
+    "url": "https://github.com/owner/repo/pull/14578",
+    "state": "OPEN",
+    "isDraft": false,
+    "createdAt": "2026-10-02T16:16:44Z",
+    "updatedAt": "2026-10-08T04:44:11Z",
+    "author": {
+     "login": "author",
+     "__typename": "User"
+    },
+    "baseRefName": "trunk",
+    "headRefName": "feature",
+    "baseRefOid": "6fc1c29d5477bfe71da7af290eb481c0df7811f1",
+    "headRefOid": "7cb1cfff701d4d9ae4963327686c09a71b8faba8",
+    "mergeStateStatus": "CLEAN",
+    "reviewRequests": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": []
+    },
+    "reviews": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0xMC0wN1QxOTozMTo1Nlq0MjAyNi0xMC0wN1QxOTozMTo1NlrPAAAAAUSvtPc="
+     },
+     "nodes": [
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQYRBcg",
+       "author": {
+        "login": "review-bot1",
+        "__typename": "Bot"
+       },
+       "state": "COMMENTED",
+       "body": "Note 2.",
+       "submittedAt": "2026-10-02T16:20:58Z",
+       "commit": {
+        "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7H3ZQ",
+       "author": {
+        "login": "review-bot1",
+        "__typename": "Bot"
+       },
+       "state": "COMMENTED",
+       "body": "Note 3.",
+       "submittedAt": "2026-10-06T15:22:31Z",
+       "commit": {
+        "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7sTEQ",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-10-06T16:06:23Z",
+       "commit": {
+        "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7sTIg",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-10-06T16:06:23Z",
+       "commit": {
+        "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7sTKw",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-10-06T16:06:23Z",
+       "commit": {
+        "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7sTOQ",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-10-06T16:06:23Z",
+       "commit": {
+        "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABQ7sTZg",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-10-06T16:06:23Z",
+       "commit": {
+        "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABRK-09w",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "state": "APPROVED",
+       "body": "",
+       "submittedAt": "2026-10-07T19:31:56Z",
+       "commit": {
+        "oid": "c12892961143034240247745bac0a24c0879961e"
+       }
+      }
+     ]
+    },
+    "reviewThreads": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMC0wNlQxNToyMjozMVrOqYjVrw=="
+     },
+     "nodes": [
+      {
+       "id": "PRRT_kwDODKw3uc6oaK0g",
+       "isResolved": true,
+       "path": "pkg/cmd/extension/browse/model.go",
+       "line": null,
+       "originalLine": 218,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc74aR7T",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 4.",
+          "createdAt": "2026-10-02T16:20:57Z",
+          "commit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQYRBcg",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc76Mx8E",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 5.",
+          "createdAt": "2026-10-06T16:06:23Z",
+          "commit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7sTOQ",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "id": "PRRT_kwDODKw3uc6oaK1C",
+       "isResolved": true,
+       "path": "pkg/cmd/extension/browse/model.go",
+       "line": 423,
+       "originalLine": 388,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc74aR8K",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 6.",
+          "createdAt": "2026-10-02T16:20:58Z",
+          "commit": {
+           "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQYRBcg",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc76Mx8o",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 7.",
+          "createdAt": "2026-10-06T16:06:23Z",
+          "commit": {
+           "oid": "f3adaae4dc873c3d27d99413a9d93e1f1eeec28b"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7sTZg",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "id": "PRRT_kwDODKw3uc6oaK1U",
+       "isResolved": true,
+       "path": "pkg/cmd/extension/browse/model.go",
+       "line": null,
+       "originalLine": 493,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc74aR8n",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 8.",
+          "createdAt": "2026-10-02T16:20:58Z",
+          "commit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQYRBcg",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc76Mx8A",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 9.",
+          "createdAt": "2026-10-06T16:06:23Z",
+          "commit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "originalCommit": {
+           "oid": "e15e40d099bb09c62c4bc549a0d58397917efb45"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7sTKw",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "id": "PRRT_kwDODKw3uc6piNV-",
+       "isResolved": true,
+       "path": "pkg/cmd/extension/browse/model.go",
+       "line": 283,
+       "originalLine": 276,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc76K3i4",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 10.",
+          "createdAt": "2026-10-06T15:22:30Z",
+          "commit": {
+           "oid": "7cb1cfff701d4d9ae4963327686c09a71b8faba8"
+          },
+          "originalCommit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7H3ZQ",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc76Mx7u",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 11.",
+          "createdAt": "2026-10-06T16:06:23Z",
+          "commit": {
+           "oid": "7cb1cfff701d4d9ae4963327686c09a71b8faba8"
+          },
+          "originalCommit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7sTEQ",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "id": "PRRT_kwDODKw3uc6piNWv",
+       "isResolved": true,
+       "path": "pkg/cmd/extension/browse/model.go",
+       "line": 230,
+       "originalLine": 233,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc76K3kH",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 12.",
+          "createdAt": "2026-10-06T15:22:31Z",
+          "commit": {
+           "oid": "7cb1cfff701d4d9ae4963327686c09a71b8faba8"
+          },
+          "originalCommit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7H3ZQ",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc76Mx72",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 13.",
+          "createdAt": "2026-10-06T16:06:23Z",
+          "commit": {
+           "oid": "7cb1cfff701d4d9ae4963327686c09a71b8faba8"
+          },
+          "originalCommit": {
+           "oid": "cfda7c6f458465ff0ae579a2e2841f1538c1a150"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABQ7sTIg",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "comments": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpHPAAAAAWjAIVw="
+     },
+     "nodes": [
+      {
+       "id": "IC_kwDODKw3uc8AAAABYzeJXQ",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 14.",
+       "createdAt": "2026-10-02T19:08:19Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABZwikEw",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 15.",
+       "createdAt": "2026-10-06T19:12:00Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABZ3sHLw",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 16.",
+       "createdAt": "2026-10-07T04:42:46Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABaFQoVw",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 17.",
+       "createdAt": "2026-10-07T19:31:48Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABaMAhXA",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 18.",
+       "createdAt": "2026-10-08T04:40:32Z"
+      }
+     ]
+    },
+    "assignees": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": []
+    },
+    "timelineItems": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpPPAAABoRJUtkABqzMyNjIzODk2ODU3"
+     },
+     "nodes": [
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-10-02T16:16:45Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": {
+        "__typename": "Bot",
+        "login": "review-bot1"
+       }
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-10-06T15:16:22Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": {
+        "__typename": "Bot",
+        "login": "review-bot1"
+       }
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-10-06T16:06:31Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": null
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-10-06T16:06:31Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": {
+        "__typename": "User",
+        "login": "reviewer2"
+       }
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-10-06T17:48:24Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": {
+        "__typename": "User",
+        "login": "reviewer1"
+       }
+      }
+     ]
+    },
+    "changedFiles": 2
+   }
+  }
+ }
+}

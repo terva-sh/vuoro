@@ -30,7 +30,7 @@ export interface InboxView {
 type Lane = 'yours' | 'replies' | 'reviews'
 
 const knownTime = (value: string) => !value.startsWith('0001-') && Number.isFinite(Date.parse(value))
-const forgeName = (kind: string) => (kind === 'forgejo' ? 'Forgejo' : 'GitLab')
+const forgeName = (kind: string) => ({ forgejo: 'Forgejo', github: 'GitHub' })[kind] ?? 'GitLab'
 const roleNames = (roles: string[]) => roles.map((role) => role.charAt(0).toUpperCase() + role.slice(1)).join(' · ')
 // shortRef is the project's last segment and the change's number.
 const shortRef = (row: InboxRow) => `${row.ref.project.split('/').pop()}${changeNumber(row.kind, row.ref.number)}`

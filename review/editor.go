@@ -930,7 +930,7 @@ func StackDescription(v RunView, d *EditorDetail, by string) string {
 
 // ChangeWord is what the forge calls a change.
 func ChangeWord(kind string) string {
-	if kind == "forgejo" {
+	if kind == "forgejo" || kind == "github" {
 		return "pull request"
 	}
 	return "merge request"
@@ -940,7 +940,7 @@ func capital(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
 
 // changeName is a change's short name, such as !2487.
 func changeName(v RunView) string {
-	if v.Kind == "forgejo" {
+	if v.Kind == "forgejo" || v.Kind == "github" {
 		return fmt.Sprintf("#%d", v.Ref.Number)
 	}
 	return fmt.Sprintf("!%d", v.Ref.Number)

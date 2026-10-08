@@ -10,6 +10,7 @@ import (
 const (
 	GitLab  = "gitlab"
 	Forgejo = "forgejo"
+	GitHub  = "github"
 )
 
 // Provider reads one host as one account. Writer is a separate, optional

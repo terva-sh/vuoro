@@ -59,6 +59,11 @@ func TestCIFilesAreTheForgesOwn(t *testing.T) {
 		{"forgejo", ".github/workflows/ci.yml", true},
 		{"forgejo", ".gitlab-ci.yml", false},
 		{"forgejo", "main.go", false},
+		{"github", ".github/workflows/ci.yml", true},
+		{"github", ".github/actions/setup/action.yml", true},
+		{"github", ".github/CODEOWNERS", false},
+		{"github", ".forgejo/workflows/ci.yml", false},
+		{"github", ".gitlab-ci.yml", false},
 	} {
 		if got := ciFile(c.kind, c.path); got != c.want {
 			t.Errorf("ciFile(%s, %s) = %v", c.kind, c.path, got)

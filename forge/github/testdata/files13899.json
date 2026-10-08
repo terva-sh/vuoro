@@ -1,0 +1,14 @@
+[
+ {
+  "filename": "pkg/cmd/issue/create/create.go",
+  "status": "modified",
+  "changes": 41,
+  "patch": "@@ -356,8 +356,10 @@ func createRun(opts *CreateOptions) (err error) {\n \t\t\t}\n \t\t}\n "
+ },
+ {
+  "filename": "pkg/cmd/issue/create/create_test.go",
+  "status": "modified",
+  "changes": 203,
+  "patch": "@@ -874,6 +874,106 @@ func Test_createRun(t *testing.T) {\n \t\t\twantsStdout: \"https://github.com/OWNER/REPO/issues/123\\n\",\n \t\t\twantsStderr: \"\\nCreating issue in OWNER/REPO\\n\\n\",\n \t\t},"
+ }
+]

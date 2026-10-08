@@ -64,8 +64,9 @@ work up.
 
 ## Opening changes
 
-Paste a GitLab merge-request URL or a Forgejo pull-request URL into the window.
-Public changes can open anonymously. To read your own reviews, add your forges
+Paste a GitLab merge-request URL, or a Forgejo or GitHub pull-request URL, into
+the window. Public GitLab and Forgejo changes can open anonymously; a GitHub
+change needs your GitHub account set up first. To read your own reviews, add your forges
 in the window: a fresh install opens at setup, and "Accounts and review tools"
 on the home screen adds, edits, and removes them later. vuoro never asks for a
 token. You keep it in your keychain, a password manager, or an environment
@@ -106,7 +107,8 @@ configuration file.
 Forgejo posts reviews too. Its pending comments stay in Vuoro until you
 submit, because Forgejo would show them to others sooner, and it cannot
 resolve a thread or withdraw an approval, so Vuoro offers neither there.
-GitHub is not supported yet.
+GitHub reads into the inbox and the window through a configured account,
+since GitHub refuses anonymous reads of reviews. Posting on GitHub comes next.
 
 ## Shared styling
 

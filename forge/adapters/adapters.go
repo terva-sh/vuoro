@@ -3,12 +3,12 @@
 package adapters
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/terva-sh/vuoro/config"
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/forgejo"
+	"github.com/terva-sh/vuoro/forge/github"
 	"github.com/terva-sh/vuoro/forge/gitlab"
 )
 
@@ -20,10 +20,11 @@ type adapter struct {
 var registry = map[string]adapter{
 	forge.GitLab:  {gitlab.ParseURL, func(base string, t config.Secret) (forge.Provider, error) { return gitlab.New(base, t) }},
 	forge.Forgejo: {forgejo.ParseURL, func(base string, t config.Secret) (forge.Provider, error) { return forgejo.New(base, t) }},
+	forge.GitHub:  {github.ParseURL, func(base string, t config.Secret) (forge.Provider, error) { return github.New(base, t) }},
 }
 
-// ParseURL honors a configured host's kind. Anonymous URLs use their path
-// shape; github.com is deliberately refused until its adapter exists.
+// ParseURL honors a configured host's kind. Other URLs go by their path
+// shape, and github.com is GitHub's.
 func ParseURL(raw, kind string) (forge.Ref, string, error) {
 	u, err := forge.ChangeURL(raw)
 	if err != nil {
@@ -32,11 +33,13 @@ func ParseURL(raw, kind string) (forge.Ref, string, error) {
 	if kind == "" {
 		switch {
 		case strings.EqualFold(u.Hostname(), "github.com"):
-			return forge.Ref{}, "", fmt.Errorf("GitHub is not supported yet: %w", forge.ErrUnsupported)
+			kind = forge.GitHub
 		case strings.Contains(u.Path, "/-/merge_requests/"):
 			kind = forge.GitLab
 		case strings.Contains(u.Path, "/pulls/"):
 			kind = forge.Forgejo
+		case strings.Contains(u.Path, "/pull/"):
+			kind = forge.GitHub
 		default:
 			return forge.Ref{}, "", forge.ErrNotAChange
 		}

@@ -846,3 +846,27 @@ and `just ci` and the Forgejo workflow run it after the plain test run.
   sessions' goroutines finished, so a run's record could be written after it
   returned, and a session that started during it was left running.
   TKT-01M4CPAZX0WNTCCV7R3HJ5MAJP has the evidence and the fix.
+
+### D54. GitHub is read with a token through GraphQL, and its drafts are a GitHub pending review
+
+Decided by the owner on 2026-10-08, at the start of
+TKT-01M3W4HX30MB0D601R3S0ZXSER (GitHub adapter for the forge interface).
+docs/plan.md section 5.4 records the design.
+
+- **A GitHub change needs a configured account to open.** GitHub answers
+  anonymous GraphQL with 403, checked on 2026-10-08. Reading with REST so that
+  public pull requests open anonymously was rejected. REST has no thread
+  resolution, so turn rule A1 would count resolved threads, and a change
+  needs several REST reads where one GraphQL query does.
+- **Drafts are kept in a GitHub pending review**, as GitLab keeps draft
+  notes. GitHub shows a pending review only to its author, so D43's reason for
+  keeping Forgejo drafts in vuoro does not hold here. The drafts show in
+  GitHub's own window and on another machine, and a reply can go inside the
+  review. Keeping them in vuoro and sending one REST review at submit was
+  rejected. That call cannot carry replies, so they would post separately, and
+  a pending review started in GitHub's window would block the submit. GitHub
+  allows one pending review per person per pull request, so vuoro adopts the
+  one the person started.
+- **Live write tests use a private sandbox repository under the owner's
+  account.** Approving and requesting changes need a second account, so those
+  stay tested from fixtures until there is one.

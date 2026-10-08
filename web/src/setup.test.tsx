@@ -90,6 +90,18 @@ describe('ForgeEditor', () => {
   })
 })
 
+describe('a GitHub forge', () => {
+  it('links to the token page with the repo scope', () => {
+    const root = document.createElement('div')
+    act(() => render(<ForgeEditor setup={setup()} onSaved={() => {}} />, root))
+    type(input(root, 'Forge'), 'github')
+    expect(input(root, 'Address').placeholder).toBe('https://github.com')
+    type(input(root, 'Address'), 'https://github.com')
+    expect(root.querySelector('a')!.getAttribute('href')).toBe('https://github.com/settings/tokens/new?description=vuoro&scopes=repo')
+    expect(root.textContent).toContain('the repo scope')
+  })
+})
+
 describe('an editor opened before the file changed', () => {
   it('saves against the file it was opened from, so the save is refused', async () => {
     vi.mocked(post).mockResolvedValueOnce({ username: 'pat', matches: true }).mockRejectedValueOnce(new Error('config: the file changed since vuoro read it'))

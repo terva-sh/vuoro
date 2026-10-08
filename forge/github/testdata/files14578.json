@@ -1,0 +1,14 @@
+[
+ {
+  "filename": "go.mod",
+  "status": "modified",
+  "changes": 5,
+  "patch": "@@ -18,6 +18,7 @@ require (\n \tgithub.com/cenkalti/backoff/v5 v5.0.3\n \tgithub.com/charmbracelet/glamour v0.10.0\n \tgithub.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834"
+ },
+ {
+  "filename": "go.sum",
+  "status": "modified",
+  "changes": 14,
+  "patch": "@@ -199,10 +199,6 @@ github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHk\n github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=\n github.com/gabriel-vasile/mimetype v1.4.15 h1:05iP/CYtZ/w455R/KZM6rZ5ieAdh99UPtd+d3YzLmaI=\n github.com/gabriel-vasile/mimetype v1.4.15/go.mod h1:azpTcoLcDZRNgFou5j+APrqQx9HqVPWa6ijYQIIVswQ="
+ }
+]

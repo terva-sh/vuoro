@@ -15,9 +15,10 @@ export interface Refs {
 // RefsContext gives every Markdown under a change that change's project.
 export const RefsContext = createContext<Refs>({})
 
-// projectURL is the project's web URL from a merge request's.
+// projectURL is the project's web URL from a change's: GitLab's /-/, Forgejo's
+// /pulls/, or GitHub's /pull/.
 export function projectURL(mrURL: string): string | undefined {
-  const i = mrURL.includes('/-/') ? mrURL.indexOf('/-/') : mrURL.indexOf('/pulls/')
+  const i = [mrURL.indexOf('/-/'), mrURL.indexOf('/pulls/'), mrURL.indexOf('/pull/')].find((n) => n > 0) ?? -1
   return i > 0 ? mrURL.slice(0, i) : undefined
 }
 
@@ -187,7 +188,7 @@ export function inline(src: string, refs: Refs): ComponentChildren[] {
     else if (m[10]) out.push(<a href={m[10]} target="_blank" rel="noreferrer noopener" key={k++}>{m[10]}</a>)
     else if (m[11]) {
       const kind = m[11] === '!' ? 'merge_requests' : 'issues'
-      const gitlab = refs.kind !== 'forgejo'
+      const gitlab = refs.kind !== 'forgejo' && refs.kind !== 'github'
       out.push(refs.base && (gitlab || m[11] === '#') ? <a href={`${refs.base.replace(/\/$/, '')}/${gitlab ? '-/' : ''}${kind}/${m[12]}`} target="_blank" rel="noreferrer noopener" key={k++}>{m[11]}{m[12]}</a> : m[0])
     } else if (m[13]) out.push(<br key={k++} />)
   }

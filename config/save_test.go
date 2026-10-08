@@ -71,7 +71,7 @@ func TestASaveNeverOverwritesAnEditOrABrokenFile(t *testing.T) {
 		t.Fatal("the broken file was overwritten")
 	}
 	// A configuration Load would refuse is never written.
-	c.Forges = []Forge{{Name: "x", Kind: "github", URL: "https://x.example", Username: "u", TokenEnv: "T"}}
+	c.Forges = []Forge{{Name: "x", Kind: "bitbucket", URL: "https://x.example", Username: "u", TokenEnv: "T"}}
 	os.Remove(path)
 	if err := Save(path, c, ""); err == nil {
 		t.Fatal("an unsupported forge was saved")

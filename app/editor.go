@@ -194,10 +194,14 @@ func (a *App) stack(ctx context.Context, runID, url string) (*forge.Change, forg
 
 // ciFile says a path configures the forge's CI, which a pushed branch runs.
 // Forgejo Actions reads .forgejo/workflows, and also .gitea/workflows and
-// .github/workflows; .forgejo holds its other configuration too.
+// .github/workflows; .forgejo holds its other configuration too. GitHub
+// Actions reads .github/workflows, and runs actions kept in .github/actions.
 func ciFile(kind, path string) bool {
-	if kind == forge.Forgejo {
+	switch kind {
+	case forge.Forgejo:
 		return strings.HasPrefix(path, ".forgejo/") || strings.HasPrefix(path, ".gitea/workflows/") || strings.HasPrefix(path, ".github/workflows/")
+	case forge.GitHub:
+		return strings.HasPrefix(path, ".github/workflows/") || strings.HasPrefix(path, ".github/actions/")
 	}
 	return strings.HasSuffix(path, ".gitlab-ci.yml") || strings.HasPrefix(path, ".gitlab/")
 }

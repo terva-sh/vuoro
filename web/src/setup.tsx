@@ -72,9 +72,9 @@ const envName = (name: string) => `VUORO_${name.toUpperCase().replace(/[^A-Z0-9]
 function tokenPage(kind: string, url: string): { href: string; scopes: string } | undefined {
   const base = url.trim().replace(/\/+$/, '')
   if (!hostOf(base)) return undefined
-  return kind === 'gitlab'
-    ? { href: `${base}/-/user_settings/personal_access_tokens?name=vuoro&scopes=api`, scopes: 'the api scope' }
-    : { href: `${base}/user/settings/applications`, scopes: 'read and write on repository and issue, and read on user' }
+  if (kind === 'gitlab') return { href: `${base}/-/user_settings/personal_access_tokens?name=vuoro&scopes=api`, scopes: 'the api scope' }
+  if (kind === 'github') return { href: `${base}/settings/tokens/new?description=vuoro&scopes=repo`, scopes: 'the repo scope' }
+  return { href: `${base}/user/settings/applications`, scopes: 'read and write on repository and issue, and read on user' }
 }
 
 // ForgeEditor adds a forge, or changes the one named original.
@@ -155,10 +155,11 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
           <select value={kind} onChange={(e) => setKind((e.target as HTMLSelectElement).value)}>
             <option value="forgejo">Forgejo</option>
             <option value="gitlab">GitLab</option>
+            <option value="github">GitHub</option>
           </select>
         </label>
         <label class="field grow">Address
-          <input type="url" placeholder={kind === 'gitlab' ? 'https://gitlab.com' : 'https://codeberg.org'} value={url} onInput={(e) => setURL((e.target as HTMLInputElement).value)} />
+          <input type="url" placeholder={{ gitlab: 'https://gitlab.com', github: 'https://github.com' }[kind] ?? 'https://codeberg.org'} value={url} onInput={(e) => setURL((e.target as HTMLInputElement).value)} />
         </label>
       </div>
       {url.trim() && !host && <p class="warn">Use the forge's https address, such as https://gitlab.com, with nothing after the host.</p>}

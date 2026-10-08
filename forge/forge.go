@@ -25,7 +25,7 @@ func (r Ref) String() string { return fmt.Sprintf("%s/%s!%d", r.Host, r.Project,
 
 func (r Ref) Display(kind string) string {
 	separator := "!"
-	if kind == Forgejo {
+	if kind == Forgejo || kind == GitHub {
 		separator = "#"
 	}
 	return fmt.Sprintf("%s/%s%s%d", r.Host, r.Project, separator, r.Number)

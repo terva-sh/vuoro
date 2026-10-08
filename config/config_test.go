@@ -79,7 +79,7 @@ func TestBadForgesAreRefused(t *testing.T) {
 	good := Forge{Name: "g", Kind: "gitlab", URL: "https://gitlab.com", Username: "u", TokenEnv: "T"}
 	for name, edit := range map[string]func(*Forge){
 		"no name":         func(f *Forge) { f.Name = "" },
-		"github":          func(f *Forge) { f.Kind = "github" },
+		"bitbucket":       func(f *Forge) { f.Kind = "bitbucket" },
 		"http":            func(f *Forge) { f.URL = "http://gitlab.com" },
 		"user in url":     func(f *Forge) { f.URL = "https://u:p@gitlab.com" },
 		"path":            func(f *Forge) { f.URL = "https://gitlab.com/api/v4" },

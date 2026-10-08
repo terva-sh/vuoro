@@ -277,7 +277,7 @@ func (a *App) saveForge(w http.ResponseWriter, r *http.Request) {
 	a.editConfig(w, req.Base, func(c *config.Config) error {
 		f := req.Forge.forge()
 		if f.Kind == "" {
-			return errors.New("Choose GitLab or Forgejo.")
+			return errors.New("Choose GitLab, Forgejo, or GitHub.")
 		}
 		if req.Original == "" {
 			c.Forges = append(c.Forges, f)

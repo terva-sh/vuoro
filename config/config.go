@@ -87,7 +87,7 @@ type Profile struct {
 type Forge struct {
 	// Name is how vuoro shows the forge, and how a change names it.
 	Name string `json:"name"`
-	// Kind is the forge software. This version supports "gitlab" and "forgejo".
+	// Kind is the forge software: "gitlab", "forgejo", or "github".
 	Kind string `json:"kind"`
 	// URL is the forge's base URL, such as https://gitlab.com.
 	URL string `json:"url"`
@@ -228,8 +228,8 @@ func (f Forge) check() error {
 	switch {
 	case f.Name == "":
 		return errors.New("a forge needs a name")
-	case f.Kind != "gitlab" && f.Kind != "forgejo":
-		return fmt.Errorf("kind %q: this version supports gitlab and forgejo", f.Kind)
+	case f.Kind != "gitlab" && f.Kind != "forgejo" && f.Kind != "github":
+		return fmt.Errorf("kind %q: this version supports gitlab, forgejo, and github", f.Kind)
 	case f.Username == "":
 		return errors.New("a forge needs the person's username")
 	case len(f.TokenCommand) == 0 && f.TokenEnv == "":

@@ -1,0 +1,353 @@
+{
+ "data": {
+  "repository": {
+   "nameWithOwner": "owner/repo",
+   "url": "https://github.com/owner/repo",
+   "sshUrl": "git@github.com:owner/repo.git",
+   "viewerPermission": "READ",
+   "pullRequest": {
+    "number": 13899,
+    "title": "Example change 13899",
+    "body": "Note 1.",
+    "url": "https://github.com/owner/repo/pull/13899",
+    "state": "OPEN",
+    "isDraft": false,
+    "createdAt": "2026-07-16T19:18:27Z",
+    "updatedAt": "2026-09-01T16:56:17Z",
+    "author": {
+     "login": "author",
+     "__typename": "User"
+    },
+    "baseRefName": "trunk",
+    "headRefName": "feature",
+    "baseRefOid": "d528f20f2ee02f6703773e9f56c90e3c3f5d46b0",
+    "headRefOid": "7031269eafb54c8b814883a4757db7eb9f2a6100",
+    "mergeStateStatus": "BLOCKED",
+    "reviewRequests": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpHOyXAbKQ=="
+     },
+     "nodes": [
+      {
+       "requestedReviewer": null
+      },
+      {
+       "requestedReviewer": {
+        "__typename": "User",
+        "login": "reviewer1"
+       }
+      }
+     ]
+    },
+    "reviews": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpO0MjAyNi0wNy0yMVQwMjoyMTowMlq0MjAyNi0wNy0yMVQwMjoyMTowMlrPAAAAARqRPqI="
+     },
+     "nodes": [
+      {
+       "id": "PRR_kwDODKw3uc8AAAABGUwm8w",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "state": "CHANGES_REQUESTED",
+       "body": "Note 2.",
+       "submittedAt": "2026-07-17T04:43:37Z",
+       "commit": {
+        "oid": "c82266c2dcc3285033605501837434af1faeddfe"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABGnV-Gg",
+       "author": {
+        "login": "review-bot1",
+        "__typename": "Bot"
+       },
+       "state": "COMMENTED",
+       "body": "Note 3.",
+       "submittedAt": "2026-07-20T20:49:53Z",
+       "commit": {
+        "oid": "8fbdb9b0f4e293af8a30ab1e0b79511fe1e37630"
+       }
+      },
+      {
+       "id": "PRR_kwDODKw3uc8AAAABGpE-og",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "state": "COMMENTED",
+       "body": "",
+       "submittedAt": "2026-07-21T02:21:02Z",
+       "commit": {
+        "oid": "745dc6816d3178220ca73b34836f72b08750254b"
+       }
+      }
+     ]
+    },
+    "reviewThreads": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0wNy0yMFQyMDo0OTo1MlrOkmDP9A=="
+     },
+     "nodes": [
+      {
+       "id": "PRRT_kwDODKw3uc6SYM_0",
+       "isResolved": true,
+       "path": "pkg/cmd/issue/create/create.go",
+       "line": 500,
+       "originalLine": 426,
+       "diffSide": "RIGHT",
+       "comments": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "id": "PRRC_kwDODKw3uc7Xnii1",
+          "author": {
+           "login": "review-bot1",
+           "__typename": "Bot"
+          },
+          "body": "Note 4.",
+          "createdAt": "2026-07-20T20:49:53Z",
+          "commit": {
+           "oid": "7031269eafb54c8b814883a4757db7eb9f2a6100"
+          },
+          "originalCommit": {
+           "oid": "8fbdb9b0f4e293af8a30ab1e0b79511fe1e37630"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABGnV-Gg",
+           "state": "COMMENTED"
+          }
+         },
+         {
+          "id": "PRRC_kwDODKw3uc7XtXdf",
+          "author": {
+           "login": "author",
+           "__typename": "User"
+          },
+          "body": "Note 5.",
+          "createdAt": "2026-07-21T02:21:02Z",
+          "commit": {
+           "oid": "7031269eafb54c8b814883a4757db7eb9f2a6100"
+          },
+          "originalCommit": {
+           "oid": "8fbdb9b0f4e293af8a30ab1e0b79511fe1e37630"
+          },
+          "pullRequestReview": {
+           "id": "PRR_kwDODKw3uc8AAAABGpE-og",
+           "state": "COMMENTED"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "comments": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpHPAAAAAUesOm4="
+     },
+     "nodes": [
+      {
+       "id": "IC_kwDODKw3uc8AAAABKfqPzw",
+       "author": {
+        "login": "review-bot2",
+        "__typename": "Bot"
+       },
+       "body": "Note 6.",
+       "createdAt": "2026-07-17T05:21:50Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABKfqP-Q",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 7.",
+       "createdAt": "2026-07-17T05:21:51Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABKf5ORg",
+       "author": {
+        "login": "reviewer2",
+        "__typename": "User"
+       },
+       "body": "Note 8.",
+       "createdAt": "2026-07-17T05:59:31Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABK2VWOA",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 9.",
+       "createdAt": "2026-07-20T13:53:44Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABK6OjsQ",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 10.",
+       "createdAt": "2026-07-20T20:45:41Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABK6OsWg",
+       "author": {
+        "login": "review-bot2",
+        "__typename": "Bot"
+       },
+       "body": "Note 11.",
+       "createdAt": "2026-07-20T20:45:56Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABK8fRRg",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 12.",
+       "createdAt": "2026-07-21T02:21:10Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABN2ljOQ",
+       "author": {
+        "login": "reviewer3",
+        "__typename": "User"
+       },
+       "body": "Note 13.",
+       "createdAt": "2026-08-08T05:00:47Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABN2qrKg",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 14.",
+       "createdAt": "2026-08-08T05:22:10Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABN2sjgw",
+       "author": {
+        "login": "reviewer3",
+        "__typename": "User"
+       },
+       "body": "Note 15.",
+       "createdAt": "2026-08-08T05:31:36Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABR43kdg",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 16.",
+       "createdAt": "2026-09-01T14:24:08Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABR46G0g",
+       "author": {
+        "login": "reviewer1",
+        "__typename": "User"
+       },
+       "body": "Note 17.",
+       "createdAt": "2026-09-01T14:27:09Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABR6jX6Q",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 18.",
+       "createdAt": "2026-09-01T16:37:05Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABR6vpmw",
+       "author": {
+        "login": "reviewer3",
+        "__typename": "User"
+       },
+       "body": "Note 19.",
+       "createdAt": "2026-09-01T16:54:13Z"
+      },
+      {
+       "id": "IC_kwDODKw3uc8AAAABR6w6bg",
+       "author": {
+        "login": "author",
+        "__typename": "User"
+       },
+       "body": "Note 20.",
+       "createdAt": "2026-09-01T16:56:01Z"
+      }
+     ]
+    },
+    "assignees": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": []
+    },
+    "timelineItems": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpPPAAABn4FHCMABqzI4MjM0MzczNDI4"
+     },
+     "nodes": [
+      {
+       "__typename": "HeadRefForcePushedEvent",
+       "createdAt": "2026-07-16T19:39:36Z",
+       "actor": {
+        "login": "author"
+       },
+       "afterCommit": {
+        "oid": "c82266c2dcc3285033605501837434af1faeddfe"
+       }
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-07-17T05:21:38Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": null
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-07-17T05:21:38Z",
+       "actor": {
+        "login": "author"
+       },
+       "requestedReviewer": {
+        "__typename": "User",
+        "login": "reviewer1"
+       }
+      },
+      {
+       "__typename": "ReviewRequestedEvent",
+       "createdAt": "2026-07-20T20:45:44Z",
+       "actor": {
+        "login": "reviewer1"
+       },
+       "requestedReviewer": {
+        "__typename": "Bot",
+        "login": "review-bot1"
+       }
+      }
+     ]
+    },
+    "changedFiles": 2
+   }
+  }
+ }
+}

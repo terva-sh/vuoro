@@ -17,7 +17,11 @@ func TestRoutingHonorsConfiguredKindsAndAnonymousPaths(t *testing.T) {
 		{"https://FORGE.example/o/r/pulls/7/files#note", "", forge.Forgejo, "o/r", 7, false},
 		{"https://forge.example/o/r/pulls/7", forge.GitLab, "", "", 0, true},
 		{"https://gitlab.example/o/r/-/merge_requests/7", forge.Forgejo, "", "", 0, true},
+		// GitHub's Forgejo-shaped path is not a GitHub pull request.
 		{"https://github.com/o/r/pulls/7", "", "", "", 0, true},
+		{"https://GitHub.com/o/r/pull/7/files", "", forge.GitHub, "o/r", 7, false},
+		{"https://ghe.example/o/r/pull/7", "", forge.GitHub, "o/r", 7, false},
+		{"https://ghe.example/o/r/pull/7", forge.Forgejo, "", "", 0, true},
 		{"https://forge.example/o/r/pulls/0", "", "", "", 0, true},
 		{"https://forge.example/o/r/s/pulls/1", "", "", "", 0, true},
 		{"https://forge.example/o/../pulls/1", "", "", "", 0, true},
