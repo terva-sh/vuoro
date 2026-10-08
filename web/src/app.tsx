@@ -7,6 +7,7 @@ import { Inbox } from './inbox'
 import { LocalTab } from './local'
 import { RunList } from './runs'
 import { waive } from './confirm'
+import { About } from './about'
 import { Background, FirstRun, Forges, Tools } from './setup'
 import { applyScheme, SchemePicker } from './scheme'
 import type { Change, HomeTab, LocalView, Run, Scheme, Setup } from './types'
@@ -26,6 +27,7 @@ export function App() {
   const [runs, setRuns] = useState<Run[]>([])
   const [localRun, setLocalRun] = useState<string>()
   const [scheme, setScheme] = useState<Scheme>('')
+  const [about, setAbout] = useState(false)
 
   useEffect(() => applyScheme(scheme), [scheme])
 
@@ -79,9 +81,10 @@ export function App() {
           <button class="primary" disabled={opening || !url.trim()}>{opening ? 'Opening…' : 'Open'}</button>
           {change && <button type="button" disabled={opening} onClick={() => void open(url)}>Refresh</button>}
         </form>
-        <span class="muted">{hello && `vuoro ${hello.version}`}</span>
+        {hello && <button type="button" class="link version" title="About vuoro" onClick={() => setAbout(true)}>vuoro {hello.version}</button>}
         <SchemePicker scheme={scheme} onScheme={setScheme} />
       </header>
+      {about && <About setup={setup} onClose={() => setAbout(false)} />}
       {setup?.config_error && <p class="alert" role="alert">⚠ The config file did not load: {setup.config_error}</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       <main>

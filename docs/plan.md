@@ -145,7 +145,7 @@ the platform's own, through tuohi, without cgo.
   lock. A later launch hands it nothing but the request, and the running one
   opens its window. Forwarded arguments are untrusted, so none are read.
 - **The tray.** Where the desktop shows a tray icon, closing the window leaves
-  vuoro running. Its menu holds Open vuoro, Refresh now, and Quit vuoro.
+  vuoro running. Its menu names the running version, greyed out, and holds Open vuoro, Refresh now, and Quit vuoro.
   macOS and Windows always have a tray. On Linux and the BSDs the icon is a
   StatusNotifierItem, and tuohi's tray starts without error even when no
   StatusNotifierWatcher runs, so the icon never shows. vuoro therefore asks
@@ -195,6 +195,11 @@ the platform's own, through tuohi, without cgo.
   first window is still made at launch, on the main thread, because on Linux
   that pins tuohi's UI thread, so a later launch can open the window from
   another goroutine.
+- **About vuoro.** The version in the window's header opens a pane naming the
+  release, the commit and Go it was built from, the platform, the modules it
+  links, the agent tools and their versions, and the configuration and state
+  paths. "Copy for a bug report" copies the same lines as text. It holds no
+  secret, because the configuration names token sources and never tokens.
 - **The mark.** vuoro's mark is a white lowercase v on a violet tile, with an
   amber dot at the tip of its right arm: the turn that is the person's (D56).
   It is drawn at launch rather than shipped as a file, and it is the window's,

@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M4EMR39KNPGXB34K3FYHM8F4
 title: Walk a fresh install through setup one step at a time
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -16,17 +16,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: setup-ux
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: f0031cec3fc107525af7ac4621516f33048089c1
-  session: null
-  claimed_at: 2026-10-08T20:54:58Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-08T20:54:45Z
-updated_at: 2026-10-08T20:55:08Z
+updated_at: 2026-10-08T21:09:42Z
 created_by:
   id: agent:claude/forgejo-parity-20261006
   name: ""
@@ -63,3 +56,7 @@ Split ForgeEditor's state into a useForgeForm hook shared by the accounts panel 
 **agent:claude/forgejo-parity-20261006** at 2026-10-08T20:55:08Z
 
 Checked in a headless Chromium against vuoro -browser with a scratch config, in both schemes, at 1400x900: every step, the own-forge address, the environment-variable store, and going on without a forge. Not checked in tuohi's webview itself, nor with a real token, since the scratch config has none; the vitest walk mocks the test and save calls. The Background panel in the accounts panel now saves on change too, since one control saving at once and two waiting for Save read as inconsistent.
+
+## Summary
+
+Merged in #32 (5f580d2). The first run is four steps with a step bar: preset forges, the token steps, agent tools, and background settings that save as they change. The accounts panel's editor shares the token steps through useForgeForm. Review rounds fixed leaving the background step mid-save, a failed interval save leaving the field out of step, and a failed save blocking Back and Finish.

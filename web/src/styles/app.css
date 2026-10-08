@@ -451,6 +451,15 @@ main { padding: var(--ui-space-4); }
 .triage-run { padding: var(--ui-space-3) 0; display: flex; flex-wrap: wrap; gap: var(--ui-space-3); }
 .triage-run details { flex-basis: 100%; }
 
+.bar .version { color: var(--ui-muted); font-size: var(--ui-fs-ui); }
+.about { max-width: 640px; max-height: calc(100vh - 2 * var(--ui-space-6)); overflow-y: auto; }
+.about h3 { margin: var(--ui-space-3) 0 var(--ui-space-1); font-size: var(--ui-fs-ui); color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.about dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: var(--ui-space-1) var(--ui-space-4); }
+.about dl > div { display: contents; }
+.about dt { color: var(--ui-muted); }
+.about dd { margin: 0; overflow-wrap: anywhere; font-size: var(--ui-fs-detail); }
+.about .by-hand { width: 100%; font-size: var(--ui-fs-detail); }
+.about .actions { display: flex; justify-content: flex-end; gap: var(--ui-space-2); margin-top: var(--ui-space-4); }
 .bar .scheme { font-size: var(--ui-fs-ui); padding: var(--ui-space-1) var(--ui-space-2); }
 
 /* Setup (D45): the guided first run, and the forge form it shares with the accounts panel. */

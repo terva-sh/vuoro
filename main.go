@@ -167,7 +167,7 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	a := &app.App{StateDir: stateDir}
+	a := &app.App{StateDir: stateDir, Version: version}
 	if path, err := config.Path(); err != nil {
 		a.ConfigErr = err
 	} else {
@@ -283,6 +283,8 @@ func showWindow(url, token string, check bool, d desktop, logger *log.Logger) in
 	}
 	menu := tray.Config{Icon: d.mark, AppName: "vuoro", Title: "vuoro", Tooltip: "vuoro", OnClick: open,
 		Items: []tray.Item{
+			{Label: "vuoro " + version, Disabled: true},
+			{Separator: true},
 			{Label: "Open vuoro", OnClick: open},
 			{Label: "Refresh now", OnClick: func() { go d.refresh() }},
 			{Separator: true},

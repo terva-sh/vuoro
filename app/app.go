@@ -30,6 +30,8 @@ import (
 
 // App holds what the API serves.
 type App struct {
+	// Version is vuoro's release, or empty for a development build.
+	Version string
 	// Config is the person's configuration. It is empty when there is no
 	// file, and then a change opens anonymously, which public projects allow.
 	Config *config.Config
@@ -96,6 +98,7 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	a.setupRoutes(mux)
 	a.localRoutes(mux)
+	mux.HandleFunc("GET /api/about", a.about)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)
