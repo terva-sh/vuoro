@@ -134,8 +134,9 @@ func (st *Store) MarkSuggested(id string, s SuggestedFix) error {
 	return nil
 }
 
-// ClearFix takes back a fix the person linked by hand. A fix an editor's
-// commit names stands, since the commit says so.
+// ClearFix takes back a fix the person linked by hand, or one vuoro found
+// from a suggestion's lines (D59). A fix an editor's commit names stands,
+// since the commit says so.
 func (st *Store) ClearFix(id string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -143,8 +144,8 @@ func (st *Store) ClearFix(id string) error {
 	if d == nil || d.FixedIn == "" {
 		return &RuleError{"draft.fixed", "id", "a draft marked fixed"}
 	}
-	if d.FixedBy != "person" {
-		return &RuleError{"draft.fixed_by", "id", "a fix you linked by hand"}
+	if d.FixedBy != "person" && d.FixedBy != "suggestion" {
+		return &RuleError{"draft.fixed_by", "id", "a fix you linked by hand, or one vuoro found from a suggestion"}
 	}
 	d.FixedIn, d.FixedSubject, d.FixedBy = "", "", ""
 	d.Revision++

@@ -23,7 +23,7 @@ const maxPatch = 1 << 20
 type Patch struct {
 	SHA      string    `json:"sha"`
 	Subject  string    `json:"subject"`
-	By       string    `json:"by"` // "editor", for a commit vuoro pushed, or "person", for one they linked
+	By       string    `json:"by"` // "editor", for a commit vuoro pushed or suggested, "person", for one they linked, or "suggestion", for one that applied a suggestion
 	TooLarge bool      `json:"too_large,omitempty"`
 	Files    []string  `json:"files,omitempty"`
 	At       time.Time `json:"at"`

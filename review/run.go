@@ -256,6 +256,10 @@ func (m *Manager) Follow(ch *forge.Change, src Source, reviewers []Reviewer, syn
 	first := firstMessage(ch)
 	var list []drafts.Earlier
 	if earlier != nil {
+		// Suggestions the author applied since count as fixes (D59).
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		m.landSuggestions(ctx, earlier, src)
+		cancel()
 		v := earlier.View()
 		list = drafts.EarlierOf(Shown(v))
 		first += earlierMessage(v.Head, list)

@@ -72,7 +72,8 @@ type Draft struct {
 	// FixedIn is the pushed commit that fixes the draft, which vuoro or the
 	// person, never an agent, records (D41, D50). FixedSubject is that
 	// commit's subject, and FixedBy says who linked it: "editor", from the
-	// commit's trailer, or "person".
+	// commit's trailer, "person", or "suggestion", for a commit that put a
+	// suggested fix's lines in place (D59).
 	FixedIn      string `json:"fixed_in,omitempty"`
 	FixedSubject string `json:"fixed_subject,omitempty"`
 	FixedBy      string `json:"fixed_by,omitempty"`

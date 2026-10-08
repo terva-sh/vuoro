@@ -243,6 +243,66 @@ func TestAnEditorWaveGoesBackAsSuggestions(t *testing.T) {
 	if !slices.ContainsFunc(v.Patches, func(p Patch) bool { return p.SHA == plan.SHA }) {
 		t.Fatal("the wave's last commit was not saved as a patch")
 	}
+
+	// The author applies d1's suggestion, then puts d2's text in, but not
+	// where it was suggested, at the top of the file. Asking what fixed a
+	// finding finds d1's commit, and leaves d2 suggested.
+	author := func(body, msg string) string {
+		os.WriteFile(filepath.Join(src.Remote, "calc.go"), []byte(body), 0o644)
+		for _, args := range [][]string{{"commit", "-qam", msg}, {"rev-parse", "HEAD"}} {
+			out, err := exec.Command("git", append([]string{"-C", src.Remote, "-c", "user.name=a", "-c", "user.email=a@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %s", args, out)
+			}
+			if args[0] == "rev-parse" {
+				return strings.TrimSpace(string(out))
+			}
+		}
+		return ""
+	}
+	applied := author("package calc\n\nfunc Add(a, b int) int { return a + b }\n", "Apply 1 suggestion")
+	moved := author("// header\npackage calc // sums\n\nfunc Add(a, b int) int { return a + b }\n", "Add a header")
+	now := src
+	now.Head = moved
+	if _, err := m.FixCommits(ctx, r.ID, &now); err != nil {
+		t.Fatal(err)
+	}
+	v = r.View()
+	if d := v.Drafts[0]; d.FixedIn != applied || d.FixedBy != "suggestion" || d.FixedSubject != "Apply 1 suggestion" {
+		t.Fatalf("d1 after the author applied it: %+v", d)
+	}
+	if d := v.Drafts[1]; d.FixedIn != "" || d.Suggested == nil {
+		t.Fatalf("d2, whose text is not where it was suggested: %+v", d)
+	}
+	if !slices.ContainsFunc(v.Patches, func(p Patch) bool { return p.SHA == applied && p.By == "suggestion" }) {
+		t.Fatalf("the applying commit was not saved: %+v", v.Patches)
+	}
+	if err := m.MarkFixed(ctx, r.ID, "d1", "", nil); err != nil || r.View().Drafts[0].FixedIn != "" {
+		t.Fatalf("taking back a fix found from a suggestion: %v", err)
+	}
+}
+
+// A replacement is in place only between the lines that bordered it, and at
+// the file's edge where nothing did.
+func TestASuggestionIsInPlaceOnlyBetweenItsBorders(t *testing.T) {
+	above, below := "a", "c"
+	h := drafts.SuggestedHunk{Text: "B", Above: &above, Below: &below}
+	for _, c := range []struct {
+		lines []string
+		want  bool
+	}{{[]string{"a", "B", "c"}, true}, {[]string{"x", "a", "B", "c", "y"}, true}, {[]string{"a", "B", "d"}, false}, {[]string{"B"}, false}} {
+		if got := inPlace(c.lines, h); got != c.want {
+			t.Errorf("%q: %v", c.lines, got)
+		}
+	}
+	top := drafts.SuggestedHunk{Text: "B", Below: &below}
+	if !inPlace([]string{"B", "c"}, top) || inPlace([]string{"x", "B", "c"}, top) {
+		t.Error("a suggestion at the top was found away from it")
+	}
+	end := drafts.SuggestedHunk{Text: "B", Above: &above}
+	if !inPlace([]string{"a", "B"}, end) || inPlace([]string{"a", "B", "x"}, end) {
+		t.Error("a suggestion at the end was found away from it")
+	}
 }
 
 // A misfit past the inline cap is never put in the comment (D59): on a

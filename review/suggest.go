@@ -749,3 +749,91 @@ func (m *Manager) FinishSuggestions(ctx context.Context, runID, sha string, comm
 	r.save()
 	return nil
 }
+
+// landSuggestions records, for each suggested finding not yet fixed, the
+// oldest commit since the review after which every one of its suggestions
+// is in place, between the lines that bordered it (D59). src is the change
+// as the forge reports it now; nothing is read when it has not moved, or
+// when no finding waits on a suggestion. It is best effort: a read that
+// fails leaves the findings suggested.
+func (m *Manager) landSuggestions(ctx context.Context, r *Run, src Source) {
+	r.mu.Lock()
+	head := r.Head
+	r.mu.Unlock()
+	if src.Head == "" || src.Head == head {
+		return
+	}
+	var waiting []drafts.Draft
+	for _, d := range r.View().Drafts {
+		if d.Suggested != nil && d.FixedIn == "" && len(d.Suggested.Hunks) > 0 {
+			waiting = append(waiting, d)
+		}
+	}
+	if len(waiting) == 0 {
+		return
+	}
+	log, err := m.Repos.commitsSince(ctx, src, head)
+	if err != nil {
+		return
+	}
+	gitDir, err := m.Repos.gitDir(r.repoKey)
+	if err != nil {
+		return
+	}
+	var commits []EditorCommit
+	for _, rec := range strings.Split(log, "\x1e") {
+		if f := strings.SplitN(strings.TrimSpace(rec), "\x00", 2); len(f) == 2 && f[0] != "" {
+			commits = append(commits, EditorCommit{SHA: f[0], Subject: f[1]})
+		}
+	}
+	pl := &planner{g: localGit{bin: m.Repos.Git, dir: gitDir}, files: map[string][]string{}}
+	applied := func(sha string, s *drafts.SuggestedFix) bool {
+		for _, h := range s.Hunks {
+			lines, err := pl.lines(ctx, sha, h.Path)
+			if err != nil || !inPlace(lines, h) {
+				return false
+			}
+		}
+		return true
+	}
+	var cited []EditorCommit
+	for _, d := range waiting {
+		if !applied(src.Head, d.Suggested) {
+			continue
+		}
+		for _, c := range commits {
+			if applied(c.SHA, d.Suggested) {
+				if r.store.CiteFix(d.ID, c.SHA, c.Subject, "suggestion", "") == nil {
+					cited = append(cited, c)
+				}
+				break
+			}
+		}
+	}
+	if len(cited) > 0 {
+		m.savePatches(ctx, r, cited, "suggestion")
+		r.save()
+	}
+}
+
+// inPlace says a suggestion's replacement is in a file, between the lines
+// that bordered it at the reviewed head: at the file's start when nothing
+// was above it, and at its end when nothing was below.
+func inPlace(lines []string, h drafts.SuggestedHunk) bool {
+	want := strings.Split(h.Text, "\n")
+	if h.Above != nil {
+		want = append([]string{*h.Above}, want...)
+	}
+	if h.Below != nil {
+		want = append(want, *h.Below)
+	}
+	for i := 0; i+len(want) <= len(lines); i++ {
+		if h.Above == nil && i > 0 {
+			break
+		}
+		if slices.Equal(lines[i:i+len(want)], want) && (h.Below != nil || i+len(want) == len(lines)) {
+			return true
+		}
+	}
+	return false
+}

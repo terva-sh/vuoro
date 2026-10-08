@@ -855,6 +855,10 @@ func (m *Manager) FixCommits(ctx context.Context, runID string, src *Source) ([]
 	if r == nil {
 		return nil, ErrNoRun
 	}
+	// A suggestion the author applied names its own commit (D59).
+	if src != nil {
+		m.landSuggestions(ctx, r, *src)
+	}
 	r.mu.Lock()
 	var e EditorState
 	if r.editor != nil {
