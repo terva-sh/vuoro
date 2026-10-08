@@ -120,6 +120,41 @@ func TestABrokenConfigAtLaunchCanBeFixedWithoutARestart(t *testing.T) {
 	}
 }
 
+// A first launch, with no configuration and no state, opens setup ready to
+// write the file the window will save, and makes the state directory itself.
+func TestAFirstLaunchNeedsNoFileMadeByHand(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the XDG directories place the config file on Linux only")
+	}
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	a, _, err := newApp("http://127.0.0.1:1/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Tools = nil
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/setup", nil))
+	var got struct {
+		ConfigError string `json:"config_error"`
+		ConfigPath  string `json:"config_path"`
+		Editable    bool   `json:"editable"`
+		Base        string `json:"base"`
+		Forges      []any  `json:"forges"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &got)
+	if got.ConfigError != "" || !got.Editable || got.Base != "" || len(got.Forges) != 0 || got.ConfigPath != filepath.Join(dir, "config", "vuoro", "config.json") {
+		t.Fatalf("a first launch: %+v", got)
+	}
+	if _, err := os.Stat(got.ConfigPath); !os.IsNotExist(err) {
+		t.Fatalf("a first launch wrote the configuration: %v", err)
+	}
+	if fi, err := os.Stat(a.StateDir); err != nil || !fi.IsDir() || !strings.HasPrefix(a.StateDir, filepath.Join(dir, "state")) {
+		t.Fatalf("the state directory %q: %v", a.StateDir, err)
+	}
+}
+
 func TestChooseFolderAsksForADirectoryAndAnswersEmptyWhenCancelled(t *testing.T) {
 	var asked dialog.Options
 	answer := []string{"/home/pat/work"}

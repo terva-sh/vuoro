@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3YMSVJ2BTQN940P1XR3CJD6
 title: Set up forges and check agent tools in the window
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ dependencies:
   - TKT-01M3W4HWM6V2F20KNT03BSBNZY
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude/forgejo-parity-20261006
-  branch: tickets/ui-setup
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3code-8cba4816
-  commit: b2fb4ceea860ea096b9055a2a0c72d6185ea495c
-  session: null
-  claimed_at: 2026-10-06T14:42:05Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-08T14:11:17Z
+updated_at: 2026-10-08T14:16:35Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -46,7 +39,7 @@ all from the window. Hand-edited config keeps working.
 
 ## Acceptance criteria
 
-- [ ] A fresh install reaches a first review without editing a file
+- [x] A fresh install reaches a first review without editing a file
 - [x] The UI never displays a stored token
 - [x] Hand-edited config keeps working, and a save never overwrites a file changed or broken since it was read
 - [x] A forge's token source can be tested from the window, and the test names the account it signs in as
@@ -186,3 +179,37 @@ The live run went through the route, not a click in the window. The button only 
 - The owner's real fresh-install run.
 
 Also open: whether "detect terva" belongs here or in TKT-01M3YK0CJ (Agent driver for terva over terva rpc). Only Claude Code is wired today, and nothing records that split.
+
+**agent:claude/forgejo-parity-20261006** at 2026-10-08T14:16:35Z
+
+Criterion 1, a fresh install reaching a first review without editing a file, is ticked on two tests:
+
+- `TestAFirstLaunchNeedsNoFileMadeByHand` (main) launches `newApp` with empty XDG config and state directories. Setup opens editable, with no forges and no base, at the XDG path. No configuration file is written, and the state directory is created.
+- `TestAFreshInstallReachesAFirstReviewWithoutEditingAFile` (app) starts with no configuration file. Through the window's routes alone it:
+  1. tests an environment token source, which names the account;
+  2. saves the forge;
+  3. posts only a merge request URL to `POST /api/runs`.
+
+  The default code reviewer then runs and drafts, and nothing is written to the forge. The saved file names the token source and not the token. Only the forge server and the agent are fakes. The real GitLab adapter, real git, and the forge's own HTTPS clone URL are used, and git's `url.insteadOf` points that URL at a local repository.
+
+That test found a bug, fixed in the same change. A forge served on a port, such as `https://git.example.com:8443`, could never be reviewed, because the clone's key `host:port/project` failed the key check. A colon is also illegal in a Windows path. The key now maps the colon to an underscore. No DNS host name contains one, and keys for hosts without a port are unchanged.
+
+The 2026-10-06 note left this criterion for the owner's own fresh install, for instance in WSL. That run is still worth doing. It checks what no test can: the person's installed tools and their git credentials, neither of which is a file vuoro asks them to edit. If the owner wants the box to wait for that run, untick it.
+
+## Summary
+
+Someone who is not the owner can set vuoro up from the window:
+- add a forge with a token source (environment, command, or keychain);
+- test the source, which names the account it signs in as;
+- save it without the token ever reaching the file, a reply, or the screen;
+- see which agent tools are installed and signed in.
+
+Hand-edited configuration keeps working, and a save never overwrites a file that changed since it was read.
+
+Evidence:
+- `TestSetupAddsTestsChangesAndRemovesAForge`, `TestLiveSetupTest` (live on github.com, 2026-10-08), `TestAFirstLaunchNeedsNoFileMadeByHand`, and `TestAFreshInstallReachesAFirstReviewWithoutEditingAFile`.
+- The web tests in `web/src/setup.test.tsx`.
+
+Two items from the description are carried elsewhere:
+- Building a first reviewer preset in the window is TKT-01M48TMGNVS4303NW7NQW26Y6S (Build reviewer presets in the window), deferred by D45. Until then a review with no preset runs the default code reviewer.
+- Detecting terva and its version belongs to TKT-01M3YK0CJ (Agent driver for terva over terva rpc), whose criterion covers a missing or too-old binary. Only Claude Code is wired today.

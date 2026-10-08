@@ -33,12 +33,17 @@ type fakeGitLab struct {
 	slow time.Duration
 	// fork puts the merge request's source branch in another project.
 	fork bool
+	// gql, when set, is served in place of the recorded merge request.
+	gql []byte
 }
 
 func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 	gql, err := os.ReadFile("../forge/gitlab/testdata/mr3991.json")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if g.gql != nil {
+		gql = g.gql
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer glpat-test" {
@@ -50,6 +55,8 @@ func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 			w.Write(gql)
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/diffs"):
 			w.Write([]byte(`[{"old_path":"label_list.go","new_path":"label_list.go","diff":"@@ -1,3 +1,3 @@\n package list\n-// old\n+// new\n tail\n"}]`))
+		case r.Method == "GET" && r.URL.Path == "/api/v4/user":
+			w.Write([]byte(`{"username": "me"}`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/draft_notes"):
 			w.Write([]byte(`[]`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/merge_requests/3991"):

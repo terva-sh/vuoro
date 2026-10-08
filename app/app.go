@@ -323,7 +323,10 @@ func (a *App) source(ch *forge.Change) (review.Source, error) {
 		}
 		remote = meta.SSH
 	}
-	return review.Source{Remote: remote, Key: ch.Ref.Host + "/" + ch.Ref.Project,
+	// The key names the clone's directory, so a port's colon, which Windows
+	// refuses in a path, becomes an underscore, which no host name holds.
+	key := strings.ReplaceAll(ch.Ref.Host, ":", "_") + "/" + ch.Ref.Project
+	return review.Source{Remote: remote, Key: key,
 		Refspecs: []string{"+" + meta.HeadRef + ":refs/vuoro/head", "+refs/heads/" + t + ":refs/vuoro/target/" + t}, Head: ch.Diff.Head, Base: ch.Diff.Base}, nil
 }
 

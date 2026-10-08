@@ -39,6 +39,14 @@ func TestASourceFetchesTheMergeRequestOverThePersonsTransport(t *testing.T) {
 	if src, _ := a.source(change("main")); src.Remote != "https://gitlab.com/group/sub/proj.git" {
 		t.Fatalf("https remote %q", src.Remote)
 	}
+	// A forge served on a port keeps its clone in a directory a path can
+	// hold on every platform.
+	ported := change("main")
+	ported.Ref.Host = "git.example.com:8443"
+	ported.Checkout = forge.Checkout{HTTPS: "https://git.example.com:8443/group/sub/proj.git", HeadRef: "refs/merge-requests/12/head"}
+	if src, err := (&App{}).source(ported); err != nil || src.Key != "git.example.com_8443/group/sub/proj" {
+		t.Fatalf("a host with a port: %+v %v", src, err)
+	}
 	// With no configured forge, a public project is fetched anonymously.
 	if src, _ := (&App{}).source(change("main")); !strings.HasPrefix(src.Remote, "https://") {
 		t.Fatalf("anonymous remote %q", src.Remote)
