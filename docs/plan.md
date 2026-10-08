@@ -703,7 +703,7 @@ that was already submitted answers null and publishes nothing.
 | Approve, request changes | The events `APPROVE` and `REQUEST_CHANGES` | The author can do neither. Approve on its own refuses while pending comments would publish with it. |
 | Withdraw an approval | None | Only a dismissal, by someone with write access, takes one back. |
 | Resolve, unresolve | `resolveReviewThread`, `unresolveReviewThread` | Review threads only. |
-| Suggestion | Off | GitHub applies a `suggestion` block over a line range, and vuoro's anchor holds one line. A suggestion posts as a plain fenced replacement until the anchor can hold a range. |
+| Suggestion | On | GitHub applies a `suggestion` block over the lines its comment spans (D59). A kept suggestion over several lines is a comment spanning its range, which must lie in one hunk of the diff, and its block names no offsets. |
 | Stacked draft PR | `POST /repos/{o}/{r}/pulls` with `draft: true` | A repository whose plan has no drafts answers 422 naming drafts; vuoro then opens an ordinary pull request and reports it as not a draft. A new pull request whose head commit is already in its base is marked merged at once, so the editor's branch must hold commits the target lacks. |
 | Fork check | `isCrossRepository` and `headRepository.nameWithOwner` | A pull request from a deleted fork has no head repository and is refused as a fork. |
 
@@ -854,7 +854,8 @@ the review being complete.
 Keeping the finding puts a GitLab
 ```` ```suggestion:-N+0 ```` block in the comment, reaching back from the
 anchor's last line, where the comment lands, over the whole range, so the
-author can apply it. Every fence is longer than any run of backticks inside
+author can apply it. On GitHub the comment spans the range and the block is
+a bare ```` ```suggestion ```` (D59). Every fence is longer than any run of backticks inside
 it. This is text a read-only reviewer writes, not the editor's patch (D17).
 
 The kept findings make a hand-off report (D31): Markdown for an agent that
@@ -1042,6 +1043,61 @@ decisions across several fixes and several reviews.
   diff viewer: from a commit of an earlier wave, from "fixed in" on a fixed
   finding, and from a fix branch on the Local tab. Work the person discards
   is deleted, as Discard says, and no patch of it is kept.
+
+**Fixes as suggestions** (D59). On somebody else's change, on a forge that
+applies suggestions (GitLab and GitHub), the editor's work can go back to
+the author as suggestion blocks on the person's pending comments instead of
+a stacked change.
+
+- *Chosen at the start.* "Fix these in a branch" offers how the fixes go
+  back: as suggestions on the comments, or as a draft change. The choice
+  is remembered for each change author, by forge host and username, and is
+  the default for that author's next change. For suggestions, the editor's
+  instructions add: keep each fix to existing lines of the files the
+  change touches, close to the finding, and add, delete, or rename no
+  file. The person can still deliver the other way after reading the
+  commits. A wave is delivered once, one way. After a suggestion wave,
+  another wave starts from the reviewed head, given only what no earlier
+  wave fixed or suggested. A stacked wave still goes on from the last push.
+- *Each commit becomes suggestions.* A commit's changes, read with no
+  context, are mapped back through the wave's earlier commits to lines at
+  the reviewed head. Lines an earlier commit also changed make a misfit.
+  Changes in one commit a few lines apart join into one suggestion. A
+  change that only adds lines becomes a suggestion over the line before
+  it. A suggestion rides on the finding's own pending comment when the
+  comment can reach it. On GitLab, that is when it covers the comment's
+  line or lies within three lines of it, as `suggestion:-N+M`. On GitHub,
+  it is when it replaces exactly the comment's one line. Otherwise vuoro
+  adds a new pending comment over the lines, "Part of the fix for
+  <finding>", as `suggestion:-N+0` on GitLab, or on GitHub as a comment
+  spanning the lines. A comment line must be in the change's diff, and on
+  GitHub the whole span must be in one hunk. A suggestion replaces at most
+  100 lines and writes at most 100.
+- *What cannot be a suggestion is still shown.* A new, deleted, renamed, or
+  binary file, a file the change does not touch, lines outside the diff,
+  lines that overlap an earlier commit's, or a suggestion over the cap is a
+  misfit. It goes in the finding's comment as a plain diff, labelled as not
+  applicable, with the reason. Plain diffs in one comment are capped at 100
+  lines and 16 KiB. Over that, on GitLab, vuoro uploads the commit's saved
+  patch (D51) to the project and links it in the comment as
+  `fix-<finding>.patch`. Over the patch cap, or on GitHub, which has no
+  upload API, the comment says that the fix was too large to include and
+  how many lines and files it changes.
+- *Asked first, posted never.* "Add as suggestions…" shows each comment as
+  it will read and each new comment, with the misfits and their reasons.
+  The person confirms, then vuoro updates and adds pending comments, and
+  uploads any patch. It pushes nothing and submits nothing. A partial
+  failure records what landed, and the dialog says what did not. The
+  wave's commits are saved as patches (D51), since nothing else keeps
+  them.
+- *Suggested, then fixed.* A finding whose fix went back as suggestions is
+  marked suggested, with the commit, and the head lines, replacement, and
+  comment of each suggestion. When the change moves, on "Mark fixed…" and
+  on "Review again", vuoro reads the new head from its cache. For each
+  suggested finding, it checks whether every replacement is in the file,
+  with the lines that bordered it. If so, it records the oldest commit
+  since the review after which they are present as the fix, linked by
+  "suggestion".
 
 ### 6.4 Other actions
 

@@ -65,13 +65,13 @@ func New(base string, token config.Secret) (*Client, error) {
 func ParseURL(raw string) (forge.Ref, error) { return forge.URLRef(raw, "/pull/", 2) }
 
 // Capabilities are the writes this client offers. A reviewer cannot withdraw
-// their own approval on GitHub, and vuoro anchors to one line, which a
-// GitHub suggestion over several lines needs more than.
+// their own approval on GitHub. A suggestion replaces the lines its comment
+// spans, so one over several lines is kept as a comment spanning them.
 func (c *Client) Capabilities() forge.Capabilities {
 	c.draftMu.Lock()
 	write := !c.token.Empty() && c.drafts != nil
 	c.draftMu.Unlock()
-	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write}
+	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write, Suggestions: write, SpanSuggestions: write}
 }
 
 func (c *Client) scrub(s string) string {

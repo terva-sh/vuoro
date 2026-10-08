@@ -979,3 +979,47 @@ go, and for the Dock to be a setting, even one that waits for a restart.
   switch the activation policy as the window shows and hides, which macOS
   applies with visible flicker. A Dock icon always present, with no choice, was
   rejected, because a closed vuoro would keep a Dock slot.
+
+### D59. The editor's fixes can go back as suggestions on the person's pending comments, instead of a stacked change
+
+Decided by the owner on 2026-10-08. The author of a change being reviewed
+asked for inline suggestions instead of a stacked merge request (D39), so
+they could see which changes were made to their own. docs/plan.md section
+6.3, "Fixes as suggestions", records the design.
+
+- **One editor, two ways back.** The editor runs as D39 says, in its
+  sandbox, one commit per kept finding. At the end, its commits are either
+  pushed as a stacked draft change or turned into suggestion blocks on the
+  person's pending comments. A second agent that writes suggestion text
+  without building or testing was rejected. The editor can run the tests,
+  and both paths share one sandbox and one review of the diff.
+- **Chosen at the start, switchable at delivery.** The choice changes the
+  editor's instructions: for suggestions, keep each fix to existing lines
+  of the files the change touches, and add, delete, or rename no file. vuoro
+  remembers the choice for each change author, so the next change by that
+  author starts with it. The person can still deliver the other way after
+  reading the commits. A wave is delivered once, in one way. Deciding only
+  at delivery was rejected, because fixes written for a branch often do not
+  fit as suggestions.
+- **A fix that cannot be a suggestion goes in the comment as a plain
+  diff.** Examples are a new, deleted, or renamed file, a file the change
+  does not touch, or lines the comment cannot reach. The diff is labelled
+  as not applicable, with the reason, and the person can edit or drop it
+  before submitting. Over a size cap, the diff is not inlined. On a forge
+  that takes uploads (GitLab), the fix's saved patch (D51) is attached to
+  the comment as a file. Over the patch cap, or on a forge without uploads
+  (GitHub), the comment says only that the fix was too large, never the
+  content. Pushing the misfits as a separate stacked change was rejected,
+  since it needs vuoro to split the editor's commits.
+- **A suggested fix is detected on review again.** A finding whose fix was
+  suggested shows as suggested, with its comment. When the change moves,
+  vuoro checks whether the new head has the suggested lines in place, with
+  the lines around them. If it does, vuoro records the commit that brought
+  them as the finding's fix, linked by the suggestion. Marking it fixed by
+  hand still works. Relying only on the person to mark it was rejected.
+- **GitLab and GitHub.** Both apply suggestion blocks, and GitHub takes a
+  multi-line suggestion on a comment that spans the lines it replaces.
+  Forgejo cannot apply one, so the choice is not offered there.
+- **Nothing is posted.** Delivering updates and adds the person's pending
+  comments only, on the person's confirmed action. The person submits the
+  review as before.

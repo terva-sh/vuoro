@@ -221,16 +221,20 @@ func TestASuggestionIsOnlyEverOnHeadSideLines(t *testing.T) {
 		t.Fatalf("suggestion %q", *d.Suggestion)
 	}
 	// The comment lands on line 12, so the block reaches back two lines to 10.
-	if got := SuggestionBlock(d); got != "```suggestion:-2+0\n\treturn a + b\n```" {
+	if got := SuggestionBlock(d, false); got != "```suggestion:-2+0\n\treturn a + b\n```" {
 		t.Fatalf("block %q", got)
 	}
 	tricky := "s := \"```\""
 	d.Suggestion = &tricky
-	if got := SuggestionBlock(d); got != "````suggestion:-2+0\n"+tricky+"\n````" {
+	if got := SuggestionBlock(d, false); got != "````suggestion:-2+0\n"+tricky+"\n````" {
 		t.Fatalf("a suggestion holding a fence: %q", got)
 	}
+	// GitHub's block replaces the lines its comment spans, and names none.
+	if got := SuggestionBlock(d, true); got != "````suggestion\n"+tricky+"\n````" {
+		t.Fatalf("a spanning block: %q", got)
+	}
 	d.Anchor.Side = Base
-	if SuggestionBlock(d) != "" {
+	if SuggestionBlock(d, false) != "" {
 		t.Fatal("a base-side draft made a suggestion block")
 	}
 }

@@ -38,6 +38,10 @@ type Capabilities struct {
 	// Suggestions means the forge applies a suggestion block. Without it a
 	// suggestion posts as a plain fenced replacement (D43).
 	Suggestions bool `json:"suggestions"`
+	// SpanSuggestions means a suggestion replaces the lines its comment
+	// spans, written as a bare suggestion fence (GitHub). Without it a block
+	// carries its own offsets from the comment's one line (GitLab).
+	SpanSuggestions bool `json:"span_suggestions"`
 }
 
 // Checkout describes how to fetch this change from its target repository.

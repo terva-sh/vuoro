@@ -215,6 +215,27 @@ func Line(patch string, head bool, line int) (old, new int, ok bool) {
 	return 0, 0, false
 }
 
+// Span says the new side's lines from start to end all lie in one hunk of
+// the diff, as a comment spanning them needs on GitHub.
+func Span(patch string, start, end int) bool {
+	for _, l := range strings.Split(patch, "\n") {
+		rest, isHunk := strings.CutPrefix(l, "@@ -")
+		if !isHunk {
+			continue
+		}
+		ranges, _, _ := strings.Cut(rest, " @@")
+		_, b, _ := strings.Cut(ranges, " +")
+		n, count := atoi(b), 1
+		if _, c, ok := strings.Cut(b, ","); ok {
+			count = atoi(c)
+		}
+		if start >= n && end <= n+count-1 && start <= end {
+			return true
+		}
+	}
+	return false
+}
+
 func atoi(s string) int {
 	s, _, _ = strings.Cut(s, ",")
 	v := 0

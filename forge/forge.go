@@ -161,11 +161,15 @@ type Thread struct {
 
 // Anchor places a thread on lines of a file at a SHA.
 type Anchor struct {
-	Path    string   `json:"path"`
-	OldPath string   `json:"old_path"`
-	NewLine int      `json:"new_line"` // 0 when the line is only on the old side
-	OldLine int      `json:"old_line"` // 0 when the line is only on the new side
-	Diff    DiffRefs `json:"diff"`
+	Path    string `json:"path"`
+	OldPath string `json:"old_path"`
+	NewLine int    `json:"new_line"` // 0 when the line is only on the old side
+	OldLine int    `json:"old_line"` // 0 when the line is only on the new side
+	// StartLine is the first new-side line of a comment that spans several,
+	// ending at NewLine, for a forge whose suggestion replaces the lines its
+	// comment spans. 0 means the comment is on its one line.
+	StartLine int      `json:"start_line,omitempty"`
+	Diff      DiffRefs `json:"diff"`
 }
 
 // Note is one comment in a thread.

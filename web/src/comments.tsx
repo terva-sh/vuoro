@@ -85,12 +85,13 @@ export function fence(s: string): string {
   return '`'.repeat(Math.max(3, longest + 1))
 }
 
-// suggestionBlock is GitLab's suggestion block for a comment on the anchor's
-// last line, replacing every line of its range.
-export function suggestionBlock(d: Draft): string {
+// suggestionBlock is the forge's suggestion block replacing every line of the
+// anchor's range: GitLab's, for a comment on its last line, or, with span,
+// GitHub's, for a comment spanning the range.
+export function suggestionBlock(d: Draft, span = false): string {
   if (d.suggestion === undefined || d.anchor?.side !== 'head') return ''
   const f = fence(d.suggestion)
-  return `${f}suggestion:-${d.anchor.end_line - d.anchor.start_line}+0\n${d.suggestion}\n${f}`
+  return `${f}suggestion${span ? '' : `:-${d.anchor.end_line - d.anchor.start_line}+0`}\n${d.suggestion}\n${f}`
 }
 
 // replacementBlock is a suggestion for a forge that cannot apply one: the
@@ -105,11 +106,11 @@ export function replacementBlock(d: Draft): string {
 
 // keepText is what a kept draft says on the forge, as the server's keepBody
 // composes it. The two must agree, so unedited text is sent as no text.
-export function keepText(d: Draft, applies: boolean): string {
+export function keepText(d: Draft, applies: boolean, span = false): string {
   let b = `**${d.title}**\n\n${d.description.trim()}`
   const e = d.evidence?.trim()
   if (e) b += `\n\n${fence(e)}\n${e}\n${fence(e)}`
-  const s = applies ? suggestionBlock(d) : replacementBlock(d)
+  const s = applies ? suggestionBlock(d, span) : replacementBlock(d)
   if (s) b += '\n\n' + s
   return b
 }
@@ -173,10 +174,10 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
       {editing && w && runID ? (
         <Composer
           placeholder="Edit before keeping"
-          initial={keepText(draft, w.caps.suggestions)}
+          initial={keepText(draft, w.caps.suggestions, w.caps.span_suggestions)}
           label="Keep as my pending comment"
           // Unchanged text is sent as no text, so vuoro does not mark it edited.
-          submit={(text) => w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, text === keepText(draft, w.caps.suggestions) ? {} : { body: text })}
+          submit={(text) => w.act(`/api/runs/${runID}/drafts/${draft.id}/keep`, text === keepText(draft, w.caps.suggestions, w.caps.span_suggestions) ? {} : { body: text })}
           onDone={() => setEditing(false)}
         />
       ) : (

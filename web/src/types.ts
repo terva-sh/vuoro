@@ -28,6 +28,8 @@ export interface Capabilities {
   drafts: boolean; reply: boolean; resolve: boolean; approve: boolean; unapprove: boolean; request_changes: boolean
   // suggestions: the forge applies a suggestion block. Without it a suggestion posts as a plain replacement.
   suggestions: boolean
+  // span_suggestions: a suggestion replaces the lines its comment spans, as a bare block (GitHub).
+  span_suggestions?: boolean
 }
 
 export interface Change {

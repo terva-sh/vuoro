@@ -266,8 +266,15 @@ func (c *Client) CreateDraft(ctx context.Context, ref forge.Ref, d forge.NewDraf
 			} `json:"thread"`
 		} `json:"addPullRequestReviewThread"`
 	}
+	vars := map[string]any{"review": review, "path": a.Path, "line": line, "side": side, "body": d.Body}
 	q := `mutation($review: ID!, $path: String!, $line: Int!, $side: DiffSide!, $body: String!) { addPullRequestReviewThread(input: {pullRequestReviewId: $review, path: $path, line: $line, side: $side, body: $body}) { thread { comments(first: 1) { nodes { id state body pullRequestReview { id } } } } } }`
-	if err := c.query(ctx, q, map[string]any{"review": review, "path": a.Path, "line": line, "side": side, "body": d.Body}, &out); err != nil {
+	// A comment spanning several lines, which a suggestion over them needs,
+	// starts on the same side.
+	if side == "RIGHT" && a.StartLine > 0 && a.StartLine < line {
+		vars["start"], vars["startSide"] = a.StartLine, side
+		q = `mutation($review: ID!, $path: String!, $line: Int!, $side: DiffSide!, $start: Int!, $startSide: DiffSide!, $body: String!) { addPullRequestReviewThread(input: {pullRequestReviewId: $review, path: $path, line: $line, side: $side, startLine: $start, startSide: $startSide, body: $body}) { thread { comments(first: 1) { nodes { id state body pullRequestReview { id } } } } } }`
+	}
+	if err := c.query(ctx, q, vars, &out); err != nil {
 		return forge.Draft{}, err
 	}
 	var first *gqlWritten

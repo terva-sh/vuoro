@@ -50,6 +50,18 @@ func anchor(ch *forge.Change, p place) (*forge.Anchor, error) {
 	return nil, fmt.Errorf("%s is not in the change", p.Path)
 }
 
+// spanLines makes a an inline comment spanning from start to its line, which
+// must all lie in one hunk of the change's diff.
+func spanLines(ch *forge.Change, a *forge.Anchor, start int) error {
+	for _, f := range ch.Files {
+		if f.NewPath == a.Path && patch.Span(f.Patch, start, a.NewLine) {
+			a.StartLine = start
+			return nil
+		}
+	}
+	return fmt.Errorf("lines %d–%d of %s are not in one hunk of the diff, so the suggestion cannot span them; keep it without the suggestion", start, a.NewLine, a.Path)
+}
+
 // allowed refuses a write the change's forge cannot do, so an action the UI
 // hides cannot be reached by a request either.
 func allowed(ok bool, what string) error {
@@ -273,7 +285,7 @@ func keepBody(d drafts.Draft, caps forge.Capabilities) string {
 	}
 	s := drafts.ReplacementBlock(d)
 	if caps.Suggestions {
-		s = drafts.SuggestionBlock(d)
+		s = drafts.SuggestionBlock(d, caps.SpanSuggestions)
 	}
 	if s != "" {
 		b += "\n\n" + s
@@ -338,6 +350,13 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 			}
 			if nd.Anchor, err = anchor(ch, place{Path: d.Anchor.Path, Side: d.Anchor.Side, Line: d.Anchor.EndLine}); err != nil {
 				return "", false, err
+			}
+			// Where a suggestion replaces the lines its comment spans, the
+			// comment spans the suggestion's range (D59).
+			if d.Suggestion != nil && ch.Capabilities.SpanSuggestions && d.Anchor.StartLine < d.Anchor.EndLine {
+				if err := spanLines(ch, nd.Anchor, d.Anchor.StartLine); err != nil {
+					return "", false, err
+				}
 			}
 		}
 		note, err := wr.CreateDraft(r.Context(), ch.Ref, nd)

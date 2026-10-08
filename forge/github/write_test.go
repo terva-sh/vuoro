@@ -425,7 +425,7 @@ func TestWritesNeedAStoreAndAToken(t *testing.T) {
 		t.Fatalf("no store: %v", err)
 	}
 	c.KeepDraftsIn(&memStore{})
-	if caps := c.Capabilities(); caps != (forge.Capabilities{Drafts: true, Reply: true, Resolve: true, Approve: true, RequestChanges: true}) {
+	if caps := c.Capabilities(); caps != (forge.Capabilities{Drafts: true, Reply: true, Resolve: true, Approve: true, RequestChanges: true, Suggestions: true, SpanSuggestions: true}) {
 		t.Fatalf("caps %+v", caps)
 	}
 }
@@ -496,5 +496,31 @@ func TestAnUnconfirmedReplyIsKept(t *testing.T) {
 	}
 	if got := strings.Join(g.names(), " "); got != "addPullRequestReview addComment addComment" {
 		t.Fatalf("mutations %s", got)
+	}
+}
+
+// A suggestion over several lines replaces the lines its comment spans, so
+// such a comment names its first line on the same side, and a comment on
+// one line names none.
+func TestACommentSpanningLinesNamesItsStart(t *testing.T) {
+	c, g, _, ref := writer(t)
+	ctx := context.Background()
+	span := *line
+	span.StartLine, span.NewLine = 2, 4
+	if _, err := c.CreateDraft(ctx, ref, forge.NewDraft{Body: "```suggestion\nx\n```", Anchor: &span}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateDraft(ctx, ref, forge.NewDraft{Body: "One line.", Anchor: line}); err != nil {
+		t.Fatal(err)
+	}
+	spanning, one := g.ops[1], g.ops[2]
+	if spanning.vars["start"] != float64(2) || spanning.vars["startSide"] != "RIGHT" || spanning.vars["line"] != float64(4) {
+		t.Fatalf("spanning comment %v", spanning.vars)
+	}
+	if _, ok := one.vars["start"]; ok {
+		t.Fatalf("a one-line comment named a start: %v", one.vars)
+	}
+	if !c.Capabilities().Suggestions || !c.Capabilities().SpanSuggestions {
+		t.Fatal("GitHub does not offer suggestions")
 	}
 }

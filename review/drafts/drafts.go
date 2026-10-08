@@ -752,15 +752,27 @@ func Fence(s string) string {
 	return strings.Repeat("`", n)
 }
 
-// SuggestionBlock is d's suggestion as GitLab's suggestion block, for a
-// comment placed on the anchor's last line, as vuoro places one. It replaces
-// every line of the anchor's range. It is empty when d has no suggestion.
-func SuggestionBlock(d Draft) string {
+// SuggestionBlock is d's suggestion as the forge's suggestion block, for a
+// comment placed on the anchor's last line, as vuoro places one, or, where
+// span is set, spanning the anchor's range (D59). It replaces every line of
+// the range. It is empty when d has no suggestion.
+func SuggestionBlock(d Draft, span bool) string {
 	if d.Suggestion == nil || d.Anchor == nil || d.Anchor.Side != Head {
 		return ""
 	}
-	f := Fence(*d.Suggestion)
-	return fmt.Sprintf("%ssuggestion:-%d+0\n%s\n%s", f, d.Anchor.EndLine-d.Anchor.StartLine, *d.Suggestion, f)
+	return Suggestion(*d.Suggestion, d.Anchor.EndLine-d.Anchor.StartLine, 0, span)
+}
+
+// Suggestion is a suggestion block replacing the lines from above lines
+// before its comment's line to below lines after it, with text: GitLab's
+// block, which carries those offsets, or, where span is set, GitHub's,
+// which replaces the lines its comment spans.
+func Suggestion(text string, above, below int, span bool) string {
+	f := Fence(text)
+	if span {
+		return fmt.Sprintf("%ssuggestion\n%s\n%s", f, text, f)
+	}
+	return fmt.Sprintf("%ssuggestion:-%d+%d\n%s\n%s", f, above, below, text, f)
 }
 
 // ReplacementBlock is d's suggestion for a forge that cannot apply one: the

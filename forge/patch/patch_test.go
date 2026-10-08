@@ -103,3 +103,16 @@ func TestLineNamesBothSides(t *testing.T) {
 		}
 	}
 }
+
+// A comment spanning lines on GitHub must stay inside one hunk.
+func TestSpanStaysInsideOneHunk(t *testing.T) {
+	p := "@@ -1,3 +1,4 @@\n a\n+b\n c\n d\n@@ -10,2 +11,3 @@\n x\n+y\n z"
+	for _, c := range []struct {
+		start, end int
+		want       bool
+	}{{1, 4, true}, {2, 2, true}, {11, 13, true}, {4, 11, false}, {3, 5, false}, {14, 14, false}, {3, 2, false}} {
+		if got := Span(p, c.start, c.end); got != c.want {
+			t.Errorf("Span(%d, %d) = %v", c.start, c.end, got)
+		}
+	}
+}
