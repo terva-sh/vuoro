@@ -195,6 +195,9 @@ export interface Background {
   autostart: boolean // vuoro starts at login
   login: boolean // this platform can start vuoro at login
   login_error?: string
+  dock: boolean // vuoro keeps its macOS Dock icon, as saved (D58)
+  dock_here: boolean // there is a Dock to choose
+  dock_restart: boolean // the saved choice waits for vuoro to start again
 }
 
 export const refKey = (r: Ref) => `${r.host}/${r.project}!${r.number}`

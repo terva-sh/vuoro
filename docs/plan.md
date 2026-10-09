@@ -203,7 +203,10 @@ the platform's own, through tuohi, without cgo.
 - **The mark.** vuoro's mark is a white lowercase v on a violet tile, with an
   amber dot at the tip of its right arm: the turn that is the person's (D56).
   It is drawn at launch rather than shipped as a file, and it is the window's,
-  the taskbar's, the dock's, the tray's, and the notifications' icon. Wayland
+  the taskbar's, the dock's, the tray's, and the notifications' icon. The
+  macOS menu bar shows the mark alone, without the name, and vuoro has a Dock
+  icon there only when the person keeps it in settings, which applies at the
+  next start (D58). Wayland
   has no per-window icon, so vuoro has tuohi write a hidden desktop entry and
   a themed copy of the mark under the person's data directory, which is how a
   GTK3 window there finds its icon. Windows notifications take no PNG from

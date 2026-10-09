@@ -60,6 +60,9 @@ type App struct {
 	RefreshEvery time.Duration
 	// Autostart starts vuoro at login; nil where the platform cannot.
 	Autostart Autostarter
+	// Dock is whether vuoro has its macOS Dock icon as it runs, which is
+	// fixed as it starts; nil where there is no Dock to choose (D58).
+	Dock *bool
 	// Log reports what the person cannot act on in the window; nil drops it.
 	Log     func(format string, args ...any)
 	nudgeMu sync.Mutex // guards told and nudges.json

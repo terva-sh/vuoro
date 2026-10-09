@@ -409,9 +409,9 @@ export function Forges({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) =
 }
 
 // Background sets how vuoro runs with its window closed (D55): how often it
-// refreshes the inbox, whether it notifies, and whether it starts at login.
-// The first two are the configuration file's; start at login is the
-// system's. Each change is saved as it is made, and onSaving is given each
+// refreshes the inbox, whether it notifies, whether it starts at login, and
+// on macOS whether it keeps its Dock icon (D58). Start at login is the
+// system's; the rest are the configuration file's. Each change is saved as it is made, and onSaving is given each
 // save as it starts, answering whether it succeeded, so a caller about to
 // leave can wait for it and stay when it failed.
 export function Background({ setup, onSetup, onSaving }: { setup: Setup; onSetup: (s: Setup) => void; onSaving?: (saved: Promise<boolean>) => void }) {
@@ -430,8 +430,11 @@ export function Background({ setup, onSetup, onSaving }: { setup: Setup; onSetup
     })
     onSaving?.(saved)
   }
-  const save = (refresh: number, notify: boolean) => {
-    if (refresh !== b.refresh_minutes || notify !== b.notify) track('/api/setup/background', { base: setup.base, refresh_minutes: refresh, notify })
+  // A window with no Dock sends no choice, so the file keeps a Mac's.
+  const save = (refresh: number, notify: boolean, dock = b.dock) => {
+    if (refresh !== b.refresh_minutes || notify !== b.notify || dock !== b.dock) {
+      track('/api/setup/background', { base: setup.base, refresh_minutes: refresh, notify, ...(b.dock_here ? { dock } : {}) })
+    }
   }
   const login = (enabled: boolean) => track('/api/setup/autostart', { enabled })
   const off = !setup.editable || busy
@@ -450,6 +453,11 @@ export function Background({ setup, onSetup, onSaving }: { setup: Setup; onSetup
           onChange={(e) => login((e.currentTarget as HTMLInputElement).checked)} /> Start vuoro in the tray when I log in</label>
       ) : <p class="muted">vuoro cannot start at login on this system.</p>}
       {b.login_error && <p class="warn">{b.login_error}</p>}
+      {b.dock_here && <>
+        <label><input type="checkbox" checked={b.dock} disabled={off}
+          onChange={(e) => save(b.refresh_minutes, b.notify, (e.currentTarget as HTMLInputElement).checked)} /> Keep vuoro in the Dock as well as the menu bar</label>
+        {b.dock_restart && <p class="muted">Quit vuoro from the menu bar and open it again to {b.dock ? 'add it to' : 'take it out of'} the Dock.</p>}
+      </>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
     </div>
   )

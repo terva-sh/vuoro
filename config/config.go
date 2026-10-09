@@ -34,6 +34,22 @@ type Config struct {
 	Profiles []Profile `json:"profiles,omitempty"`
 	// Inbox tunes the inbox (D38).
 	Inbox *Inbox `json:"inbox,omitempty"`
+	// Desktop tunes how vuoro sits on the desktop (D58).
+	Desktop *Desktop `json:"desktop,omitempty"`
+}
+
+// Desktop tunes how vuoro sits on the desktop.
+type Desktop struct {
+	// Dock keeps vuoro in the macOS Dock and the application switcher while
+	// its icon is in the menu bar. Unset means the menu bar only. It is read
+	// as vuoro starts (D58).
+	Dock bool `json:"dock,omitempty"`
+}
+
+// KeepsDock says whether vuoro keeps its macOS Dock icon beside the menu
+// bar's.
+func (c *Config) KeepsDock() bool {
+	return c != nil && c.Desktop != nil && c.Desktop.Dock
 }
 
 // Inbox tunes the inbox.

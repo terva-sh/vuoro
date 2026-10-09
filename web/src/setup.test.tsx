@@ -10,7 +10,7 @@ vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 afterEach(() => vi.resetAllMocks())
 
 const setup = (over: Partial<Setup> = {}): Setup => ({
-  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true }, scheme: '', tab: '',
+  editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], tools: [], presets: [], profiles: [], waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true, dock: false, dock_here: false, dock_restart: false }, scheme: '', tab: '',
   sources: [
     { id: 'secret-service', label: 'Secret Service', read: ['secret-tool', 'lookup', 'service', 'vuoro', 'host', '{host}'], store: ['secret-tool', 'store', '--label=vuoro {host}', 'service', 'vuoro', 'host', '{host}'] },
     { id: 'env', label: 'An environment variable' },
@@ -372,8 +372,23 @@ describe('Background', () => {
     act(() => render(<Background setup={setup()} onSetup={vi.fn()} />, root))
     await act(async () => { checkbox(root, 'Start vuoro').click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
     expect(post).toHaveBeenCalledWith('/api/setup/autostart', { enabled: true })
-    act(() => render(<Background setup={setup({ background: { refresh_minutes: 15, notify: true, autostart: false, login: false } })} onSetup={vi.fn()} />, root))
+    act(() => render(<Background setup={setup({ background: { refresh_minutes: 15, notify: true, autostart: false, login: false, dock: false, dock_here: false, dock_restart: false } })} onSetup={vi.fn()} />, root))
     expect(root.textContent).toContain('cannot start at login on this system')
+    root.remove()
+  })
+
+  it('offers the Dock only on a Mac, and says the choice waits for a restart', async () => {
+    const mac = { refresh_minutes: 15, notify: true, autostart: false, login: true, dock: false, dock_here: true, dock_restart: false }
+    vi.mocked(post).mockResolvedValueOnce(setup({ background: { ...mac, dock: true, dock_restart: true } }))
+    const root = document.createElement('div')
+    document.body.append(root)
+    act(() => render(<Background setup={setup()} onSetup={vi.fn()} />, root))
+    expect(root.textContent).not.toContain('Dock')
+    act(() => render(<Background setup={setup({ background: mac })} onSetup={vi.fn()} />, root))
+    await act(async () => { checkbox(root, 'Keep vuoro in the Dock').click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
+    expect(post).toHaveBeenLastCalledWith('/api/setup/background', { base: 'b1', refresh_minutes: 15, notify: true, dock: true })
+    act(() => render(<Background setup={setup({ background: { ...mac, dock: true, dock_restart: true } })} onSetup={vi.fn()} />, root))
+    expect(root.textContent).toContain('open it again to add it to the Dock')
     root.remove()
   })
 })

@@ -953,3 +953,29 @@ the owner says otherwise.
   a narrower token. Refusing broad tokens was rejected.
 - **GitHub's fine-grained tokens are unknown.** GitHub gives an application
   no way to read their permissions, so the gauge says which to grant.
+
+### D58. On macOS the menu bar shows vuoro's mark without its name, and the Dock icon is the person's choice
+
+The owner reported on 2026-10-09, under TKT-01M4HAZD5QSQZRN4ZBGHE3NZ7A (Drop
+the name from the menu bar, and let the person keep the Dock icon), that on
+macOS, with vuoro in the menu bar, vuoro had no Dock icon, and that the name
+beside the mark took a lot of room in the menu bar. They asked for the name to
+go, and for the Dock to be a setting, even one that waits for a restart.
+
+- **The menu bar shows the mark alone.** tuohi's tray prints its `Title` beside
+  the icon on macOS, and vuoro no longer sets one. The tooltip still names
+  vuoro, and the menu's first line names its version.
+- **"Keep vuoro in the Dock as well as the menu bar" is a setting, off by
+  default.** tuohi's tray makes an application a menu-bar app, with no Dock
+  icon and no place in the application switcher, unless `tray.Config.Dock` is
+  set (tuohi TKT-01M4HAEK8VHG2EY13RCNWVTC06, Let a tray application keep its
+  macOS Dock icon). The choice is `desktop.dock` in the configuration file, and
+  vuoro reads it as it starts, so the settings page says when the saved choice
+  waits for a restart. Off keeps what vuoro did before. A window with no Dock
+  sends no choice, so a configuration file shared with a Mac keeps the Mac's.
+  This supersedes the Dock half of D56, which assumed the Dock always showed
+  the mark.
+- **A Dock icon only while the window is open was deferred.** It needs tuohi to
+  switch the activation policy as the window shows and hides, which macOS
+  applies with visible flicker. A Dock icon always present, with no choice, was
+  rejected, because a closed vuoro would keep a Dock slot.

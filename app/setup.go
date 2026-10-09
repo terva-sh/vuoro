@@ -54,10 +54,20 @@ type backgroundView struct {
 	Autostart bool   `json:"autostart"`
 	Login     bool   `json:"login"`
 	LoginErr  string `json:"login_error,omitempty"`
+	// Dock is whether vuoro keeps its macOS Dock icon, as saved; DockHere
+	// whether there is a Dock to choose; and DockRestart that the saved
+	// choice waits for vuoro to start again (D58).
+	Dock        bool `json:"dock"`
+	DockHere    bool `json:"dock_here"`
+	DockRestart bool `json:"dock_restart"`
 }
 
 func (a *App) backgroundView(cfg *config.Config) backgroundView {
 	v := backgroundView{RefreshMinutes: int(cfg.RefreshEvery() / time.Minute), Notify: cfg.Notifies(), Login: a.Autostart != nil}
+	if a.Dock != nil {
+		v.Dock, v.DockHere = cfg.KeepsDock(), true
+		v.DockRestart = v.Dock != *a.Dock
+	}
 	if a.Autostart != nil {
 		on, err := a.Autostart.Enabled()
 		v.Autostart = on
@@ -68,14 +78,16 @@ func (a *App) backgroundView(cfg *config.Config) backgroundView {
 	return v
 }
 
-// saveBackground saves the background refresh interval and whether vuoro
-// notifies. The default interval is saved as no setting, so the file keeps
-// following the default.
+// saveBackground saves the background refresh interval, whether vuoro
+// notifies, and, where it is sent, whether vuoro keeps its Dock icon. The
+// defaults are saved as no setting, so the file keeps following them. A
+// window with no Dock sends no choice, so a file shared with a Mac keeps it.
 func (a *App) saveBackground(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Base           string `json:"base"`
 		RefreshMinutes int    `json:"refresh_minutes"`
 		Notify         bool   `json:"notify"`
+		Dock           *bool  `json:"dock"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -99,6 +111,12 @@ func (a *App) saveBackground(w http.ResponseWriter, r *http.Request) {
 		}
 		if *c.Inbox == (config.Inbox{}) {
 			c.Inbox = nil
+		}
+		if req.Dock != nil {
+			c.Desktop = nil
+			if *req.Dock {
+				c.Desktop = &config.Desktop{Dock: true}
+			}
 		}
 		return nil
 	})

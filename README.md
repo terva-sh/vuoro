@@ -122,9 +122,11 @@ inbox, every 15 minutes unless you choose otherwise. It sends one quiet
 notification when changes become your turn, and one when a long review
 finishes. Launching Vuoro again opens the window of the one already running.
 On a desktop with no tray, such as GNOME without the AppIndicator extension,
-closing the window quits. Under "In the background" in the window you can
+closing the window quits. In Settings, under "Background", you can
 change how often it refreshes, turn notifications off, or have Vuoro start in
-the tray when you log in.
+the tray when you log in. On macOS Vuoro lives in the menu bar and has no Dock
+icon, unless you choose "Keep vuoro in the Dock" there; that choice applies
+the next time Vuoro starts.
 
 ## Shared styling
 

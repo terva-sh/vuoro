@@ -6,7 +6,7 @@ tool github.com/terva-sh/design/cmd/design-tokens
 
 require (
 	github.com/godbus/dbus/v5 v5.2.2
-	github.com/terva-sh/tuohi v0.1.0
+	github.com/terva-sh/tuohi v0.1.1
 )
 
 require (

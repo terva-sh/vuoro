@@ -279,6 +279,40 @@ func TestSetupSavesTheBackgroundSettings(t *testing.T) {
 	}
 }
 
+// The Dock is offered only where vuoro was started with a choice of it,
+// is saved only when the window sends a choice, and says when the saved one
+// waits for a restart (D58).
+func TestSetupSavesTheDockForTheNextStart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	a := &App{StateDir: t.TempDir(), Config: &config.Config{}, ConfigPath: path}
+	h := a.Handler()
+	v := getSetup(t, h)
+	if v.Background.DockHere {
+		t.Fatalf("a Dock with none to choose: %+v", v.Background)
+	}
+	off := false
+	a.Dock = &off
+	code, v, body := post(t, h, "/api/setup/background", map[string]any{"base": getSetup(t, h).Base, "refresh_minutes": 15, "notify": true, "dock": true})
+	if code != 200 || !v.Background.DockHere || !v.Background.Dock || !v.Background.DockRestart {
+		t.Fatalf("saved: %d %s", code, body)
+	}
+	if saved, _ := os.ReadFile(path); !strings.Contains(string(saved), `"dock": true`) {
+		t.Fatalf("file %s", saved)
+	}
+	// A window with no Dock sends no choice, and the file keeps the Mac's.
+	if code, v, body = post(t, h, "/api/setup/background", map[string]any{"base": v.Base, "refresh_minutes": 5, "notify": true}); code != 200 || !v.Background.Dock {
+		t.Fatalf("no choice sent: %d %s", code, body)
+	}
+	// Back to the running choice, there is nothing to restart for, and the
+	// file keeps no setting.
+	if code, v, body = post(t, h, "/api/setup/background", map[string]any{"base": v.Base, "refresh_minutes": 15, "notify": true, "dock": false}); code != 200 || v.Background.DockRestart {
+		t.Fatalf("back: %d %s", code, body)
+	}
+	if saved, _ := os.ReadFile(path); strings.Contains(string(saved), "desktop") {
+		t.Fatalf("the default was written out: %s", saved)
+	}
+}
+
 type fakeAutostart struct{ on bool }
 
 func (f *fakeAutostart) Enabled() (bool, error) { return f.on, nil }

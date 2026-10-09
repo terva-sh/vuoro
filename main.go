@@ -144,6 +144,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		d.tray = trayHost(runtime.GOOS, askWatcher)
 		d.hidden = *background && d.tray
 		d.mark, d.face = mark, icon(256)
+		// Only macOS has a Dock for the tray to take vuoro out of (D58).
+		if runtime.GOOS == "darwin" && d.tray {
+			d.dock = a.Config.KeepsDock()
+			a.Dock = &d.dock
+		}
 		d.refresh = func() { a.RefreshNow(ctx) }
 	}
 	return showWindow(url, token, *check, d, logger)
@@ -153,6 +158,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 type desktop struct {
 	tray    bool   // the desktop shows a tray icon, so closing hides to it
 	hidden  bool   // start with the window hidden in the tray
+	dock    bool   // keep the macOS Dock icon beside the menu bar's (D58)
 	mark    []byte // the tray's and the notifications' mark
 	face    []byte // the window's, the taskbar's, and the dock's (D56)
 	refresh func()
@@ -281,7 +287,8 @@ func showWindow(url, token string, check bool, d desktop, logger *log.Logger) in
 			logger.Printf("open the window: %v", err)
 		}
 	}
-	menu := tray.Config{Icon: d.mark, AppName: "vuoro", Title: "vuoro", Tooltip: "vuoro", OnClick: open,
+	// No Title: macOS would print it beside the mark in the menu bar.
+	menu := tray.Config{Icon: d.mark, AppName: "vuoro", Tooltip: "vuoro", Dock: d.dock, OnClick: open,
 		Items: []tray.Item{
 			{Label: "vuoro " + version, Disabled: true},
 			{Separator: true},
