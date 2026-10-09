@@ -774,7 +774,11 @@ config file, and the home page can take it back. A
 kept or dropped draft can no longer be changed by its agent. While a Keep is
 writing to the forge, the store holds the draft: a second Keep or a drop is
 refused, an agent cannot revise it, and the button reads "Keeping…", so a
-quick second click never writes the comment twice. A write's reply does not
+quick second click never writes the comment twice. "Take back" undoes a Keep
+or a Drop: a kept draft's comment is deleted on the forge while it is still
+pending, and one already submitted stays kept, since the forge holds it. A
+decision carried from an earlier review, one whose fix was pushed or
+suggested, or one an unfinished editor wave was given, stands. A write's reply does not
 wait for the inbox, which catches up in the background. The GitLab adapter
 keeps the patches of the last few changes it read, by diff version, because
 reading them is most of the cost of opening a large change, and a Keep

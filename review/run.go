@@ -818,6 +818,28 @@ func (m *Manager) Keep(runID, id string, write func(drafts.Draft) (string, bool,
 	return nil
 }
 
+// Undecide takes back the person's decision on a finding, around remove,
+// which deletes a kept finding's pending comment. A finding an editor is
+// working on keeps its decision until that work is discarded or goes back.
+func (m *Manager) Undecide(runID, id string, remove func(drafts.Draft) error) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	r.mu.Lock()
+	e := r.editor
+	busy := e.Active() && !e.delivered() && slices.Contains(e.Items, id)
+	r.mu.Unlock()
+	if busy {
+		return fmt.Errorf("review: the editor is working on %s; discard its work first", id)
+	}
+	if _, err := r.store.Undecide(id, remove); err != nil {
+		return err
+	}
+	r.save()
+	return nil
+}
+
 // AskSuggestion starts a fresh session to write the suggested change for one
 // finding: the lines that replace its range at the head (D37). It does not
 // resume the session that drafted the finding, whose context holds the whole

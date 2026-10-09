@@ -35,4 +35,23 @@ describe('DraftCard', () => {
     await act(async () => keep().click())
     expect(keep().disabled).toBe(false)
   })
+
+  it('takes back a kept finding, but not one whose decision an earlier review or a fix holds', async () => {
+    const act_ = vi.fn(() => Promise.resolve())
+    const w: Writer = { url: 'u', caps: { drafts: true, reply: true, resolve: true, approve: true, unapprove: true, request_changes: true, suggestions: true }, act: act_ }
+    const root = document.createElement('div')
+    const show = (d: Draft) => act(() => render(<WriteContext.Provider value={w}><DraftCard draft={d} runID="r1" /></WriteContext.Provider>, root))
+    const back = () => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Take back')
+    show({ ...draft, decision: 'kept', note_id: '41' })
+    expect(back()?.title).toContain('Deletes your pending comment')
+    await act(async () => back()!.click())
+    expect(act_).toHaveBeenCalledWith('/api/runs/r1/drafts/d1/undecide', {})
+    show({ ...draft, decision: 'dropped' })
+    expect(back()?.title).toBe('Makes this finding undecided again')
+    for (const held of [{ carried: true }, { fixed_in: 'abc' }, { suggested: { commit: 'abc', subject: 's', at: '' } }]) {
+      show({ ...draft, decision: 'kept', ...held })
+      expect(back()).toBeUndefined()
+    }
+  })
 })
+

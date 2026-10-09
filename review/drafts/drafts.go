@@ -642,6 +642,51 @@ func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error)
 	return Draft{}, fmt.Errorf("drafts: no draft %s", id)
 }
 
+// Undecide takes back the person's decision on a draft, around remove,
+// which deletes a kept draft's pending comment on the forge. The draft is
+// held while remove runs, as for Keep. A decision carried from an earlier
+// review, or one whose fix was pushed or suggested, stands. It is vuoro's
+// call, made from the UI, and no MCP tool reaches it.
+func (st *Store) Undecide(id string, remove func(Draft) error) (Draft, error) {
+	st.mu.Lock()
+	d := st.find(id)
+	switch {
+	case d == nil:
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: no draft %s", id)
+	case st.keeping[id]:
+		st.mu.Unlock()
+		return Draft{}, ErrKeeping
+	case d.Status != Pending || d.Decision == "":
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: %s has no decision to take back", id)
+	case d.Carried:
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: %s was decided in the earlier review, where its comment went", id)
+	case d.FixedIn != "" || d.Suggested != nil:
+		st.mu.Unlock()
+		return Draft{}, fmt.Errorf("drafts: %s already has its fix, so its decision stands", id)
+	}
+	if st.keeping == nil {
+		st.keeping = map[string]bool{}
+	}
+	st.keeping[id] = true
+	snapshot := *d
+	st.mu.Unlock()
+
+	err := remove(snapshot)
+
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	delete(st.keeping, id)
+	if err != nil {
+		return Draft{}, err
+	}
+	d.Decision, d.NoteID, d.Edited = "", "", false
+	d.Updated = st.now()
+	return *d, nil
+}
+
 // Get returns one draft.
 func (st *Store) Get(id string) (Draft, bool) {
 	st.mu.Lock()

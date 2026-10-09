@@ -35,6 +35,8 @@ type fakeGitLab struct {
 	fork bool
 	// gql, when set, is served in place of the recorded merge request.
 	gql []byte
+	// notes, when set, are the person's pending draft notes.
+	notes string
 }
 
 func (g *fakeGitLab) handler(t *testing.T) http.Handler {
@@ -60,7 +62,13 @@ func (g *fakeGitLab) handler(t *testing.T) http.Handler {
 		case r.Method == "GET" && r.URL.Path == "/api/v4/personal_access_tokens/self":
 			w.Write([]byte(`{"scopes": ["api"]}`))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/draft_notes"):
-			w.Write([]byte(`[]`))
+			g.mu.Lock()
+			notes := g.notes
+			g.mu.Unlock()
+			if notes == "" {
+				notes = "[]"
+			}
+			w.Write([]byte(notes))
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/merge_requests/3991"):
 			g.mu.Lock()
 			source := 1
@@ -320,6 +328,28 @@ func TestAnAgentDraftsAndOnlyThePersonPosts(t *testing.T) {
 	}
 	if w := g.seen(); len(w) != 2 || !strings.HasSuffix(w[1], "/draft_notes/bulk_publish") {
 		t.Fatalf("submit wrote %q", w)
+	}
+
+	// A decision can be taken back. A drop is local; a kept comment that is
+	// no longer pending, because it was submitted, stays kept; one still
+	// pending is deleted on the forge.
+	undo := func(id string) (int, map[string]any) {
+		return call(t, h, fmt.Sprintf("/api/runs/%s/drafts/%s/undecide", run.ID, id), map[string]any{"url": mrURL})
+	}
+	if code, out := undo("d2"); code != 200 || run.View().Drafts[1].Decision != "" || len(g.seen()) != 2 {
+		t.Fatalf("taking back a drop: %d %v, wrote %q", code, out, g.seen())
+	}
+	if code, out := undo("d1"); code != 400 || !strings.Contains(fmt.Sprint(out["error"]), "no longer pending") || run.View().Drafts[0].Decision != drafts.Kept {
+		t.Fatalf("taking back a submitted comment: %d %v", code, out)
+	}
+	g.mu.Lock()
+	g.notes = `[{"id": 77, "note": "kept"}]`
+	g.mu.Unlock()
+	if code, out := undo("d1"); code != 200 || run.View().Drafts[0].Decision != "" || run.View().Drafts[0].NoteID != "" {
+		t.Fatalf("taking back a pending comment: %d %v", code, out)
+	}
+	if w := g.seen(); len(w) != 3 || w[2] != "DELETE /api/v4/projects/gitlab-org%2Fcli/merge_requests/3991/draft_notes/77" {
+		t.Fatalf("taking back wrote %q", w)
 	}
 	a.Runs.Close(context.Background(), run.ID)
 }

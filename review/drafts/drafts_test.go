@@ -326,3 +326,40 @@ func TestADraftBeingKeptCannotBeKeptAgainOrChanged(t *testing.T) {
 		t.Fatalf("keep after a failure: %v", err)
 	}
 }
+
+// A decision can be taken back, around the removal of its comment, unless
+// it came from an earlier review or its fix was pushed or suggested; a
+// failed removal leaves it decided.
+func TestADecisionIsTakenBackUnlessItsFixOrAnEarlierReviewHoldsIt(t *testing.T) {
+	st := NewStore()
+	for range 4 {
+		if _, err := st.Propose(alice, good()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := st.Undecide("d1", func(Draft) error { return nil }); err == nil {
+		t.Fatal("an undecided draft was taken back")
+	}
+	st.Decide("d1", Kept, "41", true)
+	if _, err := st.Undecide("d1", func(Draft) error { return errors.New("forge down") }); err == nil {
+		t.Fatal("a failed removal took the decision back")
+	}
+	var removed string
+	d, err := st.Undecide("d1", func(d Draft) error { removed = d.NoteID; return nil })
+	if err != nil || removed != "41" || d.Decision != "" || d.NoteID != "" || d.Edited {
+		t.Fatalf("taken back %+v %v, removed %q", d, err, removed)
+	}
+	st.Decide("d2", Kept, "42", false)
+	st.CiteFix("d2", "abc", "Fix", "editor", "")
+	st.Decide("d3", Kept, "43", false)
+	st.MarkSuggested("d3", SuggestedFix{Commit: "abc"})
+	st.Decide("d4", Dropped, "", false)
+	st.mu.Lock()
+	st.find("d4").Carried = true
+	st.mu.Unlock()
+	for _, id := range []string{"d2", "d3", "d4"} {
+		if _, err := st.Undecide(id, func(Draft) error { t.Fatalf("%s's comment was removed", id); return nil }); err == nil {
+			t.Fatalf("%s was taken back", id)
+		}
+	}
+}

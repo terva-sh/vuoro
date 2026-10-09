@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/terva-sh/vuoro/forge"
@@ -24,6 +25,7 @@ func (a *App) writeRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/changes/approve", a.approve)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/keep", a.keep)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/drop", a.drop)
+	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/undecide", a.undecide)
 }
 
 // place is a line the person or an agent points at: a file, a side, and a
@@ -364,6 +366,43 @@ func (a *App) keep(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, drafts.ErrKeeping) {
 		writeError(w, errors.New("This finding is already being kept; wait for that to finish."))
+		return
+	}
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	a.reply(w, r, req.URL)
+}
+
+// undecide takes back the person's decision on a finding. A kept finding's
+// pending comment is deleted on the forge first, which only works while it
+// is still pending: a comment already submitted is the forge's record, and
+// stays kept.
+func (a *App) undecide(w http.ResponseWriter, r *http.Request) {
+	var req urlBody
+	if !readJSON(w, r, &req) {
+		return
+	}
+	runID := r.PathValue("id")
+	err := a.Runs.Undecide(runID, r.PathValue("did"), func(d drafts.Draft) error {
+		if d.Decision != drafts.Kept || d.NoteID == "" {
+			return nil
+		}
+		ch, wr, err := a.writer(r.Context(), req.URL)
+		if err != nil {
+			return err
+		}
+		if run := a.Runs.Get(runID); run == nil || run.Ref != ch.Ref || run.Kind != ch.Kind {
+			return errors.New("This draft belongs to another change.")
+		}
+		if !slices.ContainsFunc(ch.Drafts, func(p forge.Draft) bool { return p.ID == d.NoteID }) {
+			return errors.New("Your comment for this finding is no longer pending on the forge: it was submitted or deleted there, so it stays kept.")
+		}
+		return wr.DeleteDraft(r.Context(), ch.Ref, d.NoteID)
+	})
+	if errors.Is(err, drafts.ErrKeeping) {
+		writeError(w, errors.New("This finding is being kept or taken back; wait for that to finish."))
 		return
 	}
 	if err != nil {

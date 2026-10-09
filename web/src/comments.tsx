@@ -139,6 +139,15 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
     w?.act(`/api/runs/${runID}/drafts/${draft.id}/${kind}`, {})
       .then(() => setBusy('done'), () => setBusy(undefined))
   }
+  // Take back undoes a Keep or a Drop (a kept comment still pending is
+  // deleted on the forge), so a mistaken click is not final.
+  const [undoing, setUndoing] = useState(false)
+  const undo = () => {
+    setUndoing(true)
+    w?.act(`/api/runs/${runID}/drafts/${draft.id}/undecide`, {})
+      // The writer shows what went wrong.
+      .then(() => { setUndoing(false); setBusy(undefined) }, () => setUndoing(false))
+  }
   const ask = () => {
     setAsked('asked')
     post(`/api/runs/${runID}/drafts/${draft.id}/suggest`).catch((e: unknown) => setAsked(`⚠ ${errorText(e)}`))
@@ -168,7 +177,14 @@ export function DraftCard({ draft, onPick, label, runID, compact }: {
         {draft.earlier && ` · restates earlier finding ${draft.earlier}`}
         {draft.decision === 'kept' && (draft.carried ? ' · ✓ kept in the earlier review, as your comment' : ` · ✓ kept${draft.edited ? ', edited,' : ''} as your pending comment`)}
         {draft.decision === 'dropped' && (draft.carried ? ' · ✗ dropped by you in the earlier review' : ' · ✗ dropped by you')}
+        {draft.decision && !draft.carried && !draft.fixed_in && !draft.suggested && draft.status === 'pending' && w && runID && (
+          <>{' '}<button class="link" disabled={undoing} onClick={undo}
+            title={draft.decision === 'kept' ? 'Deletes your pending comment on the forge, and makes this finding undecided again' : 'Makes this finding undecided again'}>
+            {undoing ? '⧗ Taking back…' : 'Take back'}
+          </button></>
+        )}
       </div>
+
       {label && <div class="draft-label">{label}</div>}
       {!draft.fixed_in && <HeadBadge state={head} />}
       {editing && w && runID ? (
