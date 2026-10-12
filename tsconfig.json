@@ -11,8 +11,9 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["web/src", "vite.config.ts", "vitest.config.ts"]
+  "include": ["web/src", "scripts/screenshots", "vite.config.ts", "vitest.config.ts"]
 }

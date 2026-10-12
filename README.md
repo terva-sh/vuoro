@@ -19,6 +19,35 @@ and submit without leaving it.
 > [docs/plan.md](docs/plan.md) is the design
 > of record, and [docs/roadmap.md](docs/roadmap.md) maps remaining MVP/v1.0 work.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/inbox-dark.png">
+  <img alt="The inbox: reviews from GitLab, Forgejo, and GitHub in one list, grouped into your changes, replies owed, and reviews, each with how long it has waited. The selected change shows the two threads waiting for an answer." src="docs/images/inbox-light.png">
+</picture>
+
+One inbox across forges, in the order things wait on you. The selected change
+shows what it waits for.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/review-dark.png">
+  <img alt="A merge request's Review tab: three reviewers, a synthesizer, and a verifier, then five findings with severity and the verifier's confidence. Two are kept as pending comments and one is dropped. One finding is open with Keep, Edit and keep, and Drop." src="docs/images/review-light.png">
+</picture>
+
+Agents review in parallel, a synthesizer merges what they found, and a verifier
+checks each finding. You keep or drop each one. A kept finding becomes your
+pending comment, and nothing is posted until you submit.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/editor-dark.png">
+  <img alt="The editor's work on the kept findings: two commits, each naming the finding it answers, the choice to add them as suggestions or push a draft merge request, and the diff." src="docs/images/editor-light.png">
+</picture>
+
+The editor fixes the kept findings on a local branch, with no forge
+credential. You choose whether the fixes go back as suggestions on your
+comments or as a draft merge request.
+
+The images are taken by `just screenshots` from made-up data in
+[scripts/screenshots/scene.ts](scripts/screenshots/scene.ts).
+
 
 ## Why
 

@@ -96,6 +96,15 @@ web-test *args:
 dist-verify:
     npm run verify:dist
 
+# Take the README images again from scripts/screenshots/scene.ts, into
+# docs/images; accepts --out, --width, and --height. It shoots the committed
+# web/dist, so run web-build first after changing web/src. Not a CI step: text
+# is drawn with this machine's fonts, which another machine's differ from.
+# The first run needs Playwright's Chromium: npx playwright install chromium.
+[positional-arguments]
+screenshots *args:
+    npm run screenshots -- "$@"
+
 # Export the vuoro stylesheet from the pinned shared design module.
 design-export:
     go run github.com/terva-sh/design/cmd/design-tokens export -app vuoro -out web/src/styles/design.css
