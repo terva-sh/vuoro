@@ -296,7 +296,9 @@ export function ForgeEditor({ setup, initial, original, onSaved, onCancel }: {
 // method and plan as words of its own, such as oauth_token max.
 export function signedIn(account?: string): string {
   const words = (account ?? '').split(/\s+/).filter(Boolean)
-  const how: Record<string, string> = { 'claude.ai': 'with a Claude account', oauth_token: 'with a Claude token', api_key: 'with an API key', apikey: 'with an API key' }
+  // oauth_token covers both a Claude token and a token for a custom endpoint,
+  // which Claude Code does not tell apart, so neither does this.
+  const how: Record<string, string> = { 'claude.ai': 'with a Claude account', oauth_token: 'with a token', api_key: 'with an API key', apikey: 'with an API key', api_key_helper: 'with a key from your helper' }
   const method = words.map((w) => how[w.toLowerCase()]).find(Boolean)
   const plan = words.find((w) => !how[w.toLowerCase()])
   return ['signed in', method, plan && `(${plan[0].toUpperCase()}${plan.slice(1)} plan)`].filter(Boolean).join(' ')
@@ -309,7 +311,9 @@ function toolHelp(t: Tool): string {
     case 'ok': return `✓ ${name} ${t.version ?? ''}, ${signedIn(t.account)}`
     case 'missing': return `${name} is not installed. ${t.error ?? ''}`
     case 'too_old': return `${name} needs updating${t.tool === 'claude' ? ': run claude update' : ''}. ${t.error ?? ''}`
-    case 'signed_out': return `${name} ${t.version ?? ''} is installed but not signed in${t.tool === 'claude' ? ': run claude in a terminal and sign in with /login' : ''}.`
+    case 'signed_out': return t.shell_login
+      ? `${name} ${t.version ?? ''} finds no login here, but your shell has one. vuoro started from the Dock or at login, and that does not inherit your shell's environment.${t.tool === 'claude' ? ' Move the key into ~/.claude/settings.json, as an env block or an apiKeyHelper, and it works from any launch.' : ''}`
+      : `${name} ${t.version ?? ''} is installed but not signed in${t.tool === 'claude' ? ': run claude in a terminal and sign in with /login' : ''}.`
     default: return `⚠ ${name}: ${t.error ?? 'did not answer'}`
   }
 }

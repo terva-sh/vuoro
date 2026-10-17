@@ -162,7 +162,13 @@ export interface Access { level: AccessLevel; scopes?: string[]; broad?: string[
 // store stands for the forge's host.
 export interface TokenSource { id: string; label: string; read?: string[]; store?: string[]; note?: string }
 export type ToolState = 'ok' | 'missing' | 'too_old' | 'signed_out' | 'broken'
-export interface Tool { name: string; tool: string; version?: string; account?: string; error?: string; state: ToolState }
+export interface Tool {
+  name: string; tool: string; version?: string; account?: string; error?: string; state: ToolState
+  // shell_login says the tool found no login here while the person's login
+  // shell holds one, which is what a Dock or start-at-login launch does. It
+  // says only that a credential is set, never what it is.
+  shell_login?: boolean
+}
 // HomeTab is a tab of the home page (docs/plan.md section 6.8); empty is the
 // first, Reviews.
 export type HomeTab = '' | 'reviews' | 'local'

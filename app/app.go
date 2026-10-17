@@ -93,7 +93,11 @@ type probe struct {
 	Version string `json:"version,omitempty"`
 	Account string `json:"account,omitempty"`
 	Error   string `json:"error,omitempty"`
-	state   string // for the setup screen's hint (toolState)
+	// ShellLogin says the person's login shell holds a credential this
+	// process cannot see, which is what a Dock or login-item launch does.
+	// It says that one is set, never what it is.
+	ShellLogin bool   `json:"shell_login,omitempty"`
+	state      string // for the setup screen's hint (toolState)
 }
 
 // Handler returns the API's routes.
@@ -169,7 +173,8 @@ func (a *App) probeTools() map[string]probe {
 	offered := map[string]agent.Driver{}
 	for name, d := range a.Tools {
 		p, err := d.Probe(ctx)
-		pr := probe{Name: name, Tool: d.Name(), Version: p.Version, Account: p.Account, state: toolState(p, err)}
+		pr := probe{Name: name, Tool: d.Name(), Version: p.Version, Account: p.Account,
+			ShellLogin: p.ShellLogin, state: toolState(p, err)}
 		if err != nil {
 			pr.Error = err.Error()
 		} else {

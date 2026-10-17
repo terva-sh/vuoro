@@ -20,11 +20,12 @@ import (
 // TestMain sees fakeEnv and replays a recorded stream-json transcript, one
 // turn for each message it reads, as claude does.
 const (
-	fakeEnv       = "VUORO_FAKE_CLAUDE"         // the recording to replay
-	fakeArgsEnv   = "VUORO_FAKE_CLAUDE_ARGS"    // where to write the argv it got
-	fakeVerEnv    = "VUORO_FAKE_CLAUDE_VERSION" // what --version prints
-	fakeHangEnv   = "VUORO_FAKE_CLAUDE_HANG"    // stop mid-turn and wait
-	fakeNoReadEnv = "VUORO_FAKE_CLAUDE_NO_READ" // block before reading stdin
+	fakeEnv       = "VUORO_FAKE_CLAUDE"            // the recording to replay
+	fakeArgsEnv   = "VUORO_FAKE_CLAUDE_ARGS"       // where to write the argv it got
+	fakeVerEnv    = "VUORO_FAKE_CLAUDE_VERSION"    // what --version prints
+	fakeHangEnv   = "VUORO_FAKE_CLAUDE_HANG"       // stop mid-turn and wait
+	fakeNoReadEnv = "VUORO_FAKE_CLAUDE_NO_READ"    // block before reading stdin
+	fakeOutEnv    = "VUORO_FAKE_CLAUDE_SIGNED_OUT" // auth status reports no login
 )
 
 func TestMain(m *testing.M) {
@@ -46,6 +47,11 @@ func fakeClaude(rec string) {
 		os.Stdout.WriteString(v + " (Claude Code)\n")
 		return
 	case len(args) == 2 && args[0] == "auth" && args[1] == "status":
+		if os.Getenv(fakeOutEnv) == "1" {
+			// What claude prints with no credential anywhere: exit 1 too.
+			os.Stdout.WriteString(`{"loggedIn":false,"authMethod":"none","apiProvider":"firstParty"}` + "\n")
+			os.Exit(1)
+		}
 		os.Stdout.WriteString(`{"loggedIn":true,"authMethod":"claude.ai","email":"someone@example.invalid","subscriptionType":"team"}` + "\n")
 		return
 	}
@@ -362,6 +368,137 @@ func TestProbe(t *testing.T) {
 	_, err = missing.Probe(context.Background())
 	if !errors.Is(err, agent.ErrMissing) || !strings.Contains(err.Error(), MinVersion) {
 		t.Fatalf("missing claude: %v", err)
+	}
+}
+
+// fakeShell writes a stand-in login shell. It records the argv it was given,
+// which is how a test proves no credential value was passed to it, and then
+// runs body. Evaluating the script directly sources none of the person's own
+// profile, so the test stays hermetic.
+func fakeShell(t *testing.T, body string) (shell, log string) {
+	t.Helper()
+	dir := t.TempDir()
+	log = filepath.Join(dir, "argv.log")
+	shell = filepath.Join(dir, "fakesh")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"" + log + "\"\n" + body + "\n"
+	if err := os.WriteFile(shell, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return shell, log
+}
+
+// TestShellLoginNamesTheVariableAndNeverItsValue is the Dock launch: the
+// process has no credential, the person's login shell does, and vuoro must
+// establish that without ever reading what the shell holds
+// (TKT-01M55VRM16QASJ8CER793CR9NF).
+func TestShellLoginNamesTheVariableAndNeverItsValue(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows has no $SHELL to ask")
+	}
+	// Not a credential. It stands for one, so that the test can prove it
+	// never reached the command line.
+	const standIn = "stand-in-value-9fbe"
+	shell, log := fakeShell(t, `eval "$2"`)
+	t.Setenv("SHELL", shell)
+	t.Setenv("ANTHROPIC_API_KEY", standIn)
+
+	if !shellLogin(context.Background()) {
+		t.Error("a key set in the login shell was not seen")
+	}
+	asked, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("the shell was never asked: %v", err)
+	}
+	if !strings.Contains(string(asked), "ANTHROPIC_API_KEY") {
+		t.Errorf("the shell was asked %q, which names no variable", asked)
+	}
+	if strings.Contains(string(asked), standIn) {
+		t.Errorf("the value reached the command line: %q", asked)
+	}
+}
+
+// TestShellLoginSaysNothingItCannotShow covers every way the shell can fail
+// to answer. None of them may turn into a claim about the person's setup,
+// because absence of evidence is not evidence here.
+func TestShellLoginSaysNothingItCannotShow(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows has no $SHELL to ask")
+	}
+	hang, _ := fakeShell(t, "sleep 30")
+	silent, _ := fakeShell(t, "exit 0")
+	noisy, _ := fakeShell(t, "printf 'a prompt, and an escape sequence\\n'; eval \"$2\"")
+	grumpy, _ := fakeShell(t, "eval \"$2\"; exit 1")
+	absent := filepath.Join(t.TempDir(), "no-shell-here")
+
+	for name, c := range map[string]struct {
+		shell string
+		set   bool // the stand-in variable is set in the environment
+		wait  time.Duration
+		want  bool
+	}{
+		"no SHELL at all":               {shell: "", set: true},
+		"SHELL names nothing":           {shell: absent, set: true},
+		"the shell blocks":              {shell: hang, set: true, wait: 100 * time.Millisecond},
+		"the shell answers nothing":     {shell: silent, set: true},
+		"nothing is set in the shell":   {shell: noisy, set: false},
+		"a prompt precedes the answer":  {shell: noisy, set: true, want: true},
+		"the shell answers, then fails": {shell: grumpy, set: true, want: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("SHELL", c.shell)
+			for _, v := range loginVars {
+				t.Setenv(v, "") // empty is unset to ${v:+1}
+			}
+			if c.set {
+				t.Setenv("ANTHROPIC_AUTH_TOKEN", "stand-in-value")
+			}
+			ctx := context.Background()
+			if c.wait > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, c.wait)
+				defer cancel()
+			}
+			if got := shellLogin(ctx); got != c.want {
+				t.Errorf("shellLogin = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+// TestProbeAsksTheShellOnlyWhenSignedOut holds the cost down and keeps the
+// person's profile out of the common path: a tool that reports a login is
+// never a reason to run their shell.
+func TestProbeAsksTheShellOnlyWhenSignedOut(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows has no $SHELL to ask")
+	}
+	shell, log := fakeShell(t, `eval "$2"`)
+	t.Setenv("SHELL", shell)
+	t.Setenv("ANTHROPIC_API_KEY", "stand-in-value")
+	d, _ := fake(t, "review.jsonl")
+
+	p, err := d.Probe(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Account == "" {
+		t.Fatal("the fake claude is meant to report a login")
+	}
+	if p.ShellLogin {
+		t.Error("a signed-in tool reported the shell's login as well")
+	}
+	if _, err := os.Stat(log); !errors.Is(err, os.ErrNotExist) {
+		t.Error("the login shell was run while the tool was signed in")
+	}
+
+	t.Setenv(fakeOutEnv, "1")
+	switch p, err = d.Probe(context.Background()); {
+	case err != nil:
+		t.Fatal(err)
+	case p.Account != "":
+		t.Errorf("account %q, want none", p.Account)
+	case !p.ShellLogin:
+		t.Error("the key in the login shell was not reported")
 	}
 }
 

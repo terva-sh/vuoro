@@ -33,6 +33,13 @@ type Probe struct {
 	// Account is the kind of login or key the tool will use, where the tool
 	// says, such as "claude.ai team". It never holds an identity.
 	Account string
+	// ShellLogin says the tool reported no login here, and the person's
+	// login shell holds a credential variable that this process does not.
+	// A window started from the Dock or from a login item gets launchd's
+	// environment and not the shell's, so the tool works in a terminal and
+	// not under vuoro. A driver sets this only on the signed-out path, and
+	// it asks whether the variables are set, never what they hold.
+	ShellLogin bool
 }
 
 // ErrMissing means the tool is not installed, or not on PATH.

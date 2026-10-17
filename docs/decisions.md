@@ -1023,3 +1023,44 @@ they could see which changes were made to their own. docs/plan.md section
 - **Nothing is posted.** Delivering updates and adds the person's pending
   comments only, on the person's confirmed action. The person submits the
   review as before.
+
+### D60. vuoro explains a login it cannot see, and never recovers one itself
+
+Reported by the owner on 2026-10-17, under TKT-01M55VRM16QASJ8CER793CR9NF
+(Find the agent tool login when vuoro starts from the Dock). The setup screen
+called Claude Code signed out. The probe was reading the environment of the
+vuoro process, which a Dock launch, a Finder launch, and the login item of
+D55 all get from launchd rather than from the login shell. A key exported in
+`.zshrc` is invisible to all three, so the tool works in a terminal and
+reports nothing to vuoro. `editorEnv` reads that same environment, so a review
+started in that state would have failed part-way through with
+`ErrUnauthenticated`.
+
+- **vuoro does not recover the credential.** Claude Code already holds a key
+  that survives any launch, in an `env` block or an `apiKeyHelper` in its own
+  `settings.json`, and vuoro passes both through untouched, since it writes
+  its MCP configuration to a scratch directory, names it with `--mcp-config`,
+  and never sets `CLAUDE_CONFIG_DIR`. Measured against 2.1.288 with an empty
+  environment: both report `loggedIn true`. The person has a real fix, and
+  vuoro's failing was never to mention it.
+- **The hint is evidence, not a guess.** When a probe comes back signed out,
+  and only then, the driver asks the login shell whether any credential
+  variable is set, never what it holds, with `$SHELL -lic` and a marker it
+  matches in the output. No value crosses into vuoro, so there is none to
+  leak into a log, an error, or the setup JSON. A shell that fails, blocks
+  past its timeout, refuses the flags, or is not named leaves the answer
+  false and the hint as it was, because absence of evidence is not evidence.
+- **The state does not change, the wording does.** The tool is still unusable
+  in this process, so it stays `signed_out`. The hint stops telling this
+  person to run `/login`, which would have replaced a working login with
+  another one, and names the launch environment as the cause instead.
+- **Reading the shell's environment and using it was rejected.** It makes a
+  Dock launch work with no action by the person, and it costs running their
+  profile at startup and holding `ANTHROPIC_API_KEY` in vuoro's memory, to
+  re-solve a problem the tool solved properly. Naming the variables in
+  vuoro's config, as a forge token does with `token_command`, was rejected
+  for asking someone who has configured Claude Code to configure it twice.
+- **A smaller fix rode along.** `authMethod: oauth_token` is what a custom
+  endpoint reached with `ANTHROPIC_AUTH_TOKEN` reports, as well as a Claude
+  token, and the setup screen called both "a Claude token". It now says "a
+  token", claiming no more than Claude Code knows.

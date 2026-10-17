@@ -1204,6 +1204,32 @@ terva 0.139.7. The evidence and the throwaway program are in
   driver answers or refuses every request itself and reports a refusal as a
   denied event.
 
+**Finding a tool's login (D60).** vuoro never reads, holds, or passes a model
+credential. It asks the tool, and the tool answers for itself: `claude auth
+status` reports whether it is logged in and by what method.
+
+That answer depends on how vuoro was started. A window opened from the Dock,
+from Finder, or by the login item of section 3.3 gets launchd's environment,
+not the login shell's, so a key exported in `.zshrc` is invisible to it. The
+tool then reports no login while it works in the person's terminal, and the
+old hint sent them to `/login` to replace a login that was already fine.
+
+So when, and only when, a probe comes back signed out, the driver asks the
+login shell one question: is any of its credential variables set. It asks with
+`$SHELL -lic` and a marker it matches in the output, since an interactive
+shell writes a prompt there too, and it reads whether each variable is set,
+never what it holds. A shell that fails, blocks past the timeout, refuses the
+flags, or is not named leaves the answer false, because vuoro would rather say
+nothing than claim something it cannot show.
+
+A yes changes the hint, not the state. The tool is still unusable in this
+process, so the state stays `signed_out`. The hint stops saying `/login` and
+names the cause, pointing at the tool's own `settings.json`, where an `env`
+block or an `apiKeyHelper` holds a key that survives any launch. vuoro passes
+those through untouched: it writes its own MCP configuration to a scratch
+directory and names it with `--mcp-config`, and it never sets
+`CLAUDE_CONFIG_DIR`.
+
 **Claude Code's lockdown**, proven:
 
 ```text

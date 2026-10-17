@@ -179,6 +179,21 @@ describe('Tools', () => {
     expect(post).toHaveBeenCalledWith('/api/setup/tools', {})
     expect(onSetup).toHaveBeenCalled()
   })
+
+  // A window started from the Dock or at login does not inherit the shell's
+  // environment, so telling this person to run /login would send them to
+  // replace a login that already works
+  // (TKT-01M55VRM16QASJ8CER793CR9NF).
+  it('names the launch environment when the shell has a login that vuoro cannot see', () => {
+    const tools: Tool[] = [
+      { name: 'claude', tool: 'claude', version: '2.1.300', state: 'signed_out', shell_login: true },
+    ]
+    const root = document.createElement('div')
+    act(() => render(<Tools setup={setup({ tools })} onSetup={vi.fn()} />, root))
+    expect(root.textContent).toContain('your shell has one')
+    expect(root.textContent).toContain('~/.claude/settings.json')
+    expect(root.textContent).not.toContain('/login')
+  })
 })
 
 describe('Tools when the check fails', () => {
@@ -274,7 +289,10 @@ describe('FirstRun leaving the background step', () => {
 
 describe('signedIn', () => {
   it('words how Claude Code says it is signed in', () => {
-    expect(signedIn('oauth_token')).toBe('signed in with a Claude token')
+    // oauth_token is what a custom endpoint reached with ANTHROPIC_AUTH_TOKEN
+    // reports too, so the wording claims no more than Claude Code knows.
+    expect(signedIn('oauth_token')).toBe('signed in with a token')
+    expect(signedIn('api_key_helper')).toBe('signed in with a key from your helper')
     expect(signedIn('claude.ai max')).toBe('signed in with a Claude account (Max plan)')
     expect(signedIn('')).toBe('signed in')
   })

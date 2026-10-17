@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -94,7 +95,59 @@ func (d *Driver) Probe(ctx context.Context) (agent.Probe, error) {
 			p.Account = strings.TrimSpace(st.AuthMethod + " " + st.SubscriptionType)
 		}
 	}
+	if p.Account == "" {
+		p.ShellLogin = shellLogin(ctx)
+	}
 	return p, nil
+}
+
+// shellMarker prefixes the one line vuoro reads out of the login shell. An
+// interactive shell writes its prompt and escape sequences to stdout as well,
+// so the answer is found by this marker rather than by reading the output
+// whole.
+const shellMarker = "vuoro-shell-login:"
+
+// shellTimeout bounds the login shell, whose profile is the person's own code
+// and may block on anything. Running out of time means no evidence, which is
+// not the same as a negative, so the hint stays as it was.
+const shellTimeout = 3 * time.Second
+
+// shellLogin reports whether the person's login shell holds one of loginVars
+// that this process does not. A window started from the Dock or from a login
+// item gets launchd's environment, not the shell's, so Claude Code works in a
+// terminal and reports no login here.
+//
+// It asks only whether each variable is set, never what it holds, so no
+// credential enters this process, a log line, or the setup JSON. The shell
+// runs with -lic because -l reaches a login profile and -i reaches .zshrc and
+// .bashrc, where an export is more often written. A shell that fails, hangs,
+// refuses those flags, or is not named at all leaves this false, since vuoro
+// would rather say nothing than say something it cannot show.
+func shellLogin(ctx context.Context) bool {
+	if runtime.GOOS == "windows" {
+		return false // no $SHELL to ask, and no launchd to lose one to
+	}
+	sh := os.Getenv("SHELL")
+	if sh == "" {
+		return false
+	}
+	var script strings.Builder
+	script.WriteString(`echo "` + shellMarker)
+	for _, v := range loginVars {
+		script.WriteString("${" + v + ":+1}")
+	}
+	script.WriteString(`"`)
+	ctx, cancel := context.WithTimeout(ctx, shellTimeout)
+	defer cancel()
+	// The exit status is not read. A shell that prints the answer and then
+	// exits non-zero, which an interactive one may do, has still answered.
+	out, _ := exec.CommandContext(ctx, sh, "-lic", script.String()).Output()
+	_, answer, ok := strings.Cut(string(out), shellMarker)
+	if !ok {
+		return false
+	}
+	answer, _, _ = strings.Cut(answer, "\n")
+	return strings.Contains(answer, "1")
 }
 
 var versionRE = regexp.MustCompile(`\d+\.\d+\.\d+`)
