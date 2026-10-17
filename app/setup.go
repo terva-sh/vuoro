@@ -32,6 +32,8 @@ func (a *App) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/setup/access", a.forgeAccess)
 	mux.HandleFunc("POST /api/setup/forges", a.saveForge)
 	mux.HandleFunc("POST /api/setup/forges/remove", a.removeForge)
+	mux.HandleFunc("POST /api/setup/presets", a.savePreset)
+	mux.HandleFunc("POST /api/setup/presets/remove", a.removePreset)
 	mux.HandleFunc("POST /api/setup/tools", a.checkTools)
 	mux.HandleFunc("POST /api/setup/background", a.saveBackground)
 	mux.HandleFunc("POST /api/setup/autostart", a.setAutostart)
@@ -223,6 +225,37 @@ type toolView struct {
 	State string `json:"state"`
 }
 
+// presetView is a preset as the presets page shows it. Builtin marks one
+// vuoro ships, which the page copies rather than edits (D61), so the shipped
+// set keeps its meaning across an upgrade.
+//
+// The flag is here and not on config.Preset because that type serializes into
+// the person's config.json, where "builtin": true would be written into their
+// file on the next save.
+type presetView struct {
+	config.Preset
+	Builtin bool `json:"builtin,omitempty"`
+}
+
+// presetViews is every preset the person can run, each marked with whether
+// vuoro ships it. presetsOf decides the order and the shadowing, so this only
+// has to say which names are the person's own: one of theirs that takes a
+// built-in's name is theirs to edit (D61).
+func presetViews(c *config.Config) []presetView {
+	own := map[string]bool{}
+	if c != nil {
+		for _, p := range c.Presets {
+			own[p.Name] = true
+		}
+	}
+	ps := presetsOf(c)
+	out := make([]presetView, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, presetView{Preset: p, Builtin: !own[p.Name]})
+	}
+	return out
+}
+
 // tokenSource is a place a token can be kept, offered when its program is on
 // this machine. Read is the token_command and Store the command the person
 // runs in a terminal to keep the token there, both as argv, where {host}
@@ -288,14 +321,14 @@ func (a *App) setupView() any {
 		Forges      []forgeView      `json:"forges"`
 		Sources     []tokenSource    `json:"sources"`
 		Tools       []toolView       `json:"tools"`
-		Presets     []config.Preset  `json:"presets"`
+		Presets     []presetView     `json:"presets"`
 		Profiles    []review.Profile `json:"profiles"`
 		Waived      []string         `json:"waived"` // confirmations the person turned off
 		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
 		Tab         string           `json:"tab"`    // the home page's tab used last
 		Background  backgroundView   `json:"background"`
 	}{ConfigPath: path, Editable: path != "" && cfgErr == nil, Base: base, Forges: []forgeView{}, Tools: []toolView{},
-		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetsOf(cfg), Profiles: review.Builtin}
+		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetViews(cfg), Profiles: review.Builtin}
 	out.Background = a.backgroundView(cfg)
 	prefs := a.loadPrefs()
 	out.Waived, out.Scheme, out.Tab = prefs.Waived, prefs.Scheme, prefs.Tab
@@ -479,6 +512,105 @@ func (a *App) removeForge(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+}
+
+// savePreset creates a preset, or replaces the one named by original, which
+// is also how a rename lands. Only the person's own presets are in the file,
+// so a built-in is reached by copying it under a name of its own.
+func (a *App) savePreset(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Base     string        `json:"base"`
+		Original string        `json:"original"`
+		Preset   config.Preset `json:"preset"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	a.editConfig(w, req.Base, func(c *config.Config) error {
+		p, err := cleanPreset(req.Preset)
+		if err != nil {
+			return err
+		}
+		// Taking a name vuoro ships is allowed, and is how shadowing is
+		// written (D61). Only a collision with another of their own is a
+		// mistake, because the file cannot hold two of one name.
+		clash := slices.IndexFunc(c.Presets, func(q config.Preset) bool { return q.Name == p.Name })
+		if req.Original == "" {
+			if clash >= 0 {
+				return fmt.Errorf("You already have a preset named %q.", p.Name)
+			}
+			c.Presets = append(c.Presets, p)
+			return nil
+		}
+		i := slices.IndexFunc(c.Presets, func(q config.Preset) bool { return q.Name == req.Original })
+		if i < 0 {
+			return fmt.Errorf("There is no preset named %q to change.", req.Original)
+		}
+		if clash >= 0 && clash != i {
+			return fmt.Errorf("You already have a preset named %q.", p.Name)
+		}
+		c.Presets[i] = p
+		return nil
+	})
+}
+
+// removePreset drops one of the person's own presets. Removing one that
+// shadowed a built-in needs no special case: presetsOf merges on every read,
+// so the shipped one is back in the list the save answers with (D61).
+func (a *App) removePreset(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Base string `json:"base"`
+		Name string `json:"name"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	a.editConfig(w, req.Base, func(c *config.Config) error {
+		n := len(c.Presets)
+		c.Presets = slices.DeleteFunc(c.Presets, func(p config.Preset) bool { return p.Name == req.Name })
+		if len(c.Presets) == n {
+			return fmt.Errorf("There is no preset named %q of your own to remove.", req.Name)
+		}
+		return nil
+	})
+}
+
+// cleanPreset trims a preset from the window and refuses what config.Validate
+// would refuse, in the window's words. The same rules guard a hand-edited
+// file there; here they arrive before the save, rather than as a load error
+// the person meets on the next start.
+func cleanPreset(p config.Preset) (config.Preset, error) {
+	out := config.Preset{Name: strings.TrimSpace(p.Name)}
+	if out.Name == "" {
+		return out, errors.New("Give the preset a name.")
+	}
+	for _, r := range p.Reviewers {
+		r.Profile, r.Tool, r.Model = strings.TrimSpace(r.Profile), strings.TrimSpace(r.Tool), strings.TrimSpace(r.Model)
+		if r.Profile == "" {
+			return out, errors.New("Every reviewer needs a profile.")
+		}
+		out.Reviewers = append(out.Reviewers, r)
+	}
+	if len(out.Reviewers) == 0 {
+		return out, errors.New("A preset needs at least one reviewer.")
+	}
+	out.Synthesizer, out.Verifier = cleanRole(p.Synthesizer), cleanRole(p.Verifier)
+	return out, nil
+}
+
+// cleanRole trims a synthesizer or a verifier, whose profile a preset
+// ignores. One that names neither a tool nor a model is left out entirely, so
+// that the run's own defaults apply (D11, D31) instead of an empty tool
+// pinning what those defaults would have picked up.
+func cleanRole(r *config.Reviewer) *config.Reviewer {
+	if r == nil {
+		return nil
+	}
+	out := config.Reviewer{Tool: strings.TrimSpace(r.Tool), Model: strings.TrimSpace(r.Model)}
+	if out.Tool == "" && out.Model == "" {
+		return nil
+	}
+	return &out
 }
 
 // editConfig changes the configuration file as the window last read it, and

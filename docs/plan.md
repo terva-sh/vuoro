@@ -541,8 +541,24 @@ window's Settings page holds the same configuration: each forge as a card with
 its token's gauge, asked through the client vuoro already holds, so the token
 is not resolved again; the agent tools; the background settings; the colour
 scheme; the confirmations the person turned off; and the About pane. A person can still
-write it by hand. An example, with no
-secret in it:
+write it by hand.
+
+**Presets are a page of their own**, reached from the Settings nav, which
+swaps the body for it rather than scrolling to another section: a preset
+holds a list of reviewers with a profile, tool, and model each, and an
+optional synthesizer and verifier besides, which does not sit in a settings
+column. Each preset is a card. The ones the person wrote are edited and
+removed there, through the same safe save as a forge, so a file edited by
+hand since the window read it is refused rather than overwritten. The ones
+vuoro ships are marked and offer Copy alone, never Edit or Remove, because
+copying keeps the shipped set meaningful across an upgrade where editing in
+place would pin a private fork of `thorough` (D61). Only the person's own
+presets are in the file, so removing one that shadowed a shipped preset
+brings the shipped one back by itself. The page refuses what the
+configuration check refuses, in its own words, before the save rather than as
+a load error on the next start.
+
+An example of the file, with no secret in it:
 
 ```json
 {

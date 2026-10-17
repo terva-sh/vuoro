@@ -36,6 +36,7 @@ type setupView struct {
 		EnvSet bool `json:"env_set"`
 	}
 	Sources    []tokenSource
+	Presets    []presetView
 	Error      string
 	Background backgroundView
 }

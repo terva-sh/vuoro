@@ -1,9 +1,10 @@
 // Settings: everything vuoro's configuration and preferences hold, on one
 // page with a section for each. It reads setup again as it opens, which picks
 // up a hand edit or a repaired file before anything is edited from it.
-import { useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { api } from './api'
 import { waive } from './confirm'
+import { Presets } from './presets'
 import { SchemePicker } from './scheme'
 import { Background, Forges, Tools } from './setup'
 import type { Scheme, Setup } from './types'
@@ -21,14 +22,39 @@ export function Settings({ setup, onSetup, scheme, onScheme, version, onAbout, o
   setup: Setup; onSetup: (s: Setup) => void; scheme: Scheme; onScheme: (s: Scheme) => void
   version?: string; onAbout: () => void; onClose: () => void
 }) {
+  // Presets is a page of its own rather than one more section, because a
+  // preset holds a list of reviewers with three fields each and two optional
+  // roles besides, which does not sit in a settings column.
+  const [page, setPage] = useState<'' | 'presets'>('')
   useEffect(() => { api<Setup>('/api/setup').then(onSetup).catch(() => undefined) }, [])
+  // A section only exists on the settings page, so a jump from Presets waits
+  // for it to render again.
+  const show = (id: string) => {
+    setPage('')
+    setTimeout(() => document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth' }), 0)
+  }
   return (
     <div class="settings">
       <nav class="settings-nav" aria-label="Settings sections">
         <button type="button" class="link back" onClick={onClose}>← Back</button>
         <h2>Settings</h2>
-        <ul>{sections.map((s) => <li key={s.id}><a href={`#${s.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' }) }}>{s.label}</a></li>)}</ul>
+        <ul>
+          {sections.map((s) => <li key={s.id}><a href={`#${s.id}`} onClick={(e) => { e.preventDefault(); show(s.id) }}>{s.label}</a></li>)}
+          <li>
+            <button type="button" class={page === 'presets' ? 'link on' : 'link'} aria-current={page === 'presets' ? 'page' : undefined}
+              onClick={() => setPage('presets')}>Presets</button>
+          </li>
+        </ul>
       </nav>
+      {page === 'presets' ? (
+        <div class="settings-body">
+          <section aria-labelledby="settings-presets-title">
+            <h2 id="settings-presets-title">Presets</h2>
+            <p class="lead">The reviewers a run starts. vuoro ships three, and you can copy one to make it your own.</p>
+            <Presets setup={setup} onSetup={onSetup} />
+          </section>
+        </div>
+      ) : (
       <div class="settings-body">
         <section id="settings-forges" aria-labelledby="settings-forges-title">
           <h2 id="settings-forges-title">Forges</h2>
@@ -65,6 +91,7 @@ export function Settings({ setup, onSetup, scheme, onScheme, version, onAbout, o
           <p>vuoro {version ?? ''} <button type="button" onClick={onAbout}>Versions and files</button></p>
         </section>
       </div>
+      )}
     </div>
   )
 }

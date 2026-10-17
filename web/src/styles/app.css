@@ -565,6 +565,20 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .forge-facts h3 { margin: 0 0 var(--ui-space-1); font-size: var(--ui-fs-body); color: var(--ui-heading); }
 .forge-facts p { margin: 0 0 var(--ui-space-1); overflow-wrap: anywhere; }
 .forge-actions { margin-top: var(--ui-space-2) !important; }
+/* Presets, on their own page: a card each, and a form with a row per
+   reviewer. These come after .settings-body .field so the editor's labels
+   stack above their controls rather than sitting beside them. */
+.presets .preset-cards { list-style: none; padding: 0; margin: 0 0 var(--ui-space-3); display: grid; gap: var(--ui-space-3); }
+.preset-card { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-bg); padding: var(--ui-space-3) var(--ui-space-4); }
+.preset-facts h3 { margin: 0 0 var(--ui-space-1); font-size: var(--ui-fs-body); color: var(--ui-heading); }
+.preset-facts p { margin: 0 0 var(--ui-space-1); overflow-wrap: anywhere; }
+.preset-actions { margin-top: var(--ui-space-2) !important; }
+.preset-editor { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); padding: var(--ui-space-3) var(--ui-space-4); margin: var(--ui-space-2) 0; background: var(--ui-surface); }
+.preset-editor .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); align-items: flex-end; }
+.preset-editor .field { display: flex; flex-direction: column; align-items: stretch; gap: var(--ui-space-1); margin-bottom: var(--ui-space-2); }
+.preset-reviewers { list-style: none; padding: 0; margin: 0 0 var(--ui-space-2); display: grid; gap: var(--ui-space-2); }
+.preset-reviewers > li { padding-bottom: var(--ui-space-2); border-bottom: 1px solid var(--ui-line); }
+.preset-reviewers > li:last-child { border-bottom: 0; }
 .forge-access { text-align: center; }
 .forge-access .gauge { margin: 0; }
 .gauge.compact { padding: var(--ui-space-2); border: 0; background: none; }

@@ -148,7 +148,20 @@ export interface StackPreview {
 export interface EditorCommit { sha: string; subject: string; findings: string[] }
 export interface EditorDetail extends EditorState { commits: EditorCommit[]; files: FileDiff[] }
 
-export interface Preset { name: string; reviewers: { profile: string; tool?: string; model?: string }[] }
+export interface PresetReviewer { profile: string; tool?: string; model?: string }
+// PresetRole is a preset's synthesizer or verifier. They name a tool and a
+// model only, because a preset ignores their profile. Leaving one out lets
+// the run's own defaults apply (D11, D31).
+export interface PresetRole { tool?: string; model?: string }
+export interface Preset {
+  name: string
+  reviewers: PresetReviewer[]
+  synthesizer?: PresetRole
+  verifier?: PresetRole
+  // builtin marks one vuoro ships, which the presets page copies rather than
+  // edits, so the shipped set keeps its meaning across an upgrade (D61).
+  builtin?: boolean
+}
 // ForgeForm is one forge as setup edits it. It names where the token comes
 // from, never the token.
 export interface ForgeForm {
