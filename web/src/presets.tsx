@@ -6,12 +6,76 @@ import { useState } from 'preact/hooks'
 import { useAction } from './action'
 import { post } from './api'
 import { EditForm } from './textedit'
-import type { Preset, PresetReviewer, PresetRole, Setup } from './types'
+import type { Preset, PresetReviewer, PresetRole, Setup, Tool } from './types'
 
 // describe is a preset's reviewers on one line, worded as the run picker
 // words them.
 export function describe(p: Preset): string {
   return p.reviewers.map((r) => r.profile + (r.model ? ` (${r.model})` : '')).join(', ')
+}
+
+// toolTrouble is why a probed tool is not ready, as the option text marks it
+// and as the warning says it. A state missing from here is one that runs.
+//
+// Only signed_out is soft, and the difference is not cosmetic. probeTools
+// offers a driver to the run manager whenever its probe returned no error,
+// and a tool with no account probes clean. So a signed-out tool resolves,
+// the run starts, and the session fails at authentication. The other three
+// never reach Manager.Drivers, and the run is refused before it begins.
+const toolTrouble: Record<string, { mark: string; says: string }> = {
+  missing: { mark: 'not installed', says: 'is not installed' },
+  too_old: { mark: 'too old', says: 'is too old' },
+  broken: { mark: 'did not answer', says: 'did not answer when vuoro probed it' },
+  signed_out: { mark: 'not signed in', says: 'is not signed in' },
+}
+
+// toolMark names a tool in the select, with why it cannot run when it
+// cannot, so pinning one is a choice rather than a surprise when a run
+// starts.
+const toolMark = (t: Tool): string => t.tool + (toolTrouble[t.state] ? ` (${toolTrouble[t.state].mark})` : '')
+
+// Trouble is one thing a preset names that this machine cannot resolve.
+// Hard means the run is refused before it starts.
+export interface Trouble { hard: boolean; text: string }
+
+// troubles is what a preset names that does not resolve here. A profile
+// resolves if setup.profiles holds it, which is the same set
+// Manager.profile checks. A tool resolves if it is empty, meaning any tool
+// available, or if it is a probed tool in a state that runs.
+//
+// This reports and never refuses (D62). A preset naming a tool absent from
+// this machine is still correct on the machine that has it.
+export function troubles(p: Preset, setup: Setup): Trouble[] {
+  const out: Trouble[] = []
+  const seen = new Set<string>()
+  const add = (hard: boolean, key: string, text: string) => {
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ hard, text })
+  }
+  const profiles = setup.profiles ?? []
+  for (const r of p.reviewers) {
+    if (r.profile && !profiles.some((x) => x.name === r.profile)) {
+      add(true, 'profile:' + r.profile, `No profile named "${r.profile}", so this preset cannot run here.`)
+    }
+  }
+  for (const name of [...p.reviewers.map((r) => r.tool), p.synthesizer?.tool, p.verifier?.tool]) {
+    const tool = (name ?? '').trim()
+    if (tool === '') continue
+    const found = setup.tools.find((t) => t.name === tool)
+    if (!found) {
+      add(true, 'tool:' + tool, `No agent tool named "${tool}" on this machine, so this preset cannot run here.`)
+      continue
+    }
+    const why = toolTrouble[found.state]
+    if (!why) continue
+    if (found.state === 'signed_out') {
+      add(false, 'tool:' + tool, `${found.tool} ${why.says}, so a run would start and then fail.`)
+    } else {
+      add(true, 'tool:' + tool, `${found.tool} ${why.says}, so this preset cannot run here.`)
+    }
+  }
+  return out
 }
 
 // copyName is a free name for a copy of p, so copying twice does not collide
@@ -70,6 +134,13 @@ function PresetEditor({ setup, initial, original, onSaved, onCancel }: {
           <li class="row" key={i}>
             <label class="field">Reviews for
               <select value={r.profile} onChange={(e) => edit(i, { profile: (e.target as HTMLSelectElement).value })}>
+                {/* A select whose value matches no option does not show that value, so
+                    without this a profile that no longer exists reads as some other
+                    profile. The preset still holds the real name, which is worse: the
+                    person confirms what the form shows and saves something else. */}
+                {r.profile !== '' && !profiles.some((p) => p.name === r.profile) && (
+                  <option value={r.profile}>{r.profile} (no such profile here)</option>
+                )}
                 {profiles.map((p) => <option value={p.name} key={p.name}>{p.title || p.name}</option>)}
               </select>
             </label>
@@ -113,7 +184,11 @@ function ToolField({ label, value, setup, onChange }: {
     <label class="field">{label}
       <select value={value} onChange={(e) => onChange((e.target as HTMLSelectElement).value)}>
         <option value="">Any tool available</option>
-        {setup.tools.map((t) => <option value={t.name} key={t.name}>{t.tool}</option>)}
+        {/* The same coercion as the profile select, for a tool this machine never probed. */}
+        {value !== '' && !setup.tools.some((t) => t.name === value) && (
+          <option value={value}>{value} (not on this machine)</option>
+        )}
+        {setup.tools.map((t) => <option value={t.name} key={t.name}>{toolMark(t)}</option>)}
       </select>
     </label>
   )
@@ -147,6 +222,9 @@ export function Presets({ setup, onSetup }: { setup: Setup; onSetup: (s: Setup) 
               <div class="preset-facts">
                 <h3>{p.name}{p.builtin && <span class="muted"> · shipped with vuoro</span>}</h3>
                 <p class="muted">{describe(p)}</p>
+                {troubles(p, setup).map((t) => (
+                  <p class={t.hard ? 'warn' : 'muted'} key={t.text}>{t.hard ? '⚠ ' : ''}{t.text}</p>
+                ))}
                 {setup.editable && (
                   <p class="preset-actions">
                     {p.builtin ? (

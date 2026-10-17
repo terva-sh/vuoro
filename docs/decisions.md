@@ -1109,3 +1109,47 @@ D14 left the shipped set open, and this fills it in.
   on the person's own, so the shipped set keeps its meaning across an
   upgrade. Editing in place would pin a private fork of `thorough` at the
   version they first touched it.
+
+### D62. The presets page reports a name it cannot resolve, and never refuses it
+
+Decided by the owner on 2026-10-18, under TKT-01M561J4A1AB61CS7FP6J6TJDD
+(Warn on the presets page when a profile or tool no longer resolves). A
+preset names a profile and may name a tool. Neither was checked until
+`Manager.Start`, so a preset that had gone stale failed on the way into a
+review rather than on the page that writes it.
+
+- **The page says what does not resolve. It does not refuse it.** A preset
+  naming a tool absent from this machine is still correct on the machine
+  that has it, and a person may run vuoro on more than one. Refusing the
+  save would also make the page unable to express a configuration they wrote
+  by hand, which turns the editor into a downgrade from a text editor. So
+  `canSave` does not consider this, and a save round-trips the name
+  untouched. This is the rule most likely to be "fixed" later by somebody
+  adding validation, and a test holds it.
+- **A signed-out tool is a softer mark than an absent one, because the
+  failures differ.** `probeTools` offers a driver to the run manager only
+  when its probe returned no error, and `toolState` calls a probe with no
+  account `signed_out` with a nil error. So missing, too old, and broken
+  never reach `Manager.Drivers` and the run is refused before it begins,
+  while a signed-out tool is offered, the run starts, and the session fails
+  at authentication. The page words them differently rather than flattening
+  both into one warning.
+- **The selects stopped lying.** A `select` whose value matches no option
+  does not show that value, so a preset naming a profile that is gone read
+  as some other profile. The preset still held the real name, which is the
+  bad half: the person confirmed what the form showed them and saved
+  something else. Each select now renders an option for the value it holds.
+  A tool that cannot run is still offered, marked with why, so pinning one
+  for another machine stays possible and stays deliberate.
+- **Rejected: validating this in `config.Validate`.** It is the obvious
+  home and it is the wrong one. The check runs on load, on every machine,
+  and a config that names a tool installed on one of them would stop
+  loading on the others. The resolution is a fact about this machine, so it
+  belongs where the machine is known.
+- **Found and not fixed here.** `Manager.driver` resolves an empty tool name
+  to the only registered driver, and only when exactly one is registered.
+  vuoro registers claude alone today, so it works. The second driver breaks
+  every preset that pins no tool. Filed as
+  TKT-01M562ESB0WGCRWJJW0QYTBZE6, because it is a different fix in a
+  different package and the rule that picks between two tools is a decision
+  of its own.

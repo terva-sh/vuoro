@@ -558,6 +558,15 @@ brings the shipped one back by itself. The page refuses what the
 configuration check refuses, in its own words, before the save rather than as
 a load error on the next start.
 
+A preset names a profile and may name a tool, and neither name is checked
+until a run starts. So the page says which of them this machine cannot
+resolve, on the card and in the selects. The two failures read differently
+because they are different: a tool that is missing, too old, or broken never
+reaches `Manager.Drivers`, so the run is refused before it begins, while a
+signed-out tool is offered, the run starts, and the session fails at
+authentication. The page reports and never refuses, because a preset naming
+a tool absent here is still correct on the machine that has it (D62).
+
 An example of the file, with no secret in it:
 
 ```json

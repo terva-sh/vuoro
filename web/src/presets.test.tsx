@@ -15,12 +15,13 @@ afterEach(() => { act(() => render(null, root)); vi.resetAllMocks() })
 const quick: Preset = { name: 'quick', reviewers: [{ profile: 'code' }], builtin: true }
 const mine: Preset = { name: 'mine', reviewers: [{ profile: 'security', model: 'opus' }] }
 
-const setup = (presets: Preset[]): Setup => ({
+const setup = (presets: Preset[], over: Partial<Setup> = {}): Setup => ({
   editable: true, base: 'b1', config_path: '/home/pat/.config/vuoro/config.json', forges: [], sources: [],
   tools: [{ name: 'claude', tool: 'Claude Code', state: 'ok' }], presets,
   profiles: [{ name: 'code', title: 'Code', prompt: '' }, { name: 'security', title: 'Security', prompt: '' }],
   waived: [], background: { refresh_minutes: 15, notify: true, autostart: false, login: true, dock: false, dock_here: false, dock_restart: false },
   scheme: '', tab: '',
+  ...over,
 })
 
 const button = (root: Element, text: string) => [...root.querySelectorAll('button')].find((b) => b.textContent === text)
@@ -31,10 +32,14 @@ const type = (el: HTMLInputElement, value: string) =>
 const click = (root: Element, text: string) =>
   act(async () => { button(root, text)!.click(); for (let i = 0; i < 5; i++) await Promise.resolve() })
 
-const mount = (presets: Preset[], onSetup = vi.fn()) => {
-  act(() => render(<Presets setup={setup(presets)} onSetup={onSetup} />, root))
+const mount = (presets: Preset[], over: Partial<Setup> = {}, onSetup = vi.fn()) => {
+  act(() => render(<Presets setup={setup(presets, over)} onSetup={onSetup} />, root))
   return { root, onSetup }
 }
+
+// gone names a profile no configuration defines, which is what a preset
+// holds after the person deletes the profile it named.
+const gone: Preset = { name: 'old', reviewers: [{ profile: 'vibes' }] }
 
 describe('describe', () => {
   it('words a preset as the run picker words it', () => {
@@ -69,7 +74,7 @@ describe('Presets', () => {
   })
 
   it('saves a copy of a shipped preset as a new one, under a free name', async () => {
-    const { root, onSetup } = mount([quick])
+    const { root, onSetup } = mount([quick], {})
     act(() => button(root, 'Copy')!.click())
     expect((input(root, 'Name') as HTMLInputElement).value).toBe('quick copy')
     vi.mocked(post).mockResolvedValue(setup([quick]))
@@ -116,5 +121,84 @@ describe('Presets', () => {
     expect(button(root, 'Edit')).toBeUndefined()
     expect(button(root, 'Copy')).toBeUndefined()
     expect(button(root, 'Add a preset')).toBeUndefined()
+  })
+})
+
+// A preset's names are checked when a run starts, not when it is written, so
+// without this the person learns on the way into a review that the preset
+// they chose cannot run.
+describe('a preset naming something that does not resolve', () => {
+  it('names the profile that is gone', () => {
+    const { root } = mount([gone])
+    expect(root.textContent).toContain('No profile named "vibes", so this preset cannot run here.')
+  })
+
+  it('names a tool this machine never probed', () => {
+    const { root } = mount([{ name: 'old', reviewers: [{ profile: 'code', tool: 'terva' }] }])
+    expect(root.textContent).toContain('No agent tool named "terva" on this machine')
+  })
+
+  // probeTools offers a driver whenever its probe returned no error, and a
+  // tool with no account probes clean. So a signed-out tool resolves and the
+  // session fails at authentication, while a missing one is refused before
+  // the run begins. The page says which.
+  it('reads differently for a tool that is signed out and one that is absent', () => {
+    const pinned = [{ name: 'old', reviewers: [{ profile: 'code', tool: 'claude' }] }]
+    const out = mount(pinned, { tools: [{ name: 'claude', tool: 'Claude Code', state: 'signed_out' }] })
+    expect(out.root.textContent).toContain('Claude Code is not signed in, so a run would start and then fail.')
+    expect(out.root.textContent).not.toContain('cannot run here')
+
+    const absent = mount(pinned, { tools: [{ name: 'claude', tool: 'Claude Code', state: 'missing' }] })
+    expect(absent.root.textContent).toContain('Claude Code is not installed, so this preset cannot run here.')
+  })
+
+  // A shipped preset cannot name a profile that is gone, which a Go test
+  // holds, but it can pin a tool.
+  it('marks a shipped preset too', () => {
+    const { root } = mount([{ ...quick, reviewers: [{ profile: 'code', tool: 'claude' }] }],
+      { tools: [{ name: 'claude', tool: 'Claude Code', state: 'too_old' }] })
+    expect(root.textContent).toContain('Claude Code is too old, so this preset cannot run here.')
+  })
+
+  it('says each missing name once, however many reviewers name it', () => {
+    const { root } = mount([{ name: 'old', reviewers: [{ profile: 'vibes' }, { profile: 'vibes' }] }])
+    expect(root.textContent!.match(/No profile named/g)).toHaveLength(1)
+  })
+
+  it('says nothing about a preset that resolves', () => {
+    const { root } = mount([mine, quick])
+    expect(root.textContent).not.toContain('cannot run here')
+  })
+
+  // A select whose value matches no option shows the first one. Without an
+  // option for the dangling name the editor would read as "Code" here.
+  it('shows the name the preset holds rather than the first option', () => {
+    const { root } = mount([gone])
+    act(() => button(root, 'Edit')!.click())
+    const profile = input(root, 'Reviews for') as unknown as HTMLSelectElement
+    expect(profile.value).toBe('vibes')
+    expect([...profile.options].map((o) => o.textContent)).toContain('vibes (no such profile here)')
+  })
+
+  // D62: the page reports and never refuses, because a preset naming a tool
+  // absent from this machine is still correct on the machine that has it.
+  it('round-trips the dangling name through an edit of another field', async () => {
+    const { root } = mount([gone])
+    act(() => button(root, 'Edit')!.click())
+    await type(input(root, 'Name'), 'older')
+    vi.mocked(post).mockResolvedValue(setup([]))
+    await click(root, 'Save')
+    expect(post).toHaveBeenCalledWith('/api/setup/presets', {
+      base: 'b1',
+      original: 'old',
+      preset: { name: 'older', reviewers: [{ profile: 'vibes', tool: undefined, model: undefined }], synthesizer: undefined, verifier: undefined },
+    })
+  })
+
+  it('marks a tool that cannot run in the select, so pinning one is a choice', () => {
+    const { root } = mount([mine], { tools: [{ name: 'claude', tool: 'Claude Code', state: 'missing' }] })
+    act(() => button(root, 'Edit')!.click())
+    const tool = input(root, 'On') as unknown as HTMLSelectElement
+    expect([...tool.options].map((o) => o.textContent)).toContain('Claude Code (not installed)')
   })
 })
