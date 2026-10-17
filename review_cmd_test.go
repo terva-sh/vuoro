@@ -259,6 +259,48 @@ func TestReviewQuickPresetIsTheDefault(t *testing.T) {
 	}
 }
 
+// TestReviewOnAFreshInstall is the command line's half of D61's default.
+// With no configuration file, vuoro ships a preset named quick and the first
+// preset is quick, so the command line and the window reach the same one.
+// app.TestPlanOnAFreshInstall is the window's half.
+func TestReviewOnAFreshInstall(t *testing.T) {
+	dir := checkout(t)
+	cmd, _ := testCmd(t, fakeTool{}, nil, nil, nil)
+	var out, errb bytes.Buffer
+	if code := cmd.run([]string{"-C", dir, "main..feature"}, &out, &errb); code != exitClean {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "reviewer code on fake") {
+		t.Fatalf("not quick's code reviewer:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "security") || strings.Contains(out.String(), "documentation") {
+		t.Fatalf("more than quick ran:\n%s", out.String())
+	}
+}
+
+// TestReviewKeepsAnExistingConfigurationsDefault is the fourth criterion of
+// TKT-01M55VT3H26HX25TB8864NPG6J. vuoro now ships a preset named quick, and
+// the command line must keep matching that name against the person's own
+// presets rather than the merged list. Otherwise someone whose configuration
+// names presets but no quick would silently start running the shipped one.
+func TestReviewKeepsAnExistingConfigurationsDefault(t *testing.T) {
+	dir := checkout(t)
+	cfg := &config.Config{Presets: []config.Preset{
+		{Name: "mine", Reviewers: []config.Reviewer{{Profile: "documentation"}}},
+	}}
+	cmd, _ := testCmd(t, fakeTool{}, cfg, nil, nil)
+	var out, errb bytes.Buffer
+	if code := cmd.run([]string{"-C", dir, "main..feature"}, &out, &errb); code != exitClean {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "reviewer documentation on fake") {
+		t.Fatalf("not their own first preset:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "reviewer code on fake") {
+		t.Fatalf("the shipped quick preset displaced theirs:\n%s", out.String())
+	}
+}
+
 // recordingGitLab serves merge request !3991 for reading, and records any
 // other request as a write.
 type recordingGitLab struct {

@@ -110,6 +110,20 @@ type Preset struct {
 	Verifier *Reviewer `json:"verifier,omitempty"`
 }
 
+// Builtin are the presets vuoro ships (D61). A person's own presets
+// supplement these rather than replacing them, and one that takes a built-in's
+// name shadows it.
+//
+// None of them names a synthesizer or a verifier. A run gets a synthesizer
+// when it has more than one reviewer (D11) and a verifier always (D31), both
+// on the tool and model that drafted or merged the findings. Naming them here
+// would pin a tool that those defaults pick up from the reviewers.
+var Builtin = []Preset{
+	{Name: "quick", Reviewers: []Reviewer{{Profile: "code"}}},
+	{Name: "standard", Reviewers: []Reviewer{{Profile: "code"}, {Profile: "security"}}},
+	{Name: "thorough", Reviewers: []Reviewer{{Profile: "code"}, {Profile: "security"}, {Profile: "documentation"}}},
+}
+
 // Reviewer is one reviewer in a preset: a profile on a tool and a model.
 type Reviewer struct {
 	Profile string `json:"profile"`

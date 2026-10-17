@@ -1064,3 +1064,48 @@ started in that state would have failed part-way through with
   endpoint reached with `ANTHROPIC_AUTH_TOKEN` reports, as well as a Claude
   token, and the setup screen called both "a Claude token". It now says "a
   token", claiming no more than Claude Code knows.
+
+### D61. vuoro ships quick, standard, and thorough, and a person's presets supplement them
+
+Decided by the owner on 2026-10-17, under TKT-01M55VT3H26HX25TB8864NPG6J
+(Ship named built-in presets, not one hardcoded default). `presetsOf` returned
+one unnamed preset, a single code reviewer, when the config named none. So
+anyone who had not hand-written JSON got one reviewer, the picker had nothing
+to pick between, and synthesis and verification were built but unreachable.
+D14 left the shipped set open, and this fills it in.
+
+- **Three ship, and they differ in what they are for.** `quick` is one code
+  reviewer, which is what the old fallback did, now with a name. `standard`
+  is code and security. `thorough` is code, security, and documentation, and
+  it is the only one that reaches verification (D31) without the person
+  writing any config. None of them names a synthesizer or a verifier,
+  because a run gets a synthesizer above one reviewer (D11) and a verifier
+  always, on the tool and model that drafted or merged the findings. Naming
+  them here would pin a tool those defaults otherwise pick up.
+- **A person's presets supplement the shipped ones**, as their profiles
+  already do at `review/run.go`. One that takes a shipped name shadows it
+  rather than appearing twice, so theirs wins and an improvement to a
+  shipped preset never quietly changes a run they defined. Replacing, which
+  is what presets did before, was rejected: someone who adds one preset
+  should not silently lose three, and the asymmetry with profiles read as an
+  accident rather than a choice.
+- **Theirs sort first, and that is load-bearing.** The window's default is
+  the first preset, so putting theirs first keeps it the one they wrote.
+- **The command line keeps matching `quick` against their own presets.**
+  `vuoro review` with no `-preset` prefers a preset named `quick` when the
+  config file names one, and otherwise takes the first preset. That test
+  must read their presets alone and never the merged list, because vuoro now
+  ships a `quick`: against the merged list, someone whose config names other
+  presets would silently start running the shipped one. With no config file
+  the first preset is `quick` anyway, so the command line and the window
+  agree there, which was the point.
+- **A preset named `quick` in a config still diverges between the two.** The
+  window runs that person's first preset and the command line runs their
+  `quick`. That predates this decision, and it is left alone deliberately,
+  because changing it would change what an existing config does. Settling it
+  is a decision of its own.
+- **Editing a shipped preset copies it first.** The editor
+  (TKT-01M48TMGNVS4303NW7NQW26Y6S) offers copy on a shipped preset and edit
+  on the person's own, so the shipped set keeps its meaning across an
+  upgrade. Editing in place would pin a private fork of `thorough` at the
+  version they first touched it.

@@ -84,7 +84,7 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		fs.PrintDefaults()
 	}
 	dir := fs.String("C", ".", "the checkout a range is read from")
-	preset := fs.String("preset", "", "the preset to run; default quick when the config defines it, else the first preset")
+	preset := fs.String("preset", "", "the preset to run; vuoro ships quick, standard, and thorough; default quick when the config defines it, else the first preset")
 	profile := fs.String("profile", "", "run one reviewer with this profile instead of a preset")
 	model := fs.String("model", "", "the model for -profile")
 	asJSON := fs.Bool("json", false, "print one JSON envelope instead of Markdown")
@@ -194,6 +194,12 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	if *profile != "" {
 		reviewers = []review.Reviewer{{Profile: *profile, Model: *model}}
 	} else if *preset == "" && a.Config != nil {
+		// The person's own presets only, never the merged list that Plan
+		// reads. vuoro ships a preset named quick (D61), so matching against
+		// the merged list would start preferring it for someone whose config
+		// names other presets, which is a change to what their command line
+		// does today. With no config at all, Plan's first preset is quick
+		// anyway, which is what the window picks too.
 		for _, p := range a.Config.Presets {
 			if p.Name == "quick" {
 				*preset = "quick"

@@ -567,8 +567,13 @@ Four fields are optional:
   `ssh`, the default, or `https`. Either uses the person's own keys or
   credential helper, and vuoro never holds a git credential.
 - `presets` name the reviewers a run starts, each a `profile` with an
-  optional `tool` and `model`. With none, a run starts one code reviewer on
-  the tool's default model.
+  optional `tool` and `model`, beside an optional `synthesizer` and
+  `verifier`. vuoro ships three (D61): `quick`, one code reviewer;
+  `standard`, code and security; and `thorough`, code, security, and
+  documentation. A person's presets supplement those rather than replacing
+  them, as their profiles already do, and one that takes a shipped name
+  shadows it instead of appearing beside it. Theirs sort first, so the first
+  preset, which is the window's default, stays the one they wrote.
 - `profiles` are the person's own, beside the built-in code, security, and
   documentation profiles, each a `name`, a `title`, and a `prompt`.
 
@@ -1348,9 +1353,14 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   patches from `git diff` with external diff programs and textconv disabled.
   It has no threads.
 - **The reviewers** come from `-preset`, or one reviewer from `-profile` and
-  `-model`. The default preset is `quick` when the config file defines it,
-  and otherwise the first preset, as in the window. Synthesis and
-  verification follow the same rules as the window (D11, D31).
+  `-model`. The default preset is `quick` when the person's own config file
+  names one, and otherwise the first preset, as in the window. That first
+  test reads their presets alone and never the shipped ones, which also
+  include a `quick` (D61). Reading the merged list would start preferring
+  the shipped `quick` for someone whose config names other presets, which is
+  a change to what their command line does today. With no config file the
+  first preset is `quick` anyway, so the command line and the window agree.
+  Synthesis and verification follow the same rules as the window (D11, D31).
 - **The output** is the findings report, as Markdown on stdout, with every
   pending finding the person would work from and its verifier mark. There is
   no keep or drop step in a terminal. `-json` prints one envelope with a

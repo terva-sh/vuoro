@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -200,12 +201,29 @@ func (a *App) reprobeTools() map[string]probe {
 
 func (a *App) presets() []config.Preset { return presetsOf(a.config()) }
 
-// presetsOf is c's presets, or the default when it names none.
+// presetsOf is the person's presets followed by the ones vuoro ships, as
+// profiles already compose (D61). One of theirs shadows a built-in of the
+// same name rather than appearing beside it.
+//
+// Theirs come first so that the window's default, which is the first preset,
+// stays the one they wrote. The clone matters: appending to c.Presets itself
+// would write the built-ins into the configuration's own backing array.
 func presetsOf(c *config.Config) []config.Preset {
-	if ps := c.Presets; len(ps) > 0 {
-		return ps
+	var own []config.Preset
+	if c != nil {
+		own = c.Presets
 	}
-	return []config.Preset{{Name: "default", Reviewers: []config.Reviewer{{Profile: "code"}}}}
+	theirs := make(map[string]bool, len(own))
+	for _, p := range own {
+		theirs[p.Name] = true
+	}
+	out := slices.Clone(own)
+	for _, p := range config.Builtin {
+		if !theirs[p.Name] {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // forgeFor returns the configured forge for host, or nil.
