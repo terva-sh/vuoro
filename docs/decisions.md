@@ -1153,3 +1153,50 @@ review rather than on the page that writes it.
   TKT-01M562ESB0WGCRWJJW0QYTBZE6, because it is a different fix in a
   different package and the rule that picks between two tools is a decision
   of its own.
+
+### D63. A reviewer that names no tool runs on a signed-in one, then the first by name
+
+Decided on 2026-10-18 under TKT-01M562ESB0WGCRWJJW0QYTBZE6 (A preset with no
+tool pinned breaks when a second agent tool exists). The owner delegated this
+one rather than choosing it.
+
+`Manager.driver` resolved an empty tool name to "the only driver", and only
+while exactly one was registered. vuoro registers claude alone today, so it
+worked. The second driver would have broken every preset that pins no tool at
+once: all three shipped ones, and anything the presets page calls "Any tool
+available".
+
+- **An empty tool means the person did not care, so vuoro picks.** It is not
+  a gap in their configuration to be refused. It is the common case, and the
+  answer has to be an actual tool.
+- **The pick is stable, and that matters more than which tool wins.** Ranging
+  the map would run the same preset on a different tool each start, with
+  nothing in the window to say why. Go randomizes that order, so the bug
+  would have looked intermittent.
+- **A signed-in tool beats a signed-out one.** `probeTools` offers a driver
+  whenever its probe returned no error, and a tool with no account probes
+  clean (D62), so a signed-out tool is a real candidate that would start a
+  run and then die at authentication. Between tools that are equal on this,
+  the first by name wins.
+- **No hand-ranked list of tools.** vuoro has no basis for an opinion about
+  whether claude reviews better than terva, and a ranking written into the
+  code would be a preference nobody chose, sitting where nobody looks for
+  it. Sorting by name is arbitrary and says so.
+- **`app` decides and `review` obeys.** Only `app` runs the probes, so only
+  `app` knows which tools are signed in. `SetDrivers` takes the drivers and
+  the pick in one call, because a pick naming a driver that is no longer
+  registered is worse than no pick at all.
+- **Rejected: a `default_tool` key in config.json.** Someone who cares which
+  tool runs already has a place to say so, the preset's own `tool` field,
+  which the presets page makes a select (D62). A second place to express the
+  same preference needs validation, a view field, and a settings control
+  before it is worth having, and it would then disagree with the first one.
+- **The reload path needed nothing, for a reason worth keeping.** `Start`
+  records the tool it resolved, not the name the preset held, so a session on
+  disk always names a concrete tool and the reload never picks again. A test
+  pins it, because the day somebody records `rv.Tool` instead, every run with
+  no tool pinned stops coming back after a restart.
+- **The failure now reads as what it is.** With nothing to pick, the error is
+  `no agent tool is available to run a reviewer that names none`, not
+  `no agent tool named "" is available`, which blamed the preset for naming
+  the empty string.

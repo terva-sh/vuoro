@@ -32,7 +32,12 @@ type Manager struct {
 	// Drivers are the agent tools a reviewer may run on, by name, such as
 	// "claude". Only a driver whose lockdown is proven is offered. Set it
 	// before the manager serves; afterwards, replace it with SetDrivers.
-	Drivers   map[string]agent.Driver
+	Drivers map[string]agent.Driver
+	// pick is the tool a reviewer that names none runs on, decided by
+	// whoever probed them, and set with Drivers by SetDrivers so the two
+	// cannot drift. Empty leaves driver("") with the single-driver case
+	// alone, which is what a Manager built as a literal gets.
+	pick      string
 	driversMu sync.RWMutex
 	Drafts    *drafts.Server
 	// MCPURL is the drafts server's URL on the loopback server.
@@ -1052,20 +1057,40 @@ func (m *Manager) profile(name string) (Profile, bool) {
 }
 
 // SetDrivers replaces the agent tools offered to new sessions, as a probe
-// run again finds them. Sessions already started keep their driver.
-func (m *Manager) SetDrivers(d map[string]agent.Driver) {
+// run again finds them, and with them the tool a reviewer that names none
+// runs on. Sessions already started keep their driver.
+//
+// The two go in one call because a pick naming a driver that is no longer
+// registered is worse than no pick at all.
+func (m *Manager) SetDrivers(d map[string]agent.Driver, pick string) {
 	m.driversMu.Lock()
-	m.Drivers = d
+	m.Drivers, m.pick = d, pick
 	m.driversMu.Unlock()
 }
 
+// driver resolves a reviewer's tool. An empty name means the person did not
+// care which tool ran, so vuoro picks, and the pick has to be stable (D63).
+// Whoever probed the tools decided it, because only they know which are
+// signed in; this just obeys.
+//
+// The single-driver case stays for the Manager built as a literal, which is
+// every test that does not care about this, and because it is the honest
+// answer when there is no choice to make.
 func (m *Manager) driver(name string) (string, agent.Driver, error) {
 	m.driversMu.RLock()
 	defer m.driversMu.RUnlock()
-	if name == "" && len(m.Drivers) == 1 {
-		for n, d := range m.Drivers {
-			return n, d, nil
+	if name == "" {
+		if d, ok := m.Drivers[m.pick]; ok && m.pick != "" {
+			return m.pick, d, nil
 		}
+		if len(m.Drivers) == 1 {
+			for n, d := range m.Drivers {
+				return n, d, nil
+			}
+		}
+		// Never "no agent tool named """, which reads as though the preset
+		// named the empty string.
+		return "", nil, errors.New("review: no agent tool is available to run a reviewer that names none")
 	}
 	d, ok := m.Drivers[name]
 	if !ok {

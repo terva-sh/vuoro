@@ -184,10 +184,42 @@ func (a *App) probeTools() map[string]probe {
 		probes[name] = pr
 	}
 	if a.Runs != nil {
-		a.Runs.SetDrivers(offered)
+		a.Runs.SetDrivers(offered, pickTool(offered, probes))
 	}
 	a.probes, a.probed = probes, true
 	return probes
+}
+
+// pickTool is the tool a reviewer that names none runs on, chosen from the
+// ones offered to the run manager (D63). A signed-in tool beats a signed-out
+// one, because a run on a signed-out tool starts and then dies at
+// authentication, and a tie goes to the first by name.
+//
+// The order matters more than which tool wins it. Ranging a map here would
+// pick a different tool on each start, so the same preset would run on a
+// different tool each time with nothing in the window to say why.
+//
+// vuoro has no opinion about whether one agent tool reviews better than
+// another, and a ranking written here would be a preference nobody chose.
+// Someone who cares names the tool in the preset.
+func pickTool(offered map[string]agent.Driver, probes map[string]probe) string {
+	names := make([]string, 0, len(offered))
+	for name := range offered {
+		names = append(names, name)
+	}
+	slices.SortFunc(names, func(a, b string) int {
+		if x, y := probes[a].state == "ok", probes[b].state == "ok"; x != y {
+			if x {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a, b)
+	})
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
 }
 
 // reprobeTools forgets what the probes found, after the person installed or

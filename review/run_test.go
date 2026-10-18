@@ -856,7 +856,7 @@ func TestDriversCanBeReplacedWhileRunsStart(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range 200 {
-			m.SetDrivers(map[string]agent.Driver{"fake": nil})
+			m.SetDrivers(map[string]agent.Driver{"fake": nil}, "fake")
 		}
 	}()
 	go func() {
@@ -868,6 +868,97 @@ func TestDriversCanBeReplacedWhileRunsStart(t *testing.T) {
 	wg.Wait()
 	if name, _, err := m.driver(""); err != nil || name != "fake" {
 		t.Fatalf("the only driver: %q %v", name, err)
+	}
+}
+
+// A reviewer that names no tool is the common case, not an edge: it is what
+// every shipped preset uses and what the presets page calls "Any tool
+// available". Before D63 it resolved only while exactly one driver was
+// registered, so the second agent tool would have broken all of them at
+// once.
+func TestAReviewerThatNamesNoToolResolvesWithSeveralRegistered(t *testing.T) {
+	both := func() map[string]agent.Driver {
+		return map[string]agent.Driver{"claude": &fakeDriver{}, "terva": &fakeDriver{}}
+	}
+	for name, c := range map[string]struct {
+		drivers map[string]agent.Driver
+		pick    string
+		want    string
+	}{
+		"the pick wins":            {both(), "terva", "terva"},
+		"and it is not map order":  {both(), "claude", "claude"},
+		"one driver needs no pick": {map[string]agent.Driver{"claude": &fakeDriver{}}, "", "claude"},
+		"a pick of one registered": {map[string]agent.Driver{"claude": &fakeDriver{}}, "claude", "claude"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := &Manager{}
+			m.SetDrivers(c.drivers, c.pick)
+			// Several times, because the bug this replaces was a map range.
+			for range 20 {
+				if got, _, err := m.driver(""); err != nil || got != c.want {
+					t.Fatalf("driver(\"\") = %q, %v; want %q", got, err, c.want)
+				}
+			}
+		})
+	}
+}
+
+// A pick naming a driver that is gone is not trusted, and neither failure
+// says `no agent tool named ""`, which reads as though the preset named the
+// empty string.
+func TestAReviewerThatNamesNoToolFailsClearlyWithNothingToPick(t *testing.T) {
+	for name, c := range map[string]struct {
+		drivers map[string]agent.Driver
+		pick    string
+	}{
+		"no tool at all":     {nil, ""},
+		"a stale pick":       {map[string]agent.Driver{"claude": &fakeDriver{}, "terva": &fakeDriver{}}, "gone"},
+		"several, no pick":   {map[string]agent.Driver{"claude": &fakeDriver{}, "terva": &fakeDriver{}}, ""},
+		"a pick but no tool": {nil, "claude"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := &Manager{}
+			m.SetDrivers(c.drivers, c.pick)
+			_, _, err := m.driver("")
+			if err == nil {
+				t.Fatal("a reviewer with no tool resolved with nothing to resolve it to")
+			}
+			if strings.Contains(err.Error(), `named ""`) {
+				t.Errorf("the message blames the preset for an empty name: %v", err)
+			}
+		})
+	}
+}
+
+// Start records the tool it resolved, never the empty name the preset held.
+// That is why the reload in launch never has to pick again, and the day
+// somebody records rv.Tool instead, every run with no tool pinned stops
+// coming back after a restart.
+func TestARunWithNoToolPinnedRecordsTheToolItResolved(t *testing.T) {
+	m, _, ch, src := setup(t, func(toolCaller, string) string { return "nothing to report" })
+	m.SetDrivers(map[string]agent.Driver{"fake": m.Drivers["fake"], "other": &fakeDriver{}}, "fake")
+	r, err := m.Start(ch, src, []Reviewer{{Profile: "code"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, idle)
+	if got := r.View().Sessions[0].Tool; got != "fake" {
+		t.Fatalf("the session records %q, want the resolved tool", got)
+	}
+	m.Shutdown()
+
+	// The reload resolves the recorded name, so it needs no pick of its own.
+	m2 := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drafts: drafts.NewServer(), MCPURL: m.MCPURL}
+	m2.SetDrivers(map[string]agent.Driver{"fake": &fakeDriver{}, "other": &fakeDriver{}}, "")
+	if err := m2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	back := m2.Get(r.ID)
+	if back == nil {
+		t.Fatal("the run did not come back")
+	}
+	if got := back.View().Sessions[0].Tool; got != "fake" {
+		t.Fatalf("the reloaded session names %q", got)
 	}
 }
 

@@ -599,6 +599,11 @@ Four fields are optional:
   them, as their profiles already do, and one that takes a shipped name
   shadows it instead of appearing beside it. Theirs sort first, so the first
   preset, which is the window's default, stays the one they wrote.
+  A reviewer that names no `tool` means the person did not care which one
+  ran, so vuoro picks: a signed-in tool over a signed-out one, and the first
+  by name between equals (D63). The pick is stable, because the same preset
+  running on a different tool each start would be unexplainable from the
+  window. Someone who does care names the tool.
 - `profiles` are the person's own, beside the built-in code, security, and
   documentation profiles, each a `name`, a `title`, and a `prompt`.
 

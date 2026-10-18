@@ -227,6 +227,43 @@ func TestEachToolStateHasItsHint(t *testing.T) {
 	}
 }
 
+// pickTool decides the tool a reviewer that names none runs on (D63). What
+// it picks matters less than that it picks the same one every time: ranging
+// the offered map would run the same preset on a different tool each start,
+// with nothing in the window to say why.
+func TestPickToolPrefersASignedInToolAndBreaksTiesByName(t *testing.T) {
+	// states builds both arguments from name/state pairs. Only the probes
+	// that probed clean are offered, which is ok and signed_out.
+	states := func(pairs ...string) (map[string]agent.Driver, map[string]probe) {
+		offered, probes := map[string]agent.Driver{}, map[string]probe{}
+		for i := 0; i < len(pairs); i += 2 {
+			offered[pairs[i]] = nil
+			probes[pairs[i]] = probe{Name: pairs[i], state: pairs[i+1]}
+		}
+		return offered, probes
+	}
+	for name, c := range map[string]struct {
+		pairs []string
+		want  string
+	}{
+		"the signed-in one, not the first by name": {[]string{"claude", "signed_out", "terva", "ok"}, "terva"},
+		"by name when both are signed in":          {[]string{"claude", "ok", "terva", "ok"}, "claude"},
+		"by name when neither is":                  {[]string{"claude", "signed_out", "terva", "signed_out"}, "claude"},
+		"the only one offered, signed out or not":  {[]string{"terva", "signed_out"}, "terva"},
+		"nothing, when nothing probed clean":       {nil, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			offered, probes := states(c.pairs...)
+			// Several times, because the bug this replaces was a map range.
+			for range 20 {
+				if got := pickTool(offered, probes); got != c.want {
+					t.Fatalf("pickTool = %q, want %q", got, c.want)
+				}
+			}
+		})
+	}
+}
+
 // accessForge is a forge that says how far its token reaches.
 type accessForge struct {
 	accountForge
