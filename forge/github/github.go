@@ -74,7 +74,15 @@ func (c *Client) Capabilities() forge.Capabilities {
 	c.draftMu.Unlock()
 	admin := !c.token.Empty() // project triage's writes keep nothing locally
 	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write, Suggestions: write, SpanSuggestions: write,
-		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin}
+		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin, UpdateBranch: updates(admin)}
+}
+
+// updates are GitHub's branch-update strategies, with a token.
+func updates(write bool) []string {
+	if !write {
+		return nil
+	}
+	return []string{forge.UpdateMerge, forge.UpdateRebase}
 }
 
 func (c *Client) scrub(s string) string {

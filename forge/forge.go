@@ -311,6 +311,27 @@ type Stacker interface {
 	OpenStacked(ctx context.Context, ref Ref, s NewStacked) (string, error)
 }
 
+// The strategies of a branch update (section 6.10).
+const (
+	UpdateMerge  = "merge"
+	UpdateRebase = "rebase"
+)
+
+// BranchUpdater has the forge update a change's source branch from its
+// target itself, which vuoro asks for only for a clean update of the
+// person's own change, at their confirmed action (section 6.10, D66).
+type BranchUpdater interface {
+	// UpdateBranch merges ref's target into its source branch, or rebases
+	// the branch onto it, by strategy, and refuses with ErrHeadMoved when
+	// the branch's head is no longer head. A strategy the forge lacks
+	// returns ErrUnsupported. The forge may finish the update after it
+	// answers.
+	UpdateBranch(ctx context.Context, ref Ref, strategy, head string) error
+}
+
+// ErrHeadMoved means a change's branch moved since the person looked at it.
+var ErrHeadMoved = errors.New("the change's branch moved since you looked at it")
+
 // StackTarget is the branch a stacked change goes onto, and its head.
 type StackTarget struct {
 	Branch string `json:"branch"`

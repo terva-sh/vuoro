@@ -45,7 +45,7 @@ func TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest(t *testing.T) {
 	// is pushed, and its draft change opened, only by its own confirmed
 	// route (D66).
 	for name, want := range map[string][]string{"PushEditor": {"pushEditor"}, "OpenStacked": {"pushEditor", "pushUpdate"},
-		"PushUpdate": {"pushUpdate"}, "DeliverSuggestions": {"suggestEditor"}, "writeFix": {"suggestEditor"}, "Upload": {"writeFix"}} {
+		"PushUpdate": {"pushUpdate"}, "UpdateBranch": {"pushUpdate"}, "DeliverSuggestions": {"suggestEditor"}, "writeFix": {"suggestEditor"}, "Upload": {"writeFix"}} {
 		got := slices.Compact(slices.Sorted(slices.Values(callers[name])))
 		if !slices.Equal(got, want) {
 			t.Errorf("%s is called from %q, want only %q", name, got, want)

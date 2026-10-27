@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -235,7 +236,13 @@ func (a *App) pushUpdate(w http.ResponseWriter, r *http.Request) {
 			return st.OpenStacked(ctx, ch.Ref, forge.NewStacked{Branch: branch, Target: target.Branch, Title: title, Description: desc})
 		}
 	}
-	if _, err := a.Runs.PushUpdate(ctx, run.ID, src.Remote, target.Head, req.SHA, open); err != nil {
+	// A clean update of the person's own change goes through the forge's
+	// own branch update when it has the strategy (section 6.10).
+	var viaForge func() error
+	if bu, ok := st.(forge.BranchUpdater); ok && v.Update.Own && len(v.Update.Stops) == 0 && slices.Contains(ch.Capabilities.UpdateBranch, v.Update.Strategy) {
+		viaForge = func() error { return bu.UpdateBranch(ctx, ch.Ref, v.Update.Strategy, target.Head) }
+	}
+	if _, err := a.Runs.PushUpdate(ctx, run.ID, src.Remote, target.Head, req.SHA, open, viaForge); err != nil {
 		writeError(w, err)
 		return
 	}

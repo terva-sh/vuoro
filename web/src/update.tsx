@@ -9,11 +9,13 @@ import { Modal } from './modal'
 import { usePoll } from './poll'
 import { SessionPane } from './session'
 import { TextEditor } from './textedit'
-import { changeWord, refKey, type Change, type FileDiff, type Run, type Setup, type Stop, type UpdateDetail } from './types'
+import { changeWord, refKey, type Capabilities, type Change, type FileDiff, type Run, type Setup, type Stop, type UpdateDetail } from './types'
 import { ago, short, StatusBadge } from './ui'
 import { WriteContext } from './write'
 
 type Props = { change: Change; setup?: Setup; own: boolean }
+
+const forgeName = (kind: string) => ({ forgejo: 'Forgejo', github: 'GitHub' })[kind] ?? 'GitLab'
 
 export function UpdatePanel(props: Props) {
   return <UpdateWorkspace {...props} key={refKey(props.change.ref)} />
@@ -76,14 +78,14 @@ function UpdateWorkspace({ change, setup, own }: Props) {
       </div>
       {!own && <p class="muted">This is not your {changeWord(change.kind)}, so a merge goes up as a draft {changeWord(change.kind)} onto <span class="mono">{change.source_branch}</span> for its author.</p>}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {current?.update && <UpdateView run={current} url={url} onRun={show} />}
+      {current?.update && <UpdateView run={current} url={url} onRun={show} caps={change.capabilities} />}
     </section>
   )
 }
 
 // UpdateView is one update: its stops, each with the editor's resolution,
 // and once nothing is left to resolve, what the push would carry.
-export function UpdateView({ run, url, onRun }: { run: Run; url: string; onRun: (r: Run) => void }) {
+export function UpdateView({ run, url, onRun, caps }: { run: Run; url: string; onRun: (r: Run) => void; caps?: Capabilities }) {
   const u = run.update!
   const [detail, setDetail] = useState<UpdateDetail>()
   const [discarding, setDiscarding] = useState(false)
@@ -106,6 +108,9 @@ export function UpdateView({ run, url, onRun }: { run: Run; url: string; onRun: 
   const state = detail?.state ?? ''
   const done = !!u.pushed || !!u.discarded || run.status === 'closed'
   const word = changeWord(run.kind)
+  // A clean update of the person's own change goes through the forge's own
+  // branch update, when it has the strategy (section 6.10).
+  const viaForge = u.own && u.stops.length === 0 && !!caps?.update_branch?.includes(u.strategy)
   return (
     <div class="update-run">
       <header class="update-head">
@@ -139,19 +144,20 @@ export function UpdateView({ run, url, onRun }: { run: Run; url: string; onRun: 
             {detail.commits.map((c) => <li key={c.sha}><span class="commit-sha">{short(c.sha)}</span><div class="commit-body"><div class="commit-subject">{c.subject}</div></div></li>)}
           </ol>
           <button class="primary" disabled={busy} onClick={() => setPushing(true)}>
-            {u.own ? (u.strategy === 'rebase' ? `⇪ Push to ${u.source} with a lease…` : `⇪ Push to ${u.source}…`) : `⇪ Push and open a draft ${word}…`}
+            {viaForge ? `⇪ Ask ${forgeName(run.kind)} to ${u.strategy} ${u.source}…` : u.own ? (u.strategy === 'rebase' ? `⇪ Push to ${u.source} with a lease…` : `⇪ Push to ${u.source}…`) : `⇪ Push and open a draft ${word}…`}
           </button>
         </div>
       )}
       {u.pushed && (
         <p class="push-bar">
-          ✓ Pushed <span class="mono">{u.pushed.branch}</span> at <span class="mono">{short(u.pushed.sha)}</span>
+          {u.pushed.forge ? <>✓ {forgeName(run.kind)} is updating <span class="mono">{u.pushed.branch}</span> itself. Its commits show on the {word} once it finishes.</>
+            : <>✓ Pushed <span class="mono">{u.pushed.branch}</span> at <span class="mono">{short(u.pushed.sha)}</span></>}
           {!u.own && (u.pushed.url ? <> · <a href={u.pushed.url} target="_blank" rel="noreferrer">the {u.pushed.not_draft ? '' : 'draft '}{word}</a></> : ` · the ${word} did not open`)}
           {u.pushed.not_draft && <span class="warn"> · ⚠ It opened as an ordinary {word}, not a draft. Mark it as a draft on the forge.</span>}
         </p>
       )}
       {error && <p class="alert" role="alert">⚠ {error}</p>}
-      {pushing && detail?.result && <PushUpdateDialog run={run} url={url} sha={detail.result} commits={detail.commits.length}
+      {pushing && detail?.result && <PushUpdateDialog run={run} url={url} sha={detail.result} commits={detail.commits.length} viaForge={viaForge}
         onClose={() => setPushing(false)} onRun={(r) => { onRun(r); setPushing(false) }} />}
     </div>
   )
@@ -197,8 +203,8 @@ function StopView({ run, stop: s, index, files, working, busy, onAccept }: {
 // PushUpdateDialog is the one confirmation before an update is pushed. It
 // names the branch and the strategy, and for a rebase that it rewrites the
 // branch with a lease. Cancel has the focus, so a stray Enter pushes nothing.
-export function PushUpdateDialog({ run, url, sha, commits, onClose, onRun }: {
-  run: Run; url: string; sha: string; commits: number; onClose: () => void; onRun: (r: Run) => void
+export function PushUpdateDialog({ run, url, sha, commits, viaForge = false, onClose, onRun }: {
+  run: Run; url: string; sha: string; commits: number; viaForge?: boolean; onClose: () => void; onRun: (r: Run) => void
 }) {
   const u = run.update!
   const word = changeWord(run.kind)
@@ -210,9 +216,13 @@ export function PushUpdateDialog({ run, url, sha, commits, onClose, onRun }: {
   const push = () => perform(async () => onRun(await post<Run>(`/api/runs/${run.id}/update/push`, { url, confirm: 'push', sha, title, description })))
   return (
     <Modal class="push-dialog" onClose={onClose} focus={cancel} locked={busy}
-      title={u.own ? `Push the ${u.strategy} to ${u.source}` : `Push the merge and open a draft ${word}`}>
+      title={viaForge ? `Ask ${forgeName(run.kind)} to ${u.strategy} ${u.source}` : u.own ? `Push the ${u.strategy} to ${u.source}` : `Push the merge and open a draft ${word}`}>
       <ul>
-        {u.own && u.strategy === 'rebase' ? <>
+        {viaForge ? <>
+          <li>Asks {forgeName(run.kind)} to {u.strategy === 'merge' ? <>merge <span class="mono">{u.target}</span> into <span class="mono">{branch}</span></> : <>rebase <span class="mono">{branch}</span> onto <span class="mono">{u.target}</span></>}, your {word}'s branch, itself, with your token. Nothing conflicted, so no agent took part.</li>
+          <li>{forgeName(run.kind)} writes its own commits, which match what vuoro computed above but not their hashes.</li>
+          {u.strategy === 'rebase' && <li>A rebase rewrites the branch. Anyone with the old branch checked out must reset to the new one.</li>}
+        </> : u.own && u.strategy === 'rebase' ? <>
           <li>Rewrites <span class="mono">{branch}</span>, your {word}'s branch, with {commits} rebased commit{commits === 1 ? '' : 's'} onto <span class="mono">{u.target}</span>, as you, with your own git access.</li>
           <li>Forces the push with a lease against <span class="mono">{short(run.head)}</span>, the head the rebase started from. If anyone pushed since, the push is refused and nothing is overwritten.</li>
           <li>Anyone with the old branch checked out must reset to the new one.</li>
@@ -234,7 +244,7 @@ export function PushUpdateDialog({ run, url, sha, commits, onClose, onRun }: {
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       <div class="actions">
         <button ref={cancel} disabled={busy} onClick={onClose}>Cancel</button>
-        <button class="primary" disabled={busy || (!u.own && !title.trim())} onClick={() => void push()}>{busy ? '⧗ Pushing…' : u.own ? 'Push' : 'Push and open'}</button>
+        <button class="primary" disabled={busy || (!u.own && !title.trim())} onClick={() => void push()}>{busy ? '⧗ Pushing…' : viaForge ? `Ask ${forgeName(run.kind)}` : u.own ? 'Push' : 'Push and open'}</button>
       </div>
     </Modal>
   )

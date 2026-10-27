@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -132,7 +133,7 @@ func TestRecordedPullRequest(t *testing.T) {
 	}
 	// Without a token and a draft store, the client offers no write and
 	// takes none (D43).
-	if ch.Capabilities != (forge.Capabilities{}) {
+	if !reflect.DeepEqual(ch.Capabilities, forge.Capabilities{}) {
 		t.Fatal("reader exposes writes")
 	}
 	if err := c.Submit(context.Background(), ref, forge.VerdictCommented); !errors.Is(err, errNoToken) {

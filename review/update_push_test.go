@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/terva-sh/vuoro/forge"
 )
 
 func remoteGit(t *testing.T, dir string, args ...string) string {
@@ -35,20 +37,20 @@ func readyUpdate(t *testing.T, strategy string, own bool) (*Manager, *Run, strin
 func TestAnOwnMergeIsPushedToTheChangesBranch(t *testing.T) {
 	m, r, remote, result := readyUpdate(t, Merge, true)
 	ctx := context.Background()
-	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, "0123abcd", nil); err == nil {
+	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, "0123abcd", nil, nil); err == nil {
 		t.Fatal("a result the person did not see was pushed")
 	}
-	if _, err := m.PushUpdate(ctx, r.ID, remote, "4567cdef", result, nil); err == nil || !strings.Contains(err.Error(), "moved") {
+	if _, err := m.PushUpdate(ctx, r.ID, remote, "4567cdef", result, nil, nil); err == nil || !strings.Contains(err.Error(), "moved") {
 		t.Fatalf("a moved branch was pushed over: %v", err)
 	}
-	p, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil)
+	p, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Branch != "feature" || p.URL != "" || remoteGit(t, remote, "rev-parse", "feature") != result {
 		t.Fatalf("pushed %+v", p)
 	}
-	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil); err == nil {
+	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, nil); err == nil {
 		t.Fatal("an update was pushed twice")
 	}
 	if err := m.DiscardUpdate(ctx, r.ID); err == nil {
@@ -65,14 +67,14 @@ func TestARebaseIsPushedWithALease(t *testing.T) {
 	remoteGit(t, remote, "commit", "-q", "--allow-empty", "-m", "Someone pushed")
 	moved := remoteGit(t, remote, "rev-parse", "HEAD")
 	remoteGit(t, remote, "switch", "-q", "main")
-	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil); err == nil {
+	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, nil); err == nil {
 		t.Fatal("the lease let a rebase overwrite a push")
 	}
 	if got := remoteGit(t, remote, "rev-parse", "feature"); got != moved {
 		t.Fatalf("feature is %s, want the other push %s kept", got, moved)
 	}
 	remoteGit(t, remote, "update-ref", "refs/heads/feature", r.Head)
-	p, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil)
+	p, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func TestAnotherPersonsChangeGetsADraftChange(t *testing.T) {
 	p, err := m.PushUpdate(context.Background(), r.ID, remote, r.Head, result, func(branch string) (string, error) {
 		opened = branch
 		return "https://gitlab.example/g/calc/-/merge_requests/8", nil
-	})
+	}, func() error { t.Fatal("the forge was asked to update somebody else's branch"); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,5 +100,29 @@ func TestAnotherPersonsChangeGetsADraftChange(t *testing.T) {
 	}
 	if remoteGit(t, remote, "rev-parse", p.Branch) != result || remoteGit(t, remote, "rev-parse", "feature") != r.Head {
 		t.Fatal("the update went to the author's branch")
+	}
+}
+
+// A clean update of the person's own change goes through the forge when it
+// has the strategy, and through the push when it does not.
+func TestACleanUpdateGoesThroughTheForge(t *testing.T) {
+	m, r, remote, result := readyUpdate(t, Merge, true)
+	ctx := context.Background()
+	if _, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, func() error { return forge.ErrHeadMoved }); err == nil || !strings.Contains(err.Error(), "moved") {
+		t.Fatalf("a moved head: %v", err)
+	}
+	asked := 0
+	p, err := m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, func() error { asked++; return nil })
+	if err != nil || asked != 1 || !p.Forge || p.SHA != "" || p.Branch != "feature" {
+		t.Fatalf("through the forge %+v %v", p, err)
+	}
+	if remoteGit(t, remote, "rev-parse", "feature") != r.Head {
+		t.Fatal("vuoro pushed as well as the forge")
+	}
+
+	m, r, remote, result = readyUpdate(t, Rebase, true)
+	p, err = m.PushUpdate(ctx, r.ID, remote, r.Head, result, nil, func() error { return forge.ErrUnsupported })
+	if err != nil || p.Forge || remoteGit(t, remote, "rev-parse", "feature") != result {
+		t.Fatalf("the fallback push %+v %v", p, err)
 	}
 }

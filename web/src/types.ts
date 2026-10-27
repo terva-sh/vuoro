@@ -30,6 +30,8 @@ export interface Capabilities {
   suggestions: boolean
   // span_suggestions: a suggestion replaces the lines its comment spans, as a bare block (GitHub).
   span_suggestions?: boolean
+  // update_branch: the strategies by which the forge updates a change's branch from its target itself (section 6.10).
+  update_branch?: string[]
 }
 
 export interface Change {
@@ -157,7 +159,7 @@ export interface FixPreview extends PlannedFix {
   new: { path: string; start: number; line: number; body: string }[]
 }
 export interface SuggestionPreview { sha: string; fixes: FixPreview[]; left?: string[] }
-export interface Pushed { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; at: string }
+export interface Pushed { branch: string; sha: string; target: string; url?: string; not_draft?: boolean; forge?: boolean; at: string }
 // StackPreview is where a push of the editor's work would go, before the
 // person confirms it.
 export interface StackPreview {

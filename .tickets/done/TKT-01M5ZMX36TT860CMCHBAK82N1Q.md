@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M5ZMX36TT860CMCHBAK82N1Q
 title: Update a clean branch through the forge's own branch update
 type: task
-status: ready
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -23,7 +23,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-27T21:40:16Z
-updated_at: 2026-10-27T21:40:36Z
+updated_at: 2026-10-27T22:06:54Z
 created_by:
   id: agent:claude-code/branch-update
   name: ""
@@ -39,5 +39,13 @@ A clean update on the person's own change goes through the forge's own branch up
 
 ## Acceptance criteria
 
-- [ ] GitLab rebases, and GitHub and Forgejo merge or rebase, through the forge for a clean update
-- [ ] The update is sent against the head the person saw, and a moved head is refused
+- [x] GitLab rebases, and GitHub and Forgejo merge or rebase, through the forge for a clean update
+- [x] The update is sent against the head the person saw, and a moved head is refused
+
+## Implementation plan
+
+forge.BranchUpdater.UpdateBranch(ctx, ref, strategy, head) per forge. GitHub merges through REST with expected_head_sha and rebases through the GraphQL updatePullRequestBranch with expectedHeadOid. GitLab and Forgejo read the head first, then GitLab runs PUT /rebase and polls until it finishes, and Forgejo runs POST /update?style=. Capabilities.UpdateBranch lists the strategies. Manager.PushUpdate takes viaForge for a clean update on the person's own change, and falls back to the push on ErrUnsupported.
+
+## Summary
+
+forge/{gitlab,github,forgejo}/update.go, with fixture tests. The push route passes the forge update when the change's capabilities list the strategy, and the push dialog says the forge writes its own commits. The AST test holds that only pushUpdate calls UpdateBranch. Not exercised against a live forge, because a live test would write a branch.

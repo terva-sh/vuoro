@@ -4,7 +4,7 @@ import { act } from 'preact/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, post } from './api'
 import { PushUpdateDialog, UpdatePanel, UpdateView } from './update'
-import type { Change, FileDiff, Run, Session, Setup, Update, UpdateDetail } from './types'
+import type { Capabilities, Change, FileDiff, Run, Session, Setup, Update, UpdateDetail } from './types'
 
 vi.mock('./api', () => ({ api: vi.fn(), post: vi.fn() }))
 
@@ -118,5 +118,27 @@ describe('UpdatePanel', () => {
 
     await act(async () => render(<UpdatePanel change={{ ...change, ref: { ...change.ref, number: 8 } }} setup={setup} own />, root))
     expect([...root.querySelectorAll<HTMLInputElement>('input[name=update-strategy]')][1].disabled).toBe(false)
+  })
+})
+
+describe('through the forge', () => {
+  it('asks the forge to update a clean update of the person\'s own change when it has the strategy', async () => {
+    const u = update({ strategy: 'rebase', result: 'f00d123456' })
+    vi.mocked(api).mockResolvedValue(detail(u, { commits: [{ sha: 'f00d123456', subject: 'Add Sub' }] }))
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    await act(async () => render(<UpdateView run={run(u)} url="u" onRun={() => {}} caps={{ update_branch: ['rebase'] } as Capabilities} />, root))
+    await settle()
+    act(() => button(root, '⇪ Ask GitLab to rebase feature')!.click())
+    expect(root.textContent).toContain('writes its own commits')
+    expect(root.textContent).not.toContain('lease')
+    // GitLab cannot merge, so a merge is vuoro's push.
+    const m = update({ result: 'f00d123456' })
+    vi.mocked(api).mockResolvedValue(detail(m, { commits: [{ sha: 'f00d123456', subject: 'Merge' }] }))
+    render(null, root)
+    await act(async () => render(<UpdateView run={run(m)} url="u" onRun={() => {}} caps={{ update_branch: ['rebase'] } as Capabilities} />, root))
+    await settle()
+    expect(button(root, '⇪ Push to feature…')).toBeDefined()
+    root.remove()
   })
 })

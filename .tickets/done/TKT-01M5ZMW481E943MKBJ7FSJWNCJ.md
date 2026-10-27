@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M5ZMW481E943MKBJ7FSJWNCJ
 title: Update a change from its target, with the editor resolving conflicts
 type: epic
-status: ready
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-27T21:39:45Z
-updated_at: 2026-10-27T21:40:36Z
+updated_at: 2026-10-27T22:07:07Z
 created_by:
   id: agent:claude-code/branch-update
   name: ""
@@ -38,7 +38,11 @@ Design: docs/plan.md section 6.10. Decisions: D66 (update by merge or rebase; th
 
 ## Acceptance criteria
 
-- [ ] A change is updated from its target by merge or rebase, and a clean update needs no agent
-- [ ] Each conflict is resolved by the editor in its sandbox, and the person accepts it before anything is pushed
-- [ ] A rebase force-pushes only with a lease against the head the person saw
-- [ ] The update is offered on GitLab, GitHub and Forgejo, from the change page and the project view
+- [x] A change is updated from its target by merge or rebase, and a clean update needs no agent
+- [x] Each conflict is resolved by the editor in its sandbox, and the person accepts it before anything is pushed
+- [x] A rebase force-pushes only with a lease against the head the person saw
+- [x] The update is offered on GitLab, GitHub and Forgejo, from the change page and the project view
+
+## Summary
+
+Landed across six tickets: the plan (D66, D67), merge, rebase, the push, the window, and the forge's own branch update. Every criterion is held by a test against local git remotes and fixture forges. None of it has yet run against a live forge or a real agent; dogfooding that is the next step.

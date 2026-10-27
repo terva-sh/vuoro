@@ -54,7 +54,15 @@ func (c *Client) Capabilities() forge.Capabilities {
 	// Project triage's administrative writes need only the token.
 	admin := !c.token.Empty()
 	return forge.Capabilities{Drafts: write, Reply: write, Approve: write, RequestChanges: write,
-		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin}
+		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin, UpdateBranch: updates(admin)}
+}
+
+// updates are Forgejo's branch-update strategies, with a token.
+func updates(write bool) []string {
+	if !write {
+		return nil
+	}
+	return []string{forge.UpdateMerge, forge.UpdateRebase}
 }
 
 // store is the draft store, or an error saying why there is none.

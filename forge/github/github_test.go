@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -183,7 +184,7 @@ func TestOpenReadsAPullRequest(t *testing.T) {
 	}
 	// With no draft store, only project triage's writes, which need just
 	// the token, are offered.
-	if ch.Capabilities != (forge.Capabilities{Reviewers: true, Assignees: true, Labels: true, SetDraft: true}) {
+	if !reflect.DeepEqual(ch.Capabilities, forge.Capabilities{Reviewers: true, Assignees: true, Labels: true, SetDraft: true, UpdateBranch: []string{forge.UpdateMerge, forge.UpdateRebase}}) {
 		t.Errorf("a reader offers review writes: %+v", ch.Capabilities)
 	}
 }

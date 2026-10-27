@@ -637,8 +637,11 @@ type Pushed struct {
 	Target string `json:"target"`
 	URL    string `json:"url,omitempty"` // the draft change, once opened
 	// NotDraft says the forge opened the change as an ordinary one.
-	NotDraft bool      `json:"not_draft,omitempty"`
-	At       time.Time `json:"at"`
+	NotDraft bool `json:"not_draft,omitempty"`
+	// Forge says the forge updated the branch itself (section 6.10), and
+	// SHA is then empty: the forge writes its own commits.
+	Forge bool      `json:"forge,omitempty"`
+	At    time.Time `json:"at"`
 }
 
 // ErrPushing means a push of this editor's work is already under way.

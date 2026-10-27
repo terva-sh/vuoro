@@ -49,6 +49,10 @@ type Capabilities struct {
 	Assignees bool `json:"assignees"`
 	Labels    bool `json:"labels"`
 	SetDraft  bool `json:"draft"`
+	// UpdateBranch are the strategies, UpdateMerge and UpdateRebase, by
+	// which forge.BranchUpdater has the forge update a change's branch from
+	// its target itself (section 6.10).
+	UpdateBranch []string `json:"update_branch,omitempty"`
 }
 
 // Checkout describes how to fetch this change from its target repository.

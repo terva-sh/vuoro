@@ -632,8 +632,10 @@ var ErrUpdatePushing = errors.New("review: this update is already being pushed")
 // On the person's own change, a merge goes to the change's branch as a
 // fast-forward, and a rebase with a lease against that head. On somebody
 // else's, a merge goes to a branch of its own and open opens the draft change
-// onto theirs; a rebase never got this far.
-func (m *Manager) PushUpdate(ctx context.Context, runID, remote, head, sha string, open func(branch string) (string, error)) (*Pushed, error) {
+// onto theirs; a rebase never got this far. A clean update of the person's
+// own change goes through the forge's own branch update when viaForge is
+// set, and through the push when the forge lacks the strategy.
+func (m *Manager) PushUpdate(ctx context.Context, runID, remote, head, sha string, open func(branch string) (string, error), viaForge func() error) (*Pushed, error) {
 	r := m.Get(runID)
 	if r == nil || r.Mode != UpdateMode {
 		return nil, ErrNoUpdate
@@ -664,7 +666,7 @@ func (m *Manager) PushUpdate(ctx context.Context, runID, remote, head, sha strin
 		return nil, ErrUpdatePushing
 	}
 	r.updating = true
-	strategy, own, source := u.Strategy, u.Own, u.Source
+	strategy, own, source, clean := u.Strategy, u.Own, u.Source, len(u.Stops) == 0
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
@@ -672,14 +674,21 @@ func (m *Manager) PushUpdate(ctx context.Context, runID, remote, head, sha strin
 		r.mu.Unlock()
 	}()
 
-	p := &Pushed{SHA: sha, Target: source, At: time.Now().UTC()}
-	var err error
+	p := &Pushed{Branch: source, SHA: sha, Target: source, At: time.Now().UTC()}
+	err := forge.ErrUnsupported
+	if own && clean && viaForge != nil {
+		switch err = viaForge(); {
+		case errors.Is(err, forge.ErrHeadMoved):
+			return nil, fmt.Errorf("review: %s moved on the forge since the update started from %s; start the update again", source, short(head))
+		case err == nil:
+			p.SHA, p.Forge = "", true
+		}
+	}
 	switch {
+	case !errors.Is(err, forge.ErrUnsupported): // the forge answered
 	case own && strategy == Rebase:
-		p.Branch = source
 		err = m.Repos.PushUpdate(ctx, r.repoKey, remote, sha, source, head)
 	case own:
-		p.Branch = source
 		err = m.Repos.PushUpdate(ctx, r.repoKey, remote, sha, source, "")
 	default:
 		p.Branch = fmt.Sprintf("vuoro/update-%d-%s", r.Ref.Number, runID[max(0, len(runID)-6):])

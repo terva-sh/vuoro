@@ -1818,7 +1818,11 @@ other.
     `expected_head_sha`).
   - Forgejo does both (`POST /pulls/N/update?style=merge|rebase`).
   - The forge's operation is `forge.BranchUpdater`, behind the capability
-    flag `update_branch`.
+    `update_branch`, which lists the strategies the forge offers. A
+    strategy it lacks goes through the push.
+  - GitLab and Forgejo take no expected head, so vuoro reads the head
+    first, and a push landing between the read and the update is the one
+    they cannot refuse. GitHub takes the expected head on both.
 - **What it never does.**
   - Only the push route pushes.
   - The editor holds no credential.
