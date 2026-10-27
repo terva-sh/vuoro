@@ -38,6 +38,10 @@ tool the person chooses, terva or Claude Code, and keeps the conversation open
 beside the change. The person asks the agent questions, redirects it, and edits
 what it drafts. The person decides what gets posted.
 
+For someone who runs a project, vuoro also shows every open change in that
+project and where each one is stuck, so they can give it reviewers, labels and
+a nudge without opening the forge (section 6.9, D64).
+
 ### 2.1 Positions
 
 - **Turn is derived, and it shows its reasons.** "Your turn: Mason replied on
@@ -52,8 +56,10 @@ what it drafts. The person decides what gets posted.
   private annotations, such as a snooze, and its own agent work: review runs,
   their conversations, and drafts not yet posted. It never holds a posted
   comment, a verdict, or a thread state that the forge does not also hold.
-- **Link out for what vuoro does not do.** Pipelines, merge trains, and
-  settings stay in the forge. Every item carries its web URL.
+- **Link out for what vuoro does not do.** Pipelines, merge trains, merging,
+  and settings stay in the forge. Every item carries its web URL. A change's
+  reviewers, assignees, labels and draft state are the exception, because
+  unblocking a change needs them (D65).
 
 ### 2.2 Out of scope
 
@@ -101,6 +107,7 @@ colour is never the only signal.
 | `forge` | The forge-neutral model (section 4), `Provider`/`Opener` and optional `Writer` contracts. No HTTP. |
 | `forge/adapters` | Parsers and factories select a provider by configured kind, or anonymous URL shape. No API orchestration. |
 | `forge/gitlab`, `forge/github`, `forge/forgejo` | One adapter each. All the API knowledge lives here. |
+| `projects` | Project triage (section 6.9): project-scoped discovery, cached snapshots, and where each change sits, derived by pure functions tested from fixtures. Like `inbox`, no agent or ticket dependency. |
 | `inbox` | Account-scoped discovery, cached snapshots, scrubbed refresh status and authored snoozes. No agent or ticket dependency. |
 | `turn` | Turn derivation: pure functions from model to turn and its reasons. No I/O, so it is tested from fixtures. |
 | `state` | The cache and the person's annotations, under the state directory. |
@@ -1523,6 +1530,116 @@ be absolute and is cleaned before use. The routes sit behind the guard of
 section 5.2 like every other. Nothing in a checkout changes except the fix
 branch's ref, which D42 already allows.
 
+### 6.9 Project triage
+
+Decided on 2026-10-27 (D64, D65), for a person who handles a project's
+incoming changes. The inbox of section 4 asks what is waiting on the person.
+This view asks what is open in one project, where each change is stuck, and
+for how long.
+
+**A project comes from a forge account.** The person searches the projects a
+configured account can see, or pastes a project URL, and vuoro keeps the
+projects they added in the state directory. A project needs a configured
+account, because its administrative writes need one, and so does reading
+GitHub.
+
+**Membership is the project's.** `forge.ProjectLister`, optional beside
+`Provider`, returns complete open membership for a project with update stamps,
+as `forge.Discoverer` does for a person, and `forge.FactsReader` supplies the
+facts. Refresh follows the inbox's rules: only while the view is open, failures
+keep the last snapshot visible, and the service starts no poller. A project
+with hundreds of open changes is read in full or refused with a count, never
+shown in part.
+
+**Where a change sits** is derived, with reasons, by pure functions in
+`projects`:
+
+| Sits | When |
+|---|---|
+| Draft | The forge marks it draft. |
+| No reviewers | Open, not draft, and no human reviewer requested. |
+| Waiting on review | A requested reviewer has not answered since the last push or re-request. |
+| Waiting on the author | Changes requested with nothing pushed since, or an unresolved thread whose last real note is a reviewer's. |
+| Approved | Approved, no current change request, and not merged. |
+| Blocked | A failing pipeline, a merge conflict, or an open change it depends on. |
+
+A change can match more than one. It sits in the first that holds, in the
+order draft, blocked, waiting on the author, waiting on review, no reviewers,
+approved, and the others show as reasons. **How long** is the
+time it has sat there, from the event that put it there; an unknown time stays
+unknown, as in section 4.1. Bots and system notes count for nothing, as
+everywhere.
+
+**A row says what a tech lead asks first.** Reviewers and their states, the
+assignee, whether it has discussion, how many threads are unresolved and
+whose turn each is, the labels, the pipeline's state, the turn (section 4),
+and its stack. The view groups by where changes sit, oldest first in each
+group, and filters by label, author, reviewer and stack.
+
+**A stack is shown as one.** A change whose target branch is another open
+change's source branch sits on it, and GitLab's merge request dependencies
+also count. The view draws the chain, and a change blocked only by the change
+beneath it says so, so that reviewing the bottom of a stack reads as the way
+to unblock its top.
+
+**Administrative writes** (D65) are `forge.Administrator`, optional beside
+`forge.Writer`, with the capability flags `reviewers`, `assignees`, `labels`
+and `draft`. The candidates come from the project: its members for reviewers
+and assignees, its labels for labels. A write is a list of additions and
+removals, never a replacement set, so it cannot undo a colleague's change made
+since the person looked. After the write, a targeted read updates the row, as
+section 4 does after a review write. Merging links out.
+
+GitLab notes for the adapter, checked against the GitLab documentation on
+2026-10-27:
+
+- **Projects.** Search with `GET /projects?search=…&membership=true`;
+  `search` matches path, name and description, and `search_namespaces=true`
+  also matches the group. A pasted URL resolves with `GET /projects/:id` on
+  the URL-encoded path.
+- **Open changes.** Read with GraphQL `project.mergeRequests(state: opened)`,
+  paged by cursor, as the inbox's fact reads already are. REST
+  `GET /projects/:id/merge_requests?state=opened` lists them too, but its list
+  omits `head_pipeline`, which only a single merge request's read returns.
+  GraphQL gives `draft`, `conflicts`, `detailedMergeStatus`, `headPipeline`,
+  labels, reviewers, assignees and discussions in one query.
+- **Dependencies are Premium and Ultimate only.** GraphQL
+  `blockingMergeRequests` is still marked experimental (GitLab 16.5), and REST
+  has `GET .../merge_requests/:iid/blocks` and `.../blockees`. On a Free
+  project the field is absent, which means unknown, not "none"; the stack is
+  then read from target branches alone, and the view says so.
+- **Reviewers, assignees, labels.** GraphQL `mergeRequestSetReviewers`
+  (`reviewerUsernames`), `mergeRequestSetAssignees` (`assigneeUsernames`) and
+  `mergeRequestSetLabels` (`labelIds`), each with `operationMode` `APPEND` or
+  `REMOVE`. The default is `REPLACE`, so vuoro always names the mode. A
+  username that matches no visible user is reported in `errors`, and vuoro
+  treats any entry there as a failed write. REST
+  `PUT .../merge_requests/:iid` takes `add_labels` and `remove_labels`, but
+  `reviewer_ids` and `assignee_ids` only as a whole set, so it is not used for
+  people.
+- **Draft.** GraphQL `mergeRequestSetDraft` with `draft: true` or `false`.
+  REST's update has no draft field and only a title prefix.
+- **Candidates.** `GET /projects/:id/members/all` includes members inherited
+  from ancestor groups and invited groups, at their highest access level,
+  filtered with `query`. `GET /projects/:id/labels` includes ancestor groups'
+  labels by default (`include_ancestor_groups`).
+
+**Agent triage is reviewer-class work** (section 6.4). One read-only session
+looks at the project's open changes and proposes, for each, reviewers, labels,
+and a line saying what would unblock it. Once the person accepts them, the
+work is programmatic: vuoro's code performs the writes, and no agent takes part
+(D65). vuoro gives it the facts, so it needs
+no tool beyond reading: each change's touched paths and size, the project's
+CODEOWNERS at the target branch, who has committed to those paths recently,
+and each candidate's open review load in this project. It writes proposals
+through the drafts MCP server, each bound to a change and a field in the run,
+and a proposal naming a change or a person outside the run is refused. A
+proposal is a draft the person edits, accepts or discards. Accepting several at
+once takes one confirmation. A proposal whose change has moved since the agent
+read it, by a push or by someone setting the same field, is marked stale and
+waits for the person. Nothing an agent proposes reaches the forge without the
+person.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -1660,6 +1777,10 @@ and a terva-sh release).
 - **Moving changes.** Re-anchor drafts on unchanged lines, and review only the
   new commits, with the earlier findings as context.
 - **Cost.** Optional per-run budget caps, and a monthly total.
+- **Project triage** (section 6.9, D64, D65). Every open change in one
+  project, where it sits and for how long, with reviewers, assignees, labels
+  and draft state set from the view, and agent proposals the person applies.
+  GitLab first, then GitHub and Forgejo.
 - **Nudges.** The tray, background refresh, and quiet, batched notifications
   when it becomes my turn or a long run finishes (D55, section 3.3).
 - **git-ticket, written.** Finding dispositions as ticket notes, and the

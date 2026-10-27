@@ -8,3 +8,4 @@ tickets, and the next fix pass overwrites it.
 |---|---|---|
 | [TKT-01M3W4FGT1GY0X3TWJF81X3XWK](draft/TKT-01M3W4FGT1GY0X3TWJF81X3XWK.md) | vuoro v0.1.0 (MVP): orchestrated GitLab reviews, then the inbox | draft |
 | [TKT-01M3YMSTYMFRDFXD4QSVWHMM8P](draft/TKT-01M3YMSTYMFRDFXD4QSVWHMM8P.md) | vuoro v1.0.0: every forge, the editor agent, and a terva-sh release | draft |
+| [TKT-01M5ZDQ3ZB0K6KMW2CB8NM183S](draft/TKT-01M5ZDQ3ZB0K6KMW2CB8NM183S.md) | Project triage: every open change in a project, and what holds each | draft |

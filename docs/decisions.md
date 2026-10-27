@@ -1200,3 +1200,74 @@ available".
   `no agent tool is available to run a reviewer that names none`, not
   `no agent tool named "" is available`, which blamed the preset for naming
   the empty string.
+
+### D64. A project view triages every open change in one project, by where it sits
+
+Decided by the owner on 2026-10-27, in a design conversation before any ticket
+existed. The inbox (D34, D38) answers what is waiting on the person. A tech
+lead who handles a project's incoming changes asks a different question: what
+is open here, where is each one stuck, and for how long. Nothing in vuoro
+answered it, because discovery only finds changes the person authors, reviews,
+or is assigned to.
+
+- **The person points vuoro at a project, and sees every open change in it.**
+  They pick the project from a configured forge account by searching, or paste
+  its URL. Membership is the project's, not the person's, so a change nobody
+  has looked at is a row.
+- **The view is ordered by where a change sits and for how long, not by whose
+  turn it is.** Where it sits is derived from the forge's facts: a draft, no
+  reviewers, waiting on reviewers, changes requested, waiting on the author,
+  approved and not merged, or blocked. Each row says whether it has reviewers,
+  whether it has discussion, whether that discussion is answered, and whether
+  it belongs to a stack. Turn (section 4) still shows on a row, and it does not
+  drive the order. Reusing the inbox's order was rejected because a change with
+  no reviewers is nobody's turn, and that is the change a tech lead most needs
+  to see.
+- **It serves one person running a project, in their own name.** That is still
+  section 2.2's one person on one machine. Who a change should go to is a
+  judgement about teammates, and it is the person's judgement, made with their
+  own credentials.
+- **GitLab first, then GitHub and Forgejo.** GitLab is the owner's day job.
+  GitHub and Forgejo get the same view through the same contracts, as tickets
+  of their own.
+- **It widens v1.0.0.** The owner needs it now, so it joins the v1.0.0 scope
+  (section 10.2) rather than waiting until after the release.
+- **Rejected: Gitea.** The owner runs none, and named it only alongside
+  Forgejo. Forgejo's adapter may work against a Gitea host by accident, and
+  vuoro does not claim it.
+
+### D65. vuoro sets reviewers, assignees, labels, and draft state, and links out to merge
+
+Decided by the owner on 2026-10-27, with D64. Section 2.1 kept settings in the
+forge, and `forge.Writer` covers review actions only. Unblocking a project's
+changes is mostly administrative, and a view that shows a change has no
+reviewers and cannot give it one sends the person back to the forge for the one
+action they came for.
+
+- **Four administrative writes.** Set and remove reviewers, set and remove
+  assignees, add and remove labels, and mark a change draft or ready. They are
+  a new optional contract beside `forge.Writer`, with their own capability
+  flags, so each forge adds them on its own schedule, and D44 still applies: a
+  write whose flag is unset is refused before the adapter is called.
+- **Merging links out to the forge, for now.** Pipelines, merge trains and
+  merge settings are still the forge's. The owner will revisit it.
+- **The agent drafts proposals, and the person accepts them.** A read-only
+  triage session suggests reviewers, labels and what would unblock each
+  change. Its proposals are drafts in the person's own view, and nothing
+  reaches the forge until the person accepts them, singly or several at once
+  after one confirmation. This is "an agent drafts, a person posts" applied to
+  administrative writes, and it is not a new exception.
+- **An accepted proposal is carried out by vuoro's code, not by an agent.**
+  Accepting turns a proposal into a fixed list of writes, such as add this
+  reviewer and remove that label, and `forge.Administrator` performs them. No
+  agent session runs during the apply, and none holds a forge credential.
+  Handing accepted proposals back to an agent to carry out was rejected: the
+  work is mechanical, and an agent in the loop would be one more thing that
+  could write something the person did not accept.
+- **A write sends additions and removals, never a replacement.** GitLab's
+  GraphQL mutations for reviewers, assignees and labels take an
+  `operationMode` of `APPEND` or `REMOVE`, so a write cannot drop a reviewer a
+  colleague added a minute earlier. Replacing the whole set from what the
+  person last saw was rejected for exactly that. A proposal whose change has
+  moved since the agent read it, such as a new push or a reviewer already
+  added, is marked stale and is not applied until the person looks again.

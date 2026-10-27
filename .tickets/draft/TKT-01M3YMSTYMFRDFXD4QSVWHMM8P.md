@@ -26,12 +26,12 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:51Z
-updated_at: 2026-10-02T15:57:57Z
+updated_at: 2026-10-27T19:51:04Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude-code/project-triage
   name: ""
 extensions: {}
 ---
@@ -50,3 +50,9 @@ terva-sh release with setup in the UI and documentation for somebody new.
 - [ ] The editor agent fixes my change in a sandbox, and I review its commits before vuoro pushes them
 - [ ] vuoro notifies me from the tray when it becomes my turn
 - [ ] Someone who is not the owner installs a release and sets vuoro up without editing a file
+
+## Notes
+
+**agent:claude-code/project-triage** at 2026-10-27T19:51:04Z
+
+Scope widened on 2026-10-27 (D64): project triage, epic TKT-01M5ZDQ3ZB0K6KMW2CB8NM183S (Project triage: every open change in a project, and what holds each), joins v1.0.0 because the owner needs it now. Plan section 6.9.
