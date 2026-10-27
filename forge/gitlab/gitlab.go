@@ -265,6 +265,9 @@ type gqlMR struct {
 	HeadPipeline *struct {
 		Status string `json:"status"`
 	} `json:"headPipeline"`
+	SourceProject *struct {
+		FullPath string `json:"fullPath"`
+	} `json:"sourceProject"`
 	SourceBranch    string    `json:"sourceBranch"`
 	TargetBranch    string    `json:"targetBranch"`
 	WebURL          string    `json:"webUrl"`
@@ -541,6 +544,9 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 	}
 	if mr.HeadPipeline != nil {
 		ch.Pipeline = strings.ToLower(mr.HeadPipeline.Status)
+	}
+	if mr.SourceProject != nil {
+		ch.SourceProject = mr.SourceProject.FullPath
 	}
 	if mr.DiffRefs != nil {
 		ch.Diff = forge.DiffRefs{Base: mr.DiffRefs.BaseSha, Start: mr.DiffRefs.StartSha, Head: mr.DiffRefs.HeadSha}

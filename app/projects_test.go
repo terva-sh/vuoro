@@ -63,10 +63,13 @@ func TestAddAProjectByURLAndReadItsChanges(t *testing.T) {
 	if err := json.Unmarshal(b, &added); err != nil || added.Project.Path != "team/repo" {
 		t.Fatalf("added %s", b)
 	}
-	var snap projects.Snapshot
+	var view projects.Display
 	b = projectCall(t, a, "POST", "/api/projects/"+added.Project.Key+"/refresh", "{}", 200)
-	if err := json.Unmarshal(b, &snap); err != nil || len(snap.Items) != 1 || snap.Items[0].Change.Title != "A change" {
+	if err := json.Unmarshal(b, &view); err != nil || view.Open != 1 || view.Groups[0].Rows[0].Title != "A change" {
 		t.Fatalf("refreshed %s", b)
+	}
+	if view.Groups[0].Place != projects.WaitingReview || view.Groups[0].Rows[0].Holder[0] != "me" {
+		t.Fatalf("where it sits %+v", view.Groups[0])
 	}
 	projectCall(t, a, "GET", "/api/projects/nonesuch", "", 404)
 	projectCall(t, a, "POST", "/api/projects/add", `{"url":"https://lab.test/other/repo"}`, 400)

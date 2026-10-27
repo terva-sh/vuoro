@@ -82,6 +82,9 @@ type Change struct {
 	// never "none".
 	BlockedBy         []Ref `json:"blocked_by,omitempty"`
 	DependenciesKnown bool  `json:"dependencies_known,omitempty"`
+	// SourceProject is the full path of the project the source branch is
+	// in, which differs from Ref.Project for a fork. Empty when unknown.
+	SourceProject string `json:"source_project,omitempty"`
 
 	Reviewers []Reviewer `json:"reviewers"`
 	Assignees []User     `json:"assignees"`

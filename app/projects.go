@@ -184,7 +184,7 @@ func (a *App) getProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errNoProject)
 		return
 	}
-	writeJSON(w, http.StatusOK, snap)
+	writeJSON(w, http.StatusOK, snap.Display())
 }
 
 func (a *App) refreshProject(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +198,7 @@ func (a *App) refreshProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, snap)
+	writeJSON(w, http.StatusOK, snap.Display())
 }
 
 var errNoProject = fmt.Errorf("that project is not in the list: %w", forge.ErrNotFound)
