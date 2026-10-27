@@ -41,6 +41,8 @@ type RunView struct {
 	Earlier    []drafts.Earlier `json:"earlier,omitempty"`
 	// Patches are the fixes the run saved as patches, oldest first (D51).
 	Patches []Patch `json:"patches,omitempty"`
+	// Project is what a project triage run may propose about.
+	Project *ProjectTriage `json:"project_triage,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -68,6 +70,11 @@ func (r *Run) View() RunView {
 		ID: r.ID, Kind: r.Kind, Mode: r.Mode, Ref: r.Ref, Title: r.Title, WebURL: r.WebURL, Head: r.Head, Base: r.Base,
 		Created: r.Created, Status: r.Status, Error: r.Error,
 		Drafts: r.store.All(), Follows: r.follows, FollowedBy: slices.Clone(r.followedBy), Earlier: r.store.Earlier(),
+	}
+	if r.Project != nil {
+		p := *r.Project
+		p.Changes, p.Candidates, p.Labels = slices.Clone(p.Changes), slices.Clone(p.Candidates), slices.Clone(p.Labels)
+		v.Project = &p
 	}
 	if r.editor != nil {
 		e := *r.editor
@@ -115,7 +122,7 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester", drafts.Editor: "editor"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester", drafts.Editor: "editor", drafts.ProjectTriage: "project-triage"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -206,6 +213,10 @@ func (m *Manager) load(keep func(Status) bool) error {
 		if r.Mode == "triage" {
 			r.bindThreads()
 		}
+		if r.Mode == ProjectMode && rec.Project != nil {
+			r.Project = rec.Project
+			r.bindProject()
+		}
 		if r.anchors != nil {
 			r.store.CheckAnchor = r.anchors.check
 		}
@@ -229,6 +240,8 @@ func (m *Manager) load(keep func(Status) bool) error {
 			switch p, ok := m.profile(s.Profile); {
 			case s.Role == drafts.Triage:
 				s.spec = agent.Spec{SystemPrompt: triagePrompt, Model: s.Model}
+			case s.Role == drafts.ProjectTriage:
+				s.spec = agent.Spec{SystemPrompt: projectTriagePrompt, Model: s.Model}
 			case s.Role == drafts.Synthesizer:
 				s.spec = agent.Spec{SystemPrompt: synthesisPrompt(), Model: s.Model}
 			case s.Role == drafts.Verifier:

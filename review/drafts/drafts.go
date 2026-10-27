@@ -69,6 +69,13 @@ type Draft struct {
 	Category  Category `json:"category,omitempty"`
 	Reason    string   `json:"reason,omitempty"`
 	ThreadKey string   `json:"thread_key,omitempty"`
+	// Change, Reviewers, Labels and Unblock are a project triage proposal:
+	// the change it is for, the reviewers and labels to add, and what would
+	// unblock it.
+	Change    int      `json:"change,omitempty"`
+	Reviewers []string `json:"reviewers,omitempty"`
+	Labels    []string `json:"labels,omitempty"`
+	Unblock   string   `json:"unblock,omitempty"`
 	// FixedIn is the pushed commit that fixes the draft, which vuoro or the
 	// person, never an agent, records (D41, D50). FixedSubject is that
 	// commit's subject, and FixedBy says who linked it: "editor", from the
@@ -135,19 +142,24 @@ type Proposal struct {
 	Category    Category `json:"category,omitempty"`
 	Reason      string   `json:"reason,omitempty"`
 	Earlier     string   `json:"earlier,omitempty"`
+	Change      int      `json:"change,omitempty"`
+	Reviewers   []string `json:"reviewers,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+	Unblock     string   `json:"unblock,omitempty"`
 }
 
 // Role is what a session may do with the run's drafts.
 type Role int
 
 const (
-	Reviewer    Role = iota + 1 // its own drafts only
-	Synthesizer                 // lists every draft; its proposals name sources
-	Verifier                    // lists every draft, and only marks confidence
-	Triage                      // groups existing threads and drafts replies
-	Summary                     // no draft access; receives no MCP server
-	Suggester                   // sets the suggestion of its one Target draft
-	Editor                      // writes code in its own worktree; no draft access and no MCP server
+	Reviewer      Role = iota + 1 // its own drafts only
+	Synthesizer                   // lists every draft; its proposals name sources
+	Verifier                      // lists every draft, and only marks confidence
+	Triage                        // groups existing threads and drafts replies
+	Summary                       // no draft access; receives no MCP server
+	Suggester                     // sets the suggestion of its one Target draft
+	Editor                        // writes code in its own worktree; no draft access and no MCP server
+	ProjectTriage                 // proposes reviewers, labels and unblocking for a project's changes
 )
 
 // Session is an agent session as the store knows it.
@@ -187,7 +199,16 @@ func Validate(p Proposal, role Role) error {
 		return suggesterErr
 	}
 	if role == Triage {
+		if p.Change != 0 || len(p.Reviewers)+len(p.Labels) > 0 || p.Unblock != "" {
+			return &RuleError{"triage.shape", "arguments", "thread_id, category, reason and optional description only"}
+		}
 		return validateTriage(p)
+	}
+	if role == ProjectTriage {
+		return validateProjectTriage(p)
+	}
+	if p.Change != 0 || len(p.Reviewers)+len(p.Labels) > 0 || p.Unblock != "" {
+		return &RuleError{"project.role", "change", "only project triage proposes reviewers and labels"}
 	}
 	if p.ThreadID != "" || p.Category != "" || p.Reason != "" {
 		return &RuleError{"triage.role", "thread_id", "only author triage attaches a reply to a thread"}
@@ -259,6 +280,9 @@ type Store struct {
 	CheckSuggestion func(a Anchor, suggestion string) error
 	// CheckThread binds a triage proposal to the run's immutable snapshot.
 	CheckThread func(string) (string, error)
+	// CheckProposal binds a project triage proposal to the run's changes,
+	// candidates and labels. It returns a *RuleError.
+	CheckProposal func(Proposal) error
 
 	mu      sync.Mutex
 	drafts  []*Draft
@@ -303,6 +327,9 @@ func (st *Store) Propose(s Session, p Proposal) (Draft, error) {
 	if s.Role == Triage && slices.ContainsFunc(st.drafts, func(d *Draft) bool { return d.ThreadID == p.ThreadID && d.Status == Pending }) {
 		return Draft{}, &RuleError{"thread.duplicate", "thread_id", "revise the existing pending triage for this thread"}
 	}
+	if s.Role == ProjectTriage && slices.ContainsFunc(st.drafts, func(d *Draft) bool { return d.Change == p.Change && d.Status == Pending }) {
+		return Draft{}, &RuleError{"change.duplicate", "change", "revise your existing pending proposal for this change"}
+	}
 	st.next++
 	d := &Draft{
 		ID: fmt.Sprintf("d%d", st.next), Status: Pending, Revision: 1,
@@ -337,6 +364,9 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 	if s.Role == Triage && p.ThreadID != d.ThreadID {
 		return Draft{}, &RuleError{"reply.thread", "thread_id", "the thread this draft already belongs to"}
 	}
+	if s.Role == ProjectTriage && (p.Change != d.Change || d.Decision != "") {
+		return Draft{}, &RuleError{"proposal.change", "change", "a pending proposal you have not seen accepted, for the change it already names"}
+	}
 	if err := st.checkSources(p.Sources); err != nil {
 		return Draft{}, err
 	}
@@ -354,6 +384,12 @@ func (st *Store) Revise(s Session, id string, p Proposal) (Draft, error) {
 func (st *Store) validate(p Proposal, role Role) error {
 	if err := Validate(p, role); err != nil {
 		return err
+	}
+	if role == ProjectTriage {
+		if st.CheckProposal == nil {
+			return &RuleError{"change.unknown", "change", "a change in this triage run"}
+		}
+		return st.CheckProposal(p)
 	}
 	if role == Triage {
 		if st.CheckThread == nil {
@@ -771,6 +807,7 @@ func (d *Draft) apply(p Proposal) {
 	d.Severity, d.Title, d.Description, d.Evidence = p.Severity, strings.TrimSpace(p.Title), p.Description, p.Evidence
 	d.ThreadID, d.Category, d.Reason = p.ThreadID, p.Category, strings.TrimSpace(p.Reason)
 	d.Anchor, d.Sources, d.Suggestion = nil, slices.Clone(p.Sources), nil
+	d.applyProject(p)
 	if p.Suggestion != nil {
 		s := strings.TrimRight(*p.Suggestion, "\n")
 		d.Suggestion = &s

@@ -112,6 +112,8 @@ type Run struct {
 	Status  Status
 	Error   string
 	Summary *SummaryRange
+	// Project is what a project triage run may propose about.
+	Project *ProjectTriage
 
 	dir           string // the worktree
 	repoKey       string
@@ -272,7 +274,7 @@ func (m *Manager) Follow(ch *forge.Change, src Source, reviewers []Reviewer, syn
 	return m.start(ch, src, sessions, "", first, nil, earlier, list)
 }
 
-func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread, prev *Run, earlier []drafts.Earlier) (*Run, error) {
+func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode, first string, threads []forge.Thread, prev *Run, earlier []drafts.Earlier, setup ...func(*Run)) (*Run, error) {
 	id := newRunID()
 	// The checkout's lifecycle is set before the run is visible, so a Close
 	// or a Shutdown that finds the run can always stop and wait for it.
@@ -298,6 +300,9 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 	r.store.CheckSuggestion = r.checkSuggestion
 	if mode == "triage" {
 		r.bindThreads()
+	}
+	for _, f := range setup {
+		f(r)
 	}
 	if prev != nil {
 		r.follows = prev.ID
@@ -331,7 +336,13 @@ func (m *Manager) start(ch *forge.Change, src Source, sessions []*Session, mode,
 func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 	defer close(r.prepared)
 	defer r.stopPrepare()
-	if err := m.Repos.Checkout(ctx, src, r.dir); err != nil {
+	// Project triage reads no repository: its session gets an empty
+	// directory, so Read, Grep and Glob reach nothing.
+	checkout := func() error { return m.Repos.Checkout(ctx, src, r.dir) }
+	if r.Mode == ProjectMode {
+		checkout = func() error { return os.MkdirAll(r.dir, 0o700) }
+	}
+	if err := checkout(); err != nil {
 		r.mu.Lock()
 		if r.Status == Closed { // stopped by Close, which records the run
 			r.mu.Unlock()
@@ -355,7 +366,7 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 	r.Status = Working
 	r.mu.Unlock()
 	for _, s := range r.sessions {
-		if s.Role == drafts.Reviewer || s.Role == drafts.Triage {
+		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage {
 			m.spawn(func() { m.begin(r, s, r.first) })
 		}
 	}
@@ -986,7 +997,12 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 		_ = os.RemoveAll(m.editorDir(r.ID))
 		_ = m.Repos.DropEditor(ctx, r.repoKey, r.ID)
 	}
-	err := m.Repos.Remove(ctx, r.repoKey, r.dir)
+	var err error
+	if r.Mode == ProjectMode { // an empty directory, not a worktree
+		err = os.RemoveAll(r.dir)
+	} else {
+		err = m.Repos.Remove(ctx, r.repoKey, r.dir)
+	}
 	if _, statErr := os.Stat(r.dir); errors.Is(statErr, os.ErrNotExist) {
 		err = nil
 	}

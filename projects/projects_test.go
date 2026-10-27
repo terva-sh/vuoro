@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/terva-sh/vuoro/config"
@@ -20,7 +21,7 @@ type fakeForge struct {
 	listErr error
 	noDeps  bool
 	labels  map[int][]string
-	reads   int
+	reads   atomic.Int32
 }
 
 func (f *fakeForge) Capabilities() forge.Capabilities { return forge.Capabilities{} }
@@ -28,7 +29,7 @@ func (f *fakeForge) Open(ctx context.Context, ref forge.Ref) (*forge.Change, err
 	return f.ReadFacts(ctx, ref)
 }
 func (f *fakeForge) ReadFacts(_ context.Context, ref forge.Ref) (*forge.Change, error) {
-	f.reads++
+	f.reads.Add(1)
 	if f.failing[ref.Number] {
 		return nil, &forge.APIError{Status: 500, Message: "synthetic-project-secret"}
 	}
@@ -179,8 +180,8 @@ func TestAProjectTooLargeIsRefusedWithItsCount(t *testing.T) {
 	s := service(t, "", f)
 	e, _ := s.Add(context.Background(), "lab.test", "team/repo")
 	snap, _ := s.Refresh(context.Background(), e.Key)
-	if len(snap.Items) != 0 || !strings.Contains(snap.Error, fmt.Sprint(MaxChanges+1)) || f.reads != 0 {
-		t.Fatalf("a large project was read in part: %d items, %d reads, %q", len(snap.Items), f.reads, snap.Error)
+	if len(snap.Items) != 0 || !strings.Contains(snap.Error, fmt.Sprint(MaxChanges+1)) || f.reads.Load() != 0 {
+		t.Fatalf("a large project was read in part: %d items, %d reads, %q", len(snap.Items), f.reads.Load(), snap.Error)
 	}
 }
 

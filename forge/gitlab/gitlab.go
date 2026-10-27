@@ -268,6 +268,11 @@ type gqlMR struct {
 	SourceProject *struct {
 		FullPath string `json:"fullPath"`
 	} `json:"sourceProject"`
+	DiffStats []struct {
+		Path      string `json:"path"`
+		Additions int    `json:"additions"`
+		Deletions int    `json:"deletions"`
+	} `json:"diffStats"`
 	SourceBranch    string    `json:"sourceBranch"`
 	TargetBranch    string    `json:"targetBranch"`
 	WebURL          string    `json:"webUrl"`
@@ -547,6 +552,9 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 	}
 	if mr.SourceProject != nil {
 		ch.SourceProject = mr.SourceProject.FullPath
+	}
+	for _, d := range mr.DiffStats {
+		ch.Touched = append(ch.Touched, forge.Touched{Path: d.Path, Added: d.Additions, Removed: d.Deletions})
 	}
 	if mr.DiffRefs != nil {
 		ch.Diff = forge.DiffRefs{Base: mr.DiffRefs.BaseSha, Start: mr.DiffRefs.StartSha, Head: mr.DiffRefs.HeadSha}

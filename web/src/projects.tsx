@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api, post } from './api'
 import { AgeBadge } from './inbox'
+import { ProjectTriage } from './projecttriage'
 import { usePoll } from './poll'
 import { changeNumber, type Ref } from './types'
 import { ago } from './ui'
@@ -269,6 +270,8 @@ function ProjectChanges({ entry, onOpen, opening, active, onRemove, onListed }: 
             (s) => setFilters((f) => ({ ...f, stack: s === undefined ? undefined : Number(s) })))}
           {Object.values(filters).some((v) => v !== undefined) && <button class="link" onClick={() => setFilters({})}>Show all</button>}
         </div>
+        {view.open > 0 && <ProjectTriage projectKey={entry.key} kind={entry.kind} rows={visible}
+          onView={(next) => { setView(next); onListed(next.open, next.error) }} />}
         {view.open === 0 && <p class="muted">No open changes.</p>}
         <div class="inbox-layout">
           <div class="inbox-list">

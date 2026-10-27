@@ -165,6 +165,9 @@ func (e entry) dispatch(req rpcRequest) (any, *rpcError) {
 }
 
 func instructions(role Role) string {
+	if role == ProjectTriage {
+		return "For each supplied change that needs it, use propose_draft with change, the reviewers and labels to add, an unblock line, and a reason. Names must come from the supplied candidates and labels. You only write local drafts. The person accepts each, and vuoro makes the change."
+	}
 	if role == Triage {
 		return "Group each supplied human thread as must_fix, discuss, or nit with a reason. Use propose_draft with thread_id, category, reason and optional description (a reply). You only write local drafts. The person edits, accepts and posts."
 	}
@@ -261,6 +264,19 @@ func Tools(role Role) []map[string]any {
 			"description": map[string]any{"type": "string", "description": "Optional proposed reply in the author's voice, at most 20000 bytes. Omit when the evidence does not support a reply."},
 		}
 		required = []string{"thread_id", "category", "reason"}
+	}
+	if role == ProjectTriage {
+		names := func(what string) map[string]any {
+			return map[string]any{"type": "array", "maxItems": maxProposed, "items": map[string]any{"type": "string"}, "description": what}
+		}
+		proposal = map[string]any{
+			"change":    map[string]any{"type": "integer", "minimum": 1, "description": "The number of a change supplied to this run."},
+			"reviewers": names("Usernames to add as reviewers, from the supplied candidates. Leave out anyone already reviewing."),
+			"labels":    names("Labels to add, from the supplied project labels."),
+			"unblock":   map[string]any{"type": "string", "description": "One line saying what would unblock the change, at most 512 bytes."},
+			"reason":    map[string]any{"type": "string", "description": "Why, citing the supplied facts; at most 512 bytes."},
+		}
+		required = []string{"change", "reason"}
 	}
 	if role == Synthesizer {
 		proposal["sources"] = map[string]any{"type": "array", "minItems": 1, "items": map[string]any{"type": "string"},

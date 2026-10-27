@@ -1648,6 +1648,27 @@ read it, by a push or by someone setting the same field, is marked stale and
 waits for the person. Nothing an agent proposes reaches the forge without the
 person.
 
+How the build holds this:
+
+- **The session's input.** The session has no checkout. Its directory is
+  empty, and everything it reads is in its first message as facts that vuoro
+  built: the snapshot's rows, `diffStats` paths, CODEOWNERS, and recent commit
+  authors.
+- **What a run takes.** A run takes the changes the view shows, up to 60, and
+  leaves out drafts.
+- **When a proposal is stale.** The run records a stamp per change: a hash of
+  the head, the draft state, the reviewers and their states, and the labels.
+  Before accepting, vuoro reads the change again. A proposal whose stamp moved
+  is reported stale and is applied only when the person accepts it again,
+  knowing that.
+- **What accepting writes.** An accepted proposal becomes additions only. It
+  never adds the change's author, a reviewer already on the change, or a label
+  the change already has. The capability flags are checked before
+  `Administer`.
+- **Which run routes answer.** A project triage run is not listed among the
+  reviews. Of the generic run routes, it answers only reading, closing, and
+  talking to its session.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its

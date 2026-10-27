@@ -619,4 +619,12 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .project-stack li.on { background: var(--ui-accent-soft); border-left: 3px solid var(--ui-accent); }
 .project-adder { display: flex; gap: var(--ui-space-2); margin: var(--ui-space-1) 0 var(--ui-space-2); }
 .project-adder input { flex: 1; max-width: 260px; }
-.project-detail .remove, .inbox-detail .remove { margin-left: var(--ui-space-2); color: var(--ui-muted); }
+.project-detail .remove, .inbox-detail .remove, .project-proposal .remove { margin-left: var(--ui-space-2); color: var(--ui-muted); }
+.project-triage { margin: var(--ui-space-2) 0 var(--ui-space-3); padding: var(--ui-space-2) var(--ui-space-3); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); }
+.project-triage > summary { cursor: pointer; font-weight: 600; }
+.project-triage .toolbar { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; }
+.project-proposals { list-style: none; padding: 0; margin: var(--ui-space-2) 0 0; }
+.project-proposal { padding: var(--ui-space-2) 0; border-top: 1px solid var(--ui-line); }
+.project-proposal p { margin: var(--ui-space-1) 0; }
+.project-proposal-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; }
+.project-proposal.kept, .project-proposal.dropped { opacity: 0.7; }

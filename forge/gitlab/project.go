@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -220,6 +221,54 @@ func (c *Client) Dependencies(ctx context.Context, ref forge.Ref) ([]forge.Ref, 
 	}
 	for range mr.Blocking.HiddenCount {
 		out = append(out, forge.Ref{Host: c.Host()})
+	}
+	return out, nil
+}
+
+var _ forge.TriageReader = (*Client)(nil)
+
+// codeOwnersPaths are where GitLab looks for CODEOWNERS, in its order.
+var codeOwnersPaths = []string{"CODEOWNERS", "docs/CODEOWNERS", ".gitlab/CODEOWNERS"}
+
+// maxCodeOwners bounds the CODEOWNERS text given to an agent.
+const maxCodeOwners = 64 << 10
+
+// CodeOwners reads the first CODEOWNERS GitLab would use at ref.
+func (c *Client) CodeOwners(ctx context.Context, project, ref string) (string, error) {
+	for _, p := range codeOwnersPaths {
+		b, err := c.raw(ctx, forge.Ref{Host: c.Host(), Project: project}, p, ref)
+		if errors.Is(err, forge.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if len(b) > maxCodeOwners {
+			b = b[:maxCodeOwners]
+		}
+		return string(b), nil
+	}
+	return "", nil
+}
+
+// RecentAuthors reads up to thirty of the year's commits to path on ref.
+func (c *Client) RecentAuthors(ctx context.Context, project, ref, path string) ([]string, error) {
+	q := url.Values{"ref_name": {ref}, "path": {path}, "per_page": {"30"}, "since": {time.Now().AddDate(-1, 0, 0).UTC().Format(time.RFC3339)}}
+	b, _, err := c.do(ctx, "GET", projectPath(project)+"/repository/commits", q, nil)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		AuthorName string `json:"author_name"`
+	}
+	if json.Unmarshal(b, &rows) != nil || rows == nil {
+		return nil, errors.New("gitlab: invalid commits response")
+	}
+	out := []string{}
+	for _, r := range rows {
+		if r.AuthorName != "" && !slices.Contains(out, r.AuthorName) {
+			out = append(out, r.AuthorName)
+		}
 	}
 	return out, nil
 }

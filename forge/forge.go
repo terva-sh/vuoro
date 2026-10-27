@@ -85,6 +85,9 @@ type Change struct {
 	// SourceProject is the full path of the project the source branch is
 	// in, which differs from Ref.Project for a fork. Empty when unknown.
 	SourceProject string `json:"source_project,omitempty"`
+	// Touched are the paths the change touches, with their line counts,
+	// which project triage reads to suggest reviewers. It is not the diff.
+	Touched []Touched `json:"touched,omitempty"`
 
 	Reviewers []Reviewer `json:"reviewers"`
 	Assignees []User     `json:"assignees"`
@@ -97,6 +100,13 @@ type Change struct {
 	Files        []FileDiff      `json:"files"`
 	// Drafts are the person's own pending comments on the forge.
 	Drafts []Draft `json:"drafts"`
+}
+
+// Touched is one path a change touches.
+type Touched struct {
+	Path    string `json:"path"`
+	Added   int    `json:"added"`
+	Removed int    `json:"removed"`
 }
 
 // DiffRefs are the SHAs an inline comment's position needs.

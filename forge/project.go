@@ -108,3 +108,15 @@ type Administrator interface {
 	// Labels are the labels the project's changes can carry.
 	Labels(ctx context.Context, project string) ([]string, error)
 }
+
+// TriageReader optionally reads what project triage gives its agent to
+// suggest reviewers from: the project's code owners, and who has committed to
+// a path recently. Both are read at a branch, the changes' target.
+type TriageReader interface {
+	// CodeOwners is the project's CODEOWNERS file at ref, or empty when it
+	// has none. Its text is untrusted.
+	CodeOwners(ctx context.Context, project, ref string) (string, error)
+	// RecentAuthors are the names of the people who committed to path on
+	// ref in the last year, most recent first, without repeats.
+	RecentAuthors(ctx context.Context, project, ref, path string) ([]string, error)
+}

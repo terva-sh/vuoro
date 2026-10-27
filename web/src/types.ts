@@ -63,6 +63,7 @@ export interface Draft {
   earlier?: string; carried?: boolean // the earlier finding it restates, and whether its decision came from there (D50)
   confidence?: Confidence // the verifier's mark
   override?: Confidence // the person's, which wins
+  change?: number; reviewers?: string[]; labels?: string[]; unblock?: string // a project triage proposal (D65)
 }
 
 export type Level = 'confirmed' | 'plausible' | 'doubtful'
@@ -82,7 +83,8 @@ export interface Session {
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {
-  mode?: "triage" | "summary"; triage_threads?: Thread[]
+  mode?: "triage" | "summary" | "project-triage"; triage_threads?: Thread[]
+  project_triage?: { path: string; changes: { number: number; stamp: string }[]; candidates: string[]; labels: string[] }
   review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number

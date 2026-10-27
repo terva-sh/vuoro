@@ -154,7 +154,7 @@ func eventKey(ch forge.Change) string {
 	// Project triage's facts are not review events: a pipeline finishing
 	// must not wake a snoozed row, and leaving them out keeps every
 	// fingerprint taken before they existed.
-	ch.Labels, ch.Conflicts, ch.Pipeline, ch.BlockedBy, ch.DependenciesKnown, ch.SourceProject = nil, false, "", nil, false, ""
+	ch.Labels, ch.Conflicts, ch.Pipeline, ch.BlockedBy, ch.DependenciesKnown, ch.SourceProject, ch.Touched = nil, false, "", nil, false, "", nil
 	b, _ := json.Marshal(ch)
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])

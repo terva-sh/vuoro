@@ -5,6 +5,7 @@ query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
       labels(first: 100) { pageInfo { hasNextPage } nodes { title } }
       headPipeline { status }
       sourceProject { fullPath }
+      diffStats { path additions deletions }
       sourceBranch targetBranch webUrl createdAt updatedAt
       author { username bot type }
       userPermissions { canMerge }

@@ -27,8 +27,10 @@ const view: ProjectView = {
 const root = document.createElement('div')
 const button = (name: string) => [...root.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith(name))!
 const rows = () => [...root.querySelectorAll('.inbox-row')].map((b) => b.querySelector('.inbox-title')!.textContent)
+// others answers the project triage panel's reads: no agent run yet.
+const others = (path: string, otherwise: unknown) => path.endsWith('/triage') ? null : path === '/api/setup' ? { tools: [] } : otherwise
 async function mount() {
-  vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/projects' ? list : view) as never)
+  vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/projects' ? list : others(path, view)) as never)
   const open = vi.fn()
   await act(async () => render(<ProjectsTab onOpen={open} />, root))
   for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve() })
@@ -89,7 +91,7 @@ describe('project triage', () => {
     vi.mocked(post).mockResolvedValueOnce({ projects: [{ ...entry, kind: 'gitlab', account: 'Work', added: false }] } as never)
     await act(async () => { root.querySelector('.project-add form')!.dispatchEvent(new Event('submit', { cancelable: true })) })
     expect(post).toHaveBeenLastCalledWith('/api/projects/search', { query: '' })
-    vi.mocked(api).mockResolvedValue(view as never)
+    vi.mocked(api).mockImplementation(async (path: string) => (others(path, view)) as never)
     vi.mocked(post).mockResolvedValueOnce({ project: entry, list } as never)
     for (let i = 0; i < 3; i++) await act(async () => { await Promise.resolve() })
     await act(async () => (root.querySelector('.project-found button') as HTMLButtonElement).click())
@@ -105,7 +107,7 @@ describe('project triage', () => {
     const can = { reviewers: true, assignees: true, labels: true, draft: true }
     const editable: ProjectView = { ...view, groups: [{ place: 'review', rows: [row(2, { holder: ['bob'], reviewers: [{ username: 'bob', state: 'unreviewed' }], labels: ['backend'], can })] }] }
     act(() => render(null, root))
-    vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/projects' ? list : path.endsWith('/members') ? [{ username: 'cat', name: 'Cat' }] : editable) as never)
+    vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/projects' ? list : path.endsWith('/members') ? [{ username: 'cat', name: 'Cat' }] : others(path, editable)) as never)
     await act(async () => render(<ProjectsTab onOpen={() => {}} />, root))
     for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve() })
     vi.mocked(post).mockResolvedValue(editable as never)
