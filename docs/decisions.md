@@ -1271,3 +1271,54 @@ action they came for.
   person last saw was rejected for exactly that. A proposal whose change has
   moved since the agent read it, such as a new push or a reviewer already
   added, is marked stale and is not applied until the person looks again.
+
+### D66. vuoro updates a change from its target, by merge or rebase, and the editor resolves only conflicts
+
+Decided by the owner on 2026-10-27. A change that conflicts with its target, or
+has fallen behind it, is blocked until somebody brings the target in. Doing
+that by hand means a checkout, a merge or a rebase, and resolving every
+conflict before anything can be reviewed again.
+
+- **Both strategies, merge by default.** "Update from the target" offers a
+  merge of the target into the change, the default, or a rebase onto it. A
+  merge adds one commit, so its push is a fast-forward.
+- **No conflicts, no agent.** vuoro computes the merge or rebase itself. When
+  nothing conflicts, the result is ready for the person at once, and no agent
+  session runs. Where the forge can update the branch itself, a clean update
+  goes through the forge, against the head the person saw.
+- **Conflicts go to the editor.** The editor, the only agent that writes code
+  (section 6.3), gets a fresh repository in its sandbox whose working tree
+  holds the conflicted result, with markers, and no credential. It resolves
+  each conflict, builds and tests, and commits. vuoro never runs git in the
+  editor's repository. It reads the resolved tree back, checks that no marker
+  is left, and builds the merge commit, or the rebased commit, itself, with
+  the right parents and authorship. A rebase can stop at several commits.
+  Each stop gets its own repository and session, and the person accepts each
+  stop's resolution before vuoro replays the next commit.
+- **The person accepts, and vuoro pushes.** The person sees each resolution
+  as a diff of the conflicted files, with the editor's account of each, and
+  can talk to the editor before accepting or discarding. Nothing reaches the
+  forge until the person confirms the push.
+- **Whose change.** The person's own change is pushed directly. On somebody
+  else's, a merge goes up as a draft change onto its branch, as a fix does
+  (D39), and the author decides. A rebase of somebody else's branch is
+  refused, since it rewrites their history. A change whose branch is in a fork
+  is refused, as D39 refuses one.
+- **Rejected:** having the agent run the merge or rebase itself. vuoro would
+  then have to trust git state the agent wrote, and the result's parents and
+  authorship would be the agent's to get right.
+
+### D67. vuoro force-pushes with a lease only for a rebase the person accepted
+
+Decided by the owner on 2026-10-27, with D66. Section 6.3 said vuoro never
+forces a push to a change's branch. A rebase rewrites the branch, so it
+cannot be pushed without force.
+
+- **Only an accepted rebase forces, and always with a lease.** The push is
+  `--force-with-lease` against the exact head the person saw in the
+  confirmation dialog. A push that landed on the branch since makes the push
+  fail rather than be overwritten, and the person updates again.
+- **Only the person's own change.** D66 already refuses a rebase of somebody
+  else's branch.
+- **Everything else still never forces.** The editor's fixes (D39, D41, D42)
+  and a merge update stay fast-forward only.

@@ -40,7 +40,9 @@ what it drafts. The person decides what gets posted.
 
 For someone who runs a project, vuoro also shows every open change in that
 project and where each one is stuck, so they can give it reviewers, labels and
-a nudge without opening the forge (section 6.9, D64).
+a nudge without opening the forge (section 6.9, D64). It brings a change's
+target in by merge or rebase, with the editor resolving the conflicts, and the
+person accepts the result (section 6.10, D66).
 
 ### 2.1 Positions
 
@@ -1000,7 +1002,8 @@ hand-off report lists, become the editor's task:
    the remote vuoro fetches from, so vuoro holds no git credential. It
    pushes the commit the person saw in the dialog and refuses a newer one,
    requires the editor's history to stand on the reviewed head, and never
-   forces. The dialog flags a change to CI configuration, which runs when
+   forces. (A rebase the person accepted, section 6.10, is the one push that
+   forces, with a lease, under D67.) The dialog flags a change to CI configuration, which runs when
    the branch lands, and a source branch that moved since the review. A
    later push of new editor commits updates the same merge request. The
    push route is the only caller of the push and of the merge request's
@@ -1740,6 +1743,88 @@ How the build holds this:
   reviews. Of the generic run routes, it answers only reading, closing, and
   talking to its session.
 
+### 6.10 Updating a change from its target
+
+D66 and D67. "Update from the target" brings a change's target branch into
+it, by merge (the default) or by rebase. It is offered on the change page and
+on a row of the project view. It runs as a run of its own, in mode `update`,
+so it survives a restart and its editor sessions can be talked to like any
+other.
+
+**Computing the update is vuoro's work, not an agent's.**
+
+- vuoro fetches the change's head and its target into its clone, as for a
+  review, and computes the result in the run's own worktree, which it made
+  and controls.
+- **Merge.** vuoro runs `git merge --no-commit` of the target, with diff3
+  conflict markers.
+- **Rebase.** vuoro replays the change's own commits, `target..head`, onto
+  the target, one at a time, with each commit's author and message kept. A
+  change whose history holds a merge commit is refused for rebase, with the
+  reason, and a merge is offered instead.
+- **When nothing conflicts,** the result is ready at once, and no agent
+  runs.
+
+**A conflict is a stop, and the editor resolves it.**
+
+- At a conflict, vuoro stages the conflicted result, markers included, as a
+  tree, and commits it as a seed commit whose parent is the change's head
+  (for a merge) or the commits replayed so far (for a rebase). The seed is
+  never pushed.
+- The editor's repository is seeded at that commit, as a fix's is (section
+  6.3), so the editor sees the incoming changes and the markers as files.
+- The editor's first message names the conflicted files and what the change
+  and the target each meant to do, from their commit messages, as untrusted
+  data. It resolves every marker, builds and tests, and commits on top of the
+  seed. For each file, it says how it resolved the conflict.
+- When the person accepts a stop, vuoro fetches the editor's branch into its
+  clone, as a fix's commits are fetched.
+- **Checks before vuoro builds anything.** The resolved commit must descend
+  from the seed, and no file that conflicted may still hold a `<<<<<<<`,
+  `|||||||` or `>>>>>>>` marker line. A file the editor changed outside the
+  conflicted set, such as a call it fixed for a renamed function, is allowed,
+  and is listed apart in the review.
+- **Building the result.** For a merge, vuoro writes the merge commit with
+  `git commit-tree`: the editor's final tree, with the head and the target as
+  parents, and the person's identity. For a rebase, the stop's commit becomes
+  the editor's tree on the replayed commits, with the original author and
+  message, and vuoro replays the next commits. The next conflict is a new
+  stop, with a new repository and a new editor session.
+
+**The person sees each stop as a diff, then confirms the push.**
+
+- A stop shows the conflicted files as they were, with markers, beside the
+  editor's resolution, and the editor's account of each file.
+- The person can talk to the stop's editor, or discard the whole update,
+  which deletes its repositories and refs. The forge never hears of it.
+- When the update is ready, the run lists what it will push: the merge
+  commit, or the rebased commits.
+- **Push, on the person's own change.**
+  - A merge is pushed to the change's branch as a fast-forward.
+  - A rebase is pushed with `--force-with-lease` against the head the person
+    saw (D67).
+  - Either push is refused when the change's head on the forge is no longer
+    the head the update started from.
+- **Push, on somebody else's change.** A merge is pushed to a branch of its
+  own, `vuoro/update-<number>-<run>`, and opened as a draft change onto the
+  change's branch, with the stacked-change route of D39. A rebase is refused
+  at the start.
+- **Through the forge.** A clean update on the person's own change goes
+  through the forge's own branch update when the forge has one for the
+  chosen strategy, against the expected head, rather than through a push:
+  - GitLab rebases (`PUT /merge_requests/:iid/rebase`), and has no
+    server-side merge of the target.
+  - GitHub does both (`PUT /pulls/N/update-branch` with
+    `expected_head_sha`).
+  - Forgejo does both (`POST /pulls/N/update?style=merge|rebase`).
+  - The forge's operation is `forge.BranchUpdater`, behind the capability
+    flag `update_branch`.
+- **What it never does.**
+  - Only the push route pushes.
+  - The editor holds no credential.
+  - The update never changes the change's title, description, reviewers, or
+    review state.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -1881,6 +1966,9 @@ and a terva-sh release).
   project, where it sits and for how long, with reviewers, assignees, labels
   and draft state set from the view, and agent proposals the person applies.
   GitLab first, then GitHub and Forgejo.
+- **Updating a change from its target** (section 6.10, D66, D67). Merge or
+  rebase the target in, with the editor resolving conflicts, and a push the
+  person confirms.
 - **Nudges.** The tray, background refresh, and quiet, batched notifications
   when it becomes my turn or a long run finishes (D55, section 3.3).
 - **git-ticket, written.** Finding dispositions as ticket notes, and the
