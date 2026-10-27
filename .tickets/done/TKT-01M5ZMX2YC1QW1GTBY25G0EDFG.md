@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M5ZMX2YC1QW1GTBY25G0EDFG
 title: Update from the target in the window, with stops and the push
 type: task
-status: ready
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-27T21:40:16Z
-updated_at: 2026-10-27T21:40:36Z
+updated_at: 2026-10-27T21:59:45Z
 created_by:
   id: agent:claude-code/branch-update
   name: ""
@@ -37,6 +37,14 @@ extensions: {}
 
 ## Acceptance criteria
 
-- [ ] The update can be started from the change page and from the project view
-- [ ] Each stop shows the conflicted files beside the resolution, and the person accepts or discards it
-- [ ] The push takes one confirmation that names the branch and the strategy
+- [x] The update can be started from the change page and from the project view
+- [x] Each stop shows the conflicted files beside the resolution, and the person accepts or discards it
+- [x] The push takes one confirmation that names the branch and the strategy
+
+## Implementation plan
+
+An Update tab on the change page (web/src/update.tsx) lists the change's update runs, starts one (merge by default, rebase only on the person's own change), and polls it. Each stop shows its conflicted files, the editor's session, and the resolution as a diff from the conflicted tree, so removed markers show beside what was kept. Accept and discard are offered, and a ready update lists its commits and opens PushUpdateDialog. The project view's detail pane starts an update and opens the change.
+
+## Summary
+
+web/src/update.tsx, with the Update tab in change.tsx and StartUpdate in projects.tsx's detail pane. The push dialog names the branch and strategy, and for a rebase the lease against the started head. On another's change it names the vuoro/update-<n>-<run> branch and the draft change. Tested in update.test.tsx. Not yet dogfooded against a live forge.

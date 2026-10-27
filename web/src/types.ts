@@ -83,7 +83,8 @@ export interface Session {
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
 }
 export interface Run {
-  mode?: "triage" | "summary" | "project-triage"; triage_threads?: Thread[]
+  mode?: "triage" | "summary" | "project-triage" | "update"; triage_threads?: Thread[]
+  update?: Update
   project_triage?: { path: string; changes: { number: number; stamp: string }[]; candidates: string[]; labels: string[] }
   review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
@@ -104,6 +105,22 @@ export interface PatchDetail extends Patch { patch?: string; diff: FileDiff[] }
 export interface Earlier {
   id: string; severity: Severity; title: string; anchor?: DraftAnchor
   standing: 'fixed' | 'dismissed' | 'kept' | 'open'; fixed_in?: string; fixed_subject?: string; decision?: 'kept' | 'dropped'
+}
+
+// Update is a change brought up to date with its target (section 6.10, D66,
+// D67): vuoro merges or rebases, and an editor resolves each conflicting stop.
+export interface Update {
+  strategy: 'merge' | 'rebase'; source: string; target: string; target_sha: string; own: boolean; tool: string; model?: string
+  onto?: string; remaining?: string[]; stops: Stop[]; result?: string; pushed?: Pushed; discarded?: boolean; dropped?: string[]
+  started: string; finished?: string
+}
+export interface Stop {
+  commit?: string; subject: string; seed: string; onto: string; conflicted: string[]; session?: string; branch?: string
+  tip?: string; resolved?: string; outside?: string[]; accepted?: string
+}
+export interface UpdateDetail extends Update {
+  state: '' | 'resolving' | 'ready' | 'pushed' | 'discarded'
+  resolutions: FileDiff[][]; commits: { sha: string; subject: string }[]
 }
 
 // EditorState is a run's editor, which fixes the kept findings on a local

@@ -8,6 +8,7 @@ import { ProjectTriage } from './projecttriage'
 import { usePoll } from './poll'
 import { changeNumber, type Ref } from './types'
 import { ago } from './ui'
+import { StartUpdate } from './update'
 
 export type Place = 'draft' | 'blocked' | 'author' | 'review' | 'unreviewed' | 'approved'
 export interface ProjectEntry { key: string; kind: string; host: string; path: string; name: string; web_url: string }
@@ -358,6 +359,7 @@ function Detail({ row, all, opening, onOpen, onSelect, projectKey, onView }: {
         <button class="primary" disabled={opening} onClick={() => onOpen(row.web_url)}>Open in vuoro</button>
         <a class="button" href={row.web_url} target="_blank" rel="noreferrer">{row.place === 'approved' ? 'Merge on' : 'Open on'} {forgeName(row.kind)} ↗</a>
         {can.draft && <button disabled={edit.busy} onClick={() => edit.apply({ draft: !row.draft })}>{row.draft ? 'Mark ready' : 'Mark draft'}</button>}
+        <StartUpdate url={row.web_url} target={row.target_branch} onOpen={onOpen} />
       </div>
       {edit.error && <p class="alert" role="alert">{edit.error}</p>}
       {row.error && <p class="inbox-stale" role="status">⚠ Last known state. {row.error}</p>}

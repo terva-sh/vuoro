@@ -628,3 +628,15 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .project-proposal p { margin: var(--ui-space-1) 0; }
 .project-proposal-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; }
 .project-proposal.kept, .project-proposal.dropped { opacity: 0.7; }
+
+/* Updating a change from its target (section 6.10). */
+.update-panel { max-width: 980px; }
+.update-panel h2 { font-size: var(--ui-fs-body); margin: 0; }
+.update-panel .toolbar > div { flex: 1 1 300px; }
+.update-strategy { border: 0; padding: 0; margin: 0; display: flex; gap: var(--ui-space-3); align-items: center; }
+.update-strategy legend { float: left; margin-right: var(--ui-space-2); color: var(--ui-muted); }
+.update-head, .update-stop-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
+.update-head .push { margin-left: auto; }
+.update-stops { list-style: none; padding: 0; margin: 0; }
+.update-stop { border-top: 1px solid var(--ui-line); padding: var(--ui-space-2) 0; }
+.update-stop .warn { color: var(--ui-warn); }
