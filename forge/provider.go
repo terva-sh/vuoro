@@ -42,6 +42,13 @@ type Capabilities struct {
 	// spans, written as a bare suggestion fence (GitHub). Without it a block
 	// carries its own offsets from the comment's one line (GitLab).
 	SpanSuggestions bool `json:"span_suggestions"`
+	// Reviewers, Assignees, Labels and SetDraft are the administrative
+	// writes of forge.Administrator (D65): adding and removing reviewers,
+	// assignees and labels, and marking a change draft or ready.
+	Reviewers bool `json:"reviewers"`
+	Assignees bool `json:"assignees"`
+	Labels    bool `json:"labels"`
+	SetDraft  bool `json:"draft"`
 }
 
 // Checkout describes how to fetch this change from its target repository.

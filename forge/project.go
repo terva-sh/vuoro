@@ -70,3 +70,41 @@ func ProjectURL(raw string, parts int) (Project, error) {
 	}
 	return Project{Host: u.Host, Path: strings.Join(ps, "/")}, nil
 }
+
+// Changes are the person's administrative edits to one change (D65): what to
+// add and what to remove, never a replacement set, so a write cannot undo a
+// colleague's edit made since the person looked. Draft, when set, marks the
+// change draft or ready.
+type Changes struct {
+	AddReviewers    []string `json:"add_reviewers,omitempty"`
+	RemoveReviewers []string `json:"remove_reviewers,omitempty"`
+	AddAssignees    []string `json:"add_assignees,omitempty"`
+	RemoveAssignees []string `json:"remove_assignees,omitempty"`
+	AddLabels       []string `json:"add_labels,omitempty"`
+	RemoveLabels    []string `json:"remove_labels,omitempty"`
+	Draft           *bool    `json:"draft,omitempty"`
+}
+
+// Empty reports whether c changes nothing.
+func (c Changes) Empty() bool {
+	return len(c.AddReviewers)+len(c.RemoveReviewers)+len(c.AddAssignees)+len(c.RemoveAssignees)+len(c.AddLabels)+len(c.RemoveLabels) == 0 && c.Draft == nil
+}
+
+// Member is a person who can be asked to review or be assigned.
+type Member struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
+// Administrator is the administrative half of an adapter, optional beside
+// Writer (D65). Each Administer is one explicit action of the person's: an
+// agent's proposal reaches it only once the person accepts it, and then
+// vuoro's code, not the agent, makes the call.
+type Administrator interface {
+	Administer(ctx context.Context, ref Ref, c Changes) error
+	// Members are the project's members, including those it inherits,
+	// matching query by name or username.
+	Members(ctx context.Context, project, query string) ([]Member, error)
+	// Labels are the labels the project's changes can carry.
+	Labels(ctx context.Context, project string) ([]string, error)
+}

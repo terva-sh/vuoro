@@ -1612,15 +1612,19 @@ GitLab notes for the adapter, checked against the GitLab documentation on
   has `GET .../merge_requests/:iid/blocks` and `.../blockees`. On a Free
   project the field is absent, which means unknown, not "none"; the stack is
   then read from target branches alone, and the view says so.
-- **Reviewers, assignees, labels.** GraphQL `mergeRequestSetReviewers`
-  (`reviewerUsernames`), `mergeRequestSetAssignees` (`assigneeUsernames`) and
-  `mergeRequestSetLabels` (`labelIds`), each with `operationMode` `APPEND` or
-  `REMOVE`. The default is `REPLACE`, so vuoro always names the mode. A
-  username that matches no visible user is reported in `errors`, and vuoro
-  treats any entry there as a failed write. REST
-  `PUT .../merge_requests/:iid` takes `add_labels` and `remove_labels`, but
+- **Reviewers and assignees.** GraphQL `mergeRequestSetReviewers`
+  (`reviewerUsernames`) and `mergeRequestSetAssignees` (`assigneeUsernames`),
+  each with `operationMode` `APPEND` or `REMOVE`. The default is `REPLACE`,
+  so vuoro always names the mode. A username that matches no visible user is
+  reported in the mutation's `errors`, and vuoro treats any entry there as a
+  failed write; a failure names the edits already made, since GitLab has no
+  transaction across them. REST `PUT .../merge_requests/:iid` takes
   `reviewer_ids` and `assignee_ids` only as a whole set, so it is not used for
   people.
+- **Labels.** REST `PUT .../merge_requests/:iid` with `add_labels` and
+  `remove_labels`, which are deltas by name. GraphQL `mergeRequestSetLabels`
+  is as safe with `APPEND` and `REMOVE` but takes label IDs, which would cost
+  a lookup per write. Adding a label the project lacks creates it.
 - **Draft.** GraphQL `mergeRequestSetDraft` with `draft: true` or `false`.
   REST's update has no draft field and only a title prefix.
 - **Candidates.** `GET /projects/:id/members/all` includes members inherited

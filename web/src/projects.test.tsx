@@ -97,4 +97,32 @@ describe('project triage', () => {
     for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve() })
     expect(root.querySelector('.project-picker')?.textContent).toContain('repo')
   })
+  it('edits reviewers, labels and draft state, and offers nothing the forge cannot do', async () => {
+    await mount()
+    // Without capabilities, no control shows.
+    expect(root.querySelector('[aria-label="Selected change"] .remove')).toBeNull()
+    expect(button('Mark draft')).toBeUndefined()
+    const can = { reviewers: true, assignees: true, labels: true, draft: true }
+    const editable: ProjectView = { ...view, groups: [{ place: 'review', rows: [row(2, { holder: ['bob'], reviewers: [{ username: 'bob', state: 'unreviewed' }], labels: ['backend'], can })] }] }
+    act(() => render(null, root))
+    vi.mocked(api).mockImplementation(async (path: string) => (path === '/api/projects' ? list : path.endsWith('/members') ? [{ username: 'cat', name: 'Cat' }] : editable) as never)
+    await act(async () => render(<ProjectsTab onOpen={() => {}} />, root))
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve() })
+    vi.mocked(post).mockResolvedValue(editable as never)
+    await act(async () => (root.querySelector('[aria-label="Remove reviewer bob"]') as HTMLButtonElement).click())
+    expect(post).toHaveBeenLastCalledWith('/api/projects/k1/administer', { number: 2, changes: { remove_reviewers: ['bob'] } })
+    for (let i = 0; i < 3; i++) await act(async () => { await Promise.resolve() })
+    await act(async () => button('Mark draft').click())
+    expect(post).toHaveBeenLastCalledWith('/api/projects/k1/administer', { number: 2, changes: { draft: true } })
+    for (let i = 0; i < 3; i++) await act(async () => { await Promise.resolve() })
+    const input = root.querySelector('input[aria-label="Add a label"]') as HTMLInputElement
+    await act(async () => { input.value = 'frontend'; input.dispatchEvent(new Event('input')) })
+    await act(async () => { input.form!.dispatchEvent(new Event('submit', { cancelable: true })) })
+    expect(post).toHaveBeenLastCalledWith('/api/projects/k1/administer', { number: 2, changes: { add_labels: ['frontend'] } })
+    // The reviewer picker loads the project's members when first used.
+    await act(async () => { (root.querySelector('input[aria-label="Add a reviewer"]') as HTMLInputElement).dispatchEvent(new Event('focus')) })
+    await act(async () => { await Promise.resolve() })
+    expect(api).toHaveBeenCalledWith('/api/projects/k1/members')
+    expect([...root.querySelectorAll('datalist option')].map((o) => (o as HTMLOptionElement).value)).toContain('cat')
+  })
 })

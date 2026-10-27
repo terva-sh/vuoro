@@ -23,7 +23,14 @@ export interface ProjectRow {
   assignees: string[]; labels: string[]; pipeline?: string; conflicts?: boolean
   threads: { total: number; unresolved: number; author: number; reviewers: number }
   stack?: { root: number; depth: number; on: number[]; above: number[] }
+  can?: { reviewers: boolean; assignees: boolean; labels: boolean; draft: boolean }
   error?: string
+}
+// Changes are the person's edits to one change (D65): additions and removals,
+// never a replacement set.
+export interface Changes {
+  add_reviewers?: string[]; remove_reviewers?: string[]; add_assignees?: string[]; remove_assignees?: string[]
+  add_labels?: string[]; remove_labels?: string[]; draft?: boolean
 }
 export interface ProjectView {
   project: ProjectEntry; last_attempt: string; last_success: string; error?: string; warning?: string
@@ -295,7 +302,8 @@ function ProjectChanges({ entry, onOpen, opening, active, onRemove, onListed }: 
             </section>}
           </div>
           <aside class="inbox-detail" aria-label="Selected change">
-            {current ? <Detail row={current} all={all} opening={opening} onOpen={onOpen} onSelect={setSelected} />
+            {current ? <Detail row={current} all={all} opening={opening} onOpen={onOpen} onSelect={setSelected} projectKey={entry.key}
+              onView={(next) => { setView(next); onListed(next.open, next.error) }} />
               : <p class="muted">Pick a change to see what holds it.</p>}
             <p class="inbox-keys muted"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>↵</kbd> open · <kbd>o</kbd> open on the forge · <kbd>r</kbd> refresh</p>
           </aside>
@@ -321,9 +329,12 @@ function RowFacts({ row }: { row: ProjectRow }) {
 
 // Detail is the selected change: why it sits there, who holds it, and its
 // stack drawn from the bottom up.
-function Detail({ row, all, opening, onOpen, onSelect }: {
+function Detail({ row, all, opening, onOpen, onSelect, projectKey, onView }: {
   row: ProjectRow; all: ProjectRow[]; opening: boolean; onOpen: (url: string) => void; onSelect: (n: number) => void
+  projectKey: string; onView: (v: ProjectView) => void
 }) {
+  const edit = useEdit(projectKey, row, onView)
+  const can = row.can ?? { reviewers: false, assignees: false, labels: false, draft: false }
   const chain = row.stack ? all.filter((r) => r.stack?.root === row.stack!.root).sort((a, b) => a.stack!.depth - b.stack!.depth || a.ref.number - b.ref.number) : []
   const waitsOnStackOnly = row.place === 'blocked' && row.holder.length === 0 && (row.stack?.on.length ?? 0) > 0
   return (
@@ -343,15 +354,25 @@ function Detail({ row, all, opening, onOpen, onSelect }: {
       <div class="actions">
         <button class="primary" disabled={opening} onClick={() => onOpen(row.web_url)}>Open in vuoro</button>
         <a class="button" href={row.web_url} target="_blank" rel="noreferrer">{row.place === 'approved' ? 'Merge on' : 'Open on'} {forgeName(row.kind)} ↗</a>
+        {can.draft && <button disabled={edit.busy} onClick={() => edit.apply({ draft: !row.draft })}>{row.draft ? 'Mark ready' : 'Mark draft'}</button>}
       </div>
+      {edit.error && <p class="alert" role="alert">{edit.error}</p>}
       {row.error && <p class="inbox-stale" role="status">⚠ Last known state. {row.error}</p>}
       <ul class="inbox-reasons">{row.reasons.map((r, i) => <li key={i}>{r.text}{r.since && <span class="muted"> · {ago(r.since)}</span>}</li>)}</ul>
       <h3>Reviewers</h3>
       {row.reviewers.length === 0 ? <p class="muted">None.</p> : <ul class="project-people">
-        {row.reviewers.map((r) => <li key={r.username}>{reviewerMark[r.state][0]} {r.username} <span class="muted">{reviewerMark[r.state][1]}</span></li>)}
+        {row.reviewers.map((r) => <li key={r.username}>{reviewerMark[r.state][0]} {r.username} <span class="muted">{reviewerMark[r.state][1]}</span>
+          {can.reviewers && <Remove what={`reviewer ${r.username}`} busy={edit.busy} onClick={() => edit.apply({ remove_reviewers: [r.username] })} />}</li>)}
       </ul>}
-      <p><span class="muted">Assignees:</span> {row.assignees.length ? row.assignees.join(', ') : 'none'}</p>
-      <p><span class="muted">Labels:</span> {row.labels.length ? row.labels.map((l) => <span key={l} class="badge">{l}</span>) : 'none'}</p>
+      {can.reviewers && <Adder label="Add a reviewer" busy={edit.busy} options={edit.members} onFocus={edit.loadMembers} onAdd={(u) => edit.apply({ add_reviewers: [u] })} />}
+      <h3>Assignees</h3>
+      {row.assignees.length === 0 ? <p class="muted">None.</p> : <ul class="project-people">
+        {row.assignees.map((u) => <li key={u}>{u}{can.assignees && <Remove what={`assignee ${u}`} busy={edit.busy} onClick={() => edit.apply({ remove_assignees: [u] })} />}</li>)}
+      </ul>}
+      {can.assignees && <Adder label="Assign" busy={edit.busy} options={edit.members} onFocus={edit.loadMembers} onAdd={(u) => edit.apply({ add_assignees: [u] })} />}
+      <h3>Labels</h3>
+      <p>{row.labels.length ? row.labels.map((l) => <span key={l} class="badge">{l}{can.labels && <Remove what={`label ${l}`} busy={edit.busy} onClick={() => edit.apply({ remove_labels: [l] })} />}</span>) : <span class="muted">None.</span>}</p>
+      {can.labels && <Adder label="Add a label" busy={edit.busy} options={edit.labels} onFocus={edit.loadLabels} onAdd={(l) => edit.apply({ add_labels: [l] })} />}
       <p><span class="muted">Discussion:</span> {row.threads.total === 0 ? 'none' : `${row.threads.total} threads, ${row.threads.unresolved} unresolved` +
         (row.threads.unresolved ? ` (${row.threads.author} waiting on the author, ${row.threads.reviewers} on reviewers)` : '')}</p>
       {row.pipeline && <p><span class="muted">Pipeline:</span> {pipelineMark(row.pipeline).join(' ')}</p>}
@@ -367,5 +388,56 @@ function Detail({ row, all, opening, onOpen, onSelect }: {
         </ol>
       </>}
     </div>
+  )
+}
+
+// useEdit makes the person's edits to one change, one at a time, and loads
+// the project's members and labels for the pickers when first asked.
+function useEdit(projectKey: string, row: ProjectRow, onView: (v: ProjectView) => void) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const [members, setMembers] = useState<string[]>()
+  const [labels, setLabels] = useState<string[]>()
+  useEffect(() => setError(undefined), [row.ref.number])
+  return {
+    busy, error, members, labels,
+    apply: async (changes: Changes) => {
+      setBusy(true)
+      setError(undefined)
+      try {
+        onView(await post<ProjectView>(`/api/projects/${projectKey}/administer`, { number: row.ref.number, changes }))
+      } catch (e) {
+        setError(errorText(e))
+      } finally {
+        setBusy(false)
+      }
+    },
+    loadMembers: () => {
+      if (members) return
+      setMembers([])
+      api<{ username: string; name: string }[]>(`/api/projects/${projectKey}/members`).then((m) => setMembers(m.map((x) => x.username))).catch((e: unknown) => setError(errorText(e)))
+    },
+    loadLabels: () => {
+      if (labels) return
+      setLabels([])
+      api<string[]>(`/api/projects/${projectKey}/labels`).then(setLabels).catch((e: unknown) => setError(errorText(e)))
+    },
+  }
+}
+
+function Remove({ what, busy, onClick }: { what: string; busy: boolean; onClick: () => void }) {
+  return <button class="link remove" disabled={busy} aria-label={`Remove ${what}`} title={`Remove ${what}`} onClick={onClick}>✕</button>
+}
+
+// Adder is a field with the project's suggestions and an Add button.
+function Adder({ label, busy, options, onFocus, onAdd }: { label: string; busy: boolean; options?: string[]; onFocus: () => void; onAdd: (v: string) => void }) {
+  const [value, setValue] = useState('')
+  const id = `adder-${label.replace(/\W+/g, '-').toLowerCase()}`
+  return (
+    <form class="project-adder" onSubmit={(e) => { e.preventDefault(); const v = value.trim(); if (v) { onAdd(v); setValue('') } }}>
+      <input list={id} value={value} aria-label={label} placeholder={`${label}…`} onFocus={onFocus} onInput={(e) => setValue((e.target as HTMLInputElement).value)} />
+      <datalist id={id}>{(options ?? []).map((o) => <option key={o} value={o} />)}</datalist>
+      <button disabled={busy || !value.trim()}>Add</button>
+    </form>
   )
 }

@@ -27,9 +27,19 @@ type Row struct {
 	Conflicts bool          `json:"conflicts,omitempty"`
 	Threads   Threads       `json:"threads"`
 	Stack     *Stack        `json:"stack,omitempty"`
+	// Can is what the person's account may change on it (D65).
+	Can Can `json:"can"`
 	// Error says why the last refresh could not read this change, whose
 	// facts are then the last ones read.
 	Error string `json:"error,omitempty"`
+}
+
+// Can is the administrative half of a change's capabilities.
+type Can struct {
+	Reviewers bool `json:"reviewers"`
+	Assignees bool `json:"assignees"`
+	Labels    bool `json:"labels"`
+	Draft     bool `json:"draft"`
 }
 
 // RowReviewer is a human reviewer and where they stand.
@@ -110,6 +120,8 @@ func (snap Snapshot) Display() Display {
 			}
 		}
 		row.Threads = threads(ch)
+		c := ch.Capabilities
+		row.Can = Can{Reviewers: c.Reviewers, Assignees: c.Assignees, Labels: c.Labels, Draft: c.SetDraft}
 		byPlace[row.Place] = append(byPlace[row.Place], row)
 	}
 	for _, p := range Places {
