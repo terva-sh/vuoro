@@ -387,3 +387,26 @@ func (r *Repos) DropUpdate(ctx context.Context, key, runID string) error {
 	}
 	return nil
 }
+
+// PushUpdate pushes an update's result, sha, to branch at remote, over the
+// person's own git transport. With lease empty it never forces, so a branch
+// that moved is refused. With lease set, for an accepted rebase (D67), it
+// forces with a lease against that commit, the head the person saw, so a
+// push that landed since is refused rather than overwritten.
+func (r *Repos) PushUpdate(ctx context.Context, key, remote, sha, branch, lease string) error {
+	gitDir, err := r.gitDir(key)
+	if err != nil {
+		return err
+	}
+	unlock, err := r.lock(ctx, gitDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	args := []string{"push", "--quiet", "--no-verify"}
+	if lease != "" {
+		args = append(args, "--force-with-lease=refs/heads/"+branch+":"+lease)
+	}
+	_, err = r.git(ctx, gitDir, append(args, remote, sha+":refs/heads/"+branch)...)
+	return err
+}

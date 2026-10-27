@@ -422,14 +422,20 @@ func (a *App) discardProposal(w http.ResponseWriter, r *http.Request) {
 // change's review, and a proposal is accepted only through acceptProposals.
 var projectRunRoutes = map[string]bool{"": true, "close": true, "sessions": true}
 
-// keepProjectRuns refuses the generic run routes that a project triage run
-// does not answer.
+// updateRunRoutes are the generic run routes an update run answers. The rest
+// act on a review, and its editor is driven only through the update routes,
+// so its work is never pushed as a stacked change.
+var updateRunRoutes = map[string]bool{"": true, "close": true, "sessions": true, "update": true}
+
+// keepProjectRuns refuses the generic run routes that a project triage run,
+// or an update run, does not answer.
 func (a *App) keepProjectRuns(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/runs/"); ok && a.Runs != nil {
 			id, sub, _ := strings.Cut(rest, "/")
 			sub, _, _ = strings.Cut(sub, "/")
-			if run := a.Runs.Get(id); run != nil && run.Mode == review.ProjectMode && !projectRunRoutes[sub] {
+			run := a.Runs.Get(id)
+			if run != nil && (run.Mode == review.ProjectMode && !projectRunRoutes[sub] || run.Mode == review.UpdateMode && !updateRunRoutes[sub]) {
 				writeError(w, review.ErrNoRun)
 				return
 			}

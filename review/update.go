@@ -620,3 +620,91 @@ func (m *Manager) planRebase(ctx context.Context, r *Run, u *Update, target stri
 	}
 	return nil
 }
+
+// ErrUpdatePushing means a push of this update is already under way.
+var ErrUpdatePushing = errors.New("review: this update is already being pushed")
+
+// PushUpdate pushes a ready update, called only from the person's confirmed
+// action (D66, D67). sha is the result as the person saw it, and head the
+// change's head on the forge now, which must still be the head the update
+// started from.
+//
+// On the person's own change, a merge goes to the change's branch as a
+// fast-forward, and a rebase with a lease against that head. On somebody
+// else's, a merge goes to a branch of its own and open opens the draft change
+// onto theirs; a rebase never got this far.
+func (m *Manager) PushUpdate(ctx context.Context, runID, remote, head, sha string, open func(branch string) (string, error)) (*Pushed, error) {
+	r := m.Get(runID)
+	if r == nil || r.Mode != UpdateMode {
+		return nil, ErrNoUpdate
+	}
+	r.mu.Lock()
+	u := r.Update
+	switch {
+	case u.Discarded || r.Status == Closed:
+		r.mu.Unlock()
+		return nil, errors.New("review: this update was discarded")
+	case u.Pushed != nil:
+		r.mu.Unlock()
+		return nil, errors.New("review: this update was pushed already")
+	case u.Result == "":
+		r.mu.Unlock()
+		return nil, errors.New("review: this update is not ready to push")
+	case sha != u.Result:
+		r.mu.Unlock()
+		return nil, errors.New("review: the update changed since you looked at it; look again before pushing")
+	case head != r.Head:
+		r.mu.Unlock()
+		return nil, fmt.Errorf("review: %s moved on the forge since the update started from %s; start the update again", u.Source, short(r.Head))
+	case u.Strategy == Rebase && !u.Own:
+		r.mu.Unlock()
+		return nil, errors.New("review: vuoro rebases only your own change")
+	case r.updating:
+		r.mu.Unlock()
+		return nil, ErrUpdatePushing
+	}
+	r.updating = true
+	strategy, own, source := u.Strategy, u.Own, u.Source
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		r.updating = false
+		r.mu.Unlock()
+	}()
+
+	p := &Pushed{SHA: sha, Target: source, At: time.Now().UTC()}
+	var err error
+	switch {
+	case own && strategy == Rebase:
+		p.Branch = source
+		err = m.Repos.PushUpdate(ctx, r.repoKey, remote, sha, source, head)
+	case own:
+		p.Branch = source
+		err = m.Repos.PushUpdate(ctx, r.repoKey, remote, sha, source, "")
+	default:
+		p.Branch = fmt.Sprintf("vuoro/update-%d-%s", r.Ref.Number, runID[max(0, len(runID)-6):])
+		if err = m.Repos.PushUpdate(ctx, r.repoKey, remote, sha, p.Branch, ""); err == nil && open != nil {
+			p.URL, p.NotDraft, err = openStacked(func() (string, error) { return open(p.Branch) })
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	r.Update.Pushed = p
+	r.mu.Unlock()
+	r.save()
+	c := *p
+	return &c, nil
+}
+
+// UpdatesOf are the update runs of the change ref, newest first.
+func (m *Manager) UpdatesOf(ref forge.Ref) []*Run {
+	var out []*Run
+	for _, r := range m.Runs() {
+		if r.Mode == UpdateMode && r.Ref == ref {
+			out = append(out, r)
+		}
+	}
+	return out
+}

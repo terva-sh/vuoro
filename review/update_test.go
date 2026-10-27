@@ -233,4 +233,3 @@ func TestUpdateRefusals(t *testing.T) {
 		t.Fatalf("up to date: %s %q", v.Status, v.Error)
 	}
 }
-

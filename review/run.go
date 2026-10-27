@@ -114,8 +114,10 @@ type Run struct {
 	Summary *SummaryRange
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
-	// Update is an update run's state (section 6.10).
-	Update *Update
+	// Update is an update run's state (section 6.10), and updating is set
+	// while it is pushed.
+	Update   *Update
+	updating bool
 
 	dir           string // the worktree
 	repoKey       string

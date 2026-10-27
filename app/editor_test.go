@@ -41,11 +41,14 @@ func TestOnlyTheConfirmedRoutePushesOrOpensAMergeRequest(t *testing.T) {
 		}
 	}
 	// Suggestions go back the same way (D59): only the confirmed suggest
-	// route delivers them, and only its writer attaches a patch.
-	for name, want := range map[string]string{"PushEditor": "pushEditor", "OpenStacked": "pushEditor",
-		"DeliverSuggestions": "suggestEditor", "writeFix": "suggestEditor", "Upload": "writeFix"} {
-		if got := slices.Compact(callers[name]); len(got) != 1 || got[0] != want {
-			t.Errorf("%s is called from %q, want only %s", name, got, want)
+	// route delivers them, and only its writer attaches a patch. An update
+	// is pushed, and its draft change opened, only by its own confirmed
+	// route (D66).
+	for name, want := range map[string][]string{"PushEditor": {"pushEditor"}, "OpenStacked": {"pushEditor", "pushUpdate"},
+		"PushUpdate": {"pushUpdate"}, "DeliverSuggestions": {"suggestEditor"}, "writeFix": {"suggestEditor"}, "Upload": {"writeFix"}} {
+		got := slices.Compact(slices.Sorted(slices.Values(callers[name])))
+		if !slices.Equal(got, want) {
+			t.Errorf("%s is called from %q, want only %q", name, got, want)
 		}
 	}
 }

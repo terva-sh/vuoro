@@ -115,6 +115,7 @@ func (a *App) Handler() http.Handler {
 	a.localRoutes(mux)
 	a.projectRoutes(mux)
 	a.projectTriageRoutes(mux)
+	a.updateRoutes(mux)
 	mux.HandleFunc("GET /api/about", a.about)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
@@ -511,8 +512,8 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 func (a *App) listRuns(w http.ResponseWriter, r *http.Request) {
 	out := []review.RunView{}
 	for _, run := range a.Runs.Runs() {
-		if run.Mode == review.ProjectMode {
-			continue // a project's triage run shows on its project
+		if run.Mode == review.ProjectMode || run.Mode == review.UpdateMode {
+			continue // a project's triage run shows on its project, an update on its change
 		}
 		v := run.View()
 		for i := range v.Sessions {
