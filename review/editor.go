@@ -84,6 +84,8 @@ type EditorTask struct {
 // kind is which editor this is, for its prompt.
 func (e *EditorState) kind(mode string) string {
 	switch {
+	case mode == UpdateMode:
+		return "update"
 	case e == nil:
 		return "others"
 	case mode == "triage":
@@ -546,6 +548,8 @@ func kept(all []drafts.Draft) []drafts.Draft {
 // review of their own work (D42).
 func editorPrompt(kind string) string {
 	switch kind {
+	case "update":
+		return updatePrompt
 	case "threads":
 		return `You are the editor for the author of a merge request. Reviewers left
 threads on it, and the author picked the ones for you to fix on a branch of

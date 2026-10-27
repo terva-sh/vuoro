@@ -114,6 +114,8 @@ type Run struct {
 	Summary *SummaryRange
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
+	// Update is an update run's state (section 6.10).
+	Update *Update
 
 	dir           string // the worktree
 	repoKey       string
@@ -365,6 +367,10 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 	}
 	r.Status = Working
 	r.mu.Unlock()
+	if r.Mode == UpdateMode {
+		m.prepareUpdate(ctx, r, src)
+		return
+	}
 	for _, s := range r.sessions {
 		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage {
 			m.spawn(func() { m.begin(r, s, r.first) })
@@ -996,6 +1002,12 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 	if ed { // nothing of the editor's outlives its review
 		_ = os.RemoveAll(m.editorDir(r.ID))
 		_ = m.Repos.DropEditor(ctx, r.repoKey, r.ID)
+	}
+	r.mu.Lock()
+	unpushed := r.Mode == UpdateMode && r.Update != nil && r.Update.Pushed == nil
+	r.mu.Unlock()
+	if unpushed { // an update's commits go with it, unless it was pushed
+		_ = m.Repos.DropUpdate(ctx, r.repoKey, r.ID)
 	}
 	var err error
 	if r.Mode == ProjectMode { // an empty directory, not a worktree

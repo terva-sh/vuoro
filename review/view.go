@@ -43,6 +43,8 @@ type RunView struct {
 	Patches []Patch `json:"patches,omitempty"`
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage `json:"project_triage,omitempty"`
+	// Update is an update run's state (section 6.10).
+	Update *Update `json:"update,omitempty"`
 }
 
 // SessionView is one session as the person sees it.
@@ -75,6 +77,9 @@ func (r *Run) View() RunView {
 		p := *r.Project
 		p.Changes, p.Candidates, p.Labels = slices.Clone(p.Changes), slices.Clone(p.Candidates), slices.Clone(p.Labels)
 		v.Project = &p
+	}
+	if r.Update != nil {
+		v.Update = r.Update.clone()
 	}
 	if r.editor != nil {
 		e := *r.editor
@@ -145,7 +150,7 @@ func (r *Run) record() record {
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
 	}
-	if r.editor != nil || len(r.waves) > 0 {
+	if r.editor != nil || len(r.waves) > 0 || r.Update != nil {
 		who := r.who
 		rec.Who = &who
 	}
@@ -212,6 +217,9 @@ func (m *Manager) load(keep func(Status) bool) error {
 		}
 		if r.Mode == "triage" {
 			r.bindThreads()
+		}
+		if r.Mode == UpdateMode && rec.Update != nil {
+			r.Update = rec.Update
 		}
 		if r.Mode == ProjectMode && rec.Project != nil {
 			r.Project = rec.Project
