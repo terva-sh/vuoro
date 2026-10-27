@@ -597,3 +597,23 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .suggest-fix { margin-bottom: var(--ui-space-3); }
 .suggest-fix h4 { margin: 0 0 var(--ui-space-1); }
 .suggest-body { background: var(--ui-raised); padding: var(--ui-space-2); border-radius: var(--ui-radius-inline); max-height: 18em; overflow: auto; white-space: pre-wrap; }
+
+/* Project triage (docs/plan.md section 6.9) reuses the inbox's rows, badge
+   and detail pane, under a head that picks the project. */
+.project-picker { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }
+.project-picker .chip, .project-view .chip { border-radius: var(--ui-radius-pill); padding: 2px 12px; font-size: var(--ui-fs-note); }
+.project-picker .chip.on { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
+.project-add { margin: var(--ui-space-3) 0; padding: var(--ui-space-3); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); }
+.project-add form { display: flex; gap: var(--ui-space-2); align-items: center; margin-bottom: var(--ui-space-2); }
+.project-add input { flex: 1; }
+.project-found { list-style: none; padding: 0; margin: 0; }
+.project-found li { display: flex; justify-content: space-between; gap: var(--ui-space-3); align-items: center; padding: var(--ui-space-1) 0; border-bottom: 1px solid var(--ui-line); }
+.project-head { display: flex; flex-wrap: wrap; gap: var(--ui-space-3); align-items: baseline; margin-top: var(--ui-space-3); }
+.project-head h2 { font-size: var(--ui-fs-body); }
+.project-actions { margin-left: auto; display: flex; gap: var(--ui-space-3); align-items: baseline; }
+.project-note { font-size: var(--ui-fs-note); margin: var(--ui-space-1) 0; }
+.project-filter { display: flex; gap: var(--ui-space-1); align-items: center; font-size: var(--ui-fs-note); color: var(--ui-muted); }
+.project-people { list-style: none; padding: 0; margin: 0; }
+.project-stack { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--ui-line); }
+.project-stack li { padding: 2px var(--ui-space-2); }
+.project-stack li.on { background: var(--ui-accent-soft); border-left: 3px solid var(--ui-accent); }

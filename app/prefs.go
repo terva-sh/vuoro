@@ -24,7 +24,7 @@ var Schemes = []string{"", "light", "dark"}
 
 // Tabs are the home page's tabs (docs/plan.md section 6.8). The empty tab is
 // the first, Reviews.
-var Tabs = []string{"", "reviews", "local"}
+var Tabs = []string{"", "reviews", "local", "projects"}
 
 // prefs are the person's choices made in the UI, kept in the state
 // directory rather than the config file, which is theirs to write.

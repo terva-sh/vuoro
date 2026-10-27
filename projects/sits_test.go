@@ -1,6 +1,8 @@
 package projects
 
 import (
+	"encoding/json"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -209,6 +211,21 @@ func TestACycleIsDroppedNotLooped(t *testing.T) {
 	}
 	if !slices.Equal(belows[3].On, []int{1}) || st[3].Depth != 1 {
 		t.Fatalf("a change on a cycle lost its own link: %+v", st[3])
+	}
+}
+
+// The window reads every list's length, so none may encode as null.
+func TestNoListEncodesAsNull(t *testing.T) {
+	bottom := change(1, requested("bob", 2), func(ch *forge.Change) { ch.Reviewers[0].State = forge.Reviewed })
+	bottom.Reviews = append(bottom.Reviews, forge.Review{Reviewer: "bob", Verdict: forge.VerdictCommented, At: at(3)})
+	top := change(2, func(ch *forge.Change) { ch.TargetBranch = bottom.SourceBranch })
+	d := Snapshot{Project: Entry{Path: "team/repo"}, Items: []Item{{Change: bottom}, {Change: top}, {Change: change(3)}}}.Display()
+	b, _ := json.Marshal(d)
+	// An unknown time is null on purpose; nothing else is.
+	for _, m := range regexp.MustCompile(`"(\w+)":null`).FindAllStringSubmatch(string(b), -1) {
+		if m[1] != "since" && m[1] != "opened" {
+			t.Fatalf("%s encoded as null: %s", m[1], b)
+		}
 	}
 }
 

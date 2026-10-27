@@ -5,6 +5,7 @@ import { ChangeView } from './change'
 import { LocalRun } from './run'
 import { Inbox } from './inbox'
 import { LocalTab } from './local'
+import { ProjectsTab } from './projects'
 import { RunList } from './runs'
 import { About } from './about'
 import { Settings } from './settings'
@@ -120,6 +121,9 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
   // comes from the view it last built until then.
   const [localShown, setLocalShown] = useState(false)
   useEffect(() => { if (tab === 'local') setLocalShown(true) }, [tab])
+  // Projects reads its projects' changes, so it too waits to be shown.
+  const [projectsShown, setProjectsShown] = useState(false)
+  useEffect(() => { if (tab === 'projects') setProjectsShown(true) }, [tab])
   useEffect(() => {
     api<LocalView | null>('/api/local?cached=1')
       .then((v) => { if (v) setCounts((c) => ({ ...c, local: c.local ?? v.needs })) })
@@ -131,7 +135,7 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
     post('/api/prefs/tab', { tab: t }).catch(() => undefined)
   }
   if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
-  const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local']]
+  const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local'], ['projects', 'Projects']]
   return (
     <div class="home">
       <nav class="tabs home-tabs" role="tablist" aria-label="Home" onKeyDown={(e) => {
@@ -158,6 +162,10 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
       </div>
       <div class="home-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" hidden={tab !== 'local'}>
         {localShown && <LocalTab setup={setup} onOpen={onOpen} onOpenRun={onOpenRun} onCount={(n) => setCounts((c) => ({ ...c, local: n }))} />}
+      </div>
+      <div class="home-panel" role="tabpanel" id="panel-projects" aria-labelledby="tab-projects" hidden={tab !== 'projects'}>
+        {/* A saved forge changes the base, and the projects read their accounts again. */}
+        {projectsShown && <ProjectsTab onOpen={onOpen} opening={opening} active={tab === 'projects'} key={setup?.base} />}
       </div>
       <RunList runs={runs} onOpen={onOpen} onOpenRun={onOpenRun} />
     </div>

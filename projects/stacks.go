@@ -120,7 +120,7 @@ func stacks(project string, changes []forge.Change) (map[int]below, map[int]*Sta
 		d, root := depth(n)
 		ups := slices.Clone(above[n])
 		slices.Sort(ups)
-		out[n] = &Stack{Root: root, Depth: d, On: slices.Clone(on[n]), Above: ups}
+		out[n] = &Stack{Root: root, Depth: d, On: append([]int{}, on[n]...), Above: append([]int{}, ups...)}
 	}
 	return belows, out
 }

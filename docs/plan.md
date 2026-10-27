@@ -1570,6 +1570,10 @@ time it has sat there, from the event that put it there; an unknown time stays
 unknown, as in section 4.1. Bots and system notes count for nothing, as
 everywhere.
 
+**The view is the home page's third tab, Projects.** Like Local, it reads
+nothing until first shown. The selected project refreshes once when it opens,
+on request, and every five minutes while the tab shows, never while hidden.
+
 **A row says what a tech lead asks first.** Reviewers and their states, the
 assignee, whether it has discussion, how many threads are unresolved and
 whose turn each is, the labels, the pipeline's state, the turn (section 4),

@@ -59,7 +59,7 @@ const hasKind = (row: InboxRow, kind: Kind) => row.turn.reasons.some((r) => (kin
 
 // AgeBadge is how long the change has waited, coloured blue, amber, then
 // magenta as it ages, and always with the number.
-function AgeBadge({ since }: { since: string | null }) {
+export function AgeBadge({ since }: { since: string | null }) {
   if (!since) return <span class="age unknown" title="Age unknown">?</span>
   const hours = (Date.now() - Date.parse(since)) / 3_600_000
   const label = hours < 1 ? `${Math.max(1, Math.round(hours * 60))}m` : hours < 48 ? `${Math.round(hours)}h` : `${Math.round(hours / 24)}d`

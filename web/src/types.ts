@@ -184,7 +184,7 @@ export interface Tool {
 }
 // HomeTab is a tab of the home page (docs/plan.md section 6.8); empty is the
 // first, Reviews.
-export type HomeTab = '' | 'reviews' | 'local'
+export type HomeTab = '' | 'reviews' | 'local' | 'projects'
 
 // The Local tab: the person's checkouts, one row per branch beyond its base.
 export interface LocalWorktree { path: string; branch?: string; head: string; dirty: boolean }

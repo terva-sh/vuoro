@@ -123,7 +123,7 @@ func Sit(ch forge.Change, stack below) Sitting {
 	}
 
 	// Each reviewer's turn, as the inbox derives it for that reviewer.
-	var waiting []string
+	waiting := []string{}
 	for _, r := range reviewers {
 		t := turn.Derive(ch, r.Username, []forge.Role{forge.ReviewerRole})
 		if t.Owner != turn.Mine {

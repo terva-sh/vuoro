@@ -89,3 +89,23 @@ describe('the home tabs', () => {
     expect(tab('Local').textContent).toBe('Local')
   })
 })
+
+describe('the Projects tab', () => {
+  it('mounts once however often the home page renders', async () => {
+    vi.mocked(api).mockImplementation(async (path: string) => {
+      if (path.startsWith('/api/inbox')) return inbox
+      if (path === '/api/local?cached=1') return null
+      if (path === '/api/projects') return { projects: [{ key: 'k', kind: 'gitlab', host: 'h', path: 'a/b', name: 'A / B', web_url: 'https://h/a/b', open: 0 }], accounts: ['Work'] }
+      if (path.startsWith('/api/projects/k')) return { project: { key: 'k', kind: 'gitlab', host: 'h', path: 'a/b', name: 'A / B', web_url: 'https://h/a/b' }, last_attempt: '', last_success: '', dependencies: false, open: 0, groups: [], unread: [] }
+      throw new Error(`unexpected ${path}`)
+    })
+    vi.mocked(post).mockResolvedValue({})
+    await act(async () => render(<Home setup={setup('reviews')} onSetup={() => {}} runs={[]} onOpen={() => {}} onOpenRun={() => {}} opening={false} />, root))
+    await settle()
+    for (const name of ['Projects', 'Reviews', 'Projects', 'Local', 'Projects']) {
+      act(() => tab(name).click())
+      await settle()
+    }
+    expect(root.querySelectorAll('section.projects').length).toBe(1)
+  })
+})
