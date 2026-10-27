@@ -16,6 +16,11 @@ They were scrubbed before they were committed:
   lines, and `changedFiles` is set to match.
 - Commit SHAs and times are kept, because the turn rules read them.
 
+- `labels`, `files`, `mergeable`, `headRepository` and `commits`, which project
+  triage added to the query on 2026-10-27, were written in by hand rather than
+  recorded. Each file's counts come from its cut patch, #14578 carries the
+  label `enhancement` and a passing check rollup, and #13899 has neither.
+
 No headers, tokens or emails were recorded. The tests serve these as GitHub
 Enterprise Server would, at the test server's host, and rewrite the
 `github.com` URLs in them to that host.

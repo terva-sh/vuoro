@@ -425,7 +425,8 @@ func TestWritesNeedAStoreAndAToken(t *testing.T) {
 		t.Fatalf("no store: %v", err)
 	}
 	c.KeepDraftsIn(&memStore{})
-	if caps := c.Capabilities(); caps != (forge.Capabilities{Drafts: true, Reply: true, Resolve: true, Approve: true, RequestChanges: true, Suggestions: true, SpanSuggestions: true}) {
+	if caps := c.Capabilities(); caps != (forge.Capabilities{Drafts: true, Reply: true, Resolve: true, Approve: true, RequestChanges: true, Suggestions: true, SpanSuggestions: true,
+		Reviewers: true, Assignees: true, Labels: true, SetDraft: true}) {
 		t.Fatalf("caps %+v", caps)
 	}
 }

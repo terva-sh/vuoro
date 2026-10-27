@@ -535,7 +535,51 @@
       }
      ]
     },
-    "changedFiles": 2
+    "changedFiles": 2,
+    "labels": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": [
+      {
+       "name": "enhancement"
+      }
+     ]
+    },
+    "files": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": [
+      {
+       "path": "go.mod",
+       "additions": 0,
+       "deletions": 0
+      },
+      {
+       "path": "go.sum",
+       "additions": 0,
+       "deletions": 0
+      }
+     ]
+    },
+    "mergeable": "MERGEABLE",
+    "headRepository": {
+     "nameWithOwner": "owner/repo"
+    },
+    "commits": {
+     "nodes": [
+      {
+       "commit": {
+        "statusCheckRollup": {
+         "state": "SUCCESS"
+        }
+       }
+      }
+     ]
+    }
    }
   }
  }

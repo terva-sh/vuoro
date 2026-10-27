@@ -146,7 +146,11 @@ func Sit(ch forge.Change, stack below) Sitting {
 
 	approvedBy, approvedAt := approvals(ch, reviewers)
 	changesRequested := slices.ContainsFunc(reviewers, func(r forge.Reviewer) bool { return r.State == forge.RequestedChanges })
-	if len(reviewers) == 0 {
+	if len(reviewers) == 0 && len(ch.Teams) > 0 {
+		// A team asked to review names nobody until someone in it answers.
+		waiting = append(waiting, ch.Teams...)
+		add(WaitingReview, "Review is requested from "+strings.Join(ch.Teams, ", ")+"; nobody in it is named yet.", nil, "")
+	} else if len(reviewers) == 0 {
 		add(NoReviewers, "No reviewer is assigned.", nil, "")
 	} else if len(approvedBy) > 0 && !changesRequested {
 		add(Approved, "Approved by "+strings.Join(approvedBy, ", ")+"; not merged.", approvedAt, "")

@@ -1632,6 +1632,46 @@ GitLab notes for the adapter, checked against the GitLab documentation on
   filtered with `query`. `GET /projects/:id/labels` includes ancestor groups'
   labels by default (`include_ancestor_groups`).
 
+GitHub notes for the adapter, written on 2026-10-27:
+
+- **Listing.** `repository.pullRequests(states: OPEN)` is paged by cursor,
+  oldest first, and one listed twice refuses the read. The search for a
+  repository is `search(type: REPOSITORY)` over what the account can see. With
+  no query, the account's own repositories are listed, most recently pushed
+  first.
+- **Facts.** The read query gained:
+  - `labels` and `files` (path and line counts), paged like the other
+    connections;
+  - `mergeable`, where `CONFLICTING` means conflicts;
+  - `headRepository` for forks;
+  - the head commit's `statusCheckRollup`, whose `SUCCESS`, `FAILURE` or
+    `ERROR`, and `PENDING` or `EXPECTED` read as success, failed and
+    pending.
+
+  GitHub has no dependency API, so stacks come from base branches alone.
+- **Writes.** Each write uses an endpoint that adds or removes and never
+  replaces:
+  - reviewers: `POST` and `DELETE /pulls/N/requested_reviewers`;
+  - assignees: `POST` and `DELETE /issues/N/assignees`;
+  - labels: `POST /issues/N/labels`, and `DELETE /issues/N/labels/NAME` for
+    each label removed.
+
+  An add to assignees answers success even when it drops an account that
+  cannot be assigned, so the answer is checked against each name. Draft state
+  is GraphQL only: `convertPullRequestToDraft` and
+  `markPullRequestReadyForReview`.
+- **Candidates and triage facts.**
+  - Candidates are `repository.assignableUsers`, which filters by query and
+    needs only read access.
+  - CODEOWNERS is read from `.github/`, the root, then `docs/`.
+  - Recent committers come from `GET /repos/O/R/commits?path=`, by login when
+    GitHub links an account.
+- **Teams.** A team asked to review names nobody (section 5.4), so the inbox
+  still skips it. In the project view, a pull request whose only request is to
+  a team waits on review, with the team as holder, rather than reading as
+  having no reviewers. A named reviewer takes over from the team. Team requests
+  are not edited from the view.
+
 **Agent triage is reviewer-class work** (section 6.4). One read-only session
 looks at the project's open changes and proposes, for each, reviewers, labels,
 and a line saying what would unblock it. Once the person accepts them, the

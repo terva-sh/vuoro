@@ -67,11 +67,14 @@ func ParseURL(raw string) (forge.Ref, error) { return forge.URLRef(raw, "/pull/"
 // Capabilities are the writes this client offers. A reviewer cannot withdraw
 // their own approval on GitHub. A suggestion replaces the lines its comment
 // spans, so one over several lines is kept as a comment spanning them.
+// Project triage's administrative writes need only the token.
 func (c *Client) Capabilities() forge.Capabilities {
 	c.draftMu.Lock()
 	write := !c.token.Empty() && c.drafts != nil
 	c.draftMu.Unlock()
-	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write, Suggestions: write, SpanSuggestions: write}
+	admin := !c.token.Empty() // project triage's writes keep nothing locally
+	return forge.Capabilities{Drafts: write, Reply: write, Resolve: write, Approve: write, RequestChanges: write, Suggestions: write, SpanSuggestions: write,
+		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin}
 }
 
 func (c *Client) scrub(s string) string {

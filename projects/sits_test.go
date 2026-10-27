@@ -73,6 +73,7 @@ func TestEachPlace(t *testing.T) {
 		{"approved", change(1, requested("bob", 2), verdict("bob", forge.VerdictApproved, 6)), Approved, ptr(at(6))},
 		{"pipeline failed", change(1, requested("bob", 2), func(ch *forge.Change) { ch.Pipeline = "failed" }), Blocked, nil},
 		{"conflicts", change(1, requested("bob", 2), func(ch *forge.Change) { ch.Conflicts = true }), Blocked, nil},
+		{"a team asked", change(1, func(ch *forge.Change) { ch.Teams = []string{"o/core"} }), WaitingReview, nil},
 	} {
 		got := sit(c.ch)
 		if got.Place != c.place {
@@ -86,6 +87,17 @@ func TestEachPlace(t *testing.T) {
 }
 
 func ptr(t time.Time) *time.Time { return &t }
+
+func TestATeamAskedHoldsTheChangeUntilSomeoneAnswers(t *testing.T) {
+	got := sit(change(1, func(ch *forge.Change) { ch.Teams = []string{"o/core"} }))
+	if len(got.Holder) != 1 || got.Holder[0] != "o/core" || !strings.Contains(got.Reasons[0].Text, "o/core") {
+		t.Fatalf("%+v", got)
+	}
+	// A named reviewer takes over from the team.
+	if got := sit(change(1, requested("bob", 2), func(ch *forge.Change) { ch.Teams = []string{"o/core"} })); len(got.Holder) != 1 || got.Holder[0] != "bob" {
+		t.Fatalf("%+v", got)
+	}
+}
 
 func TestPrecedence(t *testing.T) {
 	// Each pair holds both places, and sits in the earlier one, keeping the

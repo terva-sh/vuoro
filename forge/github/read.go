@@ -28,7 +28,7 @@ const threadComment = `id author { ` + actor + ` } body createdAt commit { oid }
 const threadPageQuery = "query($id: ID!, $after: String!) { node(id: $id) { ... on PullRequestReviewThread { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { " + threadComment + " } } } } }"
 
 var connections = []connection{
-	{"reviewRequests", "", `requestedReviewer { __typename ... on User { login } ... on Bot { login } ... on Mannequin { login } }`},
+	{"reviewRequests", "", `requestedReviewer { __typename ... on User { login } ... on Bot { login } ... on Mannequin { login } ... on Team { slug organization { login } } }`},
 	{"reviews", "", `id author { ` + actor + ` } state body submittedAt commit { oid }`},
 	{"reviewThreads", "", `id isResolved path line originalLine diffSide comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { ` + threadComment + ` } }`},
 	{"comments", "", `id author { ` + actor + ` } body createdAt`},
@@ -37,13 +37,17 @@ var connections = []connection{
 		... on ReviewRequestedEvent { createdAt actor { login } requestedReviewer { __typename ... on User { login } ... on Bot { login } ... on Mannequin { login } } }
 		... on ReviewDismissedEvent { previousReviewState review { id } }
 		... on HeadRefForcePushedEvent { createdAt actor { login } afterCommit { oid } }`},
+	// Project triage's facts (docs/plan.md section 6.9).
+	{"labels", "", `name`},
+	{"files", "", `path additions deletions`},
 }
 
 // maxPages bounds the paging of one connection, at a hundred nodes a page.
 const maxPages = 50
 
 const prFields = `number title body url state isDraft createdAt updatedAt changedFiles
-	author { ` + actor + ` } baseRefName headRefName baseRefOid headRefOid mergeStateStatus`
+	author { ` + actor + ` } baseRefName headRefName baseRefOid headRefOid mergeStateStatus
+	mergeable headRepository { nameWithOwner } commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }`
 
 func (k connection) field(after bool) string {
 	args := "first: 100"
@@ -119,6 +123,19 @@ type gqlPR struct {
 	HeadRefOID       string    `json:"headRefOid"`
 	MergeStateStatus string    `json:"mergeStateStatus"`
 	ChangedFiles     int       `json:"changedFiles"`
+	Mergeable        string    `json:"mergeable"`
+	HeadRepository   *struct {
+		NameWithOwner string `json:"nameWithOwner"`
+	} `json:"headRepository"`
+	Commits struct {
+		Nodes []struct {
+			Commit struct {
+				StatusCheckRollup *struct {
+					State string `json:"state"`
+				} `json:"statusCheckRollup"`
+			} `json:"commit"`
+		} `json:"nodes"`
+	} `json:"commits"`
 
 	conns map[string]*rawConnection
 	// paged says a thread was read in more than one query, which a move
@@ -135,8 +152,12 @@ type gqlRepo struct {
 }
 
 type gqlRequested struct {
-	Typename string `json:"__typename"`
-	Login    string `json:"login"`
+	Typename     string `json:"__typename"`
+	Login        string `json:"login"`
+	Slug         string `json:"slug"`
+	Organization *struct {
+		Login string `json:"login"`
+	} `json:"organization"`
 }
 
 type gqlReview struct {
@@ -185,6 +206,10 @@ type gqlEvent struct {
 	} `json:"review"`
 	AfterCommit *gqlOID `json:"afterCommit"`
 }
+
+// checkStates maps a head commit's check rollup to the pipeline states
+// project triage reads.
+var checkStates = map[string]string{"SUCCESS": "success", "FAILURE": "failed", "ERROR": "failed", "PENDING": "pending", "EXPECTED": "pending"}
 
 func ownerName(ref forge.Ref) (string, string) {
 	owner, name, _ := strings.Cut(ref.Project, "/")
@@ -418,8 +443,35 @@ func convert(ch *forge.Change, p *gqlPR, drafts bool) error {
 	if err != nil {
 		return err
 	}
+	labels, err := nodes[struct {
+		Name string `json:"name"`
+	}](p, "labels")
+	if err != nil {
+		return err
+	}
+	files, err := nodes[struct {
+		Path      string `json:"path"`
+		Additions int    `json:"additions"`
+		Deletions int    `json:"deletions"`
+	}](p, "files")
+	if err != nil {
+		return err
+	}
 	for _, a := range assignees {
 		ch.Assignees = append(ch.Assignees, a.user())
+	}
+	for _, l := range labels {
+		ch.Labels = append(ch.Labels, l.Name)
+	}
+	for _, f := range files {
+		ch.Touched = append(ch.Touched, forge.Touched{Path: f.Path, Added: f.Additions, Removed: f.Deletions})
+	}
+	ch.Conflicts = p.Mergeable == "CONFLICTING"
+	if p.HeadRepository != nil {
+		ch.SourceProject = p.HeadRepository.NameWithOwner
+	}
+	if n := p.Commits.Nodes; len(n) > 0 && n[0].Commit.StatusCheckRollup != nil {
+		ch.Pipeline = checkStates[n[0].Commit.StatusCheckRollup.State]
 	}
 	// A dismissed review keeps its verdict only in the timeline (§4.2).
 	dismissed := map[string]forge.Verdict{}
@@ -476,6 +528,11 @@ func convert(ch *forge.Change, p *gqlPR, drafts bool) error {
 	// GitHub lists a reviewer in reviewRequests only while the request is
 	// unanswered, so a listed reviewer has not reviewed since it was made.
 	for _, r := range requested {
+		// A team names nobody (section 5.4). Project triage shows it as
+		// a request still to be picked up.
+		if t := r.RequestedReviewer; t != nil && t.Typename == "Team" && t.Slug != "" && t.Organization != nil {
+			ch.Teams = append(ch.Teams, t.Organization.Login+"/"+t.Slug)
+		}
 		if r.RequestedReviewer == nil || r.RequestedReviewer.Login == "" {
 			continue
 		}

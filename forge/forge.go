@@ -88,6 +88,9 @@ type Change struct {
 	// Touched are the paths the change touches, with their line counts,
 	// which project triage reads to suggest reviewers. It is not the diff.
 	Touched []Touched `json:"touched,omitempty"`
+	// Teams are the teams asked to review, as org/team, which name no
+	// person. GitHub has them; a forge without them leaves this empty.
+	Teams []string `json:"teams,omitempty"`
 
 	Reviewers []Reviewer `json:"reviewers"`
 	Assignees []User     `json:"assignees"`

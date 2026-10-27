@@ -346,7 +346,45 @@
       }
      ]
     },
-    "changedFiles": 2
+    "changedFiles": 2,
+    "labels": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": []
+    },
+    "files": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+     },
+     "nodes": [
+      {
+       "path": "pkg/cmd/issue/create/create.go",
+       "additions": 0,
+       "deletions": 0
+      },
+      {
+       "path": "pkg/cmd/issue/create/create_test.go",
+       "additions": 0,
+       "deletions": 0
+      }
+     ]
+    },
+    "mergeable": "MERGEABLE",
+    "headRepository": {
+     "nameWithOwner": "owner/repo"
+    },
+    "commits": {
+     "nodes": [
+      {
+       "commit": {
+        "statusCheckRollup": null
+       }
+      }
+     ]
+    }
    }
   }
  }

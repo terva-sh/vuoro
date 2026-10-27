@@ -181,8 +181,10 @@ func TestOpenReadsAPullRequest(t *testing.T) {
 	if !bot {
 		t.Error("the review bot is not marked as a bot")
 	}
-	if ch.Capabilities != (forge.Capabilities{}) {
-		t.Errorf("a reader offers writes: %+v", ch.Capabilities)
+	// With no draft store, only project triage's writes, which need just
+	// the token, are offered.
+	if ch.Capabilities != (forge.Capabilities{Reviewers: true, Assignees: true, Labels: true, SetDraft: true}) {
+		t.Errorf("a reader offers review writes: %+v", ch.Capabilities)
 	}
 }
 
