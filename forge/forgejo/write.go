@@ -51,7 +51,10 @@ func (c *Client) Capabilities() forge.Capabilities {
 	c.draftMu.Unlock()
 	// Forgejo's API has no route to resolve a thread, and a reviewer cannot
 	// withdraw their own approval; it renders a suggestion block as code.
-	return forge.Capabilities{Drafts: write, Reply: write, Approve: write, RequestChanges: write}
+	// Project triage's administrative writes need only the token.
+	admin := !c.token.Empty()
+	return forge.Capabilities{Drafts: write, Reply: write, Approve: write, RequestChanges: write,
+		Reviewers: admin, Assignees: admin, Labels: admin, SetDraft: admin}
 }
 
 // store is the draft store, or an error saying why there is none.

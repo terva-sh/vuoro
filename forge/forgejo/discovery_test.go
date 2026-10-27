@@ -49,7 +49,12 @@ func TestDiscoveryCombinesRolesAndProvenHistoricalRequests(t *testing.T) {
 			}
 			n := numbers[page-1]
 			return response(fmt.Sprintf(`[{"number":%d,"html_url":%q,"state":"open","pull_request":{},"repository":{"full_name":"terva-sh/vuoro"},"updated_at":"2026-10-02T00:00:00Z"}]`, n, "https://"+ref.Host+"/terva-sh/vuoro/pulls/"+strconv.Itoa(n))), nil
+		case strings.HasSuffix(r.URL.Path, "/status"):
+			return response(`{"state":"","total_count":0}`), nil
 		case strings.Contains(r.URL.Path, "/pulls/"):
+			if strings.HasSuffix(r.URL.Path, "/files") {
+				return response(`[]`), nil
+			}
 			if strings.HasSuffix(r.URL.Path, "/reviews") {
 				if r.URL.Query().Get("page") != "1" {
 					return response(`[]`), nil
@@ -150,7 +155,9 @@ func TestDiscoveryRejectsWrongAccountsPartialPagesAndCrossHostRefs(t *testing.T)
 func TestFactsReaderOmitsPrivateDraftsAndPatches(t *testing.T) {
 	c, ref := fixtureClient(t, true)
 	c.http.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
-		if strings.HasSuffix(r.URL.Path, "/files") || strings.HasSuffix(r.URL.Path, ".diff") || strings.Contains(r.URL.Path, "/reviews/12/") {
+		// The files list is paths and counts, which project triage reads;
+		// the patches are in the diff.
+		if strings.HasSuffix(r.URL.Path, ".diff") || strings.Contains(r.URL.Path, "/reviews/12/") {
 			t.Fatal("facts downloaded patches or pending comments")
 		}
 		return http.DefaultTransport.RoundTrip(r)
@@ -161,6 +168,9 @@ func TestFactsReaderOmitsPrivateDraftsAndPatches(t *testing.T) {
 	}
 	if len(ch.Files) != 0 || len(ch.Drafts) != 0 || ch.CanMerge != nil || ch.Checkout.HeadRef != "refs/pull/2/head" || !strings.Contains(ch.Checkout.SSH, ":2222/") || len(ch.Reviews) != 2 {
 		t.Fatal("facts/checkout incorrect")
+	}
+	if len(ch.Touched) != 2 || ch.Touched[0].Path == "" || ch.Pipeline != "failed" || ch.SourceProject == "" {
+		t.Fatalf("triage facts: %+v %q %q", ch.Touched, ch.Pipeline, ch.SourceProject)
 	}
 }
 

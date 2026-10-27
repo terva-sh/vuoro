@@ -139,8 +139,15 @@ func pages[T any](ctx context.Context, c *Client, path string) ([]T, error) {
 	var out []T
 	// Follow until an empty page rather than guessing the server's maximum limit
 	// or trusting an absolute Link URL with the person's token.
+	path, query, _ := strings.Cut(path, "?")
+	q, err := url.ParseQuery(query)
+	if err != nil {
+		return nil, fmt.Errorf("forgejo: invalid query for %s", path)
+	}
 	for page := 1; page <= 1000; page++ {
-		b, err := c.get(ctx, path, url.Values{"page": {strconv.Itoa(page)}, "limit": {"100"}})
+		q.Set("page", strconv.Itoa(page))
+		q.Set("limit", "100")
+		b, err := c.get(ctx, path, q)
 		if err != nil {
 			return nil, err
 		}
@@ -188,8 +195,11 @@ type apiPR struct {
 	MergeBase string    `json:"merge_base"`
 	Assignees []apiUser `json:"assignees"`
 	Requested []apiUser `json:"requested_reviewers"`
-	Created   time.Time `json:"created_at"`
-	Updated   time.Time `json:"updated_at"`
+	Labels    []struct {
+		Name string `json:"name"`
+	} `json:"labels"`
+	Created time.Time `json:"created_at"`
+	Updated time.Time `json:"updated_at"`
 }
 type apiReview struct {
 	ID        int64     `json:"id"`
@@ -272,11 +282,33 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	for _, u := range p.Requested {
 		ch.Reviewers = append(ch.Reviewers, forge.Reviewer{User: user(u), State: forge.Unreviewed})
 	}
-	if workspace {
-		fs, err := pages[apiFile](ctx, c, prPath+"/files")
-		if err != nil {
-			return nil, err
+	// Project triage's facts (docs/plan.md section 6.9). Forgejo's
+	// mergeable is false for a draft or while it checks as well as for a
+	// conflict, so conflicts stay unknown.
+	for _, l := range p.Labels {
+		ch.Labels = append(ch.Labels, l.Name)
+	}
+	if p.Head.Repo != nil {
+		ch.SourceProject = p.Head.Repo.FullName
+	}
+	if ch.Pipeline, err = c.pipeline(ctx, root, p.Head.SHA); err != nil {
+		return nil, err
+	}
+	fs, err := pages[apiFile](ctx, c, prPath+"/files")
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range fs {
+		t := forge.Touched{Path: f.Filename}
+		if f.Additions != nil {
+			t.Added = *f.Additions
 		}
+		if f.Deletions != nil {
+			t.Removed = *f.Deletions
+		}
+		ch.Touched = append(ch.Touched, t)
+	}
+	if workspace {
 		diff, err := c.get(ctx, prPath+".diff", nil)
 		if err != nil {
 			return nil, err
@@ -440,6 +472,35 @@ func (c *Client) readChange(ctx context.Context, ref forge.Ref, workspace bool) 
 	}
 	ch.Capabilities = c.Capabilities()
 	return ch, nil
+}
+
+// statusStates maps a commit's combined status to the pipeline states
+// project triage reads.
+var statusStates = map[string]string{"success": "success", "failure": "failed", "error": "failed", "pending": "pending", "warning": "warning"}
+
+// pipeline is the head commit's combined status, or empty when it has none.
+func (c *Client) pipeline(ctx context.Context, root, sha string) (string, error) {
+	if sha == "" {
+		return "", nil
+	}
+	var status struct {
+		State string `json:"state"`
+		Total int    `json:"total_count"`
+	}
+	b, err := c.get(ctx, root+"/commits/"+url.PathEscape(sha)+"/status", nil)
+	if errors.Is(err, forge.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if json.Unmarshal(b, &status) != nil {
+		return "", errors.New("forgejo: invalid commit status")
+	}
+	if status.Total == 0 {
+		return "", nil
+	}
+	return statusStates[status.State], nil
 }
 
 // reconcileRequests applies the PR's requested_reviewers to reviewer state.

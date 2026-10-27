@@ -152,7 +152,7 @@ func TestAddAProjectByURLAndReadItsChanges(t *testing.T) {
 	}
 	projectCall(t, a, "GET", "/api/projects/nonesuch", "", 404)
 	projectCall(t, a, "POST", "/api/projects/add", `{"url":"https://lab.test/other/repo"}`, 400)
-	// Forgejo cannot list projects yet, and says so rather than adding one.
+	// A forge whose client cannot list projects says so rather than adding one.
 	projectCall(t, a, "POST", "/api/projects/add", `{"url":"https://jo.test/team/repo"}`, 400)
 	var list projectList
 	_ = json.Unmarshal(projectCall(t, a, "GET", "/api/projects", "", 200), &list)

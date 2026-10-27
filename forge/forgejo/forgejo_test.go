@@ -52,6 +52,8 @@ func fixtureClient(t *testing.T, extra bool) (*Client, forge.Ref) {
 			w.Write([]byte(strings.ReplaceAll(body, "forge.example", host)))
 		case root + ".diff":
 			w.Write(diff)
+		case "/api/v1/repos/terva-sh/vuoro/commits/68ff96c709bfbd9d96709b4b976bf4c77f131148/status":
+			w.Write([]byte(`{"state":"failure","total_count":2}`))
 		case root + "/files":
 			// Deliberately clamp to one item per page despite the requested limit.
 			var files []apiFile

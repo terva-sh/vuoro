@@ -140,13 +140,16 @@ func writeClient(t *testing.T, f *writeForge) (*Client, forge.Ref, *memStore) {
 
 func TestCapabilitiesNeedATokenAndAStore(t *testing.T) {
 	c, _, _ := writeClient(t, &writeForge{})
-	want := forge.Capabilities{Drafts: true, Reply: true, Approve: true, RequestChanges: true}
+	admin := forge.Capabilities{Reviewers: true, Assignees: true, Labels: true, SetDraft: true}
+	want := forge.Capabilities{Drafts: true, Reply: true, Approve: true, RequestChanges: true, Reviewers: true, Assignees: true, Labels: true, SetDraft: true}
 	if got := c.Capabilities(); got != want {
 		t.Fatalf("with a token and a store: %+v", got)
 	}
 	bare, _ := New("https://forge.example", config.SecretForTest("t"))
-	if bare.Capabilities() != (forge.Capabilities{}) {
-		t.Fatal("a client with no store offers writes")
+	// With no store, only project triage's writes, which need just the
+	// token, are offered.
+	if bare.Capabilities() != admin {
+		t.Fatal("a client with no store offers review writes")
 	}
 	if _, err := bare.CreateDraft(context.Background(), forge.Ref{}, forge.NewDraft{Body: "x"}); !errors.Is(err, forge.ErrUnsupported) {
 		t.Fatalf("a draft with no store: %v", err)

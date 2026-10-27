@@ -1672,6 +1672,37 @@ GitHub notes for the adapter, written on 2026-10-27:
   having no reviewers. A named reviewer takes over from the team. Team requests
   are not edited from the view.
 
+Forgejo notes for the adapter, written on 2026-10-27:
+
+- **Listing and search.** `GET /repos/O/R/pulls?state=open` is paged like
+  every Forgejo listing, until an empty page, and one listed twice refuses the
+  read. Search is `GET /repos/search`.
+- **Facts.** The pull request carries `labels` and the head repository. The
+  files list, which is paths and counts with no patch, is now read for facts
+  too. The head commit's combined status (`/commits/SHA/status`) gives the
+  pipeline state, and none is reported when it has no statuses. Forgejo's
+  `mergeable` is false for a draft, and while it checks, as well as for a
+  conflict, so conflicts stay unknown. There is no dependency API.
+- **Writes.**
+  - Reviewers use `POST` and `DELETE /pulls/N/requested_reviewers`, which add
+    and remove.
+  - Labels are added (`POST /issues/N/labels`) and removed
+    (`DELETE /issues/N/labels/ID`) by ID. An added label's ID comes from the
+    repository's and its organization's labels. A removed label's ID comes
+    from the labels the pull request carries now.
+  - Assignees have no endpoint that adds; `PATCH /issues/N` takes the whole
+    list. Draft state is the title's `WIP:` or `[WIP]` prefix (section 5.3).
+    For both, vuoro reads the field immediately before writing it, and
+    changes only the person's edit within it. This is the closest Forgejo
+    allows to D65's rule against replacing a field, and a colleague's edit in
+    the moment between the read and the write can still be lost.
+- **Candidates and triage facts.**
+  - Candidates are `GET /repos/O/R/assignees`, filtered by vuoro, since the
+    endpoint takes no query.
+  - CODEOWNERS is read raw from the root, `docs/`, `.forgejo/`, then
+    `.gitea/`.
+  - Recent committers come from `GET /repos/O/R/commits?path=`.
+
 **Agent triage is reviewer-class work** (section 6.4). One read-only session
 looks at the project's open changes and proposes, for each, reviewers, labels,
 and a line saying what would unblock it. Once the person accepts them, the
