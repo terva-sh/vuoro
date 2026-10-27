@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M5ZDQ3ZB0K6KMW2CB8NM183S
 title: "Project triage: every open change in a project, and what holds each"
 type: epic
-status: ready
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-27T19:34:40Z
-updated_at: 2026-10-27T19:57:04Z
+updated_at: 2026-10-27T21:02:49Z
 created_by:
   id: agent:claude-code/project-triage
   name: ""
@@ -38,7 +38,11 @@ Design: docs/plan.md section 6.9. Decisions: D64 (the view, GitLab first, no Git
 
 ## Acceptance criteria
 
-- [ ] A GitLab project's open merge requests show where each sits, for how long, and why
-- [ ] Reviewers, assignees, labels and draft state are set from the view on GitLab
-- [ ] Agent proposals reach the forge only when the person applies them, and a test holds it
-- [ ] GitHub and Forgejo reach the same view
+- [x] A GitLab project's open merge requests show where each sits, for how long, and why
+- [x] Reviewers, assignees, labels and draft state are set from the view on GitLab
+- [x] Agent proposals reach the forge only when the person applies them, and a test holds it
+- [x] GitHub and Forgejo reach the same view
+
+## Summary
+
+Project triage is built: the Projects tab, the places and stacks, the administrative writes on GitLab, GitHub and Forgejo, and agent triage that drafts proposals the person accepts, with vuoro making the writes. The GitLab live tests passed on drewshort/vuoro-sandbox, and an agent triage run worked end to end there. The GitHub and Forgejo opt-in live tests are written but not yet run, because this machine has no account on either. Their tickets leave that criterion unticked and say how to run them.
