@@ -11,7 +11,7 @@ import (
 // so the inbox builds without any agent tool. Only tickets imports git-ticket.
 func TestBoundaries(t *testing.T) {
 	const mod = "github.com/terva-sh/vuoro/"
-	deps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./forge/...", "./inbox/...", "./turn/...").Output()
+	deps, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./forge/...", "./inbox/...", "./projects/...", "./turn/...").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

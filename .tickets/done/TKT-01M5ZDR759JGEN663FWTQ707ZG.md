@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M5ZDR759JGEN663FWTQ707ZG
 title: Add a GitLab project by search or URL, and read all its open changes
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/project-triage
-  branch: main
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: f89181567fb865140dd15ebbf5c9a07dfd0989ef
-  session: null
-  claimed_at: 2026-10-27T19:57:15Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-27T19:35:16Z
-updated_at: 2026-10-27T19:57:16Z
+updated_at: 2026-10-27T20:06:18Z
 created_by:
   id: agent:claude-code/project-triage
   name: ""
@@ -48,11 +41,11 @@ A new `projects` package holds project-scoped refresh and cached snapshots, foll
 
 ## Acceptance criteria
 
-- [ ] A project is found by searching a configured GitLab account, or by pasting its URL
-- [ ] Added projects survive restart, in the state directory and never in the config file
-- [ ] Every open merge request in the project is read, with pipeline, conflict, labels and blocking merge requests
-- [ ] A failed refresh keeps the last snapshot visible with a credential-free message
-- [ ] projects imports neither agent nor tickets, and a boundary test holds it
+- [x] A project is found by searching a configured GitLab account, or by pasting its URL
+- [x] Added projects survive restart, in the state directory and never in the config file
+- [x] Every open merge request in the project is read, with pipeline, conflict, labels and blocking merge requests
+- [x] A failed refresh keeps the last snapshot visible with a credential-free message
+- [x] projects imports neither agent nor tickets, and a boundary test holds it
 
 ## Implementation plan
 
@@ -62,3 +55,13 @@ A new `projects` package holds project-scoped refresh and cached snapshots, foll
 4. `projects` package: the person's projects in `projects.json`, a snapshot per project in `cache/projects/<key>.json`, `Add` (checked through `Project`), `Remove`, `Refresh` (one project, six reads at a time, at most 300 open changes or refused with the count, a failure keeps the last snapshot with a fixed message), `RefreshChange`, and `Search`. Imports neither agent nor tickets; the boundary test covers it.
 5. `app`: `GET /api/projects`, `POST /api/projects/search`, `POST /api/projects/add`, `POST /api/projects/remove`, `GET /api/projects/{key}`, `POST /api/projects/{key}/refresh`, behind the guard like every route.
 6. Tests from fixtures and a fake GitLab server; an opt-in live read against a real project.
+
+## Notes
+
+**agent:claude-code/project-triage** at 2026-10-27T20:06:18Z
+
+Live read on 2026-10-27 (TestLiveProject, read-only over glab): drewshort/vuoro-sandbox (2 open) and flywheel-io/infrastructure/terraform (51 open) both list, read and answer dependencies. gitlab.com answered blockingMergeRequests on the personal Free namespace too, as an empty list, so Free on gitlab.com reads as known-none rather than unknown; that is still correct, since such a project cannot record a dependency. A self-managed GitLab before 16.5 refuses the field and reads as unknown. The live test transport sent GraphQL bodies with --input, which glab's graphql endpoint ignores, so TestLiveDiscovery had never exercised ReadFacts; it now passes the query and string variables as fields. The window has no UI for adding a project yet: that is TKT-01M5ZDR7JF3GD741SREJJGQ8WP.
+
+## Summary
+
+forge.ProjectLister and forge.DependencyReader, the GitLab adapter for both (REST project search, project read and open listing; GraphQL blockingMergeRequests), labels, conflicts and head pipeline read into forge.Change and left out of the inbox's snooze fingerprint, and the projects package with its routes under /api/projects. Fixture tests cover paging, refusal of partial or foreign lists, unknown dependencies, a failed refresh, and a project over 300 open changes; a live read confirmed the endpoints.

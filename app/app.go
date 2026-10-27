@@ -25,6 +25,7 @@ import (
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/adapters"
 	"github.com/terva-sh/vuoro/inbox"
+	"github.com/terva-sh/vuoro/projects"
 	"github.com/terva-sh/vuoro/review"
 	"github.com/terva-sh/vuoro/review/drafts"
 )
@@ -85,7 +86,13 @@ type App struct {
 	inboxReady   bool
 	inboxService *inbox.Service
 	inboxErr     error
-	local        localState
+	// projectsMu guards project triage's service, built on first use like
+	// the inbox's.
+	projectsMu     sync.Mutex
+	projectsReady  bool
+	projectService *projects.Service
+	projectsErr    error
+	local          localState
 }
 
 type probe struct {
@@ -106,6 +113,7 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	a.setupRoutes(mux)
 	a.localRoutes(mux)
+	a.projectRoutes(mux)
 	mux.HandleFunc("GET /api/about", a.about)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)

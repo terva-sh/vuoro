@@ -35,6 +35,9 @@ type Client struct {
 	// noUserType is set once this GitLab has refused UserCore.type, which
 	// older versions lack, so later reads ask without it.
 	noUserType atomic.Bool
+	// noDependencies is set once this GitLab has refused
+	// blockingMergeRequests, which it lacks before 16.5.
+	noDependencies atomic.Bool
 
 	// patches keeps the files of the changes read most recently, by diff
 	// version. A diff version's patches never change, and reading them is
@@ -246,19 +249,29 @@ type gqlNote struct {
 }
 
 type gqlMR struct {
-	IID                 string    `json:"iid"`
-	Title               string    `json:"title"`
-	Description         string    `json:"description"`
-	State               string    `json:"state"`
-	Draft               bool      `json:"draft"`
-	DetailedMergeStatus string    `json:"detailedMergeStatus"`
-	SourceBranch        string    `json:"sourceBranch"`
-	TargetBranch        string    `json:"targetBranch"`
-	WebURL              string    `json:"webUrl"`
-	CreatedAt           time.Time `json:"createdAt"`
-	UpdatedAt           time.Time `json:"updatedAt"`
-	Author              gqlUser   `json:"author"`
-	UserPermissions     *struct {
+	IID                 string `json:"iid"`
+	Title               string `json:"title"`
+	Description         string `json:"description"`
+	State               string `json:"state"`
+	Draft               bool   `json:"draft"`
+	DetailedMergeStatus string `json:"detailedMergeStatus"`
+	Conflicts           bool   `json:"conflicts"`
+	Labels              struct {
+		PageInfo pageInfo `json:"pageInfo"`
+		Nodes    []struct {
+			Title string `json:"title"`
+		} `json:"nodes"`
+	} `json:"labels"`
+	HeadPipeline *struct {
+		Status string `json:"status"`
+	} `json:"headPipeline"`
+	SourceBranch    string    `json:"sourceBranch"`
+	TargetBranch    string    `json:"targetBranch"`
+	WebURL          string    `json:"webUrl"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	Author          gqlUser   `json:"author"`
+	UserPermissions *struct {
 		CanMerge *bool `json:"canMerge"`
 	} `json:"userPermissions"`
 	DiffRefs *struct {
@@ -404,7 +417,7 @@ func (c *Client) readMR(ctx context.Context, ref forge.Ref) (*gqlMR, error) {
 		if got.IID != strconv.Itoa(ref.Number) {
 			return nil, errors.New("gitlab: mismatched merge request identity")
 		}
-		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage {
+		if got.Reviewers.PageInfo.HasNextPage || got.Assignees.PageInfo.HasNextPage || got.Participants.PageInfo.HasNextPage || got.Labels.PageInfo.HasNextPage {
 			return nil, errors.New("gitlab: review facts exceed connection limit")
 		}
 		for _, d := range got.Discussions.Nodes {
@@ -521,6 +534,13 @@ func convert(ref forge.Ref, mr *gqlMR) *forge.Change {
 	}
 	if mr.UserPermissions != nil {
 		ch.CanMerge = mr.UserPermissions.CanMerge
+	}
+	ch.Conflicts = mr.Conflicts
+	for _, l := range mr.Labels.Nodes {
+		ch.Labels = append(ch.Labels, l.Title)
+	}
+	if mr.HeadPipeline != nil {
+		ch.Pipeline = strings.ToLower(mr.HeadPipeline.Status)
 	}
 	if mr.DiffRefs != nil {
 		ch.Diff = forge.DiffRefs{Base: mr.DiffRefs.BaseSha, Start: mr.DiffRefs.StartSha, Head: mr.DiffRefs.HeadSha}

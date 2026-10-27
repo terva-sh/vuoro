@@ -19,6 +19,10 @@ func clone[T any](v T) T {
 	return out
 }
 
+// Classify marks the change's configured bot accounts, and every account a
+// bot review names, as automated. Project triage applies it as the inbox does.
+func Classify(ch *forge.Change, configured []string) { classify(ch, configured) }
+
 func classify(ch *forge.Change, configured []string) {
 	bots := map[string]bool{}
 	for _, name := range configured {

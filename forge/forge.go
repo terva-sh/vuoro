@@ -70,6 +70,19 @@ type Change struct {
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 
+	// Labels, Conflicts and Pipeline are what project triage reads beyond
+	// the turn facts (docs/plan.md section 6.9). Pipeline is the head
+	// pipeline's status in lower case, such as success or failed, and empty
+	// when the forge reports none.
+	Labels    []string `json:"labels,omitempty"`
+	Conflicts bool     `json:"conflicts,omitempty"`
+	Pipeline  string   `json:"pipeline,omitempty"`
+	// BlockedBy are the changes that must merge first. DependenciesKnown
+	// says the forge answered: without it an empty BlockedBy is unknown,
+	// never "none".
+	BlockedBy         []Ref `json:"blocked_by,omitempty"`
+	DependenciesKnown bool  `json:"dependencies_known,omitempty"`
+
 	Reviewers []Reviewer `json:"reviewers"`
 	Assignees []User     `json:"assignees"`
 	// Participants are everyone the forge counts as taking part.

@@ -1,7 +1,9 @@
 query mergeRequest($fullPath: ID!, $iid: String!, $after: String) {
   project(fullPath: $fullPath) {
     mergeRequest(iid: $iid) {
-      iid title description state draft detailedMergeStatus
+      iid title description state draft detailedMergeStatus conflicts
+      labels(first: 100) { pageInfo { hasNextPage } nodes { title } }
+      headPipeline { status }
       sourceBranch targetBranch webUrl createdAt updatedAt
       author { username bot type }
       userPermissions { canMerge }

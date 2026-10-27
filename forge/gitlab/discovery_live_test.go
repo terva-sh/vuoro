@@ -36,11 +36,27 @@ func (g glabTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		endpoint += "?" + r.URL.RawQuery
 	}
 	args := []string{"api", "--hostname", g.host, "--include", "--method", r.Method, endpoint}
-	if r.Body != nil {
+	if r.URL.Path == "/api/graphql" {
+		// glab's graphql endpoint ignores --input, so the query and its
+		// variables, all strings here, go as fields. Neither holds a token.
+		var body struct {
+			Query     string            `json:"query"`
+			Variables map[string]string `json:"variables"`
+		}
+		if r.Body == nil || json.NewDecoder(r.Body).Decode(&body) != nil {
+			return nil, errors.New("live check could not read its GraphQL request")
+		}
+		args = append(args, "-f", "query="+body.Query)
+		for k, v := range body.Variables {
+			args = append(args, "-f", k+"="+v)
+		}
+	} else if r.Body != nil {
 		args = append(args, "--input", "-")
 	}
 	cmd := exec.CommandContext(r.Context(), "glab", args...)
-	cmd.Stdin = r.Body
+	if r.URL.Path != "/api/graphql" {
+		cmd.Stdin = r.Body
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, errors.New("glab could not complete the read-only live check")

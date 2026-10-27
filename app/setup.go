@@ -671,4 +671,7 @@ func (a *App) setConfig(c *config.Config, base string) {
 	a.inboxMu.Lock()
 	a.inboxReady = false
 	a.inboxMu.Unlock()
+	a.projectsMu.Lock()
+	a.projectsReady = false
+	a.projectsMu.Unlock()
 }
