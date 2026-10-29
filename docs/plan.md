@@ -1173,7 +1173,13 @@ Git verifies full commit IDs, complete history and ancestry before supplying a
 commit list and exact net patch. A rewritten or missing baseline is refused;
 it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
-provider call, never truncated. Diff programs and textconv are disabled.
+provider call, never truncated. Lockfiles, and files the base commit's
+`.gitattributes` marks `linguist-generated` or `-diff`, are left out of the
+patch and listed by name with their added and deleted lines, so a dependency
+bump is not refused for its lockfile, and the agent says it did not read them.
+The attributes are read at the base, so a change cannot hide its own code by
+marking it generated. The cap applies to what is left. An ask run (section
+6.11) reads its range the same way. Diff programs and textconv are disabled.
 Descriptions/commit messages/repository text are untrusted data. The current
 checkout supplies reading context only; a since-review summary describes just
 its selected range. An empty net patch can still describe commits in that range.

@@ -240,3 +240,65 @@ func TestAnAskClosedWhileItsToolStartsDoesNotGoOn(t *testing.T) {
 		t.Fatalf("the run is %s, not closed", v.Status)
 	}
 }
+
+// A dependency bump is not refused for its lockfile: lockfiles and the files
+// the base marks generated are left out of the diff and named with their line
+// counts, and a change cannot hide its own code by marking it generated.
+func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
+	var mu sync.Mutex
+	var asked []string
+	m, _, ch, src := setup(t, func(_ toolCaller, text string) string {
+		mu.Lock()
+		asked = append(asked, text)
+		mu.Unlock()
+		return "ok"
+	})
+	write := func(name, text string) {
+		t.Helper()
+		path := filepath.Join(src.Remote, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	historyGit(t, src.Remote, "switch", "-q", "main")
+	write(".gitattributes", "gen/** linguist-generated\n")
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Mark generated code")
+	base := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	historyGit(t, src.Remote, "switch", "-qC", "feature")
+	write("uv.lock", strings.Repeat("lockfile-line = \"pinned\"\n", 12000)) // about 300 KiB, past the cap
+	write("gen/client.go", "package gen\n\nvar generatedClient = 1\n")
+	write("calc.go", "package calc\n\nfunc Add(a, b int) int { return a + b + 0 }\n")
+	write(".gitattributes", "gen/** linguist-generated\nsneaky.go linguist-generated\n")
+	write("sneaky.go", "package calc\n\nvar sneakyChange = 1\n")
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Bump dependencies")
+	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	ch.Diff.Base, ch.Diff.Head, src.Base, src.Head = base, head, base, head
+
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "fake"}, AskInput{Question: "What do the new versions change?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return v.Status == Idle || v.Status == Failed })
+	if v.Status == Failed {
+		t.Fatalf("a lockfile bump was refused: %s", v.Error)
+	}
+	mu.Lock()
+	first := asked[0]
+	mu.Unlock()
+	if strings.Contains(first, "lockfile-line") || strings.Contains(first, "generatedClient") {
+		t.Fatal("a lockfile or generated file's contents were sent")
+	}
+	for _, want := range []string{"uv.lock +12000 -0 (lockfile)", "gen/client.go +3 -0 (generated)", "sneakyChange", "a + b + 0"} {
+		if !strings.Contains(first, want) {
+			t.Fatalf("the first message lacks %q:\n%s", want, first)
+		}
+	}
+	if strings.Contains(first, "sneaky.go +") {
+		t.Fatal("the change hid its own file by marking it generated")
+	}
+}
