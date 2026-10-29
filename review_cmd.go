@@ -223,6 +223,10 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 			logf("%v", err)
 			return exitFailed
 		}
+		// Let go of the run on every way out, a refusal included, so the
+		// deferred Shutdown, which runs after this, writes no stale copy.
+		// Follow's own write adds the forward link as the run starts.
+		defer a.Runs.Forget(*follows)
 		switch prev := a.Runs.Get(*follows); {
 		case prev == nil:
 			return usage(fmt.Sprintf("no finished run %s to follow", *follows))
@@ -237,9 +241,6 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		logf("%v", err)
 		return exitFailed
-	}
-	if *follows != "" {
-		a.Runs.Forget(*follows)
 	}
 	logf("run %s: %s at %s, %d reviewer%s", run.ID, ch.Title, shortSHA(ch.Diff.Head), len(reviewers), plural(len(reviewers)))
 

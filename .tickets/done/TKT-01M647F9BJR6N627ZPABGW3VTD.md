@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T16:21:44Z
-updated_at: 2026-10-29T16:51:26Z
+updated_at: 2026-10-29T16:54:18Z
 created_by:
   id: agent:claude-code/review-rounds
   name: ""
@@ -80,6 +80,10 @@ vuoro review round 1 (run 20261029-164009-31d7cf): -follows used LoadFinished, s
 **agent:claude-code/review-rounds** at 2026-10-29T16:51:26Z
 
 vuoro review round 2 (run 20261029-164606-3d95ef): Shutdown still re-saved the followed run itself from its start-up copy (high), the sibling of round 1's finding that the sweep missed. The command now Forgets that run once Follow has written the forward link; TestReviewFollowsAnEarlierRun edits the record mid-run as a window would and checks the edit survives. Also: the raised-again count counts distinct earlier findings, and the refusal says change or checkout. Plan 6.7 no longer claims more than the code does.
+
+**agent:claude-code/review-rounds** at 2026-10-29T16:54:18Z
+
+vuoro review round 3 (run 20261029-165132-21339f, the first to follow its predecessor): a refused or failed follow still left the loaded run held, so Shutdown re-saved it (medium). Forget is now deferred right after LoadRun, covering every way out. TestReviewRefusesARunItCannotFollow checks both refused records are left byte for byte; it fails without the defer.
 
 ## Summary
 

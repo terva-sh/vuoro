@@ -541,6 +541,14 @@ func TestReviewRefusesARunItCannotFollow(t *testing.T) {
 	b, _ = json.Marshal(rec)
 	os.WriteFile(filepath.Join(stateDir, "runs", "askrun", "run.json"), b, 0o600)
 
+	askPath := filepath.Join(stateDir, "runs", "askrun", "run.json")
+	firstPath := filepath.Join(stateDir, "runs", first.Run.ID, "run.json")
+	// A field vuoro does not write, so a save of the review would show.
+	b, _ = os.ReadFile(firstPath)
+	b = append(bytes.TrimSuffix(bytes.TrimSpace(b), []byte("}")), []byte(`,"written_by_a_window":true}`)...)
+	os.WriteFile(firstPath, b, 0o600)
+	askBefore, _ := os.ReadFile(askPath)
+	firstBefore, _ := os.ReadFile(firstPath)
 	for _, c := range []struct{ dir, follows, want string }{
 		{dir, "nope", "no finished run nope to follow"},
 		{dir, "askrun", "run askrun is not a review"},
@@ -554,5 +562,12 @@ func TestReviewRefusesARunItCannotFollow(t *testing.T) {
 	}
 	if runs, _ := filepath.Glob(filepath.Join(stateDir, "runs", "*", "run.json")); len(runs) != 2 {
 		t.Errorf("a refused follow started a run: %d records", len(runs))
+	}
+	// A refused run was read, and is left as it was.
+	if b, _ := os.ReadFile(askPath); !bytes.Equal(b, askBefore) {
+		t.Errorf("refusing to follow it rewrote the Ask run's record:\n%s", b)
+	}
+	if b, _ := os.ReadFile(firstPath); !bytes.Equal(b, firstBefore) {
+		t.Errorf("refusing to follow it rewrote the review's record:\n%s", b)
 	}
 }
