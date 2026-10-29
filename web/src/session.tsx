@@ -106,8 +106,8 @@ function Talk({ run, session }: { run: Run; session: Session }) {
         <TextEditor
           rows={2}
           value={text}
-          placeholder={session.status === 'ended' ? 'Ask, and the session resumes' : `Ask the ${session.profile} reviewer why, or to look elsewhere, or to reword a draft`}
-          label={`Message the ${session.profile} reviewer`}
+          placeholder={session.status === 'ended' ? 'Ask, and the session resumes' : session.role === 'summary' ? 'Ask a follow-up question' : `Ask the ${session.profile} reviewer why, or to look elsewhere, or to reword a draft`}
+          label={session.role === 'summary' ? 'Ask a follow-up question' : `Message the ${session.profile} reviewer`}
           onInput={setText}
           submitOn="enter"
         />
