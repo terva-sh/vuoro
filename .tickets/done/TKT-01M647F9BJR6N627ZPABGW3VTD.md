@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T16:21:44Z
-updated_at: 2026-10-29T16:56:19Z
+updated_at: 2026-10-29T16:56:29Z
 created_by:
   id: agent:claude-code/review-rounds
   name: ""
@@ -91,4 +91,4 @@ vuoro review round 4 (run 20261029-165423-9aeef0): two lows, both wording the ro
 
 ## Summary
 
-vuoro review -follows <run id> starts the run with Manager.Follow, so the reviewers get the earlier run's findings with where each stands, and the earlier run links forward. A missing run, a non-review, or a run of another change or checkout is a usage error (exit 2) and starts nothing. The JSON envelope gains run.follows and earlier; the Markdown report says how many earlier findings were raised again and marks each one. Tested in TestReviewFollowsAnEarlierRun and TestReviewRefusesARunItCannotFollow, and each check was confirmed to fail those tests when removed. Plan 6.7 describes it.
+vuoro review -follows <run id> starts the run with Manager.Follow, so the reviewers get the earlier run's findings with where each stands, and the earlier run links forward. The command reads only that run's record (Manager.LoadRun) and drops its copy unsaved on every way out (Manager.Forget, deferred), so it never writes a stale copy over what a window decided; its only writes to that record are Follow's at the start. A missing run, a non-review, or a run of another change or checkout is a usage error (exit 2) and starts nothing. The JSON envelope gains run.follows and earlier (schemaVersion stays 1); the Markdown report counts distinct earlier findings raised again and says where each stood. Self-reviewed in four vuoro rounds, the last three following their predecessor; every finding fixed with a test that fails without it. Plan 6.7 describes it.
