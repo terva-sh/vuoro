@@ -1490,11 +1490,12 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   stood. The earlier run must be finished and a review of the same change,
   or for a local range, of the same checkout. Anything else is a usage error
   and starts nothing. The command reads that one run's record and no other.
-  It writes that record only as the run starts, to add the link forward, and
-  then lets the run go, so its exit writes no stale copy over what an open
-  window decided during the review. That one write can still race a
-  window's, and a window that already holds the earlier run neither sees the
-  link nor keeps it when it next saves that run. A self-review that runs
+  It writes that record only as the run starts: the link forward, and any of
+  its suggestions applied since, recorded as fixes. At exit it drops its
+  copy unsaved, a refused follow included, so it writes nothing stale over
+  what an open window decided during the review. The writes at the start can
+  still race a window's, and a window that already holds the earlier run
+  neither sees the link nor keeps it when it next saves that run. A self-review that runs
   round after round passes each round the last one's id, so a round does not
   rediscover what the last one raised.
 - **Exit status** is 0 with no findings, 1 with findings, 2 for a usage

@@ -1003,9 +1003,9 @@ func (m *Manager) Get(id string) *Run {
 }
 
 // Forget stops holding run id, without saving it, so Shutdown does not write
-// it either. vuoro review forgets the run it follows once the forward link is
-// written, because its copy was read at the start and a window may change the
-// record meanwhile.
+// it either. vuoro review forgets the run it follows on every way out, a
+// refused follow included, before its deferred Shutdown runs, because its
+// copy was read at the start and a window may change the record meanwhile.
 func (m *Manager) Forget(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

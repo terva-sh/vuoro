@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T16:21:44Z
-updated_at: 2026-10-29T16:54:18Z
+updated_at: 2026-10-29T16:56:19Z
 created_by:
   id: agent:claude-code/review-rounds
   name: ""
@@ -84,6 +84,10 @@ vuoro review round 2 (run 20261029-164606-3d95ef): Shutdown still re-saved the f
 **agent:claude-code/review-rounds** at 2026-10-29T16:54:18Z
 
 vuoro review round 3 (run 20261029-165132-21339f, the first to follow its predecessor): a refused or failed follow still left the loaded run held, so Shutdown re-saved it (medium). Forget is now deferred right after LoadRun, covering every way out. TestReviewRefusesARunItCannotFollow checks both refused records are left byte for byte; it fails without the defer.
+
+**agent:claude-code/review-rounds** at 2026-10-29T16:56:19Z
+
+vuoro review round 4 (run 20261029-165423-9aeef0): two lows, both wording the round 3 fix left behind: Forget's comment, and plan 6.7 on when the followed record is written (landSuggestions can write it too) and when it is let go. Both corrected. Stopping bar met.
 
 ## Summary
 
