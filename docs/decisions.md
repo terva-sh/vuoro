@@ -1405,3 +1405,27 @@ refused, since a new file named like a lockfile is not counted as one.
   this does not reopen the reason for the cap.
 - **A summary run keeps the refusal.** Its agent has no tool to read what was
   left out, and no new summary can be started.
+
+### D70. vuoro teaches a new person in the window, with hints and a tour that only show
+
+Scoped by the owner on 2026-10-29 in the epic TKT-01M63Z778B87DTP765W8JWSMPN
+(Getting started: teach a new person to use vuoro in the window), which the
+owner then had built. Section 10.2 asked for documentation for somebody new.
+First run configured vuoro and nothing showed how to use it (section 3.4).
+
+- **Three levels, cheapest first.** Hints on empty and first-time screens,
+  then a tour after setup, then a practice review only if its spike
+  recommends one and the owner agrees. Writing the documentation outside
+  the window first was rejected: a new person meets the window, not the
+  README.
+- **The tour only shows.** It never starts a run, opens a change, or writes
+  to a forge for the person. A simulated submit was rejected, because a
+  practice Submit that looks real teaches that Submit is safe to press. The
+  change part of the tour waits for a change the person opened.
+- **No tour library.** The popover is a small Preact component on
+  terva-sh/design styles. A third-party tour library was rejected: it adds a
+  dependency to `web/dist` and its own styles for what is one positioned
+  box.
+- **Progress lives in `prefs.json`**, as the person's annotation, never as
+  review state, and is written only through the guarded API. Settings
+  replays the tour and shows dismissed hints again.

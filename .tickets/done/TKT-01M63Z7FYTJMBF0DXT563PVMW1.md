@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M63Z7FYTJMBF0DXT563PVMW1
 title: Record the getting-started design in the plan and decisions
 type: task
-status: draft
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -19,12 +19,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:40Z
-updated_at: 2026-10-29T13:57:40Z
+updated_at: 2026-10-29T14:01:47Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
 updated_by:
-  id: agent:claude-code/getting-started-tutorial
+  id: agent:claude-code/getting-started
   name: ""
 extensions: {}
 ---
@@ -41,6 +41,10 @@ The owner decides the scope. This ticket records it.
 
 ## Acceptance criteria
 
-- [ ] docs/plan.md has a section for getting started covering all three levels
-- [ ] docs/decisions.md has the owner's decision as the next D-number, with what was rejected
-- [ ] The README points a new person at the tutorial
+- [x] docs/plan.md has a section for getting started covering all three levels
+- [x] docs/decisions.md has the owner's decision as the next D-number, with what was rejected
+- [x] The README points a new person at the tutorial
+
+## Summary
+
+docs/plan.md section 3.4 describes the three levels, where progress lives, and the guarded routes. D70 records the scope from the epic and what was rejected (writing docs outside the window first, a simulated submit, a tour library). The README's Opening changes section points at the tour and Settings' Getting started. D70's details beyond the epic text (the tour's two parts, the route names) were settled while building and are the owner's to confirm.

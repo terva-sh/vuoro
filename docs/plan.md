@@ -221,6 +221,45 @@ the platform's own, through tuohi, without cgo.
   GTK3 window there finds its icon. Windows notifications take no PNG from
   memory and use the stock information icon.
 
+### 3.4 Getting started
+
+TKT-01M63Z778B87DTP765W8JWSMPN (Getting started: teach a new person to use
+vuoro in the window) carries out D70. First run configures vuoro. This
+section is how the window then teaches a new person to use it, in three
+levels, cheapest first.
+
+- **Hints on empty and first-time screens.** Each screen a new person meets
+  empty says what to do next, in place: the Reviews inbox with no forge and
+  with nothing waiting, the Local and Projects tabs with nothing added, a
+  change with no runs, and the first drafts a run produces. A hint is one or
+  two sentences with a "Got it" control that dismisses it for good. A hint
+  that needs an agent tool names the missing tool instead of pointing at a
+  control that will fail.
+- **A tour after setup.** First run's last step offers a short tour, and
+  declining is remembered. Each step is a popover anchored to a `data-tour`
+  marker on a real element. The tour is in two parts. The home part shows
+  the tabs, opening a change by URL, and Settings. The change part waits
+  until the person opens a change themselves, then shows the change's tabs,
+  the Review tab where presets run and reviewers talk, the drafts, and
+  Submit. A step whose element is not on screen is skipped, never shown
+  floating. Esc or "End the tour" ends it at any step. Settings replays it
+  and shows the dismissed hints again.
+- **The tour only shows.** No hint or tour step starts a run, opens a
+  change, or writes to a forge. Their only writes are the person's own
+  progress, and a test holds this.
+- **A practice review** on a generated local repository is a spike
+  (TKT-01M63Z7G86D39B7PXG7XDJVRHD), because it spends real agent money and
+  needs an agent tool. It is built only if the owner decides to after the
+  spike's recommendation.
+
+Progress is the person's own annotation, kept in `prefs.json` beside `tab`
+and `waived`: the hints dismissed, and the tour's state (not started,
+started at a step, finished, or turned off) with the last step reached. It
+is read with `/api/setup` and written through `/api/prefs/hint`,
+`/api/prefs/hints/reset`, and `/api/prefs/tour`, behind the window guard. A
+missing, older, or damaged `prefs.json` reads as a fresh start. Each level
+works with every agent tool absent and with no ticket store.
+
 ## 4. The model
 
 Decided on 2026-10-02 by TKT-01M3W4HWJZ1013S2MPZ69B72AW (Decide the forge
@@ -2167,7 +2206,8 @@ and a terva-sh release).
   linked ticket as context for the editor.
 - **A terva-sh release.** goreleaser archives for macOS, Linux, and Windows,
   `self-update`, setup in the UI with no hand-edited config, a GitHub mirror,
-  and documentation for somebody new. macOS signing is decided then.
+  and documentation for somebody new: hints and a tour in the window
+  (section 3.4, D70). macOS signing is decided then.
 
 ### 10.3 After v1.0.0
 

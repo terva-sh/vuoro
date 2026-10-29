@@ -103,6 +103,11 @@ and shows how far each forge's token reaches. vuoro never asks for a
 token. You keep it in your keychain, a password manager, or an environment
 variable, and setup tests that source against the forge before it saves.
 
+New to vuoro? Setup ends by offering a short tour of the window, and each
+empty screen says what to do next until you dismiss its hint. The tour only
+shows the interface: it never starts a run, opens a change, or posts. Settings,
+under Getting started, replays it and brings dismissed hints back.
+
 Setup writes vuoro's `config.json` in the platform's configuration directory,
 which you can also edit by hand:
 
