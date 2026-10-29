@@ -249,8 +249,10 @@ levels, cheapest first.
   progress, and a test holds this.
 - **A practice review** on a generated local repository is a spike
   (TKT-01M63Z7G86D39B7PXG7XDJVRHD), because it spends real agent money and
-  needs an agent tool. It is built only if the owner decides to after the
-  spike's recommendation.
+  needs an agent tool. The spike recommends deferring it: a practice
+  repository runs as a local review, whose findings are the person's own
+  (D42) with no Keep or Submit, so it would teach the local flow, not the
+  forge one. It is built only if the owner decides otherwise.
 
 Progress is the person's own annotation, kept in `prefs.json` beside `tab`
 and `waived`: the hints dismissed, and the tour's state (not started,

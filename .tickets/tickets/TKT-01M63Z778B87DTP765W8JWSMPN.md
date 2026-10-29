@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-29T13:57:32Z
-updated_at: 2026-10-29T14:00:22Z
+updated_at: 2026-10-29T14:13:12Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -53,3 +53,9 @@ It is built in three levels, cheapest first:
 - **The loopback server is attack surface.** Any route the tutorial adds goes through the window-origin protection, with no exception.
 - **The inbox works with every agent tool absent and with no ticket store.** So does every tutorial step that does not need them, and the ones that do say why and skip.
 - **The forge is the record.** Tutorial progress is the person's own annotation, kept in `prefs.json` beside `tab` and `waived`, never as review state.
+
+## Notes
+
+**agent:claude-code/getting-started** at 2026-10-29T14:13:12Z
+
+Every child is done on branch tickets/getting-started (not pushed). Levels 1 and 2 are built and tested, and just ci passes. The level-3 spike recommends deferring. Left in-progress for the owner: test the branch, confirm D70's details, and decide the spike.
