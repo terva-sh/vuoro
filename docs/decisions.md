@@ -1408,9 +1408,9 @@ refused, since a new file named like a lockfile is not counted as one.
 
 ### D70. vuoro teaches a new person in the window, with hints and a tour that only show
 
-Scoped by the owner on 2026-10-29 in the epic TKT-01M63Z778B87DTP765W8JWSMPN
-(Getting started: teach a new person to use vuoro in the window), which the
-owner then had built. Section 10.2 asked for documentation for somebody new.
+Decided by the owner on 2026-10-29, scoped in the epic
+TKT-01M63Z778B87DTP765W8JWSMPN (Getting started: teach a new person to use
+vuoro in the window) and confirmed as built. Section 10.2 asked for documentation for somebody new.
 First run configured vuoro and nothing showed how to use it (section 3.4).
 
 - **Three levels, cheapest first.** Hints on empty and first-time screens,

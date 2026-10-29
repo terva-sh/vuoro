@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-29T13:57:32Z
-updated_at: 2026-10-29T14:13:12Z
+updated_at: 2026-10-29T14:21:09Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -59,3 +59,7 @@ It is built in three levels, cheapest first:
 **agent:claude-code/getting-started** at 2026-10-29T14:13:12Z
 
 Every child is done on branch tickets/getting-started (not pushed). Levels 1 and 2 are built and tested, and just ci passes. The level-3 spike recommends deferring. Left in-progress for the owner: test the branch, confirm D70's details, and decide the spike.
+
+**agent:claude-code/getting-started** at 2026-10-29T14:21:09Z
+
+Owner confirmed D70 as written on 2026-10-29: the two-part tour and all three rejections stand. Attribution changed to decided by the owner.
