@@ -32,6 +32,8 @@ type fakeTool struct {
 	proposals []map[string]any
 	hang      bool
 	fail      bool
+	// during runs in each turn before it ends.
+	during func()
 }
 
 func (fakeTool) Name() string                               { return "Fake" }
@@ -69,6 +71,9 @@ func (s *fakeSession) Send(context.Context, string) error {
 			if res, err := http.DefaultClient.Do(req); err == nil {
 				res.Body.Close()
 			}
+		}
+		if s.tool.during != nil {
+			s.tool.during()
 		}
 		defer func() { recover() }() // the session may have closed meanwhile
 		s.events <- agent.Event{Kind: agent.TurnDone, Usage: &agent.TurnUsage{CostUSD: 0.01}}
@@ -461,7 +466,17 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 	for k, v := range aFinding {
 		again[k] = v
 	}
-	next := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil), exitFindings,
+	// While the run goes on, a window changes the earlier run's record.
+	firstPath := filepath.Join(stateDir, "runs", first.Run.ID, "run.json")
+	windowEdit := func() {
+		var rec map[string]any
+		b, _ := os.ReadFile(firstPath)
+		json.Unmarshal(b, &rec)
+		rec["written_by_a_window"] = true
+		b, _ = json.Marshal(rec)
+		os.WriteFile(firstPath, b, 0o600)
+	}
+	next := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again, again}, during: windowEdit}, nil, nil, nil), exitFindings,
 		"-C", dir, "-profile", "code", "-follows", first.Run.ID, "main..feature")
 	if next.Run.Follows != first.Run.ID {
 		t.Fatalf("follows %q, want %q", next.Run.Follows, first.Run.ID)
@@ -469,7 +484,7 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 	if len(next.Earlier) != 1 || next.Earlier[0].ID != earlierID || next.Earlier[0].Standing != drafts.StandingOpen {
 		t.Fatalf("earlier %+v", next.Earlier)
 	}
-	if len(next.Findings) != 1 || next.Findings[0].Earlier != earlierID {
+	if len(next.Findings) != 2 || next.Findings[0].Earlier != earlierID {
 		t.Fatalf("findings %+v", next.Findings)
 	}
 
@@ -483,17 +498,21 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 	if !strings.Contains(rec.First, `<earlier-finding id="`+earlierID+`"`) {
 		t.Errorf("the first message does not list the earlier finding:\n%s", rec.First)
 	}
-	b, _ = os.ReadFile(filepath.Join(stateDir, "runs", first.Run.ID, "run.json"))
+	b, _ = os.ReadFile(firstPath)
 	json.Unmarshal(b, &rec)
 	if len(rec.FollowedBy) != 1 || rec.FollowedBy[0] != next.Run.ID {
 		t.Errorf("the earlier run is followed by %v", rec.FollowedBy)
+	}
+	if !bytes.Contains(b, []byte(`"written_by_a_window":true`)) {
+		t.Errorf("the command wrote its stale copy of the followed run over the window's change:\n%s", b)
 	}
 	if b, _ := os.ReadFile(otherPath); !bytes.Equal(b, bystander) {
 		t.Errorf("following one run rewrote another's record:\n%s", b)
 	}
 
 	var out, errb bytes.Buffer
-	if code := testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil).run(
+	// Two drafts restate the one earlier finding, which counts once.
+	if code := testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again, again}}, nil, nil, nil).run(
 		[]string{"-C", dir, "-profile", "code", "-follows", first.Run.ID, "main..feature"}, &out, &errb); code != exitFindings {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
@@ -525,7 +544,7 @@ func TestReviewRefusesARunItCannotFollow(t *testing.T) {
 	for _, c := range []struct{ dir, follows, want string }{
 		{dir, "nope", "no finished run nope to follow"},
 		{dir, "askrun", "run askrun is not a review"},
-		{other, first.Run.ID, "run " + first.Run.ID + " reviewed another change"},
+		{other, first.Run.ID, "run " + first.Run.ID + " reviewed another change or checkout"},
 	} {
 		var out, errb bytes.Buffer
 		code := testCmdIn(stateDir, fakeTool{}, nil, nil, nil).run([]string{"-C", c.dir, "-profile", "code", "-follows", c.follows, "main..feature"}, &out, &errb)

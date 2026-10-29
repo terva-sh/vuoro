@@ -229,7 +229,7 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		case prev.Mode != "":
 			return usage(fmt.Sprintf("run %s is not a review", *follows))
 		case prev.Kind != ch.Kind || prev.Ref != ch.Ref:
-			return usage(fmt.Sprintf("run %s reviewed another change", *follows))
+			return usage(fmt.Sprintf("run %s reviewed another change or checkout", *follows))
 		}
 	}
 	a.ProbeTools()
@@ -237,6 +237,9 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		logf("%v", err)
 		return exitFailed
+	}
+	if *follows != "" {
+		a.Runs.Forget(*follows)
 	}
 	logf("run %s: %s at %s, %d reviewer%s", run.ID, ch.Title, shortSHA(ch.Diff.Head), len(reviewers), plural(len(reviewers)))
 

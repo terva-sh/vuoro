@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T16:21:44Z
-updated_at: 2026-10-29T16:45:55Z
+updated_at: 2026-10-29T16:51:26Z
 created_by:
   id: agent:claude-code/review-rounds
   name: ""
@@ -76,6 +76,10 @@ Not done here: the vuoro-review skill's vuoro-round script (in the dotfiles repo
 **agent:claude-code/review-rounds** at 2026-10-29T16:45:55Z
 
 vuoro review round 1 (run 20261029-164009-31d7cf): -follows used LoadFinished, so the deferred Shutdown re-saved every finished run from a stale copy, which could undo a window's decisions (high). Now LoadRun reads only the followed run; TestReviewFollowsAnEarlierRun checks that a bystander record is left byte-for-byte, and fails with LoadFinished back. The Markdown restated line now says where the earlier finding stood (medium), and plan 6.7 names the JSON fields (low).
+
+**agent:claude-code/review-rounds** at 2026-10-29T16:51:26Z
+
+vuoro review round 2 (run 20261029-164606-3d95ef): Shutdown still re-saved the followed run itself from its start-up copy (high), the sibling of round 1's finding that the sweep missed. The command now Forgets that run once Follow has written the forward link; TestReviewFollowsAnEarlierRun edits the record mid-run as a window would and checks the edit survives. Also: the raised-again count counts distinct earlier findings, and the refusal says change or checkout. Plan 6.7 no longer claims more than the code does.
 
 ## Summary
 

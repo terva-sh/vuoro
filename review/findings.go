@@ -28,13 +28,15 @@ func Findings(v RunView) string {
 	fmt.Fprintf(&b, "Reviewed at head `%s`, against merge base `%s`.\n", v.Head, v.Base)
 	fmt.Fprintf(&b, "Run `%s`, cost %s.\n", v.ID, usd(v.CostUSD))
 	if v.Follows != "" {
-		again := 0
+		// Two drafts can restate one earlier finding, so this counts the
+		// earlier findings, not the drafts.
+		again := map[string]bool{}
 		for _, d := range shown {
 			if d.Earlier != "" {
-				again++
+				again[d.Earlier] = true
 			}
 		}
-		fmt.Fprintf(&b, "It follows run `%s`, which had %d finding%s; %d %s raised again here.\n", v.Follows, len(v.Earlier), plural(len(v.Earlier)), again, isAre(again))
+		fmt.Fprintf(&b, "It follows run `%s`, which had %d finding%s; %d %s raised again here.\n", v.Follows, len(v.Earlier), plural(len(v.Earlier)), len(again), isAre(len(again)))
 	}
 	b.WriteString("\n")
 	for _, s := range v.Sessions {

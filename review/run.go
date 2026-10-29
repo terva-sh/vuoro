@@ -1002,6 +1002,16 @@ func (m *Manager) Get(id string) *Run {
 	return m.runs[id]
 }
 
+// Forget stops holding run id, without saving it, so Shutdown does not write
+// it either. vuoro review forgets the run it follows once the forward link is
+// written, because its copy was read at the start and a window may change the
+// record meanwhile.
+func (m *Manager) Forget(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.runs, id)
+}
+
 // Runs returns every run, newest first.
 func (m *Manager) Runs() []*Run {
 	m.mu.Lock()
