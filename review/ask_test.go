@@ -488,7 +488,7 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 	if !strings.Contains(first, strconv.QuoteToASCII(forged)+" +2700 -0 (large)") || strings.Contains(first, "\nother.go +0 -0 (lockfile)") {
 		t.Fatalf("a path with a newline wrote its own line into the list:\n%.3000s", first[strings.Index(first, "Files left out"):])
 	}
-	if want := []LeftOut{{Path: "vendor/big.go", Added: "2603", Deleted: "0", Why: "large"}, {Path: forged, Added: "2700", Deleted: "0", Why: "large"}}; !slices.Equal(v.LeftOut, want) {
+	if want := []LeftOut{{Path: "vendor/big.go", Name: "vendor/big.go", Added: "2603", Deleted: "0", Why: "large"}, {Path: forged, Name: strconv.QuoteToASCII(forged), Added: "2700", Deleted: "0", Why: "large"}}; !slices.Equal(v.LeftOut, want) {
 		t.Fatalf("left out %+v", v.LeftOut)
 	}
 	m.Shutdown()

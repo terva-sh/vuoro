@@ -57,7 +57,9 @@ generated files first and then the largest, and listed with their line counts;
 a long commit list keeps its newest commits. Read each file left out as large
 with git_diff before you answer, since the change's author chose its size;
 when its diff is too large for git_diff, read it with Read in parts. Read a
-left-out lockfile or generated file when it matters to the question. When the
+left-out lockfile or generated file when it matters to the question. A name in
+double quotes is escaped as in Go or JSON; unescape it before you pass it as a
+path. When the
 list of left-out files is cut short, find the rest with git_diff and stat,
 narrowed by path if needed. Say which left-out files you did not read, and
 when there were too many to cover, say so.

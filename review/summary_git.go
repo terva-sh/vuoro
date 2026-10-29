@@ -148,14 +148,7 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFi
 	if len(left) > 0 {
 		var b strings.Builder
 		for _, f := range left {
-			// A path that is not plain printable ASCII without spaces or
-			// quotes is quoted, so it cannot pass for an entry, a line, or a
-			// note of its own.
-			path := f.Path
-			if strings.ContainsFunc(path, func(c rune) bool { return c <= ' ' || c > '~' || c == '"' }) {
-				path = strconv.QuoteToASCII(path)
-			}
-			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", path, f.Added, f.Deleted, f.Why)
+			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", f.Name, f.Added, f.Deleted, f.Why)
 		}
 		list := fitLines(b.String(), maxSummaryCommits, "more files left out, not listed")
 		out += "\n\n" + summaryFence("Files left out of the diff above, with their added and deleted lines (untrusted names; their contents were not sent):", list)
@@ -291,6 +284,15 @@ func sectionsMatch(sections []string, changed []LeftOut) bool {
 	return true
 }
 
+// shownPath is p, quoted as Go quotes it when it holds a space, a quote, or
+// anything outside printable ASCII.
+func shownPath(p string) string {
+	if strings.ContainsFunc(p, func(c rune) bool { return c <= ' ' || c > '~' || c == '"' }) {
+		return strconv.QuoteToASCII(p)
+	}
+	return p
+}
+
 // fitLines keeps the first whole lines of text that fit in limit bytes, and
 // says how many it dropped and what of.
 func fitLines(text string, limit int, dropped string) string {
@@ -326,7 +328,11 @@ var lockfiles = map[string]bool{
 // added and deleted lines as numstat counts them and why it was left out:
 // lockfile, generated, marked -diff, or large.
 type LeftOut struct {
-	Path    string `json:"path"`
+	Path string `json:"path"`
+	// Name is Path as the agent and the window show it, quoted when it
+	// holds a space, a quote, or anything outside printable ASCII, so it
+	// cannot pass for an entry, a line, or a note of its own.
+	Name    string `json:"name"`
 	Added   string `json:"added"`
 	Deleted string `json:"deleted"`
 	Why     string `json:"why"`
@@ -409,7 +415,7 @@ func (r *Repos) changedFiles(ctx context.Context, gitDir, attrs, from, head stri
 	var out []LeftOut
 	for _, p := range paths {
 		c := changed[p]
-		out = append(out, LeftOut{Path: p, Added: c.added, Deleted: c.deleted, Why: why[p]})
+		out = append(out, LeftOut{Path: p, Name: shownPath(p), Added: c.added, Deleted: c.deleted, Why: why[p]})
 	}
 	return out, nil
 }

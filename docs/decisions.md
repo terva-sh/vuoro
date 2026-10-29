@@ -1402,8 +1402,9 @@ refused, since a new file named like a lockfile is not counted as one.
   which the agent can list with `git_diff` and `stat`. The run keeps the
   first 500 names and a count of the rest, which the conversation shows, so
   the person sees what the agent was not given without trusting the agent to
-  say so. A name that is not plain printable ASCII is quoted in the message,
-  so the change cannot pass one off as another entry.
+  say so. A name holding a space, a quote, or anything outside printable
+  ASCII is quoted, in the message and in the window alike, so the change
+  cannot pass one off as another entry.
 - **No file is truncated.** A file's patch is sent whole or not at all, which
   is why this does not reopen the reason for the cap. The commit list and the
   list of left-out files are cut at line ends, with a count of what was cut.

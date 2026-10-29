@@ -88,13 +88,15 @@ describe('AskPanel', () => {
   })
 
   it('names the files too large to send with the question', async () => {
-    serve([run({ left_out: [{ path: 'uv.lock', added: '5177', deleted: '12', why: 'lockfile' }, { path: 'vendor/big.go', added: '2603', deleted: '0', why: 'large' }], left_out_more: 3 })])
+    serve([run({ left_out: [{ path: 'uv.lock', added: '5177', deleted: '12', why: 'lockfile' }, { path: 'vendor/big.go', added: '2603', deleted: '0', why: 'large' }, { path: 'x\nother.go +0 -0 (lockfile)', name: '"x\\nother.go +0 -0 (lockfile)"', added: '9', deleted: '0', why: 'large' }], left_out_more: 3 })])
     const root = document.createElement('div')
     await act(async () => render(<AskPanel change={change} setup={setup} />, root))
     await settle()
     const left = root.querySelector('.ask-left-out')
-    expect(left?.textContent).toContain('5 files were left out of what the agent was sent')
+    expect(left?.textContent).toContain('6 files were left out of what the agent was sent')
     expect(left?.textContent).toContain('…and 3 more, not named here.')
+    // A crafted name shows quoted, as the agent was shown it.
+    expect(left?.textContent).toContain('"x\\nother.go +0 -0 (lockfile)" +9 −0 · large')
     expect(left?.textContent).toContain('uv.lock +5177 −12 · lockfile')
     expect(left?.textContent).toContain('vendor/big.go +2603 −0 · large')
   })

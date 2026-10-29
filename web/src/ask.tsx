@@ -175,7 +175,7 @@ function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change
       <button disabled={busy || working} onClick={() => onAgain(run)}>ask the same on the new head</button></p>}
     {run.left_out && run.left_out.length > 0 && <details class="ask-left-out"><summary>⚠ {leftCount(run)} file{leftCount(run) === 1 ? ' was' : 's were'} left out of what the agent was sent</summary>
       <p class="muted">The agent is asked to read them itself, and to say which it did not.</p>
-      <ul>{run.left_out.map((f) => <li key={f.path}><span class="mono">{f.path}</span> +{f.added} −{f.deleted} · {f.why}</li>)}</ul>
+      <ul>{run.left_out.map((f) => <li key={f.path}><span class="mono">{f.name || f.path}</span> +{f.added} −{f.deleted} · {f.why}</li>)}</ul>
       {run.left_out_more ? <p class="muted">…and {run.left_out_more} more, not named here.</p> : null}
     </details>}
     {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
