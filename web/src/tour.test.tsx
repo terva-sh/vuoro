@@ -172,6 +172,34 @@ describe('the tour', () => {
     expect(writes()).toContain('/api/changes')
   })
 
+  it('answers the offer with Enter rather than opening the inbox\'s change', async () => {
+    serve(setupWith())
+    const inbox = { accounts: [{ key: 'gl', name: 'Work', kind: 'gitlab', host: 'lab.test', username: 'me', last_attempt: '', last_success: '' }],
+      mine: [{ ref: change.ref, kind: 'gitlab', account_key: 'gl', account: 'Work', title: 'Review me', web_url: change.web_url, draft: false, roles: ['reviewer'],
+        turn: { owner: 'mine', since: null, last_activity: null, reasons: [{ rule: 'R1', text: 'Your review is requested.', since: null }] } }], theirs: [], snoozed: [] }
+    const base = vi.mocked(api).getMockImplementation()!
+    vi.mocked(api).mockImplementation(async (path: string, init?: RequestInit) => path.startsWith('/api/inbox') ? inbox as never : base(path, init))
+    await act(async () => render(<App />, root))
+    await settle()
+    await act(async () => { button('No thanks').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) })
+    await settle()
+    expect(writes()).not.toContain('/api/changes')
+  })
+
+  it('replays from the home page when a change was open', async () => {
+    serve(setupWith({ tour: { state: 'done', step: 'submit' } }))
+    vi.mocked(post).mockImplementation(async (path: string) => (path === '/api/changes' ? change : {}) as never)
+    await act(async () => render(<App />, root))
+    await settle()
+    const input = document.querySelector<HTMLInputElement>('input[type="url"]')!
+    await act(async () => { input.value = change.web_url; input.dispatchEvent(new Event('input')) })
+    await press('Open')
+    expect(document.querySelector('[data-tour="change-tabs"]')).not.toBeNull()
+    await press('⚙ Settings')
+    await press('Replay the tour')
+    expect(step()).toBe('home-tabs')
+  })
+
   it('lets an open modal take Esc first', async () => {
     serve(setupWith({ tour: { state: 'on', step: 'home-tabs' } }))
     await act(async () => render(<App />, root))

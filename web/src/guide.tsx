@@ -4,7 +4,7 @@
 import { createContext, type ComponentChildren } from 'preact'
 import { useContext, useMemo } from 'preact/hooks'
 import { post } from './api'
-import type { HintID, Setup, Tour } from './types'
+import { toolLabel, type HintID, type Setup, type Tour } from './types'
 
 export interface Guide {
   hints: HintID[] // the hints the person dismissed
@@ -52,17 +52,22 @@ export function Hint({ id, children, fallback }: { id: HintID; children: Compone
   const { hints, dismiss } = useGuide()
   if (hints.includes(id)) return <>{fallback}</>
   return (
-    <aside class="hint" role="note" aria-label="Getting started" data-hint={id}>
+    <aside class="hint" role="note" aria-label="Getting started" data-hint={id} onKeyDown={keepKeys}>
       <div class="hint-body">{children}</div>
       <button type="button" class="link" onClick={() => dismiss(id)}>Got it</button>
     </aside>
   )
 }
 
+// keepKeys keeps a key pressed on a hint's own controls from reaching the
+// inbox and project lists, which hear keys on the window and would open
+// their selected change on Enter.
+export const keepKeys = (e: KeyboardEvent) => e.stopPropagation()
+
 // toolNames names the agent tools vuoro knows, for a hint that needs one
 // none of which answered.
 export function toolNames(setup?: Setup): string {
-  const names = [...new Set(setup?.tools.map((t) => t.tool) ?? [])]
+  const names = [...new Set(setup?.tools.map((t) => toolLabel(t.tool)) ?? [])]
   return names.length > 0 ? names.join(' or ') : 'Claude Code or terva'
 }
 

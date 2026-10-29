@@ -99,7 +99,13 @@ export function App() {
         {settings && setup ? (
           <Settings setup={setup} onSetup={setSetup} scheme={scheme} onScheme={setScheme} version={hello?.version}
             onAbout={() => setAbout(true)} onClose={() => setSettings(false)}
-            onTour={() => { guide.setTour({ state: 'on' }); setSettings(false) }} />
+            onTour={() => {
+              // A replay starts at its first step, which is on the home page.
+              guide.setTour({ state: 'on' })
+              setSettings(false)
+              setChange(undefined)
+              setLocalRun(undefined)
+            }} />
         ) : change ? (
           <ChangeView change={change} setup={setup} onChange={setChange} onSetup={setSetup} key={`${change.web_url}@${change.diff.head}`} />
         ) : localRun ? (

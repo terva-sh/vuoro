@@ -206,6 +206,9 @@ export interface Tool {
   // says only that a credential is set, never what it is.
   shell_login?: boolean
 }
+// toolLabel is the name a person knows an agent tool by.
+export const toolLabel = (tool: string) => (tool === 'claude' ? 'Claude Code' : tool)
+
 // HomeTab is a tab of the home page (docs/plan.md section 6.8); empty is the
 // first, Reviews.
 export type HomeTab = '' | 'reviews' | 'local' | 'projects'

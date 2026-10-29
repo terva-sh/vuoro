@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api } from './api'
 import { Modal } from './modal'
-import type { Setup } from './types'
+import { toolLabel, type Setup } from './types'
 
 export interface AboutInfo {
   version: string
@@ -23,7 +23,7 @@ export interface AboutInfo {
 export function aboutRows(a: AboutInfo, setup?: Setup): [string, [string, string][]][] {
   const source = a.commit ? `${a.commit.slice(0, 12)}${a.modified ? ' (with uncommitted changes)' : ''}` : 'not recorded'
   const tools: [string, string][] = (setup?.tools ?? []).map((t) => [
-    t.tool === 'claude' ? 'Claude Code' : t.tool,
+    toolLabel(t.tool),
     `${t.version ?? 'unknown version'}${t.state === 'ok' ? '' : `, ${t.state.replace('_', ' ')}`}`,
   ])
   return [

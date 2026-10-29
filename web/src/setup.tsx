@@ -7,7 +7,7 @@ import { errorText, useAction } from './action'
 import { post } from './api'
 import { EditForm } from './textedit'
 import { Gauge } from './gauge'
-import type { Access, Background as BackgroundView, ForgeForm, Setup, TokenSource, Tool } from './types'
+import { toolLabel, type Access, type Background as BackgroundView, type ForgeForm, type Setup, type TokenSource, type Tool } from './types'
 
 // splitCommand splits a command line into its words as a shell would,
 // honouring single quotes, double quotes, and backslashes, and expanding
@@ -306,7 +306,7 @@ export function signedIn(account?: string): string {
 
 // toolHelp is what to do about a tool in each state.
 function toolHelp(t: Tool): string {
-  const name = t.tool === 'claude' ? 'Claude Code' : t.tool
+  const name = toolLabel(t.tool)
   switch (t.state) {
     case 'ok': return `✓ ${name} ${t.version ?? ''}, ${signedIn(t.account)}`
     case 'missing': return `${name} is not installed. ${t.error ?? ''}`

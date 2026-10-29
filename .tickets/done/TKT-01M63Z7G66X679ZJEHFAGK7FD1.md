@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:41Z
-updated_at: 2026-10-29T14:12:26Z
+updated_at: 2026-10-29T14:40:50Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -48,6 +48,12 @@ After `FirstRun` finishes, offer a short tour of the window: the home tabs and w
 - [x] Esc ends the tour at any step, and Settings replays it
 - [x] web/dist is rebuilt and committed
 
+## Notes
+
+**agent:claude-code/getting-started** at 2026-10-29T14:40:50Z
+
+Criterion 1 says FirstRun's finish offers the tour. Since the review fixes, the home page offers it until answered, which covers that case and more; declining is still remembered.
+
 ## Summary
 
-web/src/tour.tsx: six steps on data-tour markers (home-tabs, open-url, settings; change-tabs, review-tab, submit). The home part shows after FirstRun's TourOffer; the change part waits for a change the person opens. A step whose element is absent or inside [hidden] is skipped, and the tour finishes when nothing after it can show. Esc (captured first) and End the tour set it off; Finish sets it done; Settings > Getting started > Replay the tour sets it on from the start and closes Settings. tour.test.tsx walks both parts through the real App and ChangeView and asserts the only POST is /api/prefs/tour; a mutation that posted /api/runs from Next failed it. Checked by eye in an isolated browser-mode instance (HOME in /tmp): the offer, step 1 under the tabs, and step 3 clamped at the right edge.
+web/src/tour.tsx: six steps on data-tour markers (home-tabs, open-url, settings; change-tabs, review-tab, submit). The home page offers the tour (TourOffer) until the person answers, whether or not first run ran; the change part waits for a change the person opens. A step whose element is absent or inside [hidden] is skipped, and the tour finishes when nothing after it can show. Keys pressed in the popover, a hint, or the offer stop there, so Enter never reaches the inbox's open-change key. Esc and End the tour set it off, except that an open modal takes Esc first; Finish sets it done. Settings > Getting started > Replay the tour returns to the home page and starts from the first step. tour.test.tsx walks both parts through the real App and ChangeView and asserts the only POST is /api/prefs/tour, and covers Enter, Esc with a modal, the offer without first run, and replay from a change; each was checked to fail without its fix. Two vuoro review rounds drove the key, modal, offer and replay fixes.

@@ -3,7 +3,7 @@
 // real element. It only shows. It never starts a run, opens a change, or
 // writes to a forge, and its one write is the person's progress.
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { useGuide } from './guide'
+import { keepKeys, useGuide } from './guide'
 
 export type Surface = 'home' | 'change'
 
@@ -142,7 +142,7 @@ export function TourOffer() {
   const { tour, setTour } = useGuide()
   if (tour.state !== '') return null
   return (
-    <aside class="hint tour-offer" role="note" aria-label="Tour of vuoro">
+    <aside class="hint tour-offer" role="note" aria-label="Tour of vuoro" onKeyDown={keepKeys}>
       <div class="hint-body">
         <p><strong>New to vuoro?</strong> A short tour shows where things are in this window. It only points at them: nothing starts, opens, or posts.</p>
       </div>
