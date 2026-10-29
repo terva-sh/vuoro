@@ -573,6 +573,22 @@ func TestARunOutlivesARestartAndItsConversationResumes(t *testing.T) {
 	m2.Close(context.Background(), r.ID)
 }
 
+// A reviewer that reports one case of a pattern names the others, and the
+// synthesizer keeps every place, so a fix covers them all in one round.
+func TestEveryCaseOfAPatternIsNamedInOneFinding(t *testing.T) {
+	for _, want := range []string{"search the change\nfor the other cases before you report it", "list each other place by path and line"} {
+		if !strings.Contains(systemPrompt(Builtin[0]), want) {
+			t.Errorf("the reviewer prompt does not say %q", want)
+		}
+	}
+	if want := "Drafts that report different cases of one pattern"; !strings.Contains(synthesisPrompt(), want) {
+		t.Errorf("the synthesizer prompt does not say %q", want)
+	}
+	if want := "names every\n   place its sources name"; !strings.Contains(synthesisPrompt(), want) {
+		t.Errorf("the synthesizer prompt does not say %q", want)
+	}
+}
+
 func TestReviewersRunInParallelAndTheSynthesizerMergesAfterThem(t *testing.T) {
 	var mu sync.Mutex
 	inFlight, most, reviewersDone := 0, 0, 0

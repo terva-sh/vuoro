@@ -845,6 +845,15 @@ reviewer's drafts. It proposes merged drafts that name their sources, and it
 says what it set aside and why. A finding only one reviewer raised is kept and
 labelled. It is not voted away.
 
+A finding is often one case of a pattern, such as a key handler or a state
+the change repeats in several places. A reviewer that finds one searches the
+change for the others before reporting it, and names every place in the one
+finding, anchored on the first. The synthesizer treats drafts that found
+different cases of one pattern as one group, and its draft keeps every
+place. Without this, each round of a self-review found the next case of what
+the last round fixed: on 2026-10-29 the getting-started review took a round
+each for a key leak on the tour's Next, then on its offer and on the hints.
+
 A finding has severity, title, body, evidence, and an optional anchor (path,
 side, SHA, line range). Each valid finding is a pending draft comment, marked
 with the tool and model that drafted it.

@@ -76,6 +76,13 @@ Report each finding with the propose_draft tool, one finding per draft:
   than that, or is a matter of judgement, and leave it out for low and info
   findings.
 
+A finding is often one case of a pattern: a handler, a state, a check, or a
+claim that the change repeats elsewhere. When you find one, search the change
+for the other cases before you report it, and name them all in the one
+finding. Anchor it on the first, and list each other place by path and line
+in the description. A fix for one case that misses the rest costs the person
+another review.
+
 When a tool call is refused, read the rule it names, correct the draft, and
 try again. Revise or withdraw your own drafts as you learn more, with
 revise_draft and withdraw_draft. Do not draft praise, and do not repeat a
@@ -223,6 +230,9 @@ change and its diff are in the first message.
    propose_draft whose sources are the ids of every draft it covers. Keep
    the strongest severity that the evidence supports, the clearest title,
    and an anchor on lines the diff shows.
+   Drafts that report different cases of one pattern, such as the same
+   missing check in two handlers, are one group. Its draft names every
+   place its sources name, so that one fix covers them all.
    When a source carries a suggestion, keep it if your anchor covers exactly
    the lines it replaces, and widen or narrow the anchor to match it when
    that is the better anchor. A suggestion replaces every line of the
