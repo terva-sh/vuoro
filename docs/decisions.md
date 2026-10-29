@@ -1322,3 +1322,55 @@ cannot be pushed without force.
   else's branch.
 - **Everything else still never forces.** The editor's fixes (D39, D41, D42)
   and a merge update stay fast-forward only.
+
+### D68. vuoro answers questions about a change with a read-only agent, and keeps every conversation
+
+Decided by the owner on 2026-10-28. The Summary tab answered one question,
+once. The person wants to ask their own and follow up, to keep the answers,
+and to find them again later.
+
+- **Ask replaces Summary.** One kind of run, mode `ask`, serves canned
+  prompts and free-form questions, and Summary becomes the shipped
+  `explain` prompt. Keeping both was rejected: two tabs that start the same
+  read-only session differ only in whether a follow-up is allowed.
+- **It reads files, git history, and the change, and nothing else.** vuoro
+  serves read-only git and change tools over its own MCP server (section
+  6.11). A read-only shell was rejected, because a shell is read-only only by
+  policy, and a reviewer's lockdown is proven by construction. Files alone
+  were rejected, because "why is this here" is answered by history and by
+  the change's discussion.
+- **Canned prompts are files in vuoro's config directory**, shipped ones and
+  the person's own beside them, as presets are (D61). A repository's prompts
+  wait for its review checklist, read at the base commit, so that the change
+  under review cannot write the question asked about it.
+- **Conversations are kept until the person deletes one**, outside the
+  retention of review runs. They are the person's notes about a change, and
+  they cost money to make.
+- **Nothing an agent writes here reaches the forge.** An answer is posted
+  only by the person copying it into their own comment.
+
+### D69. vuoro tests a change in the editor's sandbox, and a test has nothing to push
+
+Decided by the owner on 2026-10-29, with D68. Dogfooding a dependency bump
+showed that the question before merging was "what breaks", which a
+read-only agent cannot answer. D68 keeps Ask read-only, so this is a second
+kind of conversation beside it (section 6.12).
+
+- **It is editor-class, in the editor's sandbox (D40).** Running code is the
+  editor's job (section 10.4), so a test runs where the editor runs, with no
+  forge credential and the network limited to package registries. Giving Ask
+  a shell was rejected in D68 and is not reopened here.
+- **It has nothing to push.** A test may change files and commit inside its
+  own repository while it investigates, but vuoro offers no way out of the
+  sandbox for that work. The editor already fixes; a test reports.
+- **It shares Ask's tab, prompts, and kept conversations**, marked as one
+  that ran code, so a person finds every conversation about a change in one
+  place.
+- **The sandbox is adapted in use, not settled up front.** A probe starts on
+  the editor's sandbox as it is. Whether the registry allowlist is enough for
+  a test suite, whether some projects need a container, and how long a
+  probe's repository is kept are answered by running probes on real changes.
+  The design keeps network policy, runtime, and workspace retention as
+  separate seams recorded on each run, so each can change on its own, by a
+  new decision, when use shows it must.
+

@@ -1156,7 +1156,9 @@ lockdown. Triage groups the open threads on the person's own change as must
 fix, discuss, or nit, and drafts replies through the drafts server. None of it
 is posted by an agent.
 
-The change's Summary tab starts a separate, single-turn summary session with
+The Ask tab (section 6.11, D68) replaces the Summary tab described here,
+and keeps its range rules. The change's Summary tab starts a separate,
+single-turn summary session with
 Read/Grep/Glob and no drafts MCP server. Its text streams locally, with saved
 history, exact range, head status and Stop. The whole-change range is the forge's
 base to its freshly read head. “Since a Vuoro review” selects a completed local
@@ -1829,6 +1831,143 @@ other.
   - The update never changes the change's title, description, reviewers, or
     review state.
 
+### 6.11 Asking about a change
+
+D68. Every change has an **Ask** tab: canned prompts, such as "Explain this
+change to me", and a free-form question, each answered by a read-only agent
+the person can keep talking to. Every conversation is kept, and the window
+lists and searches them across all changes. It replaces the Summary tab.
+
+**A conversation is a read-only run of its own**, in mode `ask`.
+
+- It is pinned to the change's exact base and head, read fresh from the
+  forge when it starts, as a summary is today. Its scope is the whole change
+  or, as for a summary, the range since a completed vuoro review.
+- The first message is a canned prompt or the person's question. The person
+  can follow up as often as they like. Each turn is a message to the same
+  session, and a session whose process ended is resumed (`Spec.Resume`), so a
+  conversation carries on after a restart.
+- When the change's head moves, the conversation is marked stale and names
+  both heads. The person can carry on, since the clone still holds the old
+  head, or ask the same first question again on the new head as a new
+  conversation.
+- The Summary tab's runs, mode `summary`, are listed as conversations whose
+  prompt is the shipped `explain`. They are read in place and not rewritten.
+
+**What it may read.** The agent has Read, Grep, and Glob on the head's
+checkout, and no shell, no web access, no extensions, no writing tool, and
+none of the person's MCP servers, the same lockdown as a reviewer
+(section 6.3). It has no drafts server. Instead vuoro serves it one more MCP
+server, `context`, whose tools only read, so it stays read-only by
+construction rather than by policy:
+
+- `git_log`, `git_show`, `git_blame`, and `git_diff` run in vuoro's clone of
+  the repository. Revisions must be a full commit ID from the run or a name
+  vuoro resolves to one, paths must be relative and inside the repository,
+  every argument goes after `--end-of-options`, diff programs and textconv are
+  off, and output is capped as a summary's patch is.
+- `change` answers with the change's title, description, labels, and state.
+  `discussion` answers with its threads and their comments. `pipeline`
+  answers with the head's pipeline status and failed jobs. All three answer
+  from what vuoro read from the forge when the turn started, and none of
+  them sends a request of its own.
+- Everything these tools return, and the description, threads, commit
+  messages, and repository text, is untrusted data, and the system prompt
+  says so.
+
+**Canned prompts are files.** vuoro ships `explain`, `risks`, `test`, and
+`start-here`. The person adds their own as Markdown files in
+`prompts/` under vuoro's config directory, such as
+`~/Library/Application Support/vuoro/prompts/` on macOS. Each file is an
+optional front matter of `title`, `scope` (`change` or `since_review`),
+`tool`, and `model`, followed by the prompt. As for presets (D61), theirs
+supplement the shipped ones, one with a shipped name shadows it, and theirs
+sort first. A file vuoro cannot read is listed with the reason, not dropped.
+A repository's own prompts, read at the base commit, are later work, with
+its review checklist.
+
+**Conversations are kept until the person deletes one.** They are outside
+the retention of review runs (section 8). Deleting the clone a conversation
+read keeps its text. Continuing one whose head the clone no longer holds
+fetches it again, and refuses with the reason when the forge no longer has it.
+
+**In the window.**
+
+- The change's Ask tab shows a row of prompt buttons, a question box, the
+  tool and model to ask, and the change's conversations, newest first, each
+  with its prompt or question, head, cost, and a stale mark. The selected
+  one shows in the session pane, with a box to follow up and Stop.
+- The home page gains an **Asked** tab that lists every conversation across
+  changes, searchable over the questions and answers and filterable by
+  project, change, and prompt. Each links to its change's Ask tab. The search
+  is a scan of the kept text, and an index (`modernc.org/sqlite` with FTS5)
+  is added only when the scan is slow.
+- Each turn shows its cost, and the conversation its total.
+
+**Nothing reaches the forge.** No route of `ask` writes to a forge, and the
+AST guard that holds the editor's push routes holds this too. An answer the
+person wants to post, they copy into a comment of their own.
+
+### 6.12 Testing a change
+
+D69. Ask (section 6.11) reads and never runs anything, so it cannot answer
+"does anything break if this merges". A **test** conversation can: the same
+Ask tab and the same kept, searchable conversations, but answered by an
+agent in the editor's sandbox, which may build and run commands, and which
+has nothing to push. The case that raised it was a dependency bump whose
+diff is a lockfile: the question is what the new versions change, and only
+running the code answers it.
+
+**A test is a run of its own**, in mode `probe`, and it is editor-class
+(section 6.3), not reviewer-class.
+
+- It runs in the editor's sandbox (D40): Claude Code with `--restricted`,
+  its shell confined, no home directory, an environment built from an
+  allowlist with no forge credential, and the network limited to the
+  package registries the preset names. With an API key for the editor, `srt`
+  wraps the whole process, as for the editor.
+- Its repository is its own, as the editor's is, with no forge remote. It
+  holds the change's head checked out and the base commit, so the agent can
+  run the same commands on both and compare.
+- It may change files and commit in its own repository, to add a test or
+  pin a version while it investigates, but nothing it does leaves the
+  sandbox. vuoro offers no push, no stacked change, and no suggestion from a
+  probe, and the AST guard holds that no push route accepts one. When the
+  person deletes the conversation, or the retention of its workspace ends,
+  the repository is deleted. The conversation's text is kept.
+- Its answer is the conversation: what it ran, what it saw, and what it
+  concludes, with the commands and their output in the session log. The
+  person follows up, as in Ask, such as "now run only the integration
+  tests".
+- It also gets the `context` server of section 6.11, so it can read the
+  change's description, threads, and pipeline.
+- A test may run longer than a question, so it shows elapsed time, and Stop
+  ends the process and keeps what it wrote so far.
+
+**Canned prompts say whether they run code.** A prompt file's front matter
+takes `runs: true`, which starts a probe instead of an ask run. vuoro ships
+`test-compare` ("run the tests on base and head and compare what changed")
+and `deps-impact` ("for each changed dependency, find where the code uses
+it, and exercise those paths on base and head"). A free-form question goes
+to Ask unless the person ticks **May run code**, which shows what that
+allows and which tool runs it.
+
+**In the window**, a probe is listed with the conversations of section 6.11
+and on the Asked tab, marked as one that ran code, with its elapsed time and
+cost.
+
+**The sandbox is learned in use, not settled up front.** A probe starts on
+the editor's sandbox exactly as it is (D40). Whether the registry allowlist
+is enough for a test suite that reaches other services, whether some
+projects need a container, and how long a probe's repository is kept before
+only its text remains are answered by running probes on real changes. So the
+probe keeps those three as separate seams: its network policy, its runtime
+(Claude Code's sandbox, `srt`, or later a container), and its workspace
+retention are each chosen in one place and recorded on the run, so a change
+to one is a change to that seam and a new decision, not a rewrite. When a
+probe fails because the sandbox refused something, it says what was refused,
+so the person can tell a sandbox limit from a test failure.
+
 ## 7. git-ticket (optional)
 
 > Open question: TKT-01M3W4HX0BNXTDC2DXBH5HQ0FM (Decide how a change finds its
@@ -1973,6 +2112,12 @@ and a terva-sh release).
 - **Updating a change from its target** (section 6.10, D66, D67). Merge or
   rebase the target in, with the editor resolving conflicts, and a push the
   person confirms.
+- **Asking about a change** (section 6.11, D68). Canned prompts and free-form
+  questions to a read-only agent, kept and searchable, in place of the
+  Summary tab.
+- **Testing a change** (section 6.12, D69). The same conversations, answered
+  in the editor's sandbox by an agent that runs the code and has nothing to
+  push.
 - **Nudges.** The tray, background refresh, and quiet, batched notifications
   when it becomes my turn or a long run finishes (D55, section 3.3).
 - **git-ticket, written.** Finding dispositions as ticket notes, and the
