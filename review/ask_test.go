@@ -292,6 +292,7 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	historyGit(t, src.Remote, "switch", "-q", "main")
 	write(".gitattributes", "gen/** linguist-generated\n")
 	write("uv.lock", "version = 1\n")
+	write("package-lock.json", "{\"resolved\": \"https://registry.npmjs.org/left-pad\"}\n")
 	historyGit(t, src.Remote, "add", ".")
 	historyGit(t, src.Remote, "commit", "-qm", "Mark generated code")
 	base := historyGit(t, src.Remote, "rev-parse", "HEAD")
@@ -299,8 +300,8 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	write("uv.lock", strings.Repeat("lockfile-line = \"pinned\"\n", 12000)) // about 300 KiB, past the cap
 	write("gen/client.go", strings.Repeat("var generatedClient = 1\n", 12000))
 	write("gen/small.go", "package gen\n\nvar smallGenerated = 1\n")
-	// A small edit to another lockfile is still sent: only what must go to
-	// fit under the cap is left out.
+	// A small edit to another lockfile the base holds is still sent: only
+	// what must go to fit under the cap is left out.
 	write("package-lock.json", "{\"resolved\": \"https://registry.example/evil\"}\n")
 	// A new file named like a lockfile is not one: the base has none there.
 	// It has the most lines, so it would be the first left out.

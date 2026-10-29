@@ -89,8 +89,9 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (stri
 	}
 	// The whole patch is sent when it fits, lockfiles included, since a
 	// lockfile edit can be the change that matters. Past the cap, lockfiles
-	// and generated files are left out, largest first and only until the
-	// rest fits, and named below with their line counts. So a dependency
+	// the forge base already holds and generated files are left out,
+	// largest first and only until the rest fits, and named below with
+	// their line counts. So a dependency
 	// bump is not refused for its lockfile, and a large lockfile cannot carry
 	// a small edit to another out of the patch. What is left is still
 	// refused whole past the cap.
@@ -142,7 +143,9 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (stri
 	return out, nil
 }
 
-// lockfiles are the dependency lockfiles a summary leaves out of its patch.
+// lockfiles are the names of dependency lockfiles. A file with one of these
+// names may be left out of a patch past the cap, and only when the forge base
+// already holds its path (leftOut).
 var lockfiles = map[string]bool{
 	"package-lock.json": true, "npm-shrinkwrap.json": true, "yarn.lock": true, "pnpm-lock.yaml": true, "bun.lockb": true, "bun.lock": true,
 	"uv.lock": true, "poetry.lock": true, "Pipfile.lock": true, "pdm.lock": true, "conda-lock.yml": true,
