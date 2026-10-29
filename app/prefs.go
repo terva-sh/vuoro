@@ -26,6 +26,18 @@ var Schemes = []string{"", "light", "dark"}
 // the first, Reviews.
 var Tabs = []string{"", "reviews", "local", "projects"}
 
+// Hints are the getting-started hints on empty and first-time screens, each
+// of which the person can dismiss for good (docs/plan.md section 3.4).
+var Hints = []string{"reviews-no-forge", "reviews-quiet", "local-empty", "projects-empty", "change-no-runs", "first-drafts"}
+
+// TourStates are where the getting-started tour is: not started, on at a
+// step, finished, or turned off.
+var TourStates = []string{"", "on", "done", "off"}
+
+// TourSteps are the tour's steps, in order. The window shows them; this list
+// only keeps a step that no longer exists out of the prefs.
+var TourSteps = []string{"home-tabs", "open-url", "settings", "change-tabs", "review-tab", "submit"}
+
 // prefs are the person's choices made in the UI, kept in the state
 // directory rather than the config file, which is theirs to write.
 type prefs struct {
@@ -40,6 +52,17 @@ type prefs struct {
 	// change by each author, by "host/username": review.Suggestions, or
 	// "change" for a stacked change (D59).
 	Deliver map[string]string `json:"deliver,omitempty"`
+	// Hints are the getting-started hints the person dismissed.
+	Hints []string `json:"hints"`
+	// Tour is how far the person got through the getting-started tour.
+	Tour tour `json:"tour"`
+}
+
+// tour is the getting-started tour's progress. Step is the last step shown,
+// or empty before the first.
+type tour struct {
+	State string `json:"state"`
+	Step  string `json:"step,omitempty"`
 }
 
 // deliveryKey names a change's author for prefs.Deliver.
@@ -55,7 +78,7 @@ func (a *App) prefsPath() string {
 // loadPrefs reads the prefs. With no file, or no state directory, every
 // action asks.
 func (a *App) loadPrefs() prefs {
-	p := prefs{Waived: []string{}}
+	p := prefs{Waived: []string{}, Hints: []string{}}
 	if path := a.prefsPath(); path != "" {
 		if err := state.ReadJSON(path, &p); err != nil && !errors.Is(err, os.ErrNotExist) {
 			p = prefs{}
@@ -72,6 +95,18 @@ func (a *App) loadPrefs() prefs {
 		p.Tab = ""
 	}
 	maps.DeleteFunc(p.Deliver, func(_, v string) bool { return v != review.Suggestions && v != "change" })
+	// A file from before getting started, or with a hint or step since
+	// removed, reads as a fresh start rather than an error.
+	p.Hints = slices.DeleteFunc(p.Hints, func(s string) bool { return !slices.Contains(Hints, s) })
+	if p.Hints == nil {
+		p.Hints = []string{}
+	}
+	if !slices.Contains(TourStates, p.Tour.State) {
+		p.Tour = tour{}
+	}
+	if !slices.Contains(TourSteps, p.Tour.Step) {
+		p.Tour.Step = ""
+	}
 	return p
 }
 
@@ -154,6 +189,61 @@ func (a *App) setTab(w http.ResponseWriter, r *http.Request) {
 	defer a.prefsMu.Unlock()
 	p := a.loadPrefs()
 	p.Tab = req.Tab
+	a.savePrefs(w, p)
+}
+
+// setHint dismisses one getting-started hint, or shows it again, and
+// answers with the prefs.
+func (a *App) setHint(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Hint      string `json:"hint"`
+		Dismissed bool   `json:"dismissed"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !slices.Contains(Hints, req.Hint) {
+		writeError(w, fmt.Errorf("%q is not a getting-started hint", req.Hint))
+		return
+	}
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	p.Hints = slices.DeleteFunc(p.Hints, func(s string) bool { return s == req.Hint })
+	if req.Dismissed {
+		p.Hints = append(p.Hints, req.Hint)
+	}
+	a.savePrefs(w, p)
+}
+
+// resetHints shows every dismissed hint again, and answers with the prefs.
+func (a *App) resetHints(w http.ResponseWriter, r *http.Request) {
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	p.Hints = []string{}
+	a.savePrefs(w, p)
+}
+
+// setTour keeps where the person is in the tour, and answers with the
+// prefs. Settings replays it by setting it on with no step.
+func (a *App) setTour(w http.ResponseWriter, r *http.Request) {
+	var req tour
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !slices.Contains(TourStates, req.State) {
+		writeError(w, fmt.Errorf("%q is not a state of the tour", req.State))
+		return
+	}
+	if req.Step != "" && !slices.Contains(TourSteps, req.Step) {
+		writeError(w, fmt.Errorf("%q is not a step of the tour", req.Step))
+		return
+	}
+	a.prefsMu.Lock()
+	defer a.prefsMu.Unlock()
+	p := a.loadPrefs()
+	p.Tour = req
 	a.savePrefs(w, p)
 }
 

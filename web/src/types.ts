@@ -255,7 +255,20 @@ export interface Setup {
   waived: string[] // confirmations the person turned off
   scheme: Scheme // the pinned colour scheme, or empty for the system's
   tab: HomeTab // the home page's tab used last
+  hints?: Hint[] // getting-started hints the person dismissed
+  tour?: Tour // how far the person got through the tour
   background: Background
+}
+
+// Hint is a getting-started hint on an empty or first-time screen
+// (docs/plan.md section 3.4), which app.Hints lists too.
+export type Hint = 'reviews-no-forge' | 'reviews-quiet' | 'local-empty' | 'projects-empty' | 'change-no-runs' | 'first-drafts'
+
+// Tour is the getting-started tour's progress: not started, on with the
+// last step shown, finished, or turned off.
+export interface Tour {
+  state: '' | 'on' | 'done' | 'off'
+  step?: string
 }
 
 // Background is how vuoro runs with its window closed (D55).

@@ -326,12 +326,15 @@ func (a *App) setupView() any {
 		Waived      []string         `json:"waived"` // confirmations the person turned off
 		Scheme      string           `json:"scheme"` // the pinned colour scheme, or empty for the system's
 		Tab         string           `json:"tab"`    // the home page's tab used last
+		Hints       []string         `json:"hints"`  // getting-started hints the person dismissed
+		Tour        tour             `json:"tour"`   // how far the person got through the tour
 		Background  backgroundView   `json:"background"`
 	}{ConfigPath: path, Editable: path != "" && cfgErr == nil, Base: base, Forges: []forgeView{}, Tools: []toolView{},
 		Sources: tokenSources(runtime.GOOS, exec.LookPath), Presets: presetViews(cfg), Profiles: review.Builtin}
 	out.Background = a.backgroundView(cfg)
 	prefs := a.loadPrefs()
 	out.Waived, out.Scheme, out.Tab = prefs.Waived, prefs.Scheme, prefs.Tab
+	out.Hints, out.Tour = prefs.Hints, prefs.Tour
 	if cfgErr != nil {
 		out.ConfigError = cfgErr.Error()
 	}
