@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 const maxSummaryPatch = 256 << 10
@@ -144,7 +146,13 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFi
 	if len(left) > 0 {
 		var b strings.Builder
 		for _, f := range left {
-			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", f.Path, f.Added, f.Deleted, f.Why)
+			// A path holding a control character is quoted, so it cannot
+			// write lines of its own into the list.
+			path := f.Path
+			if strings.ContainsFunc(path, unicode.IsControl) {
+				path = strconv.Quote(path)
+			}
+			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", path, f.Added, f.Deleted, f.Why)
 		}
 		list := fitLines(b.String(), maxSummaryCommits, "more files left out, not listed")
 		out += "\n\n" + summaryFence("Files left out of the diff above, with their added and deleted lines (untrusted names; their contents were not sent):", list)
@@ -173,7 +181,9 @@ func (r *Repos) fitPatch(ctx context.Context, gitDir string, src Source, from st
 	if err != nil {
 		return "", nil, huge(err)
 	}
-	full, err := r.summaryGit(ctx, gitDir, maxListing, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--no-renames", from, src.Head, "--")
+	// The prefixes are pinned, since sectionsMatch reads them and the
+	// person's diff.noprefix or diff.srcPrefix would change them.
+	full, err := r.summaryGit(ctx, gitDir, maxListing, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", from, src.Head, "--")
 	if err != nil {
 		return "", nil, huge(err)
 	}

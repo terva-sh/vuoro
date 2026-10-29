@@ -1219,8 +1219,8 @@ Git verifies full commit IDs, complete history and ancestry before supplying a
 commit list and exact net patch. A rewritten or missing baseline is refused;
 it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
-provider call, never truncated (an ask run, below, leaves files out instead,
-D70). When the whole patch is over the cap,
+provider call, never truncated (an ask run, below, instead leaves files out
+and cuts its commit list to the newest commits, D70). When the whole patch is over the cap,
 lockfiles the change's forge base already holds, and files it marks
 `linguist-generated` or `-diff` in `.gitattributes`, are left out, largest
 first and only until the rest fits, and listed by name with their added and
