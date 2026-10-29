@@ -3,6 +3,8 @@ package review
 import (
 	"fmt"
 	"strings"
+
+	"github.com/terva-sh/vuoro/review/drafts"
 )
 
 // Findings is a run's result for a terminal (docs/plan.md section 6.7): every
@@ -57,11 +59,36 @@ func Findings(v RunView) string {
 	for i, d := range shown {
 		var extra []string
 		if d.Earlier != "" {
-			extra = append(extra, fmt.Sprintf("- Raised before: finding `%s` of run `%s`", d.Earlier, v.Follows))
+			extra = append(extra, fmt.Sprintf("- Raised before: finding `%s` of run `%s`, %s", d.Earlier, v.Follows, standing(v.Earlier, d.Earlier)))
 		}
 		writeFinding(&b, i+1, d, extra...)
 	}
 	return b.String()
+}
+
+// standing says where the earlier finding id stood when this run began.
+func standing(earlier []drafts.Earlier, id string) string {
+	for _, e := range earlier {
+		if e.ID != id {
+			continue
+		}
+		switch e.Standing {
+		case drafts.StandingFixed:
+			return fmt.Sprintf("which was fixed in `%s`, so the fix may not hold", shortCommit(e.FixedIn))
+		case drafts.StandingDismissed:
+			return "which the person dismissed"
+		case drafts.StandingKept:
+			return "which the person posted and is not fixed yet"
+		}
+	}
+	return "which nobody had decided"
+}
+
+func shortCommit(sha string) string {
+	if len(sha) > 8 {
+		return sha[:8]
+	}
+	return sha
 }
 
 func isAre(n int) string {

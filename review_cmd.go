@@ -217,9 +217,9 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	}
 	if *follows != "" {
 		// The earlier run was written by another process, so this one reads
-		// it first. Refusing it here, before any session starts, keeps a
-		// wrong id a usage error rather than a failed run.
-		if err := a.Runs.LoadFinished(); err != nil {
+		// it, and only it, first. Refusing it here, before any session
+		// starts, keeps a wrong id a usage error rather than a failed run.
+		if err := a.Runs.LoadRun(*follows); err != nil {
 			logf("%v", err)
 			return exitFailed
 		}

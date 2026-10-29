@@ -1482,14 +1482,19 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
 - **A run can follow an earlier one**, as "Review again" does in the window
   (D50). `-follows` takes the earlier report's run id. The reviewers get its
   findings with where each stands, and a finding that restates one names it.
-  The JSON report gives the run it follows and the earlier findings, and the
-  Markdown report says how many were raised again and marks them. The earlier
-  run must be finished and a review of the same change, or for a local range,
-  of the same checkout. Anything else is a usage error and starts nothing. A
-  self-review that runs round after round passes each round the last one's
-  id, so a round does not rediscover what the last one raised. The earlier
-  run's record gains the link forward, which a window already holding that
-  run does not see.
+  The JSON report adds `run.follows`, the run it follows, and `earlier`,
+  that run's findings, each with its `standing`: fixed, dismissed, kept, or
+  open. A restated finding names the earlier one in its `earlier` field. The
+  fields are additive, so `schemaVersion` stays 1. The Markdown report says
+  how many earlier findings were raised again, and marks each with where it
+  stood. The earlier run must be finished and a review of the same change,
+  or for a local range, of the same checkout. Anything else is a usage error
+  and starts nothing. The command reads that one run's record and no other,
+  because it saves every run it holds when it exits, and a stale copy would
+  undo what an open window changed meanwhile. A self-review that runs round
+  after round passes each round the last one's id, so a round does not
+  rediscover what the last one raised. The earlier run's record gains the
+  link forward, which a window already holding that run does not see.
 - **Exit status** is 0 with no findings, 1 with findings, 2 for a usage
   error or a range with nothing to review, and 3 when the run or any of its
   sessions failed, or it timed out. The findings are printed in every case.

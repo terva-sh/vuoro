@@ -448,6 +448,15 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 		"-C", dir, "-profile", "code", "main..feature")
 	earlierID := first.Findings[0].ID
 
+	// A finished run the follow has nothing to do with. Its record carries
+	// a field vuoro does not write, so a save of it would show.
+	other := reviewJSON(t, testCmdIn(stateDir, fakeTool{}, nil, nil, nil), exitClean,
+		"-C", checkout(t), "-profile", "code", "main..feature")
+	otherPath := filepath.Join(stateDir, "runs", other.Run.ID, "run.json")
+	b, _ := os.ReadFile(otherPath)
+	bystander := append(bytes.TrimSuffix(bytes.TrimSpace(b), []byte("}")), []byte(`,"written_by_a_window":true}`)...)
+	os.WriteFile(otherPath, bystander, 0o600)
+
 	again := map[string]any{"earlier": earlierID}
 	for k, v := range aFinding {
 		again[k] = v
@@ -469,7 +478,7 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 		First      string   `json:"first_message"`
 		FollowedBy []string `json:"followed_by"`
 	}
-	b, _ := os.ReadFile(filepath.Join(stateDir, "runs", next.Run.ID, "run.json"))
+	b, _ = os.ReadFile(filepath.Join(stateDir, "runs", next.Run.ID, "run.json"))
 	json.Unmarshal(b, &rec)
 	if !strings.Contains(rec.First, `<earlier-finding id="`+earlierID+`"`) {
 		t.Errorf("the first message does not list the earlier finding:\n%s", rec.First)
@@ -479,6 +488,9 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 	if len(rec.FollowedBy) != 1 || rec.FollowedBy[0] != next.Run.ID {
 		t.Errorf("the earlier run is followed by %v", rec.FollowedBy)
 	}
+	if b, _ := os.ReadFile(otherPath); !bytes.Equal(b, bystander) {
+		t.Errorf("following one run rewrote another's record:\n%s", b)
+	}
 
 	var out, errb bytes.Buffer
 	if code := testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil).run(
@@ -487,7 +499,7 @@ func TestReviewFollowsAnEarlierRun(t *testing.T) {
 	}
 	for _, want := range []string{
 		"It follows run `" + first.Run.ID + "`, which had 1 finding; 1 is raised again here.",
-		"- Raised before: finding `" + earlierID + "` of run `" + first.Run.ID + "`",
+		"- Raised before: finding `" + earlierID + "` of run `" + first.Run.ID + "`, which nobody had decided",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in:\n%s", want, out.String())

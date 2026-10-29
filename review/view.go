@@ -188,10 +188,20 @@ func (m *Manager) Load() error { return m.load(nil) }
 // process, such as vuoro review, finished, and leaves alone one it is still
 // writing, which a second writer would overwrite.
 func (m *Manager) LoadFinished() error {
-	return m.load(func(s Status) bool { return s == Closed || s == Failed || s == Cancelled })
+	return m.load(func(rec record) bool { return finished(rec.Status) })
 }
 
-func (m *Manager) load(keep func(Status) bool) error {
+// LoadRun reads the one finished run id, as LoadFinished does. vuoro review
+// reads only the run it follows, because Shutdown saves every run a manager
+// holds, and saving runs it merely read would write a stale copy over what a
+// window changed meanwhile.
+func (m *Manager) LoadRun(id string) error {
+	return m.load(func(rec record) bool { return rec.ID == id && finished(rec.Status) })
+}
+
+func finished(s Status) bool { return s == Closed || s == Failed || s == Cancelled }
+
+func (m *Manager) load(keep func(record) bool) error {
 	paths, err := filepath.Glob(filepath.Join(m.StateDir, "runs", "*", "run.json"))
 	if err != nil {
 		return err
@@ -206,7 +216,7 @@ func (m *Manager) load(keep func(Status) bool) error {
 		if err := state.ReadJSON(path, &rec); err != nil || rec.ID == "" || m.runs[rec.ID] != nil {
 			continue
 		}
-		if keep != nil && !keep(rec.Status) {
+		if keep != nil && !keep(rec) {
 			continue
 		}
 		r := &Run{

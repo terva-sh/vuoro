@@ -56,3 +56,22 @@ func TestFindingsShowWhatTheWindowShows(t *testing.T) {
 		t.Fatalf("no findings:\n%s", out)
 	}
 }
+
+func TestARestatedFindingSaysWhereTheEarlierOneStood(t *testing.T) {
+	earlier := []drafts.Earlier{
+		{ID: "d1", Standing: drafts.StandingFixed, FixedIn: "0123456789abcdef"},
+		{ID: "d2", Standing: drafts.StandingDismissed},
+		{ID: "d3", Standing: drafts.StandingKept},
+		{ID: "d4", Standing: drafts.StandingOpen},
+	}
+	for id, want := range map[string]string{
+		"d1": "which was fixed in `01234567`, so the fix may not hold",
+		"d2": "which the person dismissed",
+		"d3": "which the person posted and is not fixed yet",
+		"d4": "which nobody had decided",
+	} {
+		if got := standing(earlier, id); got != want {
+			t.Errorf("%s: %q, want %q", id, got, want)
+		}
+	}
+}

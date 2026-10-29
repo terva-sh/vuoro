@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T16:21:44Z
-updated_at: 2026-10-29T16:28:28Z
+updated_at: 2026-10-29T16:45:55Z
 created_by:
   id: agent:claude-code/review-rounds
   name: ""
@@ -72,6 +72,10 @@ Validate -follows in review_cmd.go before any session starts: LoadFinished reads
 **agent:claude-code/review-rounds** at 2026-10-29T16:28:28Z
 
 Not done here: the vuoro-review skill's vuoro-round script (in the dotfiles repo, outside this store) still starts every round fresh. Once a vuoro with -follows is installed, it should pass the previous round's run.id. A local range must come from the same checkout path, since a local run's ref is named for that path.
+
+**agent:claude-code/review-rounds** at 2026-10-29T16:45:55Z
+
+vuoro review round 1 (run 20261029-164009-31d7cf): -follows used LoadFinished, so the deferred Shutdown re-saved every finished run from a stale copy, which could undo a window's decisions (high). Now LoadRun reads only the followed run; TestReviewFollowsAnEarlierRun checks that a bystander record is left byte-for-byte, and fails with LoadFinished back. The Markdown restated line now says where the earlier finding stood (medium), and plan 6.7 names the JSON fields (low).
 
 ## Summary
 
