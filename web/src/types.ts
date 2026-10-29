@@ -79,6 +79,13 @@ export interface Entry {
 }
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; cost_usd: number }
 export interface SessionInfo { tool: string; version: string; model: string; account: string; tools: string[] }
+// SelfUpdateState is what the window knows about a newer release (D74).
+export interface SelfUpdateState {
+  current: string; release: boolean; latest?: string; newer: boolean
+  // applied: the release now on disk, which runs once vuoro is reopened.
+  applied?: string; error?: string
+}
+
 export interface Session {
   id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage' | 'summary' | 'suggester' | 'editor' | 'project-triage' | 'ask'
   target?: string // a suggester's draft

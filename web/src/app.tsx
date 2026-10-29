@@ -8,6 +8,7 @@ import { LocalTab } from './local'
 import { ProjectsTab } from './projects'
 import { RunList } from './runs'
 import { About } from './about'
+import { SelfUpdate } from './selfupdate'
 import { Settings } from './settings'
 import { FirstRun } from './setup'
 import { GuideContext, useGuideState } from './guide'
@@ -94,6 +95,7 @@ export function App() {
           {change && <button type="button" disabled={opening} onClick={() => void open(url)}>Refresh</button>}
         </form>
         {hello && <button type="button" class="link version" title="About vuoro" onClick={() => setAbout(true)}>vuoro {hello.version}</button>}
+        <SelfUpdate />
         <button type="button" data-tour="settings" class={settings ? 'settings-button on' : 'settings-button'} aria-pressed={settings} onClick={() => setSettings((v) => !v)}>⚙ Settings</button>
       </header>
       {about && <About setup={setup} onClose={() => setAbout(false)} />}

@@ -450,6 +450,9 @@ main { padding: var(--ui-space-4); }
 .triage-run details { flex-basis: 100%; }
 
 .bar .version { color: var(--ui-muted); font-size: var(--ui-fs-ui); }
+/* A newer release (D74): the arrow and the words say it, not the colour. */
+.bar .self-update { font-size: var(--ui-fs-ui); }
+.bar .self-update button.link { color: var(--ui-accent); }
 .about { max-width: 640px; max-height: calc(100vh - 2 * var(--ui-space-6)); overflow-y: auto; }
 .about h3 { margin: var(--ui-space-3) 0 var(--ui-space-1); font-size: var(--ui-fs-ui); color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .about dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: var(--ui-space-1) var(--ui-space-4); }

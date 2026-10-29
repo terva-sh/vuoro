@@ -18,9 +18,14 @@ release's `checksums.txt` first:
 shasum -a 256 -c checksums.txt --ignore-missing
 ```
 
-`vuoro -version` names the release and `vuoro -h` lists the options. Run
-`vuoro self-update` later to move to the newest release; it checks the new
-archive against `checksums.txt` before it replaces anything.
+`vuoro -version` names the release and `vuoro -h` lists the options.
+
+While its window is open, vuoro asks GitHub once a day whether there is a
+newer release, and says so in the header. It downloads and installs one only
+when you choose **Update**, and the new release runs once you quit and reopen
+vuoro. `vuoro self-update` does the same from a terminal, and
+`vuoro self-update -check` only asks. Either way the new archive is checked
+against the release's `checksums.txt` before anything is replaced.
 
 vuoro uses the web view your operating system provides:
 

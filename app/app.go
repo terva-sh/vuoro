@@ -68,6 +68,13 @@ type App struct {
 	// Dock is whether vuoro has its macOS Dock icon as it runs, which is
 	// fixed as it starts; nil where there is no Dock to choose (D58).
 	Dock *bool
+	// Updates finds and applies a newer release (D74); nil offers none, as
+	// a test that is not about updating has it. Executable is the binary an
+	// update replaces; nil is the running one.
+	Updates    Updater
+	Executable func() (string, error)
+	updMu      sync.Mutex // guards upd, and makes each check and update one step
+	upd        selfUpdates
 	// Log reports what the person cannot act on in the window; nil drops it.
 	Log     func(format string, args ...any)
 	nudgeMu sync.Mutex // guards told and nudges.json
@@ -122,6 +129,8 @@ func (a *App) Handler() http.Handler {
 	a.promptRoutes(mux)
 	a.askRoutes(mux)
 	mux.HandleFunc("GET /api/about", a.about)
+	mux.HandleFunc("GET /api/self-update", a.getSelfUpdate)
+	mux.HandleFunc("POST /api/self-update", a.applySelfUpdate)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
 	mux.HandleFunc("POST /api/inbox/snooze", a.snoozeInbox)

@@ -13,6 +13,7 @@
 //	                 exit 0 or 1
 //	vuoro review     review a local range or a change headless, and print
 //	                 the findings (docs/plan.md section 6.7)
+//	vuoro self-update  replace this release with the latest one (D74)
 package main
 
 import (
@@ -44,6 +45,7 @@ import (
 	"github.com/terva-sh/vuoro/review/drafts"
 	"github.com/terva-sh/vuoro/server"
 	"github.com/terva-sh/vuoro/state"
+	"github.com/terva-sh/vuoro/update"
 	"github.com/terva-sh/vuoro/web"
 )
 
@@ -73,6 +75,9 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == "review" {
 		return runReview(args[1:], stdout, stderr)
+	}
+	if len(args) > 0 && args[0] == "self-update" {
+		return runSelfUpdate(args[1:], stdout, stderr)
 	}
 	fs := flag.NewFlagSet("vuoro", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -188,7 +193,8 @@ func newApp(mcpURL string) (*app.App, *drafts.Server, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	a := &app.App{StateDir: stateDir, Version: version}
+	a := &app.App{StateDir: stateDir, Version: version,
+		Updates: update.Client{HTTP: &http.Client{Timeout: 5 * time.Minute}}}
 	if path, err := config.Path(); err != nil {
 		a.ConfigErr = err
 	} else {
