@@ -65,51 +65,69 @@ func (r *Repos) summaryGit(ctx context.Context, gitDir string, limit int, args .
 	return out.buffer.String(), nil
 }
 
-func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (string, error) {
+// summaryInput reads the commits and the net patch from from to src.Head.
+// anyFile lets a patch past the cap leave out any file, largest first after
+// the lockfiles and generated files, which an agent that can read the
+// history itself (an ask run, D70) may be given; without it what is left past
+// the cap is refused. It answers the files left out as well.
+func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFile bool) (string, []LeftOut, error) {
 	if !commitRE.MatchString(from) || !commitRE.MatchString(src.Head) || !keyRE.MatchString(src.Key) || strings.Contains(src.Key, "..") {
-		return "", errors.New("review: invalid summary range")
+		return "", nil, errors.New("review: invalid summary range")
 	}
 	gitDir := filepath.Join(r.Dir, filepath.FromSlash(src.Key)+".git")
 	unlock, err := r.lock(ctx, gitDir)
 	if err != nil {
-		return "", errors.New("review: the summary was cancelled")
+		return "", nil, errors.New("review: the summary was cancelled")
 	}
 	defer unlock()
 	shallow, err := r.git(ctx, gitDir, "rev-parse", "--is-shallow-repository")
 	if err != nil || strings.TrimSpace(shallow) != "false" {
-		return "", errors.New("review: complete history is unavailable for this summary")
+		return "", nil, errors.New("review: complete history is unavailable for this summary")
 	}
 	base, err := r.git(ctx, gitDir, "merge-base", from, src.Head)
 	if err != nil || !strings.EqualFold(strings.TrimSpace(base), from) {
-		return "", errors.New("review: the summary baseline is unavailable or history was rewritten; choose a whole-change summary")
+		return "", nil, errors.New("review: the summary baseline is unavailable or history was rewritten; choose a whole-change summary")
 	}
 	commits, err := r.summaryGit(ctx, gitDir, maxSummaryCommits, "log", "--no-show-signature", "--format=%H %s", from+".."+src.Head)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	// The whole patch is sent when it fits, lockfiles included, since a
 	// lockfile edit can be the change that matters. Past the cap, lockfiles
 	// the forge base already holds and generated files are left out,
 	// largest first and only until the rest fits, and named below with
-	// their line counts. So a dependency
-	// bump is not refused for its lockfile, and a large lockfile cannot carry
-	// a small edit to another out of the patch. What is left is still
-	// refused whole past the cap.
+	// their line counts. So a dependency bump is not refused for its
+	// lockfile, and a large lockfile cannot carry a small edit to another
+	// out of the patch. With anyFile, the other files follow them, largest
+	// first, so nothing is refused for its size; without it what is left is
+	// still refused whole past the cap.
 	args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", from, src.Head, "--"}
 	patch, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
-	var left []leftOutFile
+	var left []LeftOut
 	if errors.Is(err, errSummaryLarge) {
 		// Attributes come from the change's forge base, never from a commit
 		// on its own branch, such as the head a since-review range starts at.
-		var can []leftOutFile
-		if can, err = r.leftOut(ctx, gitDir, src.Base, from, src.Head); err != nil {
-			return "", err
+		var changed []LeftOut
+		if changed, err = r.changedFiles(ctx, gitDir, src.Base, from, src.Head); err != nil {
+			return "", nil, err
 		}
-		slices.SortStableFunc(can, func(a, b leftOutFile) int { return cmp.Compare(b.size(), a.size()) })
+		var can, rest []LeftOut
+		for _, f := range changed {
+			if f.Why != "" {
+				can = append(can, f)
+			} else if anyFile {
+				f.Why = "large"
+				rest = append(rest, f)
+			}
+		}
+		bySize := func(a, b LeftOut) int { return cmp.Compare(b.size(), a.size()) }
+		slices.SortStableFunc(can, bySize)
+		slices.SortStableFunc(rest, bySize)
+		can = append(can, rest...)
 		without := func(n int) (string, error) {
 			a := append(slices.Clip(args), ".")
 			for _, f := range can[:n] {
-				a = append(a, ":(exclude,literal)"+f.path)
+				a = append(a, ":(exclude,literal)"+f.Path)
 			}
 			return r.summaryGit(ctx, gitDir, maxSummaryPatch, a...)
 		}
@@ -124,23 +142,23 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (stri
 				continue
 			}
 			if e != nil {
-				return "", e
+				return "", nil, e
 			}
 			patch, err, left, hi = p, nil, can[:n], n-1
 		}
 	}
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	out := summaryFence("Commits in range (untrusted):", commits) + "\n\n" + summaryFence("Exact net diff (untrusted; an empty diff means no net file changes):", patch)
 	if len(left) > 0 {
 		var b strings.Builder
 		for _, f := range left {
-			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", f.path, f.added, f.deleted, f.why)
+			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", f.Path, f.Added, f.Deleted, f.Why)
 		}
 		out += "\n\n" + summaryFence("Files left out of the diff above, with their added and deleted lines (untrusted names; their contents were not sent):", b.String())
 	}
-	return out, nil
+	return out, left, nil
 }
 
 // lockfiles are the names of dependency lockfiles. A file with one of these
@@ -153,26 +171,35 @@ var lockfiles = map[string]bool{
 	"Podfile.lock": true, "packages.lock.json": true, "flake.lock": true, "gradle.lockfile": true, "Package.resolved": true,
 }
 
-type leftOutFile struct{ path, added, deleted, why string }
+// LeftOut is a changed file whose patch was not sent to the agent, with its
+// added and deleted lines as numstat counts them and why it was left out:
+// lockfile, generated, marked -diff, or large.
+type LeftOut struct {
+	Path    string `json:"path"`
+	Added   string `json:"added"`
+	Deleted string `json:"deleted"`
+	Why     string `json:"why"`
+}
 
 // size is the file's changed lines; a binary file, which numstat counts as
 // -, sorts first.
-func (f leftOutFile) size() int {
-	a, errA := strconv.Atoi(f.added)
-	d, errD := strconv.Atoi(f.deleted)
+func (f LeftOut) size() int {
+	a, errA := strconv.Atoi(f.Added)
+	d, errD := strconv.Atoi(f.Deleted)
 	if errA != nil || errD != nil {
 		return math.MaxInt
 	}
 	return a + d
 }
 
-// leftOut lists the changed files between from and head that a summary
-// may leave out of a patch too large to send: known lockfiles that attrs, the
-// change's forge base, already holds, and files its .gitattributes marks
-// linguist-generated or -diff. Reading both there means the change cannot
-// hide its own code by naming it a lockfile or marking it generated. A git too old to read attributes from a commit
-// leaves out the lockfiles alone.
-func (r *Repos) leftOut(ctx context.Context, gitDir, attrs, from, head string) ([]leftOutFile, error) {
+// changedFiles lists the files changed between from and head with their
+// line counts, giving a Why to those a patch too large to send leaves out
+// first: known lockfiles that attrs, the change's forge base, already holds,
+// and files its .gitattributes marks linguist-generated or -diff. Reading
+// both there means the change cannot hide its own code by naming it a
+// lockfile or marking it generated. A git too old to read attributes from a
+// commit marks the lockfiles alone.
+func (r *Repos) changedFiles(ctx context.Context, gitDir, attrs, from, head string) ([]LeftOut, error) {
 	stat, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, "diff", "--numstat", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", from, head, "--")
 	if err != nil {
 		return nil, err
@@ -228,12 +255,10 @@ func (r *Repos) leftOut(ctx context.Context, gitDir, attrs, from, head string) (
 			}
 		}
 	}
-	var out []leftOutFile
+	var out []LeftOut
 	for _, p := range paths {
-		if why[p] != "" {
-			c := changed[p]
-			out = append(out, leftOutFile{path: p, added: c.added, deleted: c.deleted, why: why[p]})
-		}
+		c := changed[p]
+		out = append(out, LeftOut{Path: p, Added: c.added, Deleted: c.deleted, Why: why[p]})
 	}
 	return out, nil
 }

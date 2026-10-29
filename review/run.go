@@ -117,6 +117,7 @@ type Run struct {
 	// askFacts the forge read its context tools answer from.
 	Ask      *Ask
 	askFacts AskFacts
+	leftOut  []LeftOut // the files a conversation's first message did not send
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
 	// Update is an update run's state (section 6.10), and updating is set
@@ -379,9 +380,10 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 		return
 	}
 	if r.Mode == AskMode {
-		// The range is read from the clone and refused whole when too
-		// large, as for a summary, before any agent starts.
-		input, err := m.Repos.summaryInput(ctx, src, r.Summary.From)
+		// The range is read from the clone before any agent starts. Past the
+		// cap the largest files are left out and named, never refused for
+		// size, since the agent can read them itself (D70).
+		input, left, err := m.Repos.summaryInput(ctx, src, r.Summary.From, true)
 		r.mu.Lock()
 		// A Close or a Shutdown during the read wins, as during the checkout:
 		// its status stands and no agent starts.
@@ -395,7 +397,7 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 				s.Status, s.Error = Failed, err.Error()
 			}
 		} else {
-			r.first = r.askFirst(input)
+			r.first, r.leftOut = r.askFirst(input), left
 		}
 		r.mu.Unlock()
 		r.save()

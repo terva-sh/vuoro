@@ -1374,3 +1374,24 @@ kind of conversation beside it (section 6.12).
   separate seams recorded on each run, so each can change on its own, by a
   new decision, when use shows it must.
 
+### D70. A conversation is never refused for its size; vuoro leaves files out and says which
+
+Decided by the owner on 2026-10-29. It supersedes, for ask runs, the rule of
+section 6.4 that a range past the cap is refused whole. That rule was made
+for summaries, whose agent read nothing but what it was sent, so leaving a
+file out meant it went unread. An ask agent can read any file of the change
+itself (D68), and Ask replaced the Summary tab. Dogfooding showed the
+refusal still bit: a change that adds a repository's first lockfile was
+refused, since a new file named like a lockfile is not counted as one.
+
+- **Past the cap, files are left out, not the conversation refused.**
+  Lockfiles the forge base holds and generated files go first, then the
+  largest other files, each largest first and only until the rest fits.
+- **What is left out is named twice.** The first message lists each file with
+  its line counts, and the run keeps the list, which the conversation shows,
+  so the person sees what the agent was not given without trusting the agent
+  to say so.
+- **Nothing is truncated.** A file is sent whole or not at all, which is why
+  this does not reopen the reason for the cap.
+- **A summary run keeps the refusal.** Its agent has no tool to read what was
+  left out, and no new summary can be started.

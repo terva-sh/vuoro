@@ -18,6 +18,7 @@ type RunView struct {
 	Mode           string         `json:"mode,omitempty"`
 	Summary        *SummaryRange  `json:"summary,omitempty"`
 	Ask            *Ask           `json:"ask,omitempty"`
+	LeftOut        []LeftOut      `json:"left_out,omitempty"` // files an ask's first message did not send
 	ReviewComplete bool           `json:"review_complete,omitempty"`
 	Threads        []forge.Thread `json:"triage_threads,omitempty"`
 	Ref            forge.Ref      `json:"ref"`
@@ -110,6 +111,7 @@ func (r *Run) View() RunView {
 		a := *r.Ask
 		v.Ask = &a
 	}
+	v.LeftOut = slices.Clone(r.leftOut)
 	v.ReviewComplete = r.Mode == "" && len(r.sessions) > 0
 	for _, t := range r.Threads {
 		v.Threads = append(v.Threads, cleanThread(t))
@@ -228,6 +230,7 @@ func (m *Manager) load(keep func(Status) bool) error {
 		if r.Mode == "triage" {
 			r.bindThreads()
 		}
+		r.leftOut = rec.LeftOut
 		if r.Mode == AskMode && rec.Facts != nil {
 			r.askFacts = *rec.Facts
 		}

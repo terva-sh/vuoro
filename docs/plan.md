@@ -1188,7 +1188,8 @@ lockfiles included, since a lockfile edit can be the change that matters. The
 attributes are read at the forge base for every scope, never at a commit on
 the change's branch, so a change cannot hide its own code by marking it
 generated. The cap applies to what is left. An ask run (section
-6.11) reads its range the same way. Diff programs and textconv are disabled.
+6.11) reads its range the same way, except that it is never refused for size
+(D70). Diff programs and textconv are disabled.
 Descriptions/commit messages/repository text are untrusted data. The current
 checkout supplies reading context only; a since-review summary describes just
 its selected range. An empty net patch can still describe commits in that range.
@@ -1858,6 +1859,14 @@ lists and searches them across all changes. It replaces the Summary tab.
 - It is pinned to the change's exact base and head, read fresh from the
   forge when it starts, as a summary is today. Its scope is the whole change
   or, as for a summary, the range since a completed vuoro review.
+- Its first message carries the range's commits and net patch, as a
+  summary's does, but it is never refused for size (D70). Past the 256 KiB
+  cap, lockfiles and generated files are left out first, then the largest
+  other files, each largest first and only until the rest fits. Each file
+  left out is named in the message with its line counts and kept on the run,
+  and the conversation shows the list, so the person sees what the agent was
+  not given. The agent reads a left-out file with `git_diff`, or with Read in
+  parts when its diff is past the tool's cap, and says when it did not.
 - The first message is a canned prompt or the person's question. The person
   can follow up as often as they like. Each turn is a message to the same
   session, and a session whose process ended is resumed (`Spec.Resume`), so a
@@ -1906,9 +1915,9 @@ optional front matter of `title`, `scope` (`change` or `since_review`),
 `tool`, and `model`, followed by the prompt. A prompt's scope wins over the
 tab's choice: `change` drops a selected review, `since_review` is refused when
 no review is chosen, and a prompt with no scope follows the tab. A prompt's
-tool applies unless the person picks one in the tab, and its model only on the
-tool it names (or on any tool, when it names none); otherwise the model is the
-tool's default. As for presets (D61), theirs
+tool applies unless the person picks one in the tab. A model the person types
+wins; otherwise the prompt's model applies only on the tool it names (or on
+any tool, when it names none), and otherwise the tool's default. As for presets (D61), theirs
 supplement the shipped ones, one with a shipped name shadows it, and theirs
 sort first. A file vuoro cannot read is listed with the reason, not dropped.
 A repository's own prompts, read at the base commit, are later work, with
@@ -1922,7 +1931,8 @@ fetches it again, and refuses with the reason when the forge no longer has it.
 **In the window.**
 
 - The change's Ask tab shows a row of prompt buttons, a question box, the
-  scope and the tool to ask, and the change's conversations, newest first, each
+  scope, the tool, and a model to ask (empty for the prompt's or the tool's
+  default), and the change's conversations, newest first, each
   with its prompt or question, head, cost, and a stale mark. The selected
   one shows in the session pane, with a box to follow up and Stop.
 - The home page gains an **Asked** tab that lists every conversation across

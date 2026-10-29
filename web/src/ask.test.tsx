@@ -60,7 +60,7 @@ describe('AskPanel', () => {
     expect(post).not.toHaveBeenCalled()
     await act(async () => button(root, 'Dependency impact')!.click())
     // No tool was picked, so the prompt's own or vuoro's default applies.
-    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ url: change.web_url, prompt: 'deps', tool: undefined }))
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ url: change.web_url, prompt: 'deps', tool: undefined, model: undefined }))
     await settle()
     expect(root.textContent).toContain('It subtracts on purpose.')
   })
@@ -77,12 +77,25 @@ describe('AskPanel', () => {
     await act(async () => { box.value = 'Why subtract?'; box.dispatchEvent(new Event('input', { bubbles: true })) })
     const pick = root.querySelector('select[aria-label="Ask tool"]') as HTMLSelectElement
     await act(async () => { pick.value = 'claude'; pick.dispatchEvent(new Event('change', { bubbles: true })) })
+    const model = root.querySelector('input[aria-label="Ask model"]') as HTMLInputElement
+    await act(async () => { model.value = ' opus '; model.dispatchEvent(new Event('input', { bubbles: true })) })
     await act(async () => button(root, 'Ask')!.click())
-    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ question: 'Why subtract?', prompt: undefined, tool: 'claude' }))
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ question: 'Why subtract?', prompt: undefined, tool: 'claude', model: 'opus' }))
     serve([mine])
     await settle()
     expect(root.querySelector('textarea[aria-label="Ask a follow-up question"]')).not.toBeNull()
     root.remove()
+  })
+
+  it('names the files too large to send with the question', async () => {
+    serve([run({ left_out: [{ path: 'uv.lock', added: '5177', deleted: '12', why: 'lockfile' }, { path: 'vendor/big.go', added: '2603', deleted: '0', why: 'large' }] })])
+    const root = document.createElement('div')
+    await act(async () => render(<AskPanel change={change} setup={setup} />, root))
+    await settle()
+    const left = root.querySelector('.ask-left-out')
+    expect(left?.textContent).toContain('2 files were too large to send')
+    expect(left?.textContent).toContain('uv.lock +5177 −12 · lockfile')
+    expect(left?.textContent).toContain('vendor/big.go +2603 −0 · large')
   })
 
   it('marks a conversation on an older head as stale, and asks the same again on the new one', async () => {

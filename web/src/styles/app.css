@@ -654,3 +654,5 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .ask-item.on { border-color: var(--ui-accent); }
 .ask-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ask-stale { color: var(--ui-warn); }
+.ask-left-out { margin-bottom: var(--ui-space-2); color: var(--ui-warn); }
+.ask-left-out ul { margin: var(--ui-space-1) 0; color: var(--ui-fg); }

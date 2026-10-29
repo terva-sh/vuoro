@@ -33,6 +33,7 @@ function AskWorkspace({ change, setup }: Props) {
   const [scope, setScope] = useState('change')
   const [baseline, setBaseline] = useState<string>()
   const [tool, setTool] = useState<string>()
+  const [model, setModel] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const mounted = useRef(true)
@@ -82,9 +83,9 @@ function AskWorkspace({ change, setup }: Props) {
     try {
       const next = await post<Run>('/api/asks', {
         url: change.web_url, prompt: body.prompt, question: body.question,
-        // A tool only when the person picked one: otherwise a prompt's own
-        // tool applies, or vuoro's default.
-        tool: tool || undefined, review_id: since ? chosen : undefined,
+        // A tool and model only when the person picked them: otherwise a
+        // prompt's own apply, or the defaults.
+        tool: tool || undefined, model: model.trim() || undefined, review_id: since ? chosen : undefined,
       })
       if (!mounted.current) return
       setList((all) => [next, ...all.filter((r) => r.id !== next.id)])
@@ -130,6 +131,7 @@ function AskWorkspace({ change, setup }: Props) {
         <option value="">Default · or the prompt's own</option>
         {tools.map((t) => <option key={t.name} value={t.name}>{t.tool}</option>)}
       </select></label>}
+      {tools.length > 0 && <label>Model <input aria-label="Ask model" value={model} placeholder="the tool's default" onInput={(e) => setModel(e.currentTarget.value)} /></label>}
     </div>
     {noNew && <p class="muted">No new commits since this review.</p>}
     {tools.length === 0 && <p class="muted">No review tool is available. Earlier conversations are still readable.</p>}
@@ -168,6 +170,10 @@ function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change
     {run.summary && <p class="muted">Range <span class="mono" title={`${run.summary.from}..${run.summary.to}`}>{short(run.summary.from)}..{short(run.summary.to)}</span>{run.summary.scope === 'since_review' ? ' · since the selected Vuoro review' : ' · whole change'}</p>}
     {stale && <p class="ask-stale">Asked at <span class="mono">{short(run.head)}</span>; the change is now at <span class="mono">{short(change.diff.head)}</span>. You can carry on here, or{' '}
       <button disabled={busy || working} onClick={() => onAgain(run)}>ask the same on the new head</button></p>}
+    {run.left_out && run.left_out.length > 0 && <details class="ask-left-out"><summary>⚠ {run.left_out.length} file{run.left_out.length === 1 ? ' was' : 's were'} too large to send with the question</summary>
+      <p class="muted">The agent can read them itself, and says so when it did not.</p>
+      <ul>{run.left_out.map((f) => <li key={f.path}><span class="mono">{f.path}</span> +{f.added} −{f.deleted} · {f.why}</li>)}</ul>
+    </details>}
     {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
     {summary ? <SummaryText run={run} working={working} /> : run.sessions.map((s) => <SessionPane run={run} session={s} key={s.id} />)}
   </section>

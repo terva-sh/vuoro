@@ -421,3 +421,61 @@ func TestAttributesFromTheReviewedCommitHideNothing(t *testing.T) {
 		t.Fatalf("the reviewed commit's attribute hid a later edit:\n%s", first)
 	}
 }
+
+// A conversation is never refused for its size (D70): past the cap, after
+// the lockfiles and generated files, the largest other files are left out,
+// named in the first message, and kept on the run for the window to show.
+// The agent reads them with git_diff.
+func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
+	var mu sync.Mutex
+	var asked, read []string
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
+		mu.Lock()
+		defer mu.Unlock()
+		asked = append(asked, text)
+		out, _ := call("git_diff", map[string]any{"from": "base", "path": "vendor/big.go"})
+		read = append(read, out)
+		return "ok"
+	})
+	historyGit(t, src.Remote, "switch", "-q", "feature")
+	os.MkdirAll(filepath.Join(src.Remote, "vendor"), 0o700)
+	// Each file fits under the context tools' cap, and together they are past
+	// the patch's, so leaving out the largest is enough.
+	os.WriteFile(filepath.Join(src.Remote, "vendor/big.go"), []byte("package vendor\n\n// bigMarker\n"+strings.Repeat("var x = \"padding the patch past the cap\"\n", 2600)), 0o600)
+	for _, name := range []string{"vendor/b.go", "vendor/c.go"} {
+		os.WriteFile(filepath.Join(src.Remote, name), []byte("package vendor\n\n"+strings.Repeat("var y = \"kept in the patch for the agent\"\n", 2200)), 0o600)
+	}
+	os.WriteFile(filepath.Join(src.Remote, "small.go"), []byte("package calc\n\nvar smallMarker = 1\n"), 0o600)
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Vendor a big file")
+	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	ch.Diff.Head, src.Head = head, head
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "fake"}, AskInput{Question: "What does it vendor?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return v.Status == Idle || v.Status == Failed })
+	if v.Status == Failed {
+		t.Fatalf("an oversized conversation was refused: %s", v.Error)
+	}
+	mu.Lock()
+	first, got := asked[0], read[0]
+	mu.Unlock()
+	if strings.Contains(first, "padding the patch") || !strings.Contains(first, "kept in the patch") || !strings.Contains(first, "vendor/big.go +2603 -0 (large)") || !strings.Contains(first, "smallMarker") {
+		t.Fatalf("the first message did not leave out only the big file:\n%.2000s", first)
+	}
+	if !strings.Contains(got, "bigMarker") {
+		t.Fatalf("the agent could not read the left-out file: %.500s", got)
+	}
+	if want := []LeftOut{{Path: "vendor/big.go", Added: "2603", Deleted: "0", Why: "large"}}; !slices.Equal(v.LeftOut, want) {
+		t.Fatalf("left out %+v", v.LeftOut)
+	}
+	m.Shutdown()
+	loaded := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drafts: m.Drafts, MCPURL: m.MCPURL}
+	if err := loaded.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if lv := loaded.Get(r.ID).View(); !slices.Equal(lv.LeftOut, v.LeftOut) {
+		t.Fatalf("the list did not survive a restart: %+v", lv.LeftOut)
+	}
+}

@@ -82,7 +82,7 @@ func (m *Manager) prepareSummary(ctx context.Context, r *Run, s *Session, src So
 		r.failSummary("The summary checkout could not be prepared.")
 		return
 	}
-	input, err := m.Repos.summaryInput(ctx, src, r.Summary.From)
+	input, _, err := m.Repos.summaryInput(ctx, src, r.Summary.From, false)
 	if err != nil {
 		r.failSummary(err.Error())
 		return

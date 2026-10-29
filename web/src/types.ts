@@ -87,6 +87,8 @@ export interface Session {
 export interface Run {
   mode?: "triage" | "summary" | "project-triage" | "update" | "ask"; triage_threads?: Thread[]
   ask?: Ask
+  // left_out are the files an ask's first message did not send (D70).
+  left_out?: LeftOut[]
   update?: Update
   project_triage?: { path: string; changes: { number: number; stamp: string }[]; candidates: string[]; labels: string[] }
   review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }
@@ -280,6 +282,7 @@ export const changeWord = (kind: string | undefined) => (pullForge(kind) ? 'pull
 // Ask is what a conversation about a change was started with (section 6.11,
 // D68): a canned prompt by name, or the person's own question.
 export interface Ask { prompt?: string; title: string; question: string }
+export interface LeftOut { path: string; added: string; deleted: string; why: string }
 // Prompt is a canned question: shipped, or a Markdown file of the person's.
 export interface Prompt { name: string; title: string; scope?: 'change' | 'since_review'; tool?: string; model?: string; text: string; builtin?: boolean }
 export interface Prompts { dir: string; prompts: Prompt[]; errors: { file: string; reason: string }[] }
