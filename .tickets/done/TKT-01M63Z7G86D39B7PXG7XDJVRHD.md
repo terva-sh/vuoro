@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:41Z
-updated_at: 2026-10-29T14:22:43Z
+updated_at: 2026-10-29T16:29:55Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -74,6 +74,10 @@ Defer it, and do not build it for v1.0.0. The practice repository would teach th
 **agent:claude-code/getting-started** at 2026-10-29T14:22:43Z
 
 Owner deferred it on 2026-10-29, recorded as D71; plan 10.3 lists it after v1.0.0.
+
+**agent:claude-code/getting-started** at 2026-10-29T16:29:55Z
+
+Renumbered on landing: another change took D70 first (a conversation is never refused for its size). The getting-started decision is now D71 and the practice-review deferral D72. Earlier notes on this ticket that say D70 and D71 mean D71 and D72.
 
 ## Summary
 

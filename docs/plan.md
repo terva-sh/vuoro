@@ -224,7 +224,7 @@ the platform's own, through tuohi, without cgo.
 ### 3.4 Getting started
 
 TKT-01M63Z778B87DTP765W8JWSMPN (Getting started: teach a new person to use
-vuoro in the window) carries out D70. First run configures vuoro. This
+vuoro in the window) carries out D71. First run configures vuoro. This
 section is how the window then teaches a new person to use it, in three
 levels, cheapest first.
 
@@ -255,7 +255,7 @@ levels, cheapest first.
   needs an agent tool. The spike recommends deferring it: a practice
   repository runs as a local review, whose findings are the person's own
   (D42) with no Keep or Submit, so it would teach the local flow, not the
-  forge one. The owner deferred it past v1.0.0 (D71).
+  forge one. The owner deferred it past v1.0.0 (D72).
 
 Progress is the person's own annotation, kept in `prefs.json` beside `tab`
 and `waived`: the hints dismissed, and the tour's state (not started,
@@ -2212,13 +2212,13 @@ and a terva-sh release).
 - **A terva-sh release.** goreleaser archives for macOS, Linux, and Windows,
   `self-update`, setup in the UI with no hand-edited config, a GitHub mirror,
   and documentation for somebody new: hints and a tour in the window
-  (section 3.4, D70). macOS signing is decided then.
+  (section 3.4, D71). macOS signing is decided then.
 
 ### 10.3 After v1.0.0
 
 - The editor on other people's changes, turning findings into suggested
   patches.
-- A practice review on a generated local repository, deferred by D71
+- A practice review on a generated local repository, deferred by D72
   (section 3.4). Reopened only if people who finish the tour still stall at
   their first run.
 

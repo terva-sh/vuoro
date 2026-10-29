@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:32Z
-updated_at: 2026-10-29T14:30:08Z
+updated_at: 2026-10-29T16:29:55Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -56,6 +56,10 @@ Every child is done on branch tickets/getting-started (not pushed). Levels 1 and
 **agent:claude-code/getting-started** at 2026-10-29T14:21:09Z
 
 Owner confirmed D70 as written on 2026-10-29: the two-part tour and all three rejections stand. Attribution changed to decided by the owner.
+
+**agent:claude-code/getting-started** at 2026-10-29T16:29:55Z
+
+Renumbered on landing: another change took D70 first (a conversation is never refused for its size). The getting-started decision is now D71 and the practice-review deferral D72. Earlier notes on this ticket that say D70 and D71 mean D71 and D72.
 
 ## Summary
 

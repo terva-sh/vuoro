@@ -19,7 +19,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:40Z
-updated_at: 2026-10-29T14:01:47Z
+updated_at: 2026-10-29T16:29:55Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -44,6 +44,12 @@ The owner decides the scope. This ticket records it.
 - [x] docs/plan.md has a section for getting started covering all three levels
 - [x] docs/decisions.md has the owner's decision as the next D-number, with what was rejected
 - [x] The README points a new person at the tutorial
+
+## Notes
+
+**agent:claude-code/getting-started** at 2026-10-29T16:29:55Z
+
+Renumbered on landing: another change took D70 first (a conversation is never refused for its size). The getting-started decision is now D71 and the practice-review deferral D72. Earlier notes on this ticket that say D70 and D71 mean D71 and D72.
 
 ## Summary
 
