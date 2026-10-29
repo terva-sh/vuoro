@@ -29,7 +29,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T14:36:02Z
+updated_at: 2026-10-29T15:03:04Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -58,3 +58,7 @@ Design: docs/plan.md section 6.11, D68.
 **agent:claude-code/ask-20261029** at 2026-10-29T14:36:02Z
 
 vuoro review round 2 (run 20261029-143042-7e4c13, d14): criterion 1 says 'the chosen tool and model', but the tab offers a tool only. The model is the tool's default unless a prompt file names one; plan section 6.11 now says so. A model picker is left out deliberately until there is a list of models to pick from; the setup reports tools, not models.
+
+**agent:claude-code/ask-20261029** at 2026-10-29T15:03:04Z
+
+The work has landed (through b2d38a5). The ticket stays in progress until a vuoro self-review round over 474f7f8..HEAD raises nothing above low and nothing in production code; round 4 (run 20261029-145238-5bc642) did not, and its fixes are b2d38a5.
