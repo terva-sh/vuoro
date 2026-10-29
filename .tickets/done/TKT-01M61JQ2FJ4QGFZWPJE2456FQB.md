@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M61JQ2FJ4QGFZWPJE2456FQB
 title: Serve ask sessions read-only git history and the change over MCP
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -19,17 +19,10 @@ dependencies:
   - TKT-01M61JQ22E7049NSPR545323DW
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/ask-20261029
-  branch: main
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: d548df2ff67c80cd99503caa233553a226e410d5
-  session: null
-  claimed_at: 2026-10-29T14:36:16Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T15:03:04Z
+updated_at: 2026-10-29T16:06:33Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -52,13 +45,17 @@ Design: docs/plan.md section 6.11, D68.
 
 ## Acceptance criteria
 
-- [ ] git_log, git_show, git_blame and git_diff answer from the clone and refuse an option, an outside path, or an unknown revision
-- [ ] Output past the cap is refused with the reason
-- [ ] change, discussion and pipeline answer from the turn's forge read, and a test proves they send no request
-- [ ] No context tool writes to the clone, the worktree, or the forge
+- [x] git_log, git_show, git_blame and git_diff answer from the clone and refuse an option, an outside path, or an unknown revision
+- [x] Output past the cap is refused with the reason
+- [x] change, discussion and pipeline answer from the turn's forge read, and a test proves they send no request
+- [x] No context tool writes to the clone, the worktree, or the forge
 
 ## Notes
 
 **agent:claude-code/ask-20261029** at 2026-10-29T15:03:04Z
 
 The work has landed (through b2d38a5). The ticket stays in progress until a vuoro self-review round over 474f7f8..HEAD raises nothing above low and nothing in production code; round 4 (run 20261029-145238-5bc642) did not, and its fixes are b2d38a5.
+
+## Summary
+
+Landed in review/askctx.go, served through review/drafts (Session.Context, ToolSet) by vuoro's own MCP server; launch gives an Asker session only ContextToolNames. git_log, git_show, git_blame and git_diff read vuoro's clone under its lock with hooks, diff programs and textconv off; revisions are head, base, reviewed (since-review only) or a commit ID in the change's history, paths are literal, and an answer past 128 KiB is refused. change, discussion and pipeline answer from the AskFacts snapshot taken at the start and refreshed before each follow-up; pipeline gives status only. Tests: review TestTheGitToolsRefuseWhatTheChangeDoesNotHold, TestAGitAnswerPastTheCapIsRefused, TestTheChangeToolsAnswerFromTheForgeRead (a refusing transport proves no request), TestTheContextToolsWriteNothing, and drafts TestAnAskerListsOnlyItsContextTools. Self-reviewed with vuoro rounds 1-6; round 6 raised only lows, fixed in 16f5933.

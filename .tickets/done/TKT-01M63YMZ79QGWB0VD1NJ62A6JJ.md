@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M63YMZ79QGWB0VD1NJ62A6JJ
 title: Summarise a change whose patch is mostly a lockfile, not refuse it
 type: bug
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -18,17 +18,10 @@ dependencies:
   - TKT-01M61JQ22E7049NSPR545323DW
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/ask-20261029
-  branch: main
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 2cc6ec93f7510a9d0ecfcfc451a9cae79ebce8cb
-  session: null
-  claimed_at: 2026-10-29T14:30:46Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-29T13:47:33Z
-updated_at: 2026-10-29T16:03:43Z
+updated_at: 2026-10-29T16:06:33Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -49,11 +42,19 @@ Ask runs (TKT-01M61JQ22E7049NSPR545323DW, done) read their range through the sam
 ## Acceptance criteria
 
 - [ ] A change whose patch is over the cap only because of lockfiles or generated files is summarised
-- [ ] Each file left out of the patch is named in the first message with its stat, and the summary says it was not read
-- [ ] A change still over the cap after that is refused with the reason, never truncated
+- [x] Each file left out of the patch is named in the first message with its stat, and the summary says it was not read
+- [x] A change still over the cap after that is refused with the reason, never truncated
 
 ## Notes
 
 **agent:claude-code/ask-20261029** at 2026-10-29T15:03:04Z
 
 The work has landed (through b2d38a5). The ticket stays in progress until a vuoro self-review round over 474f7f8..HEAD raises nothing above low and nothing in production code; round 4 (run 20261029-145238-5bc642) did not, and its fixes are b2d38a5.
+
+**agent:claude-code/ask-20261029** at 2026-10-29T16:06:32Z
+
+Criterion 1 is left unticked: a change over the cap only because of a lockfile the forge base already holds, or of generated files, is summarised (TestALockfileIsLeftOutOfTheDiffAndNamed), but one that adds a large lockfile the base lacks is still refused. Counting a new file as a lockfile would let a change choose what is hidden (vuoro review round 5, d7). Closing it needs a way to leave a new lockfile out that the change cannot steer, such as also requiring its manifest to have changed.
+
+## Summary
+
+Landed in review/summary_git.go (38ed0b8, 8a6b060, b2d38a5, 9bf901c). A patch that fits is sent whole. Past the cap, lockfiles the forge base already holds and files its .gitattributes marks linguist-generated or -diff are left out, largest first and only until the rest fits, and named in the first message with --numstat counts; the summary and ask prompts tell the agent to say it did not read them, and an ask agent can read them with git_diff. What remains past the cap is still refused (summary_test oversize). A new large lockfile is still refused; see the note on criterion 1. Tests: TestALockfileIsLeftOutOfTheDiffAndNamed, TestASmallLockfileEditIsSent, TestAttributesFromTheReviewedCommitHideNothing.

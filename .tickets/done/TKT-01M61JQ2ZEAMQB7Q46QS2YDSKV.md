@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M61JQ2ZEAMQB7Q46QS2YDSKV
 title: Replace the Summary tab with an Ask tab on the change page
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -19,17 +19,10 @@ dependencies:
   - TKT-01M61JQ2PCA8DRN7GWKX94V16R
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/ask-20261029
-  branch: main
-  worktree: /Users/drewshort/Workspace/github.com/terva-sh/vuoro
-  commit: 864508399b58f37671c0b9be6a987de18e97db14
-  session: null
-  claimed_at: 2026-10-29T14:24:15Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T15:03:04Z
+updated_at: 2026-10-29T16:06:33Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -48,10 +41,10 @@ Design: docs/plan.md section 6.11, D68.
 ## Acceptance criteria
 
 - [ ] Prompt buttons and a question box start a conversation with the chosen tool and model
-- [ ] The change's conversations list with prompt, head, cost and a stale mark
-- [ ] The person follows up and stops in the session pane
-- [ ] A stale conversation offers the same question on the new head
-- [ ] Earlier summaries show as explain conversations
+- [x] The change's conversations list with prompt, head, cost and a stale mark
+- [x] The person follows up and stops in the session pane
+- [x] A stale conversation offers the same question on the new head
+- [x] Earlier summaries show as explain conversations
 
 ## Notes
 
@@ -62,3 +55,11 @@ vuoro review round 2 (run 20261029-143042-7e4c13, d14): criterion 1 says 'the ch
 **agent:claude-code/ask-20261029** at 2026-10-29T15:03:04Z
 
 The work has landed (through b2d38a5). The ticket stays in progress until a vuoro self-review round over 474f7f8..HEAD raises nothing above low and nothing in production code; round 4 (run 20261029-145238-5bc642) did not, and its fixes are b2d38a5.
+
+**agent:claude-code/ask-20261029** at 2026-10-29T16:06:33Z
+
+Criterion 1 is left unticked for its model half: the tab picks a tool, and a model comes only from a prompt file's front matter (on the tool it names) or the tool's default. A model picker waits for a list of models to pick from. Supersedes the 15:03 note: vuoro review round 6 raised only lows, fixed in 16f5933.
+
+## Summary
+
+Landed in web/src/ask.tsx, replacing the Summary tab in change.tsx, with app/prompts.go (GET /api/prompts) and app/ask.go. The tab offers the shipped and the person's prompts (a file it cannot use is named with the reason), a question box, scope, review and tool; lists the change's conversations newest first with prompt, head, cost and a stale mark; shows the selected one in the session pane with follow-up and Stop; offers a stale one again on the new head with its own prompt, scope and review; and shows a pre-Ask summary as explain, read-only. Tests: web/src/ask.test.tsx (seven), app TestAPromptsScopeDecidesTheRange, TestAPromptsModelGoesOnlyToItsOwnTool. Self-reviewed with vuoro rounds 1-6.
