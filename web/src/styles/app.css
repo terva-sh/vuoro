@@ -656,3 +656,21 @@ details.advanced .field .muted { font-size: var(--ui-fs-detail); }
 .ask-stale { color: var(--ui-warn); }
 .ask-left-out { margin-bottom: var(--ui-space-2); color: var(--ui-warn); }
 .ask-left-out ul { margin: var(--ui-space-1) 0; color: var(--ui-fg); }
+
+/* Getting started (docs/plan.md section 3.4): a hint on an empty screen. */
+.hint { display: flex; align-items: flex-start; gap: var(--ui-space-3); margin: var(--ui-space-3) 0; padding: var(--ui-space-3) var(--ui-space-4); background: var(--ui-accent-soft); border: 1px solid var(--ui-accent); border-left-width: 4px; border-radius: var(--ui-radius); }
+.hint-body { flex: 1; }
+.hint-body p { margin: 0; }
+.hint-body p + p { margin-top: var(--ui-space-2); }
+.hint > button { white-space: nowrap; }
+
+/* The tour's popover, and the element it is about. */
+.tour { position: fixed; z-index: 40; width: min(360px, calc(100vw - 16px)); background: var(--ui-surface); border: 1px solid var(--ui-accent); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-pop); padding: var(--ui-space-3) var(--ui-space-4); }
+.tour.above { transform: translateY(-100%); }
+.tour h2 { margin: 0 0 var(--ui-space-2); }
+.tour p { margin: 0 0 var(--ui-space-3); }
+.tour .tour-count { margin-bottom: var(--ui-space-1); font-size: var(--ui-fs-note); }
+.tour .actions { display: flex; align-items: center; gap: var(--ui-space-2); }
+.tour .spacer { flex: 1; }
+.tour-target { outline: 2px solid var(--ui-accent); outline-offset: 2px; border-radius: var(--ui-radius-control); }
+.tour-offer { align-items: center; }

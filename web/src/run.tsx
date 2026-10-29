@@ -5,6 +5,7 @@ import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { Editor } from './editor'
 import { Drafts, HandOff, shownDrafts } from './findings'
+import { Hint, NeedsTool } from './guide'
 import { HeadBadge, useHead } from './head'
 import { PatchesContext } from './patch'
 import { usePoll } from './poll'
@@ -34,6 +35,9 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
   change: Change; setup?: Setup; onPick: (path: string) => void; onDrafts: (d: Draft[], runID?: string, head?: string, pushed?: string) => void
 }) {
   const [runs, setRuns] = useState<Run[]>([])
+  // The hint for a change with no runs waits for the list, so it does not
+  // flash on a change that has some.
+  const [listed, setListed] = useState(false)
   const [selected, setSelected] = useState<string>()
   const [run, setRun] = useState<Run>()
   const [preset, setPreset] = useState<string>()
@@ -45,6 +49,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       .then((all) => {
         const mine = all.filter((r) => !r.mode && refKey(r.ref) === key)
         setRuns(mine)
+        setListed(true)
         if (mine.length > 0) setSelected((s) => s ?? mine[0].id)
       })
       .catch((e: unknown) => setError(String(e)))
@@ -120,6 +125,11 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
         )}
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
+      {listed && runs.length === 0 && <Hint id="change-no-runs">
+        <p><strong>Start a review.</strong> A preset is a set of reviewers that read this change in parallel, each with its own focus. When the preset has a synthesizer, it merges what they found into one set of drafts. While they work, open a reviewer's pane to talk to it.</p>
+        {tools.length === 0 ? <NeedsTool setup={setup} doing="A review" />
+          : <p>A review runs on your agent tool's account and costs money, shown as it runs. Nothing starts until you press Start a review, and nothing is posted.</p>}
+      </Hint>}
       {run && <RunView run={run} url={change.web_url} own={own} onClose={close} onPick={onPick} onRun={update} onSelect={setSelected} author={change.author?.username} />}
     </div>
   )
@@ -193,6 +203,11 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
           )}
           <span class="muted push">{self ? 'Your own work: nothing here is posted. Pick findings for the editor, or dismiss them.' : 'An agent drafts, and nothing is posted until you keep it and submit.'}</span>
         </header>
+        {shown.length > 0 && <Hint id="first-drafts">
+          {self
+            ? <p><strong>These findings are yours alone.</strong> Nothing here is posted. Pick the ones for the editor to fix, or dismiss them.</p>
+            : <p><strong>These are drafts.</strong> An agent wrote them and nothing has been posted. Keep, edit, or drop each one. A kept draft becomes your pending comment, and it reaches the forge only when you press Submit at the top of the change.</p>}
+        </Hint>}
         {self ? (
           // Nothing here posts: the findings are picked or dismissed.
           <WriteContext.Provider value={undefined}>

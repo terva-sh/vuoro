@@ -2,7 +2,7 @@
 // page with a section for each. It reads setup again as it opens, which picks
 // up a hand edit or a repaired file before anything is edited from it.
 import { useEffect, useState } from 'preact/hooks'
-import { api } from './api'
+import { api, post } from './api'
 import { waive } from './confirm'
 import { Presets } from './presets'
 import { SchemePicker } from './scheme'
@@ -15,12 +15,14 @@ const sections = [
   { id: 'settings-background', label: 'Background' },
   { id: 'settings-appearance', label: 'Appearance' },
   { id: 'settings-confirmations', label: 'Confirmations' },
+  { id: 'settings-getting-started', label: 'Getting started' },
   { id: 'settings-about', label: 'About' },
 ]
 
-export function Settings({ setup, onSetup, scheme, onScheme, version, onAbout, onClose }: {
+export function Settings({ setup, onSetup, scheme, onScheme, version, onAbout, onClose, onTour }: {
   setup: Setup; onSetup: (s: Setup) => void; scheme: Scheme; onScheme: (s: Scheme) => void
   version?: string; onAbout: () => void; onClose: () => void
+  onTour: () => void // replays the getting-started tour
 }) {
   // Presets is a page of its own rather than one more section, because a
   // preset holds a list of reviewers with three fields each and two optional
@@ -85,6 +87,17 @@ export function Settings({ setup, onSetup, scheme, onScheme, version, onAbout, o
               <button type="button" onClick={() => void waive(setup.waived, true).then(onSetup).catch(() => undefined)}>Ask again</button>
             </p>
           )}
+        </section>
+        <section id="settings-getting-started" aria-labelledby="settings-getting-started-title">
+          <h2 id="settings-getting-started-title">Getting started</h2>
+          <p class="lead">A short tour of the window, and a hint on each empty screen. Neither starts a run or posts anything.</p>
+          <p>
+            <button type="button" onClick={onTour}>Replay the tour</button>{' '}
+            <button type="button" disabled={(setup.hints ?? []).length === 0}
+              onClick={() => void post<{ hints: Setup['hints'] }>('/api/prefs/hints/reset').then((p) => onSetup({ ...setup, hints: p.hints })).catch(() => undefined)}>
+              Show dismissed hints again
+            </button>
+          </p>
         </section>
         <section id="settings-about" aria-labelledby="settings-about-title">
           <h2 id="settings-about-title">About</h2>

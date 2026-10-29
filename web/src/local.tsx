@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { useAction } from './action'
 import { api, bindings, post } from './api'
+import { Hint, NeedsTool } from './guide'
 import { Project } from './localproject'
 import type { LocalView, Setup } from './types'
 import { ago } from './ui'
@@ -82,9 +83,12 @@ export function LocalTab({ setup, onCount, onOpen, onOpenRun }: {
       ) : (
         <>
           {none ? (
-            <p class="muted">
+            <Hint id="local-empty" fallback={<p class="muted">
               No local projects yet. Add a checkout, or a folder such as ~/Workspace for vuoro to scan for checkouts.
-            </p>
+            </p>}>
+              <p><strong>Review your work before you push it.</strong> Add a checkout, or a folder such as ~/Workspace for vuoro to scan for checkouts, and each branch shows what it needs. A review here is yours alone and posts nothing.</p>
+              {unavailable && <NeedsTool setup={setup} doing="Reviewing a branch" />}
+            </Hint>
           ) : view.projects.length === 0 ? (
             <p class="muted">No checkouts to show in the folders you added.</p>
           ) : null}

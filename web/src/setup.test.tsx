@@ -308,7 +308,7 @@ describe('Settings', () => {
     const onSetup = vi.fn()
     const root = document.createElement('div')
     const existing = setup({ forges: [{ name: 'internal', kind: 'forgejo', url: 'https://forge.example', username: 'pat', token_env: 'T' }] })
-    await act(async () => { render(<Settings setup={existing} onSetup={onSetup} scheme="" onScheme={() => {}} onAbout={() => {}} onClose={() => {}} />, root); await new Promise((r) => setTimeout(r, 0)) })
+    await act(async () => { render(<Settings setup={existing} onSetup={onSetup} scheme="" onScheme={() => {}} onAbout={() => {}} onClose={() => {}} onTour={() => {}} />, root); await new Promise((r) => setTimeout(r, 0)) })
     expect(api).toHaveBeenCalledWith('/api/setup')
     expect(onSetup).toHaveBeenCalledWith(fresh)
     expect(post).toHaveBeenCalledWith('/api/setup/access', { name: 'internal' })

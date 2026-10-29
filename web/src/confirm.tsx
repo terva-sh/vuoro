@@ -69,7 +69,7 @@ export function SubmitBar({ change, me, pending, approved, waived, act, onWaive 
   const approve = `Approves ${mr} as @${me}, and everyone on it sees it.`
   const changes = `Asks for changes on ${mr} as @${me}, and everyone on it sees it.`
   return (
-    <div class="submit-bar">
+    <div class="submit-bar" data-tour="submit">
       <span>✎ {comments} of yours, seen only by you until you submit</span>
       <button class="primary" disabled={pending === 0} onClick={() => confirm({
         title: `Submit your review of ${mr}?`, lines: [publish], go: 'Submit', actions: ['submit'],

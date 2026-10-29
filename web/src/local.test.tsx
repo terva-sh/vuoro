@@ -56,7 +56,7 @@ describe('the Local tab', () => {
     vi.mocked(post).mockResolvedValue(empty({ added: ['/w/p'], projects: [project('/w/p/.git', 'p')] }))
     await act(async () => render(<LocalTab />, root))
     await settle()
-    expect(root.textContent).toContain('No local projects yet')
+    expect(root.textContent).toContain('Review your work before you push it')
     await act(async () => button('Add a folder').click())
     await settle()
     expect(choose).toHaveBeenCalledWith('Add a folder')

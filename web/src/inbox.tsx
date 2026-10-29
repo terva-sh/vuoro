@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api } from './api'
+import { Hint } from './guide'
 import { usePoll } from './poll'
 import { changeNumber, refKey, type Ref } from './types'
 import { ago } from './ui'
@@ -211,8 +212,16 @@ export function Inbox({ onOpen, opening = false, active = true, onCount }: {
       </div>
       {error && <p class="alert" role="alert">{error}</p>}
       {!view && <p class="muted">Loading your inbox…</p>}
-      {view && view.accounts.length === 0 && <p>Add the forges you review on in Settings, at the top right, and vuoro finds the reviews that wait for you. You can also open a change by URL above.</p>}
+      {view && view.accounts.length === 0 && <Hint id="reviews-no-forge"
+        fallback={<p>Add the forges you review on in Settings, at the top right, and vuoro finds the reviews that wait for you. You can also open a change by URL above.</p>}>
+        <p><strong>Your reviews land here.</strong> Add the forges you review on in Settings, at the top right, and vuoro lists every change you review, wrote, or are assigned, ordered by whose turn it is.</p>
+        <p>To look at one change now, paste its URL into the bar above.</p>
+      </Hint>}
       {view && view.accounts.length > 0 && <>
+        {view.mine.length === 0 && <Hint id="reviews-quiet">
+          <p><strong>Nothing is your turn yet.</strong> A change moves under Your turn when someone asks for your review or answers you, with the reason beside it. The folds below hold the rest, such as changes waiting on others.</p>
+          <p>Select a row to see what it needs, and press <kbd>↵</kbd> to open it.</p>
+        </Hint>}
         <div class="inbox-summary" role="group" aria-label="What needs you">
           <span class="muted">Needs you:</span>
           {counts.map((k) => (

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -153,5 +154,36 @@ func TestGettingStartedRoutesStayBehindWindowGuard(t *testing.T) {
 	h.ServeHTTP(w, r)
 	if w.Code != 200 {
 		t.Fatalf("the window's request: %d %s", w.Code, w.Body)
+	}
+}
+
+// The window keeps its own lists of the hints and the tour's steps. A step
+// or hint added there and not here would be dropped from prefs.json as
+// unknown, so the person would see it again after every restart.
+func TestTheWindowsHintsAndTourStepsAreTheOnesKept(t *testing.T) {
+	read := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("..", "web", "src", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	var steps []string
+	for _, m := range regexp.MustCompile(`\{ id: '([a-z-]+)', surface:`).FindAllStringSubmatch(read("tour.tsx"), -1) {
+		steps = append(steps, m[1])
+	}
+	if !slices.Equal(steps, TourSteps) {
+		t.Errorf("web/src/tour.tsx has steps %v, app.TourSteps %v", steps, TourSteps)
+	}
+	m := regexp.MustCompile(`allHints: HintID\[\] = \[([^\]]*)\]`).FindStringSubmatch(read("guide.tsx"))
+	if m == nil {
+		t.Fatal("web/src/guide.tsx has no allHints")
+	}
+	var hints []string
+	for _, h := range regexp.MustCompile(`'([a-z-]+)'`).FindAllStringSubmatch(m[1], -1) {
+		hints = append(hints, h[1])
+	}
+	if !slices.Equal(hints, Hints) {
+		t.Errorf("web/src/guide.tsx has hints %v, app.Hints %v", hints, Hints)
 	}
 }

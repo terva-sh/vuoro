@@ -5,6 +5,7 @@ import { HeadBadge, HeadContext, useRunHead } from './head'
 import { RunPanel } from './run'
 import { TriagePanel } from './triage'
 import { AskPanel } from './ask'
+import { Tour } from './tour'
 import { UpdatePanel } from './update'
 import { changeNumber, type Change, type Draft, type Reviewer, type Setup } from './types'
 import { ago, CommentBubble, Prose, Section, short, worstSeverity } from './ui'
@@ -101,7 +102,8 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
         )}
         {error && <p class="alert" role="alert">⚠ {error}</p>}
       </header>
-      <nav class="tabs" role="tablist">
+      <Tour surface="change" />
+      <nav class="tabs" role="tablist" data-tour="change-tabs">
         {(
           [
             ...(isAuthor ? [['threads', 'Threads']] : []),
@@ -112,7 +114,8 @@ export function ChangeView({ change, setup, onChange, onSetup }: {
             ...(me ? [['update', 'Update']] : []),
           ] as [Tab, string][]
         ).map(([t, label]) => (
-          <button role="tab" aria-selected={tab === t} class={tab === t ? 'tab on' : 'tab'} onClick={() => setTab(t)} key={t}>
+          <button role="tab" aria-selected={tab === t} class={tab === t ? 'tab on' : 'tab'} onClick={() => setTab(t)} key={t}
+            data-tour={t === 'review' ? 'review-tab' : undefined}>
             {label}
           </button>
         ))}

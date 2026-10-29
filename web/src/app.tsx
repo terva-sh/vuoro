@@ -10,6 +10,8 @@ import { RunList } from './runs'
 import { About } from './about'
 import { Settings } from './settings'
 import { FirstRun } from './setup'
+import { GuideContext, useGuideState } from './guide'
+import { Tour, TourOffer } from './tour'
 import { applyScheme } from './scheme'
 import type { Change, HomeTab, LocalView, Run, Scheme, Setup } from './types'
 
@@ -30,6 +32,8 @@ export function App() {
   const [scheme, setScheme] = useState<Scheme>('')
   const [about, setAbout] = useState(false)
   const [settings, setSettings] = useState(false)
+
+  const guide = useGuideState(setup, setSetup)
 
   useEffect(() => applyScheme(scheme), [scheme])
 
@@ -70,10 +74,11 @@ export function App() {
   }
 
   return (
+    <GuideContext.Provider value={guide}>
     <div class="app">
       <header class="bar">
         <button class="brand link" onClick={() => { setChange(undefined); setLocalRun(undefined); setSettings(false); api<Run[]>('/api/runs').then(setRuns).catch(() => undefined) }}>vuoro</button>
-        <form class="open" onSubmit={(e) => { e.preventDefault(); void open(url) }}>
+        <form class="open" data-tour="open-url" onSubmit={(e) => { e.preventDefault(); void open(url) }}>
           <input
             type="url"
             placeholder="Open a change by URL…"
@@ -85,7 +90,7 @@ export function App() {
           {change && <button type="button" disabled={opening} onClick={() => void open(url)}>Refresh</button>}
         </form>
         {hello && <button type="button" class="link version" title="About vuoro" onClick={() => setAbout(true)}>vuoro {hello.version}</button>}
-        <button type="button" class={settings ? 'settings-button on' : 'settings-button'} aria-pressed={settings} onClick={() => setSettings((v) => !v)}>⚙ Settings</button>
+        <button type="button" data-tour="settings" class={settings ? 'settings-button on' : 'settings-button'} aria-pressed={settings} onClick={() => setSettings((v) => !v)}>⚙ Settings</button>
       </header>
       {about && <About setup={setup} onClose={() => setAbout(false)} />}
       {setup?.config_error && <p class="alert" role="alert">⚠ The config file did not load: {setup.config_error}</p>}
@@ -93,7 +98,8 @@ export function App() {
       <main>
         {settings && setup ? (
           <Settings setup={setup} onSetup={setSetup} scheme={scheme} onScheme={setScheme} version={hello?.version}
-            onAbout={() => setAbout(true)} onClose={() => setSettings(false)} />
+            onAbout={() => setAbout(true)} onClose={() => setSettings(false)}
+            onTour={() => { guide.setTour({ state: 'on' }); setSettings(false) }} />
         ) : change ? (
           <ChangeView change={change} setup={setup} onChange={setChange} onSetup={setSetup} key={`${change.web_url}@${change.diff.head}`} />
         ) : localRun ? (
@@ -103,6 +109,7 @@ export function App() {
         )}
       </main>
     </div>
+    </GuideContext.Provider>
   )
 }
 
@@ -110,6 +117,8 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
   // A fresh install, with nowhere to read reviews from, starts at setup. It
   // stays until the person is done, so adding a second forge is one step on.
   const [firstRun, setFirstRun] = useState<boolean>()
+  // Finishing setup, or leaving it, offers the tour once.
+  const [offer, setOffer] = useState(false)
   useEffect(() => {
     if (setup && firstRun === undefined) setFirstRun(setup.editable && !setup.config_error && setup.forges.length === 0)
   }, [setup])
@@ -134,11 +143,13 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
     setChosen(t)
     post('/api/prefs/tab', { tab: t }).catch(() => undefined)
   }
-  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
+  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => { setFirstRun(false); setOffer(true) }} /></div>
   const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local'], ['projects', 'Projects']]
   return (
     <div class="home">
-      <nav class="tabs home-tabs" role="tablist" aria-label="Home" onKeyDown={(e) => {
+      {offer && <TourOffer />}
+      <Tour surface="home" />
+      <nav class="tabs home-tabs" role="tablist" aria-label="Home" data-tour="home-tabs" onKeyDown={(e) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
         const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1
         const next = tabs[(tabs.findIndex(([t]) => t === tab) + step) % tabs.length][0]

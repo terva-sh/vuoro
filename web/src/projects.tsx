@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { errorText } from './action'
 import { api, post } from './api'
+import { Hint } from './guide'
 import { AgeBadge } from './inbox'
 import { ProjectTriage } from './projecttriage'
 import { usePoll } from './poll'
@@ -91,6 +92,10 @@ export function ProjectsTab({ onOpen, opening = false, active = true }: { onOpen
         <button onClick={() => setAdding((v) => !v)} aria-expanded={adding}>{adding ? 'Close' : 'Add a project'}</button>
       </div>
       {error && <p class="alert" role="alert">{error}</p>}
+      {list && list.projects.length === 0 && <Hint id="projects-empty">
+        <p><strong>Follow a whole project.</strong> Projects shows every open change in a project, where each one sits, for how long, and what holds it.</p>
+        <p>{list.accounts.length === 0 ? 'Add the forge it lives on in Settings, at the top right, then search for it here.' : 'Search your forges for it below, or paste its URL.'}</p>
+      </Hint>}
       {adding && list && <AddProject list={list} onAdded={(l, key) => { setList(l); setChosen(key); setAdding(false) }} />}
       {list && list.projects.length === 0 && !adding && <p class="muted">No projects yet.</p>}
       {selected && <ProjectChanges key={selected.key} entry={selected} onOpen={onOpen} opening={opening} active={active && !adding}
