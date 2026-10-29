@@ -49,18 +49,24 @@ const maxContext = 128 << 10
 // clone, and the change as vuoro last read it. Nothing here writes to the
 // clone, a worktree, or the forge.
 type askContext struct {
-	repos      *Repos
-	key        string
-	base, head string
-	facts      func() AskFacts
+	repos *Repos
+	key   string
+	// base is the change's forge base and head the head the conversation
+	// reads. reviewed is the earlier review's head in a since-review
+	// conversation, and empty otherwise.
+	base, head, reviewed string
+	facts                func() AskFacts
 }
+
+// revDesc says what a revision may be, for every tool that takes one.
+const revDesc = "head, base (the change's forge base), reviewed (the earlier review's head, in a since_review conversation only), or a commit ID in the change's history, optionally with ~N"
 
 var contextTools = []map[string]any{
 	{
 		"name":        "git_log",
 		"description": "List commits reachable from a revision, newest first: sha, author, date, subject. Narrow it to one path.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
-			"rev":       map[string]any{"type": "string", "description": "head (the default), base, or a commit ID in the change's history, optionally with ~N"},
+			"rev":       map[string]any{"type": "string", "description": revDesc + "; head by default"},
 			"path":      map[string]any{"type": "string", "description": "a repository-relative path"},
 			"max_count": map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "description": "at most this many commits; 30 by default"},
 		}},
@@ -70,7 +76,7 @@ var contextTools = []map[string]any{
 		"name":        "git_show",
 		"description": "Show one commit: its message, the files it changed, and its patch, or only its patch to one path.",
 		"inputSchema": map[string]any{"type": "object", "required": []string{"rev"}, "properties": map[string]any{
-			"rev":  map[string]any{"type": "string"},
+			"rev":  map[string]any{"type": "string", "description": revDesc},
 			"path": map[string]any{"type": "string"},
 		}},
 		"annotations": map[string]any{"readOnlyHint": true},
@@ -82,7 +88,7 @@ var contextTools = []map[string]any{
 			"path":       map[string]any{"type": "string"},
 			"start_line": map[string]any{"type": "integer", "minimum": 1},
 			"end_line":   map[string]any{"type": "integer", "minimum": 1},
-			"rev":        map[string]any{"type": "string", "description": "head by default"},
+			"rev":        map[string]any{"type": "string", "description": revDesc + "; head by default"},
 		}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	},
@@ -90,8 +96,8 @@ var contextTools = []map[string]any{
 		"name":        "git_diff",
 		"description": "The diff between two revisions, or of one path between them.",
 		"inputSchema": map[string]any{"type": "object", "required": []string{"from"}, "properties": map[string]any{
-			"from": map[string]any{"type": "string"},
-			"to":   map[string]any{"type": "string", "description": "head by default"},
+			"from": map[string]any{"type": "string", "description": revDesc},
+			"to":   map[string]any{"type": "string", "description": revDesc + "; head by default"},
 			"path": map[string]any{"type": "string"},
 		}},
 		"annotations": map[string]any{"readOnlyHint": true},
@@ -276,7 +282,7 @@ func (c *askContext) call(name string, raw json.RawMessage) (string, error) {
 // revRE is a commit ID, whole or abbreviated, optionally counted back.
 var revRE = regexp.MustCompile(`^[0-9a-fA-F]{7,64}(~[0-9]{1,4})?$`)
 
-// rev resolves head, base, or a commit ID in the change's history to a full
+// rev resolves head, base, reviewed, or a commit ID in the change's history to a full
 // commit ID. Branch and tag names, ranges, and anything git reads as an
 // option are refused, so a revision names a commit the change holds.
 func (c *askContext) rev(ctx context.Context, gitDir, rev string) (string, error) {
@@ -285,9 +291,14 @@ func (c *askContext) rev(ctx context.Context, gitDir, rev string) (string, error
 		return c.head, nil
 	case "base":
 		return c.base, nil
+	case "reviewed":
+		if c.reviewed == "" {
+			return "", errors.New("rule rev: reviewed names the earlier review's head, and this conversation is about the whole change")
+		}
+		return c.reviewed, nil
 	}
 	if !revRE.MatchString(rev) {
-		return "", errors.New("rule rev: head, base, or a commit ID in the change's history, optionally with ~N")
+		return "", errors.New("rule rev: " + revDesc)
 	}
 	out, err := c.repos.git(ctx, gitDir, "rev-parse", "--verify", "--quiet", "--end-of-options", rev+"^{commit}")
 	sha := strings.TrimSpace(out)

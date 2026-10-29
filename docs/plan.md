@@ -1177,9 +1177,11 @@ it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
 provider call, never truncated. When the whole patch is over the cap,
 lockfiles, and files the change's forge base marks `linguist-generated` or
-`-diff` in `.gitattributes`, are left out and listed by name with their added
-and deleted lines, so a dependency bump is not refused for its lockfile, and
-the agent says it did not read them. A patch that fits is sent whole,
+`-diff` in `.gitattributes`, are left out, largest first and only until the
+rest fits, and listed by name with their added and deleted lines. So a
+dependency bump is not refused for its lockfile, a large lockfile cannot carry
+a small edit to another out of the patch, and the agent says it did not read
+what was left out. A patch that fits is sent whole,
 lockfiles included, since a lockfile edit can be the change that matters. The
 attributes are read at the forge base for every scope, never at a commit on
 the change's branch, so a change cannot hide its own code by marking it
@@ -1873,8 +1875,9 @@ one reviewers draft through, serves its session only the context tools, which
 only read, so it stays read-only by construction rather than by policy:
 
 - `git_log`, `git_show`, `git_blame`, and `git_diff` run in vuoro's clone of
-  the repository. A revision is `head`, `base`, or a commit ID, whole or
-  abbreviated, optionally with `~N`; branch and tag names, ranges, and
+  the repository. A revision is `head`, `base` (the change's forge base),
+  `reviewed` (the earlier review's head, in a since-review conversation
+  only), or a commit ID, whole or abbreviated, optionally with `~N`; branch and tag names, ranges, and
   anything git reads as an option are refused. Paths must be relative and
   inside the repository,
   revisions go after `--end-of-options` (blame, which reads that as a
@@ -1900,7 +1903,10 @@ directory, such as `~/Library/Application Support/vuoro/prompts/` on macOS. Each
 optional front matter of `title`, `scope` (`change` or `since_review`),
 `tool`, and `model`, followed by the prompt. A prompt's scope wins over the
 tab's choice: `change` drops a selected review, `since_review` is refused when
-no review is chosen, and a prompt with no scope follows the tab. As for presets (D61), theirs
+no review is chosen, and a prompt with no scope follows the tab. A prompt's
+tool applies unless the person picks one in the tab, and its model only on the
+tool it names (or on any tool, when it names none); otherwise the model is the
+tool's default. As for presets (D61), theirs
 supplement the shipped ones, one with a shipped name shadows it, and theirs
 sort first. A file vuoro cannot read is listed with the reason, not dropped.
 A repository's own prompts, read at the base commit, are later work, with
@@ -1914,8 +1920,7 @@ fetches it again, and refuses with the reason when the forge no longer has it.
 **In the window.**
 
 - The change's Ask tab shows a row of prompt buttons, a question box, the
-  scope and the tool to ask (the model is the tool's default unless a prompt
-  file names one), and the change's conversations, newest first, each
+  scope and the tool to ask, and the change's conversations, newest first, each
   with its prompt or question, head, cost, and a stale mark. The selected
   one shows in the session pane, with a box to follow up and Stop.
 - The home page gains an **Asked** tab that lists every conversation across
@@ -1960,8 +1965,8 @@ running the code answers it.
   concludes, with the commands and their output in the session log. The
   person follows up, as in Ask, such as "now run only the integration
   tests".
-- It also gets the `context` server of section 6.11, so it can read the
-  change's description, threads, and pipeline.
+- It also gets vuoro's MCP server with the context tools of section 6.11,
+  so it can read the change's description, threads, and pipeline.
 - A test may run longer than a question, so it shows elapsed time, and Stop
   ends the process and keeps what it wrote so far.
 

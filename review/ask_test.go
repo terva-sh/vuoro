@@ -152,7 +152,7 @@ func TestSummariesAreListedAsExplainAndLeftAsTheyAre(t *testing.T) {
 	if len(list) != 2 || list[0].ID != "new-ask" || list[1].ID != "old-summary" {
 		t.Fatalf("asks %+v", list)
 	}
-	if a := list[1].Ask; a == nil || a.Prompt != Explain || a.Title != "Explain this change" {
+	if a := list[1].Ask; a == nil || a.Prompt != Explain || a.Title != "Explain this change" || a.Question != "" {
 		t.Fatalf("summary listed as %+v", a)
 	}
 	if a := list[0].Ask; a == nil || a.Prompt != "risks" {
@@ -175,10 +175,15 @@ func TestSummariesAreListedAsExplainAndLeftAsTheyAre(t *testing.T) {
 func TestAnAskSinceAReviewIsGivenOnlyWhatChanged(t *testing.T) {
 	var mu sync.Mutex
 	var asked []string
-	m, _, ch, src := setup(t, func(_ toolCaller, text string) string {
+	var fromBase, fromReviewed string
+	m, _, ch, src := setup(t, func(call toolCaller, text string) string {
 		mu.Lock()
+		defer mu.Unlock()
 		asked = append(asked, text)
-		mu.Unlock()
+		if strings.Contains(text, "Exact range") {
+			fromBase, _ = call("git_diff", map[string]any{"from": "base"})
+			fromReviewed, _ = call("git_diff", map[string]any{"from": "reviewed"})
+		}
 		return "ok"
 	})
 	old, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
@@ -204,6 +209,18 @@ func TestAnAskSinceAReviewIsGivenOnlyWhatChanged(t *testing.T) {
 	mu.Unlock()
 	if !strings.Contains(first, "later-file") || strings.Contains(first, "-func Add") || !strings.Contains(first, reviewed+".."+newHead) {
 		t.Fatalf("the since-review message leaked earlier work:\n%s", first)
+	}
+	if !strings.Contains(first, "Forge base (base): "+src.Base) {
+		t.Fatalf("the first message does not name the forge base:\n%s", first)
+	}
+	// base is still the change's forge base; reviewed names the review's head.
+	mu.Lock()
+	defer mu.Unlock()
+	if !strings.Contains(fromBase, "-func Add") || !strings.Contains(fromBase, "later-file") {
+		t.Fatalf("git_diff from base is not the whole change:\n%s", fromBase)
+	}
+	if strings.Contains(fromReviewed, "-func Add") || !strings.Contains(fromReviewed, "later-file") {
+		t.Fatalf("git_diff from reviewed is not what changed since the review:\n%s", fromReviewed)
 	}
 }
 
@@ -279,7 +296,11 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	base := historyGit(t, src.Remote, "rev-parse", "HEAD")
 	historyGit(t, src.Remote, "switch", "-qC", "feature")
 	write("uv.lock", strings.Repeat("lockfile-line = \"pinned\"\n", 12000)) // about 300 KiB, past the cap
-	write("gen/client.go", "package gen\n\nvar generatedClient = 1\n")
+	write("gen/client.go", strings.Repeat("var generatedClient = 1\n", 12000))
+	write("gen/small.go", "package gen\n\nvar smallGenerated = 1\n")
+	// A small edit to another lockfile is still sent: only what must go to
+	// fit under the cap is left out.
+	write("package-lock.json", "{\"resolved\": \"https://registry.example/evil\"}\n")
 	write("calc.go", "package calc\n\nfunc Add(a, b int) int { return a + b + 0 }\n")
 	write(".gitattributes", "gen/** linguist-generated\nsneaky.go linguist-generated\n")
 	write("sneaky.go", "package calc\n\nvar sneakyChange = 1\n")
@@ -302,12 +323,12 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	if strings.Contains(first, "lockfile-line") || strings.Contains(first, "generatedClient") {
 		t.Fatal("a lockfile or generated file's contents were sent")
 	}
-	for _, want := range []string{"uv.lock +12000 -0 (lockfile)", "gen/client.go +3 -0 (generated)", "sneakyChange", "a + b + 0"} {
+	for _, want := range []string{"uv.lock +12000 -0 (lockfile)", "gen/client.go +12000 -0 (generated)", "sneakyChange", "a + b + 0", "registry.example/evil", "smallGenerated"} {
 		if !strings.Contains(first, want) {
 			t.Fatalf("the first message lacks %q:\n%s", want, first)
 		}
 	}
-	if strings.Contains(first, "sneaky.go +") {
+	if strings.Contains(first, "sneaky.go +") || strings.Contains(first, "package-lock.json +") || strings.Contains(first, "gen/small.go +") {
 		t.Fatal("the change hid its own file by marking it generated")
 	}
 }

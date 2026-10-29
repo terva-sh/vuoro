@@ -35,7 +35,7 @@ extensions: {}
 
 ## Description
 
-A run of mode `probe`: a conversation about a change answered by an agent in the editor's sandbox (D40), which may build and run commands and has nothing to push. Its repository is its own, with no forge remote, holding the change's head checked out and the base commit so the agent can compare the two. It may change files and commit inside that repository; vuoro offers no push, stacked change, or suggestion from it, and the AST guard proves no push route accepts a probe. It gets the `context` server of the Ask epic. Follow-ups and resume work as for an ask run; Stop keeps what was written; elapsed time is shown.
+A run of mode `probe`: a conversation about a change answered by an agent in the editor's sandbox (D40), which may build and run commands and has nothing to push. Its repository is its own, with no forge remote, holding the change's head checked out and the base commit so the agent can compare the two. It may change files and commit inside that repository; vuoro offers no push, stacked change, or suggestion from it, and the AST guard proves no push route accepts a probe. It gets vuoro's MCP server with the context tools of the Ask epic. Follow-ups and resume work as for an ask run; Stop keeps what was written; elapsed time is shown.
 
 The sandbox starts as the editor's is and is adapted in use (section 6.12, D69). Network policy, runtime (Claude Code's sandbox, srt, later a container), and workspace retention stay separate seams, each chosen in one place and recorded on the run, so running probes on real changes can change one without a rewrite. A refusal by the sandbox is reported as such, so a sandbox limit is not mistaken for a test failure.
 

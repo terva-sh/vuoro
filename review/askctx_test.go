@@ -69,6 +69,7 @@ func TestTheGitToolsRefuseWhatTheChangeDoesNotHold(t *testing.T) {
 		{"git_log", map[string]any{"rev": "main"}, "rule rev"},
 		{"git_log", map[string]any{"rev": "HEAD"}, "rule rev"},
 		{"git_show", map[string]any{"rev": "deadbeefdeadbeef"}, "not a commit"},
+		{"git_show", map[string]any{"rev": "reviewed"}, "rule rev"},
 		{"git_show", map[string]any{"rev": "head..base"}, "rule rev"},
 		{"git_show", map[string]any{"rev": "head", "path": "../../etc/passwd"}, "rule path"},
 		{"git_show", map[string]any{"rev": "head", "path": "/etc/passwd"}, "rule path"},

@@ -2,13 +2,17 @@ package review
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -85,26 +89,44 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (stri
 	}
 	// The whole patch is sent when it fits, lockfiles included, since a
 	// lockfile edit can be the change that matters. Past the cap, lockfiles
-	// and generated files are left out and named below with their line
-	// counts, so a dependency bump is not refused for its lockfile. What is
-	// left is still refused whole past the cap.
+	// and generated files are left out, largest first and only until the
+	// rest fits, and named below with their line counts. So a dependency
+	// bump is not refused for its lockfile, and a large lockfile cannot carry
+	// a small edit to another out of the patch. What is left is still
+	// refused whole past the cap.
 	args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", from, src.Head, "--"}
 	patch, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
 	var left []leftOutFile
 	if errors.Is(err, errSummaryLarge) {
 		// Attributes come from the change's forge base, never from a commit
 		// on its own branch, such as the head a since-review range starts at.
-		if left, err = r.leftOut(ctx, gitDir, src.Base, from, src.Head); err != nil {
+		var can []leftOutFile
+		if can, err = r.leftOut(ctx, gitDir, src.Base, from, src.Head); err != nil {
 			return "", err
 		}
-		if len(left) == 0 {
-			return "", errSummaryLarge
+		slices.SortStableFunc(can, func(a, b leftOutFile) int { return cmp.Compare(b.size(), a.size()) })
+		without := func(n int) (string, error) {
+			a := append(slices.Clip(args), ".")
+			for _, f := range can[:n] {
+				a = append(a, ":(exclude,literal)"+f.path)
+			}
+			return r.summaryGit(ctx, gitDir, maxSummaryPatch, a...)
 		}
-		args = append(args, ".")
-		for _, f := range left {
-			args = append(args, ":(exclude,literal)"+f.path)
+		// Leaving out more only shrinks the patch, so search for the fewest.
+		lo, hi := 1, len(can)
+		patch, err = "", errSummaryLarge
+		for lo <= hi {
+			n := (lo + hi) / 2
+			p, e := without(n)
+			if errors.Is(e, errSummaryLarge) {
+				lo = n + 1
+				continue
+			}
+			if e != nil {
+				return "", e
+			}
+			patch, err, left, hi = p, nil, can[:n], n-1
 		}
-		patch, err = r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
 	}
 	if err != nil {
 		return "", err
@@ -129,6 +151,17 @@ var lockfiles = map[string]bool{
 }
 
 type leftOutFile struct{ path, added, deleted, why string }
+
+// size is the file's changed lines; a binary file, which numstat counts as
+// -, sorts first.
+func (f leftOutFile) size() int {
+	a, errA := strconv.Atoi(f.added)
+	d, errD := strconv.Atoi(f.deleted)
+	if errA != nil || errD != nil {
+		return math.MaxInt
+	}
+	return a + d
+}
 
 // leftOut lists the changed files between from and head that a summary
 // leaves out of a patch too large to send: known lockfiles, and files the

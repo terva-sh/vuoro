@@ -562,7 +562,11 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		if s.Role == drafts.Asker {
 			// A conversation's only MCP tools are its read-only context
 			// tools (section 6.11); it has no draft access.
-			sess.Context = &askContext{repos: m.Repos, key: r.repoKey, base: r.Summary.From, head: r.Head, facts: r.facts}
+			ac := &askContext{repos: m.Repos, key: r.repoKey, base: r.Base, head: r.Head, facts: r.facts}
+			if r.Summary.Scope == "since_review" {
+				ac.reviewed = r.Summary.From
+			}
+			sess.Context = ac
 		}
 		s.token = m.Drafts.Register(r.store, sess)
 	}
