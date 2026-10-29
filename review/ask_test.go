@@ -302,3 +302,79 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 		t.Fatal("the change hid its own file by marking it generated")
 	}
 }
+
+// A lockfile edit small enough to send is sent, since it can be the change
+// that matters.
+func TestASmallLockfileEditIsSent(t *testing.T) {
+	var mu sync.Mutex
+	var asked []string
+	m, _, ch, src := setup(t, func(_ toolCaller, text string) string {
+		mu.Lock()
+		asked = append(asked, text)
+		mu.Unlock()
+		return "ok"
+	})
+	historyGit(t, src.Remote, "switch", "-q", "feature")
+	os.WriteFile(filepath.Join(src.Remote, "uv.lock"), []byte("resolved = \"https://registry.example/evil\"\n"), 0o600)
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Repoint a dependency")
+	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	ch.Diff.Head, src.Head = head, head
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "fake"}, AskInput{Question: "Anything odd?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, r, func(v RunView) bool { return v.Status == Idle })
+	mu.Lock()
+	first := asked[0]
+	mu.Unlock()
+	if !strings.Contains(first, "registry.example/evil") || strings.Contains(first, "Files left out") {
+		t.Fatalf("a small lockfile edit was left out:\n%s", first)
+	}
+}
+
+// A since-review range reads attributes at the change's forge base, so an
+// attribute the author added in the reviewed commit cannot hide a later edit.
+func TestAttributesFromTheReviewedCommitHideNothing(t *testing.T) {
+	var mu sync.Mutex
+	var asked []string
+	m, _, ch, src := setup(t, func(_ toolCaller, text string) string {
+		mu.Lock()
+		asked = append(asked, text)
+		mu.Unlock()
+		return "ok"
+	})
+	historyGit(t, src.Remote, "switch", "-q", "feature")
+	os.WriteFile(filepath.Join(src.Remote, ".gitattributes"), []byte("auth.go linguist-generated\n"), 0o600)
+	os.WriteFile(filepath.Join(src.Remote, "auth.go"), []byte("package calc\n\nvar allowed = false\n"), 0o600)
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Add auth, marked generated")
+	reviewedHead := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	ch.Diff.Head, src.Head = reviewedHead, reviewedHead
+	old, err := m.Start(ch, src, []Reviewer{{Profile: "code", Tool: "fake"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(t, old, func(v RunView) bool { return v.ReviewComplete })
+	// The later commit edits auth.go and is big enough to need leaving out.
+	os.WriteFile(filepath.Join(src.Remote, "auth.go"), []byte("package calc\n\nvar allowed = true // later edit\n"), 0o600)
+	os.WriteFile(filepath.Join(src.Remote, "uv.lock"), []byte(strings.Repeat("pinned = 1\n", 30000)), 0o600)
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Open auth, bump dependencies")
+	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
+	ch.Diff.Head, src.Head = head, head
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "fake"}, AskInput{Question: "What changed?", Baseline: old.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return len(answers(v)) == 1 || v.Status == Failed })
+	if v.Status == Failed {
+		t.Fatalf("refused: %s", v.Error)
+	}
+	mu.Lock()
+	first := asked[len(asked)-1]
+	mu.Unlock()
+	if !strings.Contains(first, "later edit") || strings.Contains(first, "auth.go +") || !strings.Contains(first, "uv.lock +30000") {
+		t.Fatalf("the reviewed commit's attribute hid a later edit:\n%s", first)
+	}
+}

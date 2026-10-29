@@ -51,12 +51,7 @@ func (a *App) startAsk(w http.ResponseWriter, r *http.Request) {
 			writeError(w, err)
 			return
 		}
-		if req.Tool == "" {
-			req.Tool = p.Tool
-		}
-		if req.Model == "" {
-			req.Model = p.Model
-		}
+		req.Tool, req.Model = promptTool(p, req.Tool, req.Model)
 	}
 	ch, err := a.open(r.Context(), req.URL)
 	if err != nil {
@@ -91,6 +86,19 @@ func fromPrompt(p review.Prompt, in review.AskInput) (review.AskInput, error) {
 		}
 	}
 	return in, nil
+}
+
+// promptTool is the tool and model to ask p with. A prompt's tool applies
+// unless the person picked one, and its model only on the tool it names, so a
+// model never reaches a tool it was not written for.
+func promptTool(p review.Prompt, tool, model string) (string, string) {
+	if tool == "" {
+		tool = p.Tool
+	}
+	if model == "" && (p.Tool == "" || p.Tool == tool) {
+		model = p.Model
+	}
+	return tool, model
 }
 
 // listAsks answers the conversations about the change at url, newest first,

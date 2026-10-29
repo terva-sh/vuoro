@@ -59,7 +59,8 @@ describe('AskPanel', () => {
     expect(root.textContent).toContain('/cfg/prompts')
     expect(post).not.toHaveBeenCalled()
     await act(async () => button(root, 'Dependency impact')!.click())
-    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ url: change.web_url, prompt: 'deps', tool: 'claude' }))
+    // No tool was picked, so the prompt's own or vuoro's default applies.
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ url: change.web_url, prompt: 'deps', tool: undefined }))
     await settle()
     expect(root.textContent).toContain('It subtracts on purpose.')
   })
@@ -74,8 +75,10 @@ describe('AskPanel', () => {
     await settle()
     const box = root.querySelector('textarea[aria-label="Your question"]') as HTMLTextAreaElement
     await act(async () => { box.value = 'Why subtract?'; box.dispatchEvent(new Event('input', { bubbles: true })) })
+    const pick = root.querySelector('select[aria-label="Ask tool"]') as HTMLSelectElement
+    await act(async () => { pick.value = 'claude'; pick.dispatchEvent(new Event('change', { bubbles: true })) })
     await act(async () => button(root, 'Ask')!.click())
-    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ question: 'Why subtract?', prompt: undefined }))
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ question: 'Why subtract?', prompt: undefined, tool: 'claude' }))
     serve([mine])
     await settle()
     expect(root.querySelector('textarea[aria-label="Ask a follow-up question"]')).not.toBeNull()

@@ -117,3 +117,24 @@ func TestAPromptsScopeDecidesTheRange(t *testing.T) {
 		t.Fatalf("refused with %s", b)
 	}
 }
+
+// A prompt's tool applies unless the person picked one, and its model only
+// on the tool it was written for.
+func TestAPromptsModelGoesOnlyToItsOwnTool(t *testing.T) {
+	codex := review.Prompt{Tool: "codex", Model: "gpt-x"}
+	for _, c := range []struct {
+		p                review.Prompt
+		tool, model      string
+		wantTool, wantMd string
+	}{
+		{codex, "", "", "codex", "gpt-x"},
+		{codex, "claude", "", "claude", ""},
+		{codex, "codex", "", "codex", "gpt-x"},
+		{codex, "claude", "opus", "claude", "opus"},
+		{review.Prompt{Model: "opus"}, "claude", "", "claude", "opus"},
+	} {
+		if tool, model := promptTool(c.p, c.tool, c.model); tool != c.wantTool || model != c.wantMd {
+			t.Errorf("promptTool(%+v, %q, %q) = %q, %q; want %q, %q", c.p, c.tool, c.model, tool, model, c.wantTool, c.wantMd)
+		}
+	}
+}

@@ -1175,12 +1175,15 @@ Git verifies full commit IDs, complete history and ancestry before supplying a
 commit list and exact net patch. A rewritten or missing baseline is refused;
 it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
-provider call, never truncated. Lockfiles, and files the base commit's
-`.gitattributes` marks `linguist-generated` or `-diff`, are left out of the
-patch and listed by name with their added and deleted lines, so a dependency
-bump is not refused for its lockfile, and the agent says it did not read them.
-The attributes are read at the base, so a change cannot hide its own code by
-marking it generated. The cap applies to what is left. An ask run (section
+provider call, never truncated. When the whole patch is over the cap,
+lockfiles, and files the change's forge base marks `linguist-generated` or
+`-diff` in `.gitattributes`, are left out and listed by name with their added
+and deleted lines, so a dependency bump is not refused for its lockfile, and
+the agent says it did not read them. A patch that fits is sent whole,
+lockfiles included, since a lockfile edit can be the change that matters. The
+attributes are read at the forge base for every scope, never at a commit on
+the change's branch, so a change cannot hide its own code by marking it
+generated. The cap applies to what is left. An ask run (section
 6.11) reads its range the same way. Diff programs and textconv are disabled.
 Descriptions/commit messages/repository text are untrusted data. The current
 checkout supplies reading context only; a since-review summary describes just
@@ -1885,8 +1888,8 @@ construction rather than by policy:
 
 **Canned prompts are files.** vuoro ships `explain`, `risks`, `manual-test`,
 and `start-here`. The person adds their own as Markdown files in
-`prompts/` under vuoro's config directory, such as
-`~/Library/Application Support/vuoro/prompts/` on macOS. Each file is an
+`prompts/` beside the configuration file in use, by default vuoro's config
+directory, such as `~/Library/Application Support/vuoro/prompts/` on macOS. Each file is an
 optional front matter of `title`, `scope` (`change` or `since_review`),
 `tool`, and `model`, followed by the prompt. A prompt's scope wins over the
 tab's choice: `change` drops a selected review, `since_review` is refused when

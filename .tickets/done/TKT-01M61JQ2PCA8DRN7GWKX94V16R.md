@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T14:28:36Z
+updated_at: 2026-10-29T14:46:17Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -58,4 +58,4 @@ vuoro review round 1 (run 20261029-142410-2a1e0e) found two things here. The shi
 
 ## Summary
 
-Landed in review/prompts.go and app/prompts.go. vuoro ships explain, risks, test, and start-here. LoadPrompts reads prompts/*.md beside the configuration file (App.PromptsDir overrides it), on every GET /api/prompts so an edited file shows without a restart. A file's optional front matter takes title, scope (change or since_review), tool, and model; anything else, a bad scope, an unclosed front matter, an empty prompt, a file name outside [a-z0-9-], or an unreadable file is listed in errors with its reason while the rest load. The person's prompts sort first by name and shadow a shipped one of the same name (D61). Tests: review TestPromptsAreShippedAndThePersonsOwnSortFirst and TestNoPromptsDirectoryIsOnlyTheShippedOnes; app TestThePromptListNamesTheFilesItCouldNotUse and TestThePromptListStaysBehindWindowGuard. Note for TKT-01M63YYXYAS9VXS4GWR19BJ77T: runs: true is an unknown field today and is reported as such until that ticket adds it.
+Landed in review/prompts.go and app/prompts.go. vuoro ships explain, risks, manual-test (renamed from test after review round 1), and start-here. LoadPrompts reads prompts/*.md beside the configuration file in use (App.PromptsDir overrides it), on every GET /api/prompts so an edited file shows without a restart. A file's optional front matter takes title, scope (change or since_review), tool, and model; anything else, a bad scope, an unclosed front matter, an empty prompt, a file name outside [a-z0-9-], or an unreadable file is listed in errors with its reason while the rest load. The person's prompts sort first by name and shadow a shipped one of the same name (D61). Tests: review TestPromptsAreShippedAndThePersonsOwnSortFirst and TestNoPromptsDirectoryIsOnlyTheShippedOnes; app TestThePromptListNamesTheFilesItCouldNotUse and TestThePromptListStaysBehindWindowGuard. Note for TKT-01M63YYXYAS9VXS4GWR19BJ77T: runs: true is an unknown field today and is reported as such until that ticket adds it.

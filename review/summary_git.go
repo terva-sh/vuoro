@@ -83,21 +83,29 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string) (stri
 	if err != nil {
 		return "", err
 	}
-	left, err := r.leftOut(ctx, gitDir, from, src.Head)
-	if err != nil {
-		return "", err
-	}
-	// The patch leaves out lockfiles and generated files, which are named
-	// below with their line counts, so a dependency bump is not refused for
-	// its lockfile. What is left is still refused whole past the cap.
+	// The whole patch is sent when it fits, lockfiles included, since a
+	// lockfile edit can be the change that matters. Past the cap, lockfiles
+	// and generated files are left out and named below with their line
+	// counts, so a dependency bump is not refused for its lockfile. What is
+	// left is still refused whole past the cap.
 	args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", from, src.Head, "--"}
-	if len(left) > 0 {
+	patch, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
+	var left []leftOutFile
+	if errors.Is(err, errSummaryLarge) {
+		// Attributes come from the change's forge base, never from a commit
+		// on its own branch, such as the head a since-review range starts at.
+		if left, err = r.leftOut(ctx, gitDir, src.Base, from, src.Head); err != nil {
+			return "", err
+		}
+		if len(left) == 0 {
+			return "", errSummaryLarge
+		}
 		args = append(args, ".")
 		for _, f := range left {
 			args = append(args, ":(exclude,literal)"+f.path)
 		}
+		patch, err = r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
 	}
-	patch, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, args...)
 	if err != nil {
 		return "", err
 	}
@@ -122,12 +130,13 @@ var lockfiles = map[string]bool{
 
 type leftOutFile struct{ path, added, deleted, why string }
 
-// leftOut lists the changed files a summary leaves out of its patch: known
-// lockfiles, and files the base commit's .gitattributes marks
-// linguist-generated or -diff. The attributes are read at the base, so the
-// change cannot hide its own code by marking it generated. A git too old to
-// read attributes from a commit leaves out the lockfiles alone.
-func (r *Repos) leftOut(ctx context.Context, gitDir, from, head string) ([]leftOutFile, error) {
+// leftOut lists the changed files between from and head that a summary
+// leaves out of a patch too large to send: known lockfiles, and files the
+// .gitattributes of attrs, the change's forge base, marks linguist-generated
+// or -diff. Reading them there means the change cannot hide its own code by
+// marking it generated. A git too old to read attributes from a commit
+// leaves out the lockfiles alone.
+func (r *Repos) leftOut(ctx context.Context, gitDir, attrs, from, head string) ([]leftOutFile, error) {
 	stat, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, "diff", "--numstat", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", from, head, "--")
 	if err != nil {
 		return nil, err
@@ -154,9 +163,9 @@ func (r *Repos) leftOut(ctx context.Context, gitDir, from, head string) ([]leftO
 		}
 	}
 	if len(paths) > 0 {
-		attrs, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, append([]string{"check-attr", "--source=" + from, "-z", "linguist-generated", "diff", "--"}, paths...)...)
+		marks, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, append([]string{"check-attr", "--source=" + attrs, "-z", "linguist-generated", "diff", "--"}, paths...)...)
 		if err == nil {
-			f := strings.Split(attrs, "\x00")
+			f := strings.Split(marks, "\x00")
 			for i := 0; i+2 < len(f); i += 3 {
 				path, attr, value := f[i], f[i+1], f[i+2]
 				switch {

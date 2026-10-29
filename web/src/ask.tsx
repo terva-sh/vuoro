@@ -82,7 +82,9 @@ function AskWorkspace({ change, setup }: Props) {
     try {
       const next = await post<Run>('/api/asks', {
         url: change.web_url, prompt: body.prompt, question: body.question,
-        tool: tool ?? tools[0]?.name, review_id: since ? chosen : undefined,
+        // A tool only when the person picked one: otherwise a prompt's own
+        // tool applies, or vuoro's default.
+        tool: tool || undefined, review_id: since ? chosen : undefined,
       })
       if (!mounted.current) return
       setList((all) => [next, ...all.filter((r) => r.id !== next.id)])
@@ -124,7 +126,8 @@ function AskWorkspace({ change, setup }: Props) {
       {scope === 'since_review' && <label>Review <select aria-label="Review baseline" value={baseline} onChange={(e) => setBaseline(e.currentTarget.value)}>
         {reviews.map((r) => <option key={r.id} value={r.id}>{ago(r.created)} at {short(r.head)}</option>)}
       </select></label>}
-      {tools.length > 0 && <label>Tool <select aria-label="Ask tool" value={tool} onChange={(e) => setTool(e.currentTarget.value)}>
+      {tools.length > 0 && <label>Tool <select aria-label="Ask tool" value={tool ?? ''} onChange={(e) => setTool(e.currentTarget.value)}>
+        <option value="">Default · or the prompt's own</option>
         {tools.map((t) => <option key={t.name} value={t.name}>{t.tool}</option>)}
       </select></label>}
     </div>
