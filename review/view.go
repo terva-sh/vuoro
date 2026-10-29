@@ -32,7 +32,8 @@ type RunView struct {
 	Error          string         `json:"error,omitempty"`
 	CostUSD        float64        `json:"cost_usd"`
 	// CostUnknown is set when a session used tokens and its tool reported
-	// no cost, so CostUSD is less than the run cost, or nothing is known.
+	// no cost, or a turn was stopped or failed before its tool reported
+	// usage. CostUSD is then a floor, or nothing is known.
 	CostUnknown bool           `json:"cost_unknown,omitempty"`
 	Sessions    []SessionView  `json:"sessions"`
 	Drafts      []drafts.Draft `json:"drafts"`

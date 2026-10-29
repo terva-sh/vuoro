@@ -987,7 +987,11 @@ remain explicitly actionable with their old-head warning. Head-comparison reads
 abort on leaving the workspace and cannot overwrite a newer head's status.
 
 Every session pane shows its tool, model, tokens, and cost as the tool reports
-them, and the run shows a total.
+them, and the run shows a total. A cost the tool did not report, for tokens
+or for a turn stopped or failed before it reported usage, shows as unknown,
+or as at least the known part, never as $0.00 (D73). A driver that knows a
+turn spent nothing, such as one refused before it reached the model, reports
+zero usage, so its cost stays known.
 
 ### 6.3 Two classes of agent
 

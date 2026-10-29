@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M64HWQB50H51QEZNM7J8VDZ6
 title: Mark a cost unknown only when a running turn ended without usage
 type: bug
-status: ready
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -19,12 +19,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T19:23:51Z
-updated_at: 2026-10-29T19:23:51Z
+updated_at: 2026-10-29T19:30:19Z
 created_by:
   id: agent:claude-code/release-0.1.0
   name: ""
 updated_by:
-  id: agent:claude-code/release-0.1.0
+  id: agent:claude-code/v0.1.1
   name: ""
 extensions: {}
 ---
@@ -57,6 +57,14 @@ cost "as the tool reports them".
 
 ## Acceptance criteria
 
-- [ ] A lockdown refusal or an idle exit, with no turn running, leaves the cost known
-- [ ] A turn stopped or failed while running, with no usage, still marks it unknown
-- [ ] The run-level flag's comments and plan 6.2 name both causes
+- [x] A lockdown refusal or an idle exit, with no turn running, leaves the cost known
+- [x] A turn stopped or failed while running, with no usage, still marks it unknown
+- [x] The run-level flag's comments and plan 6.2 name both causes
+
+## Implementation plan
+
+Fix it in the driver, which alone knows whether a turn reached the model: claude emits a zero Usage before TurnDone when the lockdown refuses the session on its init line, and when the process exits between turns. noteUnreported then sees usage for that turn and leaves the cost known; a crash mid-turn or a stop still reports none. Document the zero-usage rule on agent.Session.Send and the Usage kind. Reword the run-level flag's comments and plan 6.2.
+
+## Summary
+
+The claude driver now reports zero usage for a turn that never reached the model: a lockdown refusal on the init line, and an exit between turns. The review and summary pumps then leave the cost known, while a turn stopped or failed mid-turn with no usage still marks it unknown. agent.Session documents the rule for any driver. Tested in TestASessionOfferingAnotherToolIsEndedAtOnce and TestAnExitBetweenTurnsSpentNothing (each fails without its zero usage; the fake claude can now exit after its last turn), and a refused case in TestATurnStoppedBeforeItsUsageLeavesTheCostUnknown. The run-level flag's comments and plan 6.2 name both causes.

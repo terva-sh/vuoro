@@ -513,6 +513,8 @@ func TestATurnStoppedBeforeItsUsageLeavesTheCostUnknown(t *testing.T) {
 		{"stopped after its usage", []agent.Event{usage, {Kind: agent.TurnDone, Cancelled: true}}, false},
 		{"stopped", []agent.Event{{Kind: agent.Text, Text: "Half"}, {Kind: agent.TurnDone, Cancelled: true}}, true},
 		{"failed", []agent.Event{{Kind: agent.TurnDone, Err: errors.New("fixture")}}, true},
+		// The driver says a refused turn never reached the model.
+		{"refused", []agent.Event{{Kind: agent.Usage, Usage: &agent.TurnUsage{}}, {Kind: agent.TurnDone, Err: errors.New("lockdown")}}, false},
 	} {
 		for _, summary := range []bool{false, true} {
 			m, _, ch, src := setup(t, nil)

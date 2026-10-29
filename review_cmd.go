@@ -73,8 +73,9 @@ type reviewResultRun struct {
 	Base    string    `json:"base"`
 	Status  string    `json:"status"`
 	CostUSD float64   `json:"cost_usd"`
-	// CostUnknown says a session's tool reported no cost for its tokens, so
-	// CostUSD is a floor.
+	// CostUnknown says a session's tool reported no cost for its tokens, or
+	// a turn was stopped or failed before it reported usage, so CostUSD is
+	// a floor.
 	CostUnknown bool   `json:"cost_unknown,omitempty"`
 	Follows     string `json:"follows,omitempty"`
 }

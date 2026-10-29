@@ -101,7 +101,7 @@ func isAre(n int) string {
 }
 
 // runCost is what the run cost, never a guess: at least the reported part
-// when a tool reported none for its tokens.
+// when some was not reported (RunView.CostUnknown).
 func runCost(v RunView) string {
 	if v.CostUnknown && v.CostUSD > 0 {
 		return "at least " + usd(v.CostUSD)

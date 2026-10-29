@@ -99,6 +99,9 @@ type Session interface {
 	// Ref is the handle Spec.Resume takes to continue this conversation.
 	Ref() string
 	// Send starts a turn. Its events arrive on Events, ending with TurnDone.
+	// A turn that ends with no Usage event may have spent what was never
+	// reported, so a driver that knows a turn spent nothing says so with a
+	// zero Usage.
 	Send(ctx context.Context, text string) error
 	// Events carries every event of the session, and is closed when the
 	// session ends.
@@ -119,7 +122,7 @@ const (
 	ToolCall                   // the agent called a tool: Event.Tool
 	ToolResult                 // the call finished: Event.Tool
 	Denied                     // the tool was refused by the lockdown: Event.Tool
-	Usage                      // this turn's tokens and cost: Event.Usage
+	Usage                      // this turn's tokens and cost: Event.Usage; zero when the turn spent nothing
 	TurnDone                   // the turn ended: Event.Err, Event.Cancelled
 )
 

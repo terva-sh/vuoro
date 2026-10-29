@@ -592,12 +592,19 @@ func (s *session) read(stdout io.Reader) {
 	busy, cancelled, closed := s.busy, s.cancelled, s.closed
 	s.busy = false
 	s.mu.Unlock()
+	// A turn that never reached the model spent nothing, and saying so lets
+	// the caller tell it from a turn cut short before claude reported usage.
+	spentNothing := func() { s.emit(agent.Event{Kind: agent.Usage, Usage: &agent.TurnUsage{}}) }
 	switch {
-	case locked:
+	case locked: // refused on its init line, before any model call
+		spentNothing()
 		s.emit(agent.Event{Kind: agent.TurnDone, Err: ErrLockdown})
 	case busy && cancelled:
 		s.emit(agent.Event{Kind: agent.TurnDone, Cancelled: true})
 	case busy || !closed && !cancelled:
+		if !busy { // exited between turns
+			spentNothing()
+		}
 		s.emit(agent.Event{Kind: agent.TurnDone, Err: fmt.Errorf("claude exited: %s", s.stderr.String())})
 	}
 }

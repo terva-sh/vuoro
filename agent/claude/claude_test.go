@@ -25,6 +25,7 @@ const (
 	fakeVerEnv    = "VUORO_FAKE_CLAUDE_VERSION"    // what --version prints
 	fakeHangEnv   = "VUORO_FAKE_CLAUDE_HANG"       // stop mid-turn and wait
 	fakeNoReadEnv = "VUORO_FAKE_CLAUDE_NO_READ"    // block before reading stdin
+	fakeExitEnv   = "VUORO_FAKE_CLAUDE_EXIT"       // exit after the last turn, unasked
 	fakeOutEnv    = "VUORO_FAKE_CLAUDE_SIGNED_OUT" // auth status reports no login
 )
 
@@ -65,13 +66,17 @@ func fakeClaude(rec string) {
 	}
 	turns := recordedTurns(rec)
 	in := bufio.NewScanner(os.Stdin)
-	for i := 0; in.Scan() && i < len(turns); i++ {
+	for i := 0; i < len(turns) && in.Scan(); i++ {
 		for _, line := range turns[i] {
 			if os.Getenv(fakeHangEnv) == "1" && strings.Contains(line, `"text_delta"`) {
 				os.Stdout.WriteString(line + "\n")
 				time.Sleep(time.Hour) // until the driver stops the process
 			}
 			os.Stdout.WriteString(line + "\n")
+		}
+	}
+	if os.Getenv(fakeExitEnv) != "1" {
+		for in.Scan() { // stay until the driver closes stdin
 		}
 	}
 }
@@ -305,6 +310,10 @@ func TestASessionOfferingAnotherToolIsEndedAtOnce(t *testing.T) {
 	done := evs[len(evs)-1]
 	if !errors.Is(done.Err, ErrLockdown) {
 		t.Fatalf("turn ended %+v, want ErrLockdown", done)
+	}
+	// It never reached the model, and says it spent nothing.
+	if u := kinds(evs, agent.Usage); len(u) != 1 || *u[0].Usage != (agent.TurnUsage{}) {
+		t.Fatalf("usage %+v, want one zero usage", u)
 	}
 	for _, ev := range evs {
 		if ev.Kind == agent.ToolCall || ev.Kind == agent.Text || ev.Kind == agent.Info {
@@ -614,4 +623,25 @@ func TestASessionWithNoDraftsServerOnlyReads(t *testing.T) {
 		t.Fatal("a reading session got sandbox settings meant for the editor")
 	}
 	turn(t, s, "Why does Add subtract?")
+}
+
+// A claude that exits between turns spent nothing on the turn that ends
+// with it, and says so; one cut short mid-turn reports no usage.
+func TestAnExitBetweenTurnsSpentNothing(t *testing.T) {
+	d, _ := fake(t, "denied.jsonl")
+	t.Setenv(fakeExitEnv, "1") // one turn, then the fake exits
+	s, err := d.Start(context.Background(), agent.Spec{Dir: t.TempDir(), SystemPrompt: "review"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	turn(t, s, "Review it.")
+	evs := collect(t, s)
+	done := evs[len(evs)-1]
+	if done.Kind != agent.TurnDone || done.Err == nil {
+		t.Fatalf("the exit ended %+v", done)
+	}
+	if u := kinds(evs, agent.Usage); len(u) != 1 || *u[0].Usage != (agent.TurnUsage{}) {
+		t.Fatalf("usage %+v, want one zero usage", u)
+	}
 }
