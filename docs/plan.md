@@ -2187,8 +2187,8 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    skeleton lands, with no public mirror yet.
 2. **The orchestrator, the first usable slice.** Open a GitLab merge request by
    URL. Run a preset's reviewers in parallel on Claude Code (D28).
-   Talk to them, let a synthesizer merge their drafts, edit the drafts, and
-   submit the review. Forgejo open-by-URL reading, checkout and agent reviews also
+   Talk to them between turns, or after stopping one (D73), let a
+   synthesizer merge their drafts, edit the drafts, and submit the review. Forgejo open-by-URL reading, checkout and agent reviews also
    land here (D33); its posting came later, with Forgejo parity (section 5.3). Presets and profiles live in vuoro's own config, and code,
    security, and documentation profiles are built in. Cost is shown, and runs
    are pinned to their head SHA and flagged when it moves.
@@ -2200,11 +2200,7 @@ reviews, then the inbox). For the owner, on macOS, built orchestrator first.
    than hiding work; snoozes stay separate from the derived cache. Read-only
    discovery does not wait for GitLab live-write validation.
 4. **The author's side.** Triage the threads on my change, and draft replies.
-5. **git-ticket, read-only.** Show a change's linked ticket, and give its
-   acceptance criteria to the reviewers.
-6. **History.** Keep runs until the change closes, then 30 days, then one line
-   per run.
-7. **Reviews from the command line (D35).** `vuoro review` runs a preset on a
+5. **Reviews from the command line (D35).** `vuoro review` runs a preset on a
    local range or a change URL and prints its findings, so vuoro reviews its
    own development (section 6.7). It never posts.
 
@@ -2217,6 +2213,10 @@ and a terva-sh release).
   slices, then add GitHub through the same contracts.
 - **terva as a reviewer**, once a terva release allows its lockdown (section
   6.6, D28).
+- **Moved from the MVP (D73).** A message to a reviewer in the middle of its
+  turn, queued for the turn's end. git-ticket, read-only: show a change's
+  linked ticket, and give its acceptance criteria to the reviewers. History:
+  keep runs until the change closes, then 30 days, then one line per run.
 - **The editor agent** (section 6.3), with its sandbox decided by a spike
   first. Fixing a reviewed change in a stacked draft merge request comes
   first (D39), then the author's side.

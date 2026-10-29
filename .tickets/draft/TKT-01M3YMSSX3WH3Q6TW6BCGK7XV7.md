@@ -10,8 +10,8 @@ due_on: null
 labels:
   - state
 assignees: []
-milestone: v0.1.0
-parent: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
+milestone: v1.0.0
+parent: TKT-01M3YMSTYMFRDFXD4QSVWHMM8P
 origin: null
 dependencies:
   - TKT-01M3YK0CM0SWMYXMM7A7M7J2QX
@@ -20,12 +20,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-02T15:47:50Z
-updated_at: 2026-10-02T15:47:50Z
+updated_at: 2026-10-29T18:49:01Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/vuoro-bootstrap
+  id: agent:claude-code/release-0.1.0
   name: ""
 extensions: {}
 ---
@@ -42,3 +42,9 @@ run: tools, models, cost, and finding counts. The period is configurable.
 
 - [ ] A closed change's transcripts are deleted after the configured period, and a test proves it
 - [ ] The one-line record per run survives the deletion
+
+## Notes
+
+**agent:claude-code/release-0.1.0** at 2026-10-29T18:49:01Z
+
+Moved from the v0.1.0 epic to v1.0.0 by the owner on 2026-10-29 (D73).

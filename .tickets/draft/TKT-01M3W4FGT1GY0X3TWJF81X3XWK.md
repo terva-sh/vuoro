@@ -28,12 +28,12 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-08T14:11:39Z
+updated_at: 2026-10-29T18:49:06Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude/forgejo-parity-20261006
+  id: agent:claude-code/release-0.1.0
   name: ""
 extensions: {}
 ---
@@ -59,10 +59,10 @@ terva 0.139.7 cannot be locked down. It moves to the v1.0.0 epic.
 - [x] I can comment inline, reply, resolve, approve, and submit a batch review without opening GitLab
 - [x] just ci passes with CGO_ENABLED=0 and cross-builds linux, darwin, and windows
 - [x] A synthesizer session merges the reviewers' drafts and keeps each finding's sources
-- [ ] I can talk to any reviewer while it works, and nothing posts without my action
-- [ ] Every session shows its tool, model, tokens, and cost
+- [x] Every session shows its tool, model, tokens, and cost
 - [x] I can open a GitLab merge request by URL and run several Claude Code reviewers on it in parallel
 - [x] GitLab and Forgejo authored/requested changes appear in one inbox with correct turn, reason and earliest-unanswered age.
+- [x] I can talk to any reviewer between turns, or after stopping it, and nothing posts without my action (D73)
 
 ## Notes
 

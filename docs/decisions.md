@@ -1453,3 +1453,20 @@ local repository), D71's third level.
   run. vuoro has no telemetry, so that shows in feedback. Even then, a Local
   hint suggesting a review of the person's own branch comes before a
   generated repository.
+
+### D73. v0.1.0 ships with talk between turns, and three MVP items move to v1.0.0
+
+Decided by the owner on 2026-10-29, to cut v0.1.0 from main.
+
+- **Talking to a reviewer happens between turns.** The MVP said the person
+  can talk to any reviewer while it works. A message sent during a turn is
+  refused, and the person can send it when the turn ends, or stop the
+  reviewer and resume it. The MVP criterion now says so. Queuing a message
+  sent mid-turn for the turn's end moves to v1.0.0.
+- **A cost the tool did not report is never shown as $0.00.** It shows as
+  unknown, or as at least the known part of a run's total. That closes the
+  MVP's last cost criterion.
+- **Three drafts move to v1.0.0**: deciding how a change finds its
+  git-ticket store and ticket, showing that ticket to the person and the
+  reviewers, and keeping runs until the change closes and then 30 days.
+  None of them stops the owner using vuoro today.
