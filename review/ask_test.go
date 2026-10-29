@@ -2,7 +2,9 @@ package review
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -477,5 +479,69 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 	}
 	if lv := loaded.Get(r.ID).View(); !slices.Equal(lv.LeftOut, v.LeftOut) {
 		t.Fatalf("the list did not survive a restart: %+v", lv.LeftOut)
+	}
+}
+
+// A conversation over a range too long to list and too wide to send whole
+// is still asked (D70): it is given the newest commits that fit and told how
+// many older ones there are, and the files that do not fit are left out
+// however many there are, without asking git to exclude each by name.
+func TestAnAskOverThousandsOfFilesAndHundredsOfCommitsIsAsked(t *testing.T) {
+	var mu sync.Mutex
+	var asked []string
+	m, _, ch, src := setup(t, func(_ toolCaller, text string) string {
+		mu.Lock()
+		asked = append(asked, text)
+		mu.Unlock()
+		return "ok"
+	})
+	parent := historyGit(t, src.Remote, "rev-parse", "feature")
+	var stream strings.Builder
+	const commits, perCommit = 600, 9
+	for c := 0; c < commits; c++ {
+		msg := fmt.Sprintf("Add batch %04d of the generated fixtures for the wide change\n", c)
+		fmt.Fprintf(&stream, "commit refs/heads/feature\ncommitter t <t@example.com> %d +0000\ndata %d\n%s", 1700000000+c, len(msg), msg)
+		if c == 0 {
+			fmt.Fprintf(&stream, "from %s\n", parent)
+		}
+		for f := 0; f < perCommit; f++ {
+			body := fmt.Sprintf("fixture %d %d\n", c, f)
+			fmt.Fprintf(&stream, "M 100644 inline fixtures/a-fairly-long-directory-name/batch-%04d/file-%d.txt\ndata %d\n%s", c, f, len(body), body)
+		}
+		stream.WriteString("\n")
+	}
+	cmd := exec.Command("git", "-C", src.Remote, "fast-import", "--quiet")
+	cmd.Stdin = strings.NewReader(stream.String())
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("fast-import: %v %s", err, b)
+	}
+	head := historyGit(t, src.Remote, "rev-parse", "feature")
+	ch.Diff.Head, src.Head = head, head
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "fake"}, AskInput{Question: "What does this add?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := wait(t, r, func(v RunView) bool { return v.Status == Idle || v.Status == Failed })
+	if v.Status == Failed {
+		t.Fatalf("a wide, long conversation was refused: %s", v.Error)
+	}
+	mu.Lock()
+	first := asked[0]
+	mu.Unlock()
+	for _, want := range []string{"Add batch 0599", "older commits not listed; read them with git_log", "more files left out, not listed"} {
+		if !strings.Contains(first, want) {
+			t.Fatalf("the first message lacks %q", want)
+		}
+	}
+	if strings.Contains(first, "Add batch 0000 ") {
+		t.Fatal("the oldest commit was listed past the cap")
+	}
+	files := len(strings.Split(historyGit(t, src.Remote, "diff", "--name-only", src.Base, head), "\n"))
+	sent := strings.Count(first, "diff --git ")
+	if files < commits*perCommit || len(v.LeftOut) == 0 || sent == 0 || sent+len(v.LeftOut) != files {
+		t.Fatalf("sent %d and left out %d of %d files", sent, len(v.LeftOut), files)
+	}
+	if len(first) > maxSummaryPatch+2*maxSummaryCommits+4096 {
+		t.Fatalf("the first message is %d bytes", len(first))
 	}
 }

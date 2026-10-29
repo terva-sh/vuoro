@@ -93,7 +93,7 @@ describe('AskPanel', () => {
     await act(async () => render(<AskPanel change={change} setup={setup} />, root))
     await settle()
     const left = root.querySelector('.ask-left-out')
-    expect(left?.textContent).toContain('2 files were too large to send')
+    expect(left?.textContent).toContain('2 files were left out of what the agent was sent')
     expect(left?.textContent).toContain('uv.lock +5177 −12 · lockfile')
     expect(left?.textContent).toContain('vendor/big.go +2603 −0 · large')
   })

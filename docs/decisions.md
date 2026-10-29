@@ -1374,7 +1374,7 @@ kind of conversation beside it (section 6.12).
   separate seams recorded on each run, so each can change on its own, by a
   new decision, when use shows it must.
 
-### D70. A conversation is never refused for its size; vuoro leaves files out and says which
+### D70. Past the caps, a conversation leaves files out and says which, rather than being refused
 
 Decided by the owner on 2026-10-29. It supersedes, for ask runs, the rule of
 section 6.4 that a range past the cap is refused whole. That rule was made
@@ -1386,7 +1386,17 @@ refused, since a new file named like a lockfile is not counted as one.
 
 - **Past the cap, files are left out, not the conversation refused.**
   Lockfiles the forge base holds and generated files go first, then the
-  largest other files, each largest first and only until the rest fits.
+  largest other files, each largest first and only until the rest fits. A
+  commit list past its 32 KiB cap keeps its newest commits and says how many
+  older ones there are. vuoro reads the patch and the file list for itself up
+  to 64 MiB each, and only a range past that is still refused, with the
+  reason.
+- **The author chooses what is large.** Any file of the change can now be
+  left out, and its size is the author's to set, so an edit can be put
+  inside a large file. The agent is told to read every file left out as
+  large, and the person sees the list. An edit inside a file whose diff is
+  past the context tools' 128 KiB cap reaches the agent only as the whole file
+  it reads in parts. Ask is advice, not a gate, so this is accepted.
 - **What is left out is named twice.** The first message lists each file with
   its line counts, and the run keeps the list, which the conversation shows,
   so the person sees what the agent was not given without trusting the agent

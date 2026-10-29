@@ -1188,8 +1188,8 @@ lockfiles included, since a lockfile edit can be the change that matters. The
 attributes are read at the forge base for every scope, never at a commit on
 the change's branch, so a change cannot hide its own code by marking it
 generated. The cap applies to what is left. An ask run (section
-6.11) reads its range the same way, except that it is never refused for size
-(D70). Diff programs and textconv are disabled.
+6.11) reads its range the same way, except that past the caps it leaves
+out files and older commits rather than refusing (D70). Diff programs and textconv are disabled.
 Descriptions/commit messages/repository text are untrusted data. The current
 checkout supplies reading context only; a since-review summary describes just
 its selected range. An empty net patch can still describe commits in that range.
@@ -1860,13 +1860,18 @@ lists and searches them across all changes. It replaces the Summary tab.
   forge when it starts, as a summary is today. Its scope is the whole change
   or, as for a summary, the range since a completed vuoro review.
 - Its first message carries the range's commits and net patch, as a
-  summary's does, but it is never refused for size (D70). Past the 256 KiB
+  summary's does, but it is not refused for size (D70). Past the 256 KiB
   cap, lockfiles and generated files are left out first, then the largest
-  other files, each largest first and only until the rest fits. Each file
-  left out is named in the message with its line counts and kept on the run,
-  and the conversation shows the list, so the person sees what the agent was
-  not given. The agent reads a left-out file with `git_diff`, or with Read in
-  parts when its diff is past the tool's cap, and says when it did not.
+  other files, each largest first and only until the rest fits; vuoro reads
+  the whole patch once and drops files' sections, so thousands of files cost
+  no more than one. A commit list past its 32 KiB cap keeps the newest
+  commits and says how many older ones there are. Each file left out is named
+  in the message with its line counts and kept on the run, and the
+  conversation shows the list, so the person sees what the agent was not
+  given. The agent reads every file left out as large, and a left-out
+  lockfile or generated file when it matters, with `git_diff`, or with Read
+  in parts when its diff is past the tool's cap, and says which it did not
+  read. Only a range whose patch or file list is past 64 MiB is refused.
 - The first message is a canned prompt or the person's question. The person
   can follow up as often as they like. Each turn is a message to the same
   session, and a session whose process ended is resumed (`Spec.Resume`), so a
