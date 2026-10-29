@@ -160,6 +160,9 @@ function again(r: Run, list: Run[]) {
   return { ...(prompt ? { prompt } : { question: ask?.question ?? '' }), scope, review: r.summary?.review_id }
 }
 
+// leftCount is how many files a conversation's first message left out.
+const leftCount = (r: Run) => (r.left_out?.length ?? 0) + (r.left_out_more ?? 0)
+
 function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change; busy: boolean; onAgain: (r: Run) => void }) {
   const head = useRunHead(run.id, run.head, change)
   const working = run.status === 'working' || run.status === 'preparing'
@@ -170,9 +173,10 @@ function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change
     {run.summary && <p class="muted">Range <span class="mono" title={`${run.summary.from}..${run.summary.to}`}>{short(run.summary.from)}..{short(run.summary.to)}</span>{run.summary.scope === 'since_review' ? ' · since the selected Vuoro review' : ' · whole change'}</p>}
     {stale && <p class="ask-stale">Asked at <span class="mono">{short(run.head)}</span>; the change is now at <span class="mono">{short(change.diff.head)}</span>. You can carry on here, or{' '}
       <button disabled={busy || working} onClick={() => onAgain(run)}>ask the same on the new head</button></p>}
-    {run.left_out && run.left_out.length > 0 && <details class="ask-left-out"><summary>⚠ {run.left_out.length} file{run.left_out.length === 1 ? ' was' : 's were'} left out of what the agent was sent</summary>
+    {run.left_out && run.left_out.length > 0 && <details class="ask-left-out"><summary>⚠ {leftCount(run)} file{leftCount(run) === 1 ? ' was' : 's were'} left out of what the agent was sent</summary>
       <p class="muted">The agent is asked to read them itself, and to say which it did not.</p>
       <ul>{run.left_out.map((f) => <li key={f.path}><span class="mono">{f.path}</span> +{f.added} −{f.deleted} · {f.why}</li>)}</ul>
+      {run.left_out_more ? <p class="muted">…and {run.left_out_more} more, not named here.</p> : null}
     </details>}
     {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
     {summary ? <SummaryText run={run} working={working} /> : run.sessions.map((s) => <SessionPane run={run} session={s} key={s.id} />)}

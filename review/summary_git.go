@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 const maxSummaryPatch = 256 << 10
@@ -67,7 +66,10 @@ func (r *Repos) summaryGitIn(ctx context.Context, gitDir string, limit int, stdi
 	}
 	full := []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "core.pager=cat", "--git-dir=" + gitDir}
 	cmd := exec.CommandContext(ctx, bin, append(full, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	// These are local reads of vuoro's own clone, so the person's global and
+	// system config, whose diff settings change the patch's form (prefixes,
+	// submodule logs), do not apply.
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	if os.Getenv("GIT_SSH_COMMAND") == "" {
 		cmd.Env = append(cmd.Env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
 	}
@@ -146,11 +148,12 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFi
 	if len(left) > 0 {
 		var b strings.Builder
 		for _, f := range left {
-			// A path holding a control character is quoted, so it cannot
-			// write lines of its own into the list.
+			// A path that is not plain printable ASCII without spaces or
+			// quotes is quoted, so it cannot pass for an entry, a line, or a
+			// note of its own.
 			path := f.Path
-			if strings.ContainsFunc(path, unicode.IsControl) {
-				path = strconv.Quote(path)
+			if strings.ContainsFunc(path, func(c rune) bool { return c <= ' ' || c > '~' || c == '"' }) {
+				path = strconv.QuoteToASCII(path)
 			}
 			fmt.Fprintf(&b, "%s +%s -%s (%s)\n", path, f.Added, f.Deleted, f.Why)
 		}
@@ -181,9 +184,9 @@ func (r *Repos) fitPatch(ctx context.Context, gitDir string, src Source, from st
 	if err != nil {
 		return "", nil, huge(err)
 	}
-	// The prefixes are pinned, since sectionsMatch reads them and the
-	// person's diff.noprefix or diff.srcPrefix would change them.
-	full, err := r.summaryGit(ctx, gitDir, maxListing, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", from, src.Head, "--")
+	// The prefixes and the submodule form are pinned as well, since
+	// sectionsMatch reads every section's header.
+	full, err := r.summaryGit(ctx, gitDir, maxListing, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", "--submodule=short", from, src.Head, "--")
 	if err != nil {
 		return "", nil, huge(err)
 	}

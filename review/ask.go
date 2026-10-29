@@ -13,6 +13,9 @@ import (
 	"github.com/terva-sh/vuoro/review/drafts"
 )
 
+// maxLeftOut is how many left-out files a conversation keeps by name.
+const maxLeftOut = 500
+
 // AskMode is a conversation about a change with a read-only agent (section
 // 6.11, D68).
 const AskMode = "ask"

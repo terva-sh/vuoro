@@ -89,6 +89,7 @@ export interface Run {
   ask?: Ask
   // left_out are the files an ask's first message did not send (D70).
   left_out?: LeftOut[]
+  left_out_more?: number
   update?: Update
   project_triage?: { path: string; changes: { number: number; stamp: string }[]; candidates: string[]; labels: string[] }
   review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }

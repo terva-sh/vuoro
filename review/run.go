@@ -118,6 +118,8 @@ type Run struct {
 	Ask      *Ask
 	askFacts AskFacts
 	leftOut  []LeftOut // the files a conversation's first message did not send
+	// leftOutMore counts the files past leftOut's first maxLeftOut.
+	leftOutMore int
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
 	// Update is an update run's state (section 6.10), and updating is set
@@ -397,7 +399,10 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 				s.Status, s.Error = Failed, err.Error()
 			}
 		} else {
-			r.first, r.leftOut = r.askFirst(input), left
+			// The run keeps the first maxLeftOut names and a count of the
+			// rest, since the window polls it.
+			r.first = r.askFirst(input)
+			r.leftOut, r.leftOutMore = left[:min(len(left), maxLeftOut)], max(len(left)-maxLeftOut, 0)
 		}
 		r.mu.Unlock()
 		r.save()

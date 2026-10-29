@@ -432,7 +432,7 @@ func TestAttributesFromTheReviewedCommitHideNothing(t *testing.T) {
 func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 	// The person's own git config may drop or rename the diff's prefixes.
 	global := filepath.Join(t.TempDir(), "gitconfig")
-	os.WriteFile(global, []byte("[diff]\n\tnoprefix = true\n\tmnemonicPrefix = true\n"), 0o600)
+	os.WriteFile(global, []byte("[diff]\n\tnoprefix = true\n\tmnemonicPrefix = true\n\tsubmodule = log\n"), 0o600)
 	t.Setenv("GIT_CONFIG_GLOBAL", global)
 	var mu sync.Mutex
 	var asked, read []string
@@ -454,7 +454,7 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(src.Remote, "small.go"), []byte("package calc\n\nvar smallMarker = 1\n"), 0o600)
 	// A path holding a newline cannot write a line of its own into the list.
-	forged := "vendor/x\nother.go +0 -0 (lockfile)"
+	forged := "vendor/x\nother.go +0 -0 (lockfile)\u2028y"
 	os.WriteFile(filepath.Join(src.Remote, forged), []byte(strings.Repeat("var z = \"a big file with a forged name\"\n", 2700)), 0o600)
 	// A file that becomes a symlink gets two patch sections and one numstat
 	// line; it must not stop the patch being fitted.
@@ -463,6 +463,8 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 		t.Fatal(err)
 	}
 	historyGit(t, src.Remote, "add", "-A")
+	// A submodule gets no diff --git header under diff.submodule=log.
+	historyGit(t, src.Remote, "update-index", "--add", "--cacheinfo", "160000,"+historyGit(t, src.Remote, "rev-parse", "HEAD")+",sub")
 	historyGit(t, src.Remote, "commit", "-qm", "Vendor a big file")
 	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
 	ch.Diff.Head, src.Head = head, head
@@ -483,7 +485,7 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 	if !strings.Contains(got, "bigMarker") {
 		t.Fatalf("the agent could not read the left-out file: %.500s", got)
 	}
-	if !strings.Contains(first, strconv.Quote(forged)+" +2700 -0 (large)") || strings.Contains(first, "\nother.go +0 -0 (lockfile)") {
+	if !strings.Contains(first, strconv.QuoteToASCII(forged)+" +2700 -0 (large)") || strings.Contains(first, "\nother.go +0 -0 (lockfile)") {
 		t.Fatalf("a path with a newline wrote its own line into the list:\n%.3000s", first[strings.Index(first, "Files left out"):])
 	}
 	if want := []LeftOut{{Path: "vendor/big.go", Added: "2603", Deleted: "0", Why: "large"}, {Path: forged, Added: "2700", Deleted: "0", Why: "large"}}; !slices.Equal(v.LeftOut, want) {
@@ -555,8 +557,8 @@ func TestAnAskOverThousandsOfFilesAndHundredsOfCommitsIsAsked(t *testing.T) {
 	}
 	files := len(strings.Split(historyGit(t, src.Remote, "diff", "--name-only", src.Base, head), "\n"))
 	sent := strings.Count(first, "diff --git ")
-	if files < commits*perCommit || len(v.LeftOut) == 0 || sent == 0 || sent+len(v.LeftOut) != files {
-		t.Fatalf("sent %d and left out %d of %d files", sent, len(v.LeftOut), files)
+	if files < commits*perCommit || len(v.LeftOut) != maxLeftOut || v.LeftOutMore == 0 || sent == 0 || sent+len(v.LeftOut)+v.LeftOutMore != files {
+		t.Fatalf("sent %d and left out %d named and %d more of %d files", sent, len(v.LeftOut), v.LeftOutMore, files)
 	}
 	if len(first) > maxSummaryPatch+2*maxSummaryCommits+4096 {
 		t.Fatalf("the first message is %d bytes", len(first))

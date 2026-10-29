@@ -1912,7 +1912,8 @@ lists and searches them across all changes. It replaces the Summary tab.
   no more than one. A commit list past its 32 KiB cap keeps the newest
   commits and says how many older ones there are. The files left out are
   named in the message with their line counts, up to 32 KiB and then a count
-  of the rest, and the run keeps the whole list, which the conversation
+  of the rest, a name that is not plain printable ASCII quoted, and the run
+  keeps the first 500 names and a count of the rest, which the conversation
   shows, so the person sees what the agent was not given. The agent reads every file left out as large, and a left-out
   lockfile or generated file when it matters, with `git_diff`, or with Read
   in parts when its diff is past the tool's cap, and says which it did not
@@ -1920,7 +1921,8 @@ lists and searches them across all changes. It replaces the Summary tab.
   Only a range whose patch or file list is past 64 MiB, or whose patch vuoro
   cannot match to its files, is refused, with its own reason. A file whose
   type changes, such as one becoming a symlink, is one file with both its
-  sections.
+  sections. These reads of vuoro's clone ignore the person's global and
+  system git config, whose diff settings would change the patch's form.
 - The first message is a canned prompt or the person's question. The person
   can follow up as often as they like. Each turn is a message to the same
   session, and a session whose process ended is resumed (`Spec.Resume`), so a
