@@ -1176,12 +1176,14 @@ commit list and exact net patch. A rewritten or missing baseline is refused;
 it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
 provider call, never truncated. When the whole patch is over the cap,
-lockfiles, and files the change's forge base marks `linguist-generated` or
-`-diff` in `.gitattributes`, are left out, largest first and only until the
-rest fits, and listed by name with their added and deleted lines. So a
-dependency bump is not refused for its lockfile, a large lockfile cannot carry
-a small edit to another out of the patch, and the agent says it did not read
-what was left out. A patch that fits is sent whole,
+lockfiles the change's forge base already holds, and files it marks
+`linguist-generated` or `-diff` in `.gitattributes`, are left out, largest
+first and only until the rest fits, and listed by name with their added and
+deleted lines. So a dependency bump is not refused for its lockfile, a large
+lockfile cannot carry a small edit to another out of the patch, a new file
+named like a lockfile is sent like any other, and the agent says it did not
+read what was left out. A small edit inside a lockfile that is itself left
+out is still not sent; the agent can read it with `git_diff`. A patch that fits is sent whole,
 lockfiles included, since a lockfile edit can be the change that matters. The
 attributes are read at the forge base for every scope, never at a commit on
 the change's branch, so a change cannot hide its own code by marking it

@@ -578,9 +578,9 @@ func TestCancelInterruptsABlockedInputWrite(t *testing.T) {
 	}
 }
 
-// A session with no drafts server, a summary or a conversation about a
-// change (D68), reads and does nothing else: its allowed tools are the read
-// tools, and its MCP configuration names no server.
+// A session with no drafts server, such as a summary, reads and does nothing
+// else: its allowed tools are the read tools, and its MCP configuration names
+// no server.
 func TestASessionWithNoDraftsServerOnlyReads(t *testing.T) {
 	d, argsFile := fake(t, "review.jsonl")
 	s, err := d.Start(context.Background(), agent.Spec{Dir: t.TempDir(), SystemPrompt: "answer"})

@@ -164,10 +164,10 @@ func (f leftOutFile) size() int {
 }
 
 // leftOut lists the changed files between from and head that a summary
-// leaves out of a patch too large to send: known lockfiles, and files the
-// .gitattributes of attrs, the change's forge base, marks linguist-generated
-// or -diff. Reading them there means the change cannot hide its own code by
-// marking it generated. A git too old to read attributes from a commit
+// may leave out of a patch too large to send: known lockfiles that attrs, the
+// change's forge base, already holds, and files its .gitattributes marks
+// linguist-generated or -diff. Reading both there means the change cannot
+// hide its own code by naming it a lockfile or marking it generated. A git too old to read attributes from a commit
 // leaves out the lockfiles alone.
 func (r *Repos) leftOut(ctx context.Context, gitDir, attrs, from, head string) ([]leftOutFile, error) {
 	stat, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, "diff", "--numstat", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", from, head, "--")
@@ -189,10 +189,24 @@ func (r *Repos) leftOut(ctx context.Context, gitDir, attrs, from, head string) (
 		changed[path] = counts{added, deleted}
 		paths = append(paths, path)
 	}
-	why := map[string]string{}
+	// A lockfile counts only where the forge base already has one, so a
+	// change cannot leave out a new file by giving it a lockfile's name.
+	var named []string
 	for _, p := range paths {
 		if lockfiles[filepath.Base(filepath.FromSlash(p))] {
-			why[p] = "lockfile"
+			named = append(named, p)
+		}
+	}
+	why := map[string]string{}
+	if len(named) > 0 {
+		have, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, append([]string{"ls-tree", "-z", "--name-only", "--full-tree", attrs, "--"}, named...)...)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range strings.Split(have, "\x00") {
+			if slices.Contains(named, p) {
+				why[p] = "lockfile"
+			}
 		}
 	}
 	if len(paths) > 0 {

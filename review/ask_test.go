@@ -291,6 +291,7 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	}
 	historyGit(t, src.Remote, "switch", "-q", "main")
 	write(".gitattributes", "gen/** linguist-generated\n")
+	write("uv.lock", "version = 1\n")
 	historyGit(t, src.Remote, "add", ".")
 	historyGit(t, src.Remote, "commit", "-qm", "Mark generated code")
 	base := historyGit(t, src.Remote, "rev-parse", "HEAD")
@@ -301,6 +302,9 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	// A small edit to another lockfile is still sent: only what must go to
 	// fit under the cap is left out.
 	write("package-lock.json", "{\"resolved\": \"https://registry.example/evil\"}\n")
+	// A new file named like a lockfile is not one: the base has none there.
+	// It has the most lines, so it would be the first left out.
+	write("tools/go.sum", "plantedInGoSum\n"+strings.Repeat("p\n", 13000))
 	write("calc.go", "package calc\n\nfunc Add(a, b int) int { return a + b + 0 }\n")
 	write(".gitattributes", "gen/** linguist-generated\nsneaky.go linguist-generated\n")
 	write("sneaky.go", "package calc\n\nvar sneakyChange = 1\n")
@@ -323,12 +327,12 @@ func TestALockfileIsLeftOutOfTheDiffAndNamed(t *testing.T) {
 	if strings.Contains(first, "lockfile-line") || strings.Contains(first, "generatedClient") {
 		t.Fatal("a lockfile or generated file's contents were sent")
 	}
-	for _, want := range []string{"uv.lock +12000 -0 (lockfile)", "gen/client.go +12000 -0 (generated)", "sneakyChange", "a + b + 0", "registry.example/evil", "smallGenerated"} {
+	for _, want := range []string{"uv.lock +12000 -1 (lockfile)", "gen/client.go +12000 -0 (generated)", "sneakyChange", "a + b + 0", "registry.example/evil", "smallGenerated", "plantedInGoSum"} {
 		if !strings.Contains(first, want) {
 			t.Fatalf("the first message lacks %q:\n%s", want, first)
 		}
 	}
-	if strings.Contains(first, "sneaky.go +") || strings.Contains(first, "package-lock.json +") || strings.Contains(first, "gen/small.go +") {
+	if strings.Contains(first, "sneaky.go +") || strings.Contains(first, "package-lock.json +") || strings.Contains(first, "gen/small.go +") || strings.Contains(first, "tools/go.sum +") {
 		t.Fatal("the change hid its own file by marking it generated")
 	}
 }
@@ -374,7 +378,15 @@ func TestAttributesFromTheReviewedCommitHideNothing(t *testing.T) {
 		mu.Unlock()
 		return "ok"
 	})
+	// The forge base holds the lockfile, so the later bump of it counts as one.
+	historyGit(t, src.Remote, "switch", "-q", "main")
+	os.WriteFile(filepath.Join(src.Remote, "uv.lock"), []byte("version = 1\n"), 0o600)
+	historyGit(t, src.Remote, "add", ".")
+	historyGit(t, src.Remote, "commit", "-qm", "Lock dependencies")
+	base := historyGit(t, src.Remote, "rev-parse", "HEAD")
 	historyGit(t, src.Remote, "switch", "-q", "feature")
+	historyGit(t, src.Remote, "merge", "-q", "--no-edit", "main")
+	ch.Diff.Base, src.Base = base, base
 	os.WriteFile(filepath.Join(src.Remote, ".gitattributes"), []byte("auth.go linguist-generated\n"), 0o600)
 	os.WriteFile(filepath.Join(src.Remote, "auth.go"), []byte("package calc\n\nvar allowed = false\n"), 0o600)
 	historyGit(t, src.Remote, "add", ".")
