@@ -1219,7 +1219,8 @@ Git verifies full commit IDs, complete history and ancestry before supplying a
 commit list and exact net patch. A rewritten or missing baseline is refused;
 it never silently substitutes a whole-change range. The patch is capped at
 256 KiB and the commit list at 32 KiB; oversized input is refused before a
-provider call, never truncated. When the whole patch is over the cap,
+provider call, never truncated (an ask run, below, leaves files out instead,
+D70). When the whole patch is over the cap,
 lockfiles the change's forge base already holds, and files it marks
 `linguist-generated` or `-diff` in `.gitattributes`, are left out, largest
 first and only until the rest fits, and listed by name with their added and
@@ -1909,13 +1910,17 @@ lists and searches them across all changes. It replaces the Summary tab.
   other files, each largest first and only until the rest fits; vuoro reads
   the whole patch once and drops files' sections, so thousands of files cost
   no more than one. A commit list past its 32 KiB cap keeps the newest
-  commits and says how many older ones there are. Each file left out is named
-  in the message with its line counts and kept on the run, and the
-  conversation shows the list, so the person sees what the agent was not
-  given. The agent reads every file left out as large, and a left-out
+  commits and says how many older ones there are. The files left out are
+  named in the message with their line counts, up to 32 KiB and then a count
+  of the rest, and the run keeps the whole list, which the conversation
+  shows, so the person sees what the agent was not given. The agent reads every file left out as large, and a left-out
   lockfile or generated file when it matters, with `git_diff`, or with Read
   in parts when its diff is past the tool's cap, and says which it did not
-  read. Only a range whose patch or file list is past 64 MiB is refused.
+  read; `git_diff` with `stat` lists the files a cut list did not name.
+  Only a range whose patch or file list is past 64 MiB, or whose patch vuoro
+  cannot match to its files, is refused, with its own reason. A file whose
+  type changes, such as one becoming a symlink, is one file with both its
+  sections.
 - The first message is a canned prompt or the person's question. The person
   can follow up as often as they like. Each turn is a message to the same
   session, and a session whose process ended is resumed (`Spec.Resume`), so a
@@ -1934,7 +1939,8 @@ none of the person's MCP servers, the same lockdown as a reviewer
 one reviewers draft through, serves its session only the context tools, which
 only read, so it stays read-only by construction rather than by policy:
 
-- `git_log`, `git_show`, `git_blame`, and `git_diff` run in vuoro's clone of
+- `git_log`, `git_show`, `git_blame`, and `git_diff` (whose `stat` lists the
+  changed files and their line counts) run in vuoro's clone of
   the repository. A revision is `head`, `base` (the change's forge base),
   `reviewed` (the earlier review's head, in a since-review conversation
   only), or a commit ID, whole or abbreviated, optionally with `~N`; branch and tag names, ranges, and

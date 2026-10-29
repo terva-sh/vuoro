@@ -94,11 +94,12 @@ var contextTools = []map[string]any{
 	},
 	{
 		"name":        "git_diff",
-		"description": "The diff between two revisions, or of one path between them.",
+		"description": "The diff between two revisions, or of one path between them. With stat, only the files changed and their added and deleted lines.",
 		"inputSchema": map[string]any{"type": "object", "required": []string{"from"}, "properties": map[string]any{
 			"from": map[string]any{"type": "string", "description": revDesc},
 			"to":   map[string]any{"type": "string", "description": revDesc + "; head by default"},
-			"path": map[string]any{"type": "string"},
+			"path": map[string]any{"type": "string", "description": "a repository-relative file or directory"},
+			"stat": map[string]any{"type": "boolean", "description": "list the changed files with their line counts, not the patch"},
 		}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	},
@@ -258,6 +259,7 @@ func (c *askContext) call(name string, raw json.RawMessage) (string, error) {
 			From string `json:"from"`
 			To   string `json:"to"`
 			Path string `json:"path"`
+			Stat bool   `json:"stat"`
 		}
 		if err := strict(raw, &p); err != nil {
 			return "", err
@@ -273,8 +275,11 @@ func (c *askContext) call(name string, raw json.RawMessage) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--end-of-options", from, to}
-		return c.git(ctx, gitDir, args, p.Path)
+		args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color"}
+		if p.Stat {
+			args = append(args, "--numstat", "--no-renames")
+		}
+		return c.git(ctx, gitDir, append(args, "--end-of-options", from, to), p.Path)
 	}
 	return "", fmt.Errorf("rule tool.unknown: one of %s", strings.Join(ContextToolNames(), ", "))
 }

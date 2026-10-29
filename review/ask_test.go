@@ -448,7 +448,13 @@ func TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich(t *testing.T) {
 		os.WriteFile(filepath.Join(src.Remote, name), []byte("package vendor\n\n"+strings.Repeat("var y = \"kept in the patch for the agent\"\n", 2200)), 0o600)
 	}
 	os.WriteFile(filepath.Join(src.Remote, "small.go"), []byte("package calc\n\nvar smallMarker = 1\n"), 0o600)
-	historyGit(t, src.Remote, "add", ".")
+	// A file that becomes a symlink gets two patch sections and one numstat
+	// line; it must not stop the patch being fitted.
+	os.Remove(filepath.Join(src.Remote, "calc.go"))
+	if err := os.Symlink("small.go", filepath.Join(src.Remote, "calc.go")); err != nil {
+		t.Fatal(err)
+	}
+	historyGit(t, src.Remote, "add", "-A")
 	historyGit(t, src.Remote, "commit", "-qm", "Vendor a big file")
 	head := historyGit(t, src.Remote, "rev-parse", "HEAD")
 	ch.Diff.Head, src.Head = head, head

@@ -1390,19 +1390,21 @@ refused, since a new file named like a lockfile is not counted as one.
   commit list past its 32 KiB cap keeps its newest commits and says how many
   older ones there are. vuoro reads the patch and the file list for itself up
   to 64 MiB each, and only a range past that is still refused, with the
-  reason.
+  reason, as is one whose patch vuoro cannot match to its files.
 - **The author chooses what is large.** Any file of the change can now be
   left out, and its size is the author's to set, so an edit can be put
   inside a large file. The agent is told to read every file left out as
   large, and the person sees the list. An edit inside a file whose diff is
   past the context tools' 128 KiB cap reaches the agent only as the whole file
   it reads in parts. Ask is advice, not a gate, so this is accepted.
-- **What is left out is named twice.** The first message lists each file with
-  its line counts, and the run keeps the list, which the conversation shows,
-  so the person sees what the agent was not given without trusting the agent
-  to say so.
-- **Nothing is truncated.** A file is sent whole or not at all, which is why
-  this does not reopen the reason for the cap.
+- **What is left out is named twice.** The first message lists the files left
+  out with their line counts, up to 32 KiB and then a count of the rest,
+  which the agent can list with `git_diff` and `stat`. The run keeps the
+  whole list, which the conversation shows, so the person sees what the
+  agent was not given without trusting the agent to say so.
+- **No file is truncated.** A file's patch is sent whole or not at all, which
+  is why this does not reopen the reason for the cap. The commit list and the
+  list of left-out files are cut at line ends, with a count of what was cut.
 - **A summary run keeps the refusal.** Its agent has no tool to read what was
   left out, and no new summary can be started.
 

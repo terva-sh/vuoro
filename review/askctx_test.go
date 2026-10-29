@@ -48,6 +48,9 @@ func TestTheGitToolsReadTheChangesHistory(t *testing.T) {
 	if out, isErr := callTool(t, c, "git_diff", map[string]any{"from": "base", "path": "calc.go"}); isErr || !strings.Contains(out, "+func Add(a, b int) int { return a - b }") {
 		t.Fatalf("git_diff: %v %s", isErr, out)
 	}
+	if out, isErr := callTool(t, c, "git_diff", map[string]any{"from": "base", "stat": true}); isErr || !strings.Contains(out, "\tcalc.go") || strings.Contains(out, "func Add") {
+		t.Fatalf("git_diff stat: %v %s", isErr, out)
+	}
 	if out, isErr := callTool(t, c, "git_log", map[string]any{"rev": src.Head[:12] + "~1", "max_count": 1}); isErr || !strings.Contains(out, src.Base) {
 		t.Fatalf("git_log head~1: %v %s", isErr, out)
 	}

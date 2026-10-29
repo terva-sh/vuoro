@@ -24,6 +24,14 @@ const maxSummaryCommits = 32 << 10
 
 var errSummaryLarge = errors.New("review: this summary range is too large; no partial range was sent")
 
+// errRangeHuge refuses an ask whose range is past what vuoro reads for
+// itself, and errRangeSplit one whose patch vuoro could not match to its
+// files; neither sends a partial range.
+var (
+	errRangeHuge  = errors.New("review: this range is past the 64 MiB vuoro reads for a conversation; ask about a narrower range")
+	errRangeSplit = errors.New("review: vuoro could not match this range's patch to its files, so nothing was sent")
+)
+
 type limitedOutput struct {
 	buffer   bytes.Buffer
 	limit    int
@@ -43,6 +51,12 @@ func (w *limitedOutput) Write(b []byte) (int, error) {
 // summaryGit bounds stdout in memory and discards transport diagnostics. It
 // disables repository diff/textconv programs, as well as hooks and prompts.
 func (r *Repos) summaryGit(ctx context.Context, gitDir string, limit int, args ...string) (string, error) {
+	return r.summaryGitIn(ctx, gitDir, limit, "", args...)
+}
+
+// summaryGitIn is summaryGit with stdin, for paths too many to pass as
+// arguments.
+func (r *Repos) summaryGitIn(ctx context.Context, gitDir string, limit int, stdin string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
 	bin := r.Git
@@ -56,6 +70,9 @@ func (r *Repos) summaryGit(ctx context.Context, gitDir string, limit int, args .
 		cmd.Env = append(cmd.Env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
 	}
 	out := &limitedOutput{limit: limit, cancel: cancel}
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
 	err := cmd.Run()
@@ -97,8 +114,11 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFi
 	if errors.Is(err, errSummaryLarge) && anyFile {
 		// An ask is given the newest commits that fit, whole lines only, and
 		// told how many older ones it can read with git_log.
-		if commits, err = r.summaryGit(ctx, gitDir, maxListing, logArgs...); err == nil {
+		commits, err = r.summaryGit(ctx, gitDir, maxListing, logArgs...)
+		if err == nil {
 			commits = fitLines(commits, maxSummaryCommits, "older commits not listed; read them with git_log")
+		} else if errors.Is(err, errSummaryLarge) {
+			err = errRangeHuge
 		}
 	}
 	if err != nil {
@@ -140,19 +160,29 @@ func (r *Repos) summaryInput(ctx context.Context, src Source, from string, anyFi
 func (r *Repos) fitPatch(ctx context.Context, gitDir string, src Source, from string, anyFile bool) (string, []LeftOut, error) {
 	// Attributes come from the change's forge base, never from a commit on
 	// its own branch, such as the head a since-review range starts at.
+	huge := func(err error) error {
+		if errors.Is(err, errSummaryLarge) {
+			if anyFile {
+				return errRangeHuge
+			}
+			return errSummaryLarge
+		}
+		return err
+	}
 	changed, err := r.changedFiles(ctx, gitDir, src.Base, from, src.Head)
 	if err != nil {
-		return "", nil, err
+		return "", nil, huge(err)
 	}
 	full, err := r.summaryGit(ctx, gitDir, maxListing, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--no-renames", from, src.Head, "--")
 	if err != nil {
-		return "", nil, err
+		return "", nil, huge(err)
 	}
 	sections := splitPatch(full)
-	if len(sections) != len(changed) {
+	if !sectionsMatch(sections, changed) {
 		// numstat and the patch list the same files in the same order; when
-		// they disagree, nothing is guessed.
-		return "", nil, errSummaryLarge
+		// they disagree, nothing is guessed, since a dropped section must be
+		// the file the list names.
+		return "", nil, errRangeSplit
 	}
 	order := make([]int, 0, len(changed))
 	total := 0
@@ -200,9 +230,13 @@ func (r *Repos) fitPatch(ctx context.Context, gitDir string, src Source, from st
 
 // splitPatch cuts a patch into each file's section. A section opens with a
 // line starting "diff --git "; inside a section every line starts with a
-// space, +, -, @, \, a header word, or base85, so no other line can.
+// space, +, -, @, \, a header word, or base85, so no other line can. A path
+// whose type changes, such as a file becoming a symlink, gets two sections
+// under one header, a deletion and a creation; with renames off only that
+// can repeat a header, so the two are kept as one, as numstat counts them.
 func splitPatch(patch string) []string {
 	var out []string
+	var header string
 	start := 0
 	for i := 0; i < len(patch); {
 		end := strings.IndexByte(patch[i:], '\n')
@@ -210,9 +244,12 @@ func splitPatch(patch string) []string {
 		if end >= 0 {
 			next = i + end + 1
 		}
-		if strings.HasPrefix(patch[i:], "diff --git ") && i > start {
-			out = append(out, patch[start:i])
-			start = i
+		if line := patch[i:next]; strings.HasPrefix(line, "diff --git ") {
+			if i > start && line != header {
+				out = append(out, patch[start:i])
+				start = i
+			}
+			header = line
 		}
 		i = next
 	}
@@ -220,6 +257,25 @@ func splitPatch(patch string) []string {
 		out = append(out, patch[start:])
 	}
 	return out
+}
+
+// sectionsMatch says whether each section is the file changed lists at its
+// place. A header git quotes, for a path with unusual bytes, is matched by
+// place alone.
+func sectionsMatch(sections []string, changed []LeftOut) bool {
+	if len(sections) != len(changed) {
+		return false
+	}
+	for i, sec := range sections {
+		header, _, _ := strings.Cut(sec, "\n")
+		if strings.HasPrefix(header, `diff --git "`) {
+			continue
+		}
+		if header != "diff --git a/"+changed[i].Path+" b/"+changed[i].Path {
+			return false
+		}
+	}
+	return true
 }
 
 // fitLines keeps the first whole lines of text that fit in limit bytes, and
@@ -299,19 +355,30 @@ func (r *Repos) changedFiles(ctx context.Context, gitDir, attrs, from, head stri
 		}
 	}
 	why := map[string]string{}
+	// Paths go on stdin, however many there are. A path holding a newline
+	// cannot be asked about one per line, and is not counted a lockfile.
+	named = slices.DeleteFunc(named, func(p string) bool { return strings.ContainsAny(p, "\n\r") })
 	if len(named) > 0 {
-		have, err := r.summaryGit(ctx, gitDir, maxSummaryPatch, append([]string{"ls-tree", "-z", "--name-only", "--full-tree", attrs, "--"}, named...)...)
+		var in strings.Builder
+		for _, p := range named {
+			in.WriteString(attrs + ":" + p + "\n")
+		}
+		have, err := r.summaryGitIn(ctx, gitDir, maxListing, in.String(), "cat-file", "--batch-check=%(objecttype)")
 		if err != nil {
 			return nil, err
 		}
-		for _, p := range strings.Split(have, "\x00") {
-			if slices.Contains(named, p) {
+		answers := strings.Split(strings.TrimSuffix(have, "\n"), "\n")
+		if len(answers) != len(named) {
+			return nil, errors.New("review: the exact summary range could not be read")
+		}
+		for i, p := range named {
+			if answers[i] == "blob" {
 				why[p] = "lockfile"
 			}
 		}
 	}
 	if len(paths) > 0 {
-		marks, err := r.summaryGit(ctx, gitDir, maxListing, append([]string{"check-attr", "--source=" + attrs, "-z", "linguist-generated", "diff", "--"}, paths...)...)
+		marks, err := r.summaryGitIn(ctx, gitDir, maxListing, strings.Join(paths, "\x00")+"\x00", "check-attr", "--source="+attrs, "--stdin", "-z", "linguist-generated", "diff")
 		if err == nil {
 			f := strings.Split(marks, "\x00")
 			for i := 0; i+2 < len(f); i += 3 {
