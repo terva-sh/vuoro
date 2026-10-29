@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T14:15:12Z
+updated_at: 2026-10-29T14:28:36Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -49,6 +49,12 @@ Design: docs/plan.md section 6.11, D68.
 - review/prompts.go: Prompt{Name,Title,Scope,Tool,Model,Text,Builtin}; shipped explain, risks, test, start-here. LoadPrompts(dir) reads dir/*.md: the name from the file name ([a-z0-9-]+), optional front matter between --- lines of title, scope (change|since_review), tool, model. Unknown keys, a bad scope, an empty body, or an unreadable file become a PromptError{File,Reason}, and the rest load. Theirs sort first by name, a shipped name is shadowed, then the shipped ones in order. A missing directory is no prompts of theirs and no error.
 - app: GET /api/prompts answers {prompts, errors}, reading config.Dir()/prompts on each call (App.PromptsDir overrides it for tests). Behind the window guard.
 - tests: parse, shadow, order, bad files listed, missing directory; the route and the guard.
+
+## Notes
+
+**agent:claude-code/ask-20261029** at 2026-10-29T14:28:36Z
+
+vuoro review round 1 (run 20261029-142410-2a1e0e) found two things here. The shipped test prompt is renamed manual-test, because section 6.12 uses test for conversations that run code; criterion 1's 'test' now means manual-test. And a prompt's scope was parsed but never applied: startAsk now applies it through fromPrompt (a change prompt drops the baseline, a since_review prompt refuses without one, no scope follows the tab), tested by app TestAPromptsScopeDecidesTheRange. Criterion 2 was ticked before scope did anything; it is true as of the fix commit.
 
 ## Summary
 

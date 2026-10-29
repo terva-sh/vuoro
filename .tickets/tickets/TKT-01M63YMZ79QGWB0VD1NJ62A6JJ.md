@@ -21,12 +21,12 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:47:33Z
-updated_at: 2026-10-29T13:59:18Z
+updated_at: 2026-10-29T14:28:36Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
 updated_by:
-  id: agent:claude-code/ask-plan
+  id: agent:claude-code/ask-20261029
   name: ""
 extensions: {}
 ---
@@ -37,7 +37,7 @@ Dogfooding on 2026-10-29: the Summary tab refused a GitLab MR that bumps Python 
 
 Proposed: the patch sent leaves out lockfiles and generated files (known lockfile names, and paths .gitattributes marks linguist-generated or -diff), and the first message names each one left out with its --stat line, so nothing is dropped without saying so. The cap then applies to what is left, and still refuses past it. Once the Ask context server lands (TKT-01M61JQ2FJ4QGFZWPJE2456FQB), the agent can read a left-out file's diff itself with git_diff, and past the cap the first message can carry the stat and let the agent read per file instead of refusing.
 
-Fold into TKT-01M61JQ22E7049NSPR545323DW if Ask replaces Summary first.
+Ask runs (TKT-01M61JQ22E7049NSPR545323DW, done) read their range through the same summaryInput, so they share the cap and the refusal. This ticket fixes both the summary and the ask paths.
 
 ## Acceptance criteria
 

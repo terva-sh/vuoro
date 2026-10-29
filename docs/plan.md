@@ -1875,8 +1875,8 @@ construction rather than by policy:
   messages, and repository text, is untrusted data, and the system prompt
   says so.
 
-**Canned prompts are files.** vuoro ships `explain`, `risks`, `test`, and
-`start-here`. The person adds their own as Markdown files in
+**Canned prompts are files.** vuoro ships `explain`, `risks`, `manual-test`,
+and `start-here`. The person adds their own as Markdown files in
 `prompts/` under vuoro's config directory, such as
 `~/Library/Application Support/vuoro/prompts/` on macOS. Each file is an
 optional front matter of `title`, `scope` (`change` or `since_review`),

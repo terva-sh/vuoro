@@ -29,7 +29,7 @@ func TestPromptsAreShippedAndThePersonsOwnSortFirst(t *testing.T) {
 	for _, p := range list {
 		names = append(names, p.Name)
 	}
-	if got := strings.Join(names, ","); got != "deps,explain,risks,test,start-here" {
+	if got := strings.Join(names, ","); got != "deps,explain,risks,manual-test,start-here" {
 		t.Fatalf("prompts %s", got)
 	}
 	deps := list[0]

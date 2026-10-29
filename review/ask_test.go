@@ -1,6 +1,7 @@
 package review
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -194,5 +195,48 @@ func TestAnAskSinceAReviewIsGivenOnlyWhatChanged(t *testing.T) {
 	mu.Unlock()
 	if !strings.Contains(first, "later-file") || strings.Contains(first, "-func Add") || !strings.Contains(first, reviewed+".."+newHead) {
 		t.Fatalf("the since-review message leaked earlier work:\n%s", first)
+	}
+}
+
+// A conversation closed while its tool is starting gets no live session: the
+// tool started late is closed, and the run stays closed.
+func TestAnAskClosedWhileItsToolStartsDoesNotGoOn(t *testing.T) {
+	m, _, ch, src := setup(t, nil)
+	d := &summaryDriver{started: make(chan struct{}), gate: make(chan struct{})}
+	m.Drivers = map[string]agent.Driver{"gated": d}
+	r, err := m.StartAsk(ch, src, Reviewer{Tool: "gated"}, AskInput{Question: "Why?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-d.started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the tool never started")
+	}
+	if err := m.Close(context.Background(), r.ID); err != nil {
+		t.Fatal(err)
+	}
+	close(d.gate)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		d.mu.Lock()
+		s := d.session
+		d.mu.Unlock()
+		s.mu.Lock()
+		closed, sends := s.closed, s.sends
+		s.mu.Unlock()
+		if closed {
+			if sends != 0 {
+				t.Fatal("the closed conversation was sent its question")
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the tool started for a closed conversation was left running")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if v := r.View(); v.Status != Closed {
+		t.Fatalf("the run is %s, not closed", v.Status)
 	}
 }

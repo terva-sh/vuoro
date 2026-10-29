@@ -381,6 +381,12 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 		// large, as for a summary, before any agent starts.
 		input, err := m.Repos.summaryInput(ctx, src, r.Summary.From)
 		r.mu.Lock()
+		// A Close or a Shutdown during the read wins, as during the checkout:
+		// its status stands and no agent starts.
+		if r.Status == Closed || m.down.Load() {
+			r.mu.Unlock()
+			return
+		}
 		if err != nil {
 			r.Status, r.Error = Failed, err.Error()
 			for _, s := range r.sessions {
@@ -589,6 +595,14 @@ func (m *Manager) started(r *Run, s *Session, spec agent.Spec) error {
 		r.mu.Unlock()
 		_ = live.Close()
 		return ErrShuttingDown
+	}
+	// A run closed while its tool started gets no live session: Close has
+	// already stopped the ones it found. An editor outlives its review's
+	// close, so it may still start.
+	if r.Status == Closed && s.Role != drafts.Editor {
+		r.mu.Unlock()
+		_ = live.Close()
+		return errors.New("review: the run is closed")
 	}
 	s.live, s.Ref, s.Status, s.Error = live, live.Ref(), Idle, ""
 	r.mu.Unlock()

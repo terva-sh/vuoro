@@ -40,7 +40,7 @@ matter most and what each one does, and what its tests cover and leave out.`},
 	{Name: "risks", Title: "What is risky here", Builtin: true, Text: `What in this change is most likely to go wrong? Name the risks in order of
 what they would cost, with the code that shows each, and say what would
 reduce it. Say so when you find nothing worth worrying about.`},
-	{Name: "test", Title: "How would I test this", Builtin: true, Text: `How would I test this change by hand? Give the steps that exercise what it
+	{Name: "manual-test", Title: "How would I test this by hand", Builtin: true, Text: `How would I test this change by hand? Give the steps that exercise what it
 changes, the edge cases worth trying, and what I should see at each step.`},
 	{Name: "start-here", Title: "Where should I start reading", Builtin: true, Text: `I am about to review this change. Where should I start reading, and in what
 order should I go through the files? Say what to look for in each.`},

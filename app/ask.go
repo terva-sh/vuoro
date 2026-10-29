@@ -39,6 +39,7 @@ func (a *App) startAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in := review.AskInput{Question: req.Question, Baseline: req.ReviewID}
+	var err error
 	if req.Prompt != "" {
 		list, _ := a.prompts()
 		p, ok := review.FindPrompt(list, req.Prompt)
@@ -46,7 +47,10 @@ func (a *App) startAsk(w http.ResponseWriter, r *http.Request) {
 			writeError(w, errors.New("There is no prompt by that name."))
 			return
 		}
-		in.Prompt, in.Title, in.Question = p.Name, p.Title, p.Text
+		if in, err = fromPrompt(p, in); err != nil {
+			writeError(w, err)
+			return
+		}
 		if req.Tool == "" {
 			req.Tool = p.Tool
 		}
@@ -71,6 +75,22 @@ func (a *App) startAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, run.View())
+}
+
+// fromPrompt asks p's question. A prompt's scope wins over the tab's: one
+// about the whole change drops a baseline, and one about what changed since a
+// review needs one. A prompt with no scope follows the person's choice.
+func fromPrompt(p review.Prompt, in review.AskInput) (review.AskInput, error) {
+	in.Prompt, in.Title, in.Question = p.Name, p.Title, p.Text
+	switch p.Scope {
+	case "change":
+		in.Baseline = ""
+	case "since_review":
+		if in.Baseline == "" {
+			return in, errors.New("This prompt asks about the changes since a review. Choose a completed Vuoro review of this change.")
+		}
+	}
+	return in, nil
 }
 
 // listAsks answers the conversations about the change at url, newest first,

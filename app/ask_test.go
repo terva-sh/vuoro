@@ -91,3 +91,29 @@ func TestAskRoutesStayBehindWindowGuard(t *testing.T) {
 		}
 	}
 }
+
+// A prompt's scope decides the range: one about the whole change drops the
+// tab's baseline, one about what changed since a review refuses without one,
+// and one with no scope follows the tab.
+func TestAPromptsScopeDecidesTheRange(t *testing.T) {
+	in := review.AskInput{Baseline: "review-1"}
+	got, err := fromPrompt(review.Prompt{Name: "whole", Title: "Whole", Text: "Q", Scope: "change"}, in)
+	if err != nil || got.Baseline != "" || got.Question != "Q" || got.Prompt != "whole" {
+		t.Fatalf("a change prompt kept its baseline: %+v %v", got, err)
+	}
+	if got, err := fromPrompt(review.Prompt{Name: "since", Text: "Q", Scope: "since_review"}, in); err != nil || got.Baseline != "review-1" {
+		t.Fatalf("a since prompt lost its baseline: %+v %v", got, err)
+	}
+	if _, err := fromPrompt(review.Prompt{Name: "since", Text: "Q", Scope: "since_review"}, review.AskInput{}); err == nil {
+		t.Fatal("a since-review prompt ran with no review")
+	}
+	if got, _ := fromPrompt(review.Prompt{Name: "any", Text: "Q"}, in); got.Baseline != "review-1" {
+		t.Fatal("a prompt with no scope overrode the tab")
+	}
+	a := askedChange(t)
+	os.WriteFile(filepath.Join(a.PromptsDir, "since.md"), []byte("---\nscope: since_review\n---\nWhat changed?\n"), 0o600)
+	b := projectCall(t, a, "POST", "/api/asks", `{"url":"https://lab.test/team/repo/-/merge_requests/7","prompt":"since"}`, 400)
+	if !strings.Contains(string(b), "since a review") {
+		t.Fatalf("refused with %s", b)
+	}
+}
