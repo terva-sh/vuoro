@@ -22,7 +22,7 @@ export function SessionPane({ run, session }: { run: Run; session: Session }) {
           {i ? `${i.tool} ${i.version} · ${i.model}${i.account ? ` · ${i.account}` : ''}` : `${session.tool}${session.model ? ` · ${session.model}` : ''}`}
         </span>
         <span class="muted push">
-          {cost(session.usage.cost_usd, unreported(session.usage))} · {session.usage.input + session.usage.cache_read + session.usage.cache_write} in, {session.usage.output} out
+          {cost(session.usage.cost_usd, unreported(session))} · {session.usage.input + session.usage.cache_read + session.usage.cache_write} in, {session.usage.output} out
         </span>
       </header>
       {session.error && <p class="alert">⚠ {session.error}</p>}

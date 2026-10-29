@@ -112,9 +112,7 @@ func runCost(v RunView) string {
 	return usd(v.CostUSD)
 }
 
+// usd formats a known cost. runCost says when a cost is not known.
 func usd(v float64) string {
-	if v == 0 {
-		return "unreported"
-	}
 	return fmt.Sprintf("$%.2f", v)
 }

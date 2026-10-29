@@ -92,8 +92,8 @@ func TestACostTheToolDidNotReportIsNeverZero(t *testing.T) {
 		t.Fatalf("unknown %v, cost %q", v.CostUnknown, runCost(v))
 	}
 	// A session that has used nothing yet costs nothing, and that is known.
-	r.sessions = append(r.sessions, &Session{ID: "s3"})
-	if v := r.View(); v.CostUnknown {
-		t.Fatal("an unused session made the cost unknown")
+	r.sessions = []*Session{{ID: "s3"}}
+	if v := r.View(); v.CostUnknown || runCost(v) != "$0.00" {
+		t.Fatalf("unknown %v, cost %q", v.CostUnknown, runCost(v))
 	}
 }

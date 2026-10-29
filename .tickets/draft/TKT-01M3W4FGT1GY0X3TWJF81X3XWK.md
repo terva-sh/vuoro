@@ -28,7 +28,7 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-29T18:49:06Z
+updated_at: 2026-10-29T18:57:28Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -102,3 +102,13 @@ All implementation tickets remain draft. docs/roadmap.md maps the existing imple
   - TKT-01M3W4HWB551REE766G3TE2Y7D: the GitHub workflow, which D52 made obsolete.
 
 The epic stays open until 6 and 7 are settled, the drafts are done or moved to v1.0.0, and the owner cuts v0.1.0.
+
+**agent:claude-code/release-0.1.0** at 2026-10-29T18:57:28Z
+
+2026-10-29: the two criteria the 2026-10-08 audit left open are settled, and this supersedes that note's "Not ticked" and "Children still open" lists. The criteria were renumbered when the talk criterion was reworded, so that note's "6." and "7." no longer name the same lines.
+
+- Talking to a reviewer: the owner reworded the criterion to "between turns, or after stopping it" (D73), which is met today. Queuing a message sent mid-turn is TKT-01M64FWYSQ40PJJ1Y3S1XG3VXY (Queue a message sent to a reviewer mid-turn for the turn's end), under v1.0.0. The window's help text now says between turns.
+- Tool, model, tokens and cost: TKT-01M3YMSST3CNA34862NNERKMN2 (Show tokens and cost per session and per review run) is done. A cost the tool did not report, or a turn stopped before it reported usage, shows as unknown or as a floor, never $0.00.
+- TKT-01M3W4HX0 (git-ticket linking spike), TKT-01M3W4HX1 (the change's ticket as context) and TKT-01M3YMSSX (run retention) moved to TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0) by the owner's decision (D73).
+
+Every criterion is ticked. The epic closes when the owner tags v0.1.0.

@@ -498,3 +498,50 @@ func TestFailedInitialReviewRemainsIneligibleAfterReloadAndSuccessfulFollowUp(t 
 		}
 	}
 }
+
+// A turn stopped or failed before the tool reported its usage leaves the
+// session's cost unknown, in a review and in a summary, and across a
+// restart. A turn that reported its usage, or that ended normally, does not.
+func TestATurnStoppedBeforeItsUsageLeavesTheCostUnknown(t *testing.T) {
+	usage := agent.Event{Kind: agent.Usage, Usage: &agent.TurnUsage{Input: 3, CostUSD: 0.01}}
+	for _, c := range []struct {
+		name    string
+		events  []agent.Event
+		unknown bool
+	}{
+		{"completed", []agent.Event{usage, {Kind: agent.TurnDone}}, false},
+		{"stopped after its usage", []agent.Event{usage, {Kind: agent.TurnDone, Cancelled: true}}, false},
+		{"stopped", []agent.Event{{Kind: agent.Text, Text: "Half"}, {Kind: agent.TurnDone, Cancelled: true}}, true},
+		{"failed", []agent.Event{{Kind: agent.TurnDone, Err: errors.New("fixture")}}, true},
+	} {
+		for _, summary := range []bool{false, true} {
+			m, _, ch, src := setup(t, nil)
+			id := "r-" + strings.ReplaceAll(c.name, " ", "-")
+			r := &Run{ID: id, Ref: ch.Ref, Kind: ch.Kind, Head: src.Head, Status: Working, store: drafts.NewStore(), path: filepath.Join(m.StateDir, "runs", id, "run.json")}
+			s := &Session{ID: "s1", Role: drafts.Reviewer, Status: Working}
+			r.sessions = []*Session{s}
+			live := &summarySession{events: make(chan agent.Event, len(c.events))}
+			for _, ev := range c.events {
+				live.events <- ev
+			}
+			_ = live.Close()
+			if summary {
+				r.Mode, s.Role = "summary", drafts.Summary
+				m.pumpSummary(context.Background(), r, s, live)
+			} else {
+				m.pump(r, s, live)
+			}
+			if got := r.View().CostUnknown; got != c.unknown {
+				t.Errorf("%s (summary %v): cost unknown %v, want %v", c.name, summary, got, c.unknown)
+			}
+			r.save()
+			again := &Manager{StateDir: m.StateDir}
+			if err := again.Load(); err != nil {
+				t.Fatal(err)
+			}
+			if got := again.Get(id).View().Sessions[0].CostUnknown; got != c.unknown {
+				t.Errorf("%s (summary %v): after a restart, cost unknown %v", c.name, summary, got)
+			}
+		}
+	}
+}

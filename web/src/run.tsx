@@ -126,7 +126,7 @@ export function RunPanel({ change, setup, onPick, onDrafts }: {
       </div>
       {error && <p class="alert" role="alert">⚠ {error}</p>}
       {listed && runs.length === 0 && <Hint id="change-no-runs">
-        <p><strong>Start a review.</strong> A preset is a set of reviewers that read this change in parallel, each with its own focus. When the preset has a synthesizer, it merges what they found into one set of drafts. While they work, open a reviewer's pane to talk to it.</p>
+        <p><strong>Start a review.</strong> A preset is a set of reviewers that read this change in parallel, each with its own focus. When the preset has a synthesizer, it merges what they found into one set of drafts. Open a reviewer's pane to follow it, and talk to it between its turns.</p>
         {tools.length === 0 ? <NeedsTool setup={setup} doing="A review" />
           : <p>A review runs on your agent tool's account and costs money, shown as it runs. Nothing starts until you press Start a review, and nothing is posted.</p>}
       </Hint>}
@@ -180,7 +180,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
             <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
               onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
               <strong>{s.profile}{s.target ? ` ${s.target}` : ''}</strong> <StatusBadge status={s.status} />
-              <span class="muted">{s.info?.model ?? s.model ?? ''} · {cost(s.usage.cost_usd, unreported(s.usage))}</span>
+              <span class="muted">{s.info?.model ?? s.model ?? ''} · {cost(s.usage.cost_usd, unreported(s))}</span>
             </button>
           ))}
         </div>

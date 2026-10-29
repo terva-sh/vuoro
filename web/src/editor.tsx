@@ -122,7 +122,7 @@ export function Editor({ run, url, onRun, picked, describe, picks = false, autho
         )}
       </header>
       {waves.length > 0 && <Waves waves={waves} title={title} />}
-      {working && <p class="muted">⧗ The editor is working. Open its session above to follow it or talk to it.</p>}
+      {working && <p class="muted">⧗ The editor is working. Open its session above to follow it, and talk to it when its turn ends.</p>}
       {detail && (
         <>
           <ol class="editor-commits">

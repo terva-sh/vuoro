@@ -64,6 +64,7 @@ type SessionView struct {
 	Error         string             `json:"error,omitempty"`
 	Info          *agent.SessionInfo `json:"info,omitempty"`
 	Usage         agent.TurnUsage    `json:"usage"`
+	CostUnknown   bool               `json:"cost_unknown,omitempty"`
 	Log           []Entry            `json:"log"`
 	FirstComplete bool               `json:"first_turn_complete,omitempty"`
 	FirstReported bool               `json:"first_turn_reported,omitempty"`
@@ -126,12 +127,12 @@ func (r *Run) View() RunView {
 		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
 		u := s.Usage
-		if u.CostUSD == 0 && u.Input+u.Output+u.CacheRead+u.CacheWrite > 0 {
+		if s.CostUnknown || u.CostUSD == 0 && u.Input+u.Output+u.CacheRead+u.CacheWrite > 0 {
 			v.CostUnknown = true
 		}
 		v.Sessions = append(v.Sessions, SessionView{
 			ID: s.ID, Profile: s.Profile, Tool: s.Tool, Model: s.Model, Role: role,
-			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, FirstComplete: s.FirstComplete, FirstReported: s.reported, Target: s.Target,
+			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, CostUnknown: s.CostUnknown, FirstComplete: s.FirstComplete, FirstReported: s.reported, Target: s.Target,
 			Log: append([]Entry(nil), s.Log...),
 		})
 	}
@@ -266,7 +267,7 @@ func (m *Manager) load(keep func(record) bool) error {
 		for _, sv := range rec.Sessions {
 			s := &Session{
 				ID: sv.ID, Profile: sv.Profile, Tool: sv.Tool, Model: sv.Model, Role: drafts.Reviewer,
-				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, Log: sv.Log,
+				Status: sv.Status, Error: sv.Error, Info: sv.Info, Usage: sv.Usage, CostUnknown: sv.CostUnknown, Log: sv.Log,
 				Ref: rec.Resume[sv.ID], FirstComplete: sv.FirstComplete, Target: sv.Target,
 				// A legacy ended/failed session is already past its initial turn.
 				reported: sv.FirstReported || sv.FirstComplete || sv.Status != Waiting,

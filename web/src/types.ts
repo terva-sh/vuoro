@@ -83,6 +83,8 @@ export interface Session {
   id: string; profile: string; tool: string; model?: string; role: 'reviewer' | 'synthesizer' | 'verifier' | 'triage' | 'summary' | 'suggester' | 'editor' | 'project-triage' | 'ask'
   target?: string // a suggester's draft
   status: Status; error?: string; info?: SessionInfo; usage: Usage; log: Entry[] | null
+  // cost_unknown: a turn was stopped or failed before its tool reported usage.
+  cost_unknown?: boolean
 }
 export interface Run {
   mode?: "triage" | "summary" | "project-triage" | "update" | "ask"; triage_threads?: Thread[]

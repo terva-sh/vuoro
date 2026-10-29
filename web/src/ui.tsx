@@ -68,8 +68,11 @@ export const usd = (n: number) => (n < 0.01 && n > 0 ? '<$0.01' : `$${n.toFixed(
 // unknown rather than $0.00.
 export const cost = (n: number, unknown?: boolean) => (!unknown ? usd(n) : n > 0 ? `at least ${usd(n)}` : 'cost unknown')
 
-// unreported says a session used tokens and its tool reported no cost.
-export const unreported = (u: Usage) => !u.cost_usd && u.input + u.output + u.cache_read + u.cache_write > 0
+// unreported says a session's cost is not all known: a turn ended stopped or
+// failed before its tool reported usage, or it used tokens and reported no
+// cost.
+export const unreported = ({ usage: u, cost_unknown }: { usage: Usage; cost_unknown?: boolean }) =>
+  !!cost_unknown || (!u.cost_usd && u.input + u.output + u.cache_read + u.cache_write > 0)
 
 // Prose is what a person or an agent wrote, rendered as Markdown and never
 // parsed as HTML.

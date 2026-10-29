@@ -156,16 +156,19 @@ func (r *Run) Origin() string { return r.origin }
 
 // Session is one agent session in a run.
 type Session struct {
-	ID            string
-	Profile       string
-	Tool          string
-	Model         string
-	Role          drafts.Role
-	Status        Status
-	Error         string
-	Info          *agent.SessionInfo
-	Ref           string // what resumes it
-	Usage         agent.TurnUsage
+	ID      string
+	Profile string
+	Tool    string
+	Model   string
+	Role    drafts.Role
+	Status  Status
+	Error   string
+	Info    *agent.SessionInfo
+	Ref     string // what resumes it
+	Usage   agent.TurnUsage
+	// CostUnknown is set when a turn ended stopped or failed without the
+	// tool reporting its usage, so Usage is less than the session spent.
+	CostUnknown   bool
 	Log           []Entry
 	FirstComplete bool // successful initial turn, not inferred from process status
 
@@ -175,6 +178,8 @@ type Session struct {
 	spec   agent.Spec
 	// reported is set when the session's first turn ends, however it ends.
 	reported bool
+	// turnUsage is set when the tool reports usage in the current turn.
+	turnUsage bool
 	// nudged is set once a verifier has been sent back for findings it
 	// left unmarked, so it is sent back once at most.
 	nudged bool
@@ -721,8 +726,10 @@ func (m *Manager) pump(r *Run, s *Session, live agent.Session) {
 			s.Usage.CacheRead += u.CacheRead
 			s.Usage.CacheWrite += u.CacheWrite
 			s.Usage.CostUSD += u.CostUSD
+			s.turnUsage = true
 		case agent.TurnDone:
 			s.Status = Idle
+			s.noteUnreported(ev)
 			if ev.Err != nil && !ev.Cancelled {
 				s.Log = append(s.Log, Entry{Kind: "error", Text: ev.Err.Error(), At: at})
 			}
@@ -1202,4 +1209,15 @@ func newRunID() string {
 	b := make([]byte, 3)
 	_, _ = rand.Read(b)
 	return time.Now().UTC().Format("20060102-150405") + "-" + hex.EncodeToString(b)
+}
+
+// noteUnreported marks the session's cost unknown when a turn that was
+// stopped or failed ended without the tool reporting its usage: Claude Code
+// reports usage only as a turn completes, so what that turn spent is not
+// counted. s's run lock is held.
+func (s *Session) noteUnreported(ev agent.Event) {
+	if (ev.Cancelled || ev.Err != nil) && !s.turnUsage {
+		s.CostUnknown = true
+	}
+	s.turnUsage = false
 }

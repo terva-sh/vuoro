@@ -198,8 +198,10 @@ func (m *Manager) pumpSummary(ctx context.Context, r *Run, s *Session, live agen
 			s.Usage.CacheRead += u.CacheRead
 			s.Usage.CacheWrite += u.CacheWrite
 			s.Usage.CostUSD += u.CostUSD
+			s.turnUsage = true
 		case agent.TurnDone:
 			completed = true
+			s.noteUnreported(ev)
 			r.Status, s.Status = Ended, Ended
 			if ev.Cancelled {
 				r.Status, s.Status = Cancelled, Cancelled

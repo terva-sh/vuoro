@@ -21,7 +21,7 @@ export const tourSteps: TourStep[] = [
   { id: 'change-tabs', surface: 'change', title: 'A change',
     text: 'The description and discussion, the diff with the threads on each line, and the review each have a tab here.' },
   { id: 'review-tab', surface: 'change', title: 'Reviewing with agents',
-    text: 'On the Review tab you pick a preset and start a review, which costs money on your agent tool. Its reviewers read the change in parallel, and you can talk to each one while it works. What they find comes back as drafts for you to keep, edit, or drop.' },
+    text: 'On the Review tab you pick a preset and start a review, which costs money on your agent tool. Its reviewers read the change in parallel, and you can talk to each one between its turns. What they find comes back as drafts for you to keep, edit, or drop.' },
   { id: 'submit', surface: 'change', title: 'Submit is yours',
     text: 'Nothing an agent writes reaches the forge on its own. Your kept drafts wait here as pending comments, and they are posted only when you press Submit.' },
 ]

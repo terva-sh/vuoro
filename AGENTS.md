@@ -157,7 +157,7 @@ Text that opens with a dash goes after a bare `--`.
 vuoro is a desktop application and the front door to agentic code review. It
 runs reviews with the agent tools the person already has, terva and Claude
 Code, with reviewers in parallel and a synthesizer, and it lets the person talk
-to the agents while they work. It also gives one person one inbox for every
+to the agents between their turns. It also gives one person one inbox for every
 review they give and get, across GitLab, Forgejo, and GitHub, ordered by whose
 turn it is.
 

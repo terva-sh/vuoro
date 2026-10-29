@@ -20,10 +20,14 @@ describe('CommentBubble', () => {
 describe('cost', () => {
   it('never shows a cost the tool did not report as $0.00', () => {
     const used = { input: 10, output: 5, cache_read: 0, cache_write: 0, cost_usd: 0 }
-    expect(unreported(used)).toBe(true)
-    expect(unreported({ ...used, cost_usd: 0.02 })).toBe(false)
-    expect(unreported({ ...used, input: 0, output: 0 })).toBe(false) // nothing used yet
-    expect(cost(0, unreported(used))).toBe('cost unknown')
+    expect(unreported({ usage: used })).toBe(true)
+    expect(unreported({ usage: { ...used, cost_usd: 0.02 } })).toBe(false)
+    const none = { ...used, input: 0, output: 0 }
+    expect(unreported({ usage: none })).toBe(false) // nothing used yet
+    // A turn stopped before the tool reported its usage.
+    expect(unreported({ usage: none, cost_unknown: true })).toBe(true)
+    expect(cost(0.1, unreported({ usage: { ...used, cost_usd: 0.1 }, cost_unknown: true }))).toBe('at least $0.10')
+    expect(cost(0, unreported({ usage: used }))).toBe('cost unknown')
     expect(cost(0.25, true)).toBe('at least $0.25')
     expect(cost(0.25)).toBe('$0.25')
     expect(cost(0)).toBe('$0.00')

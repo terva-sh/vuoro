@@ -1479,6 +1479,11 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   pending finding the person would work from and its verifier mark. There is
   no keep or drop step in a terminal. `-json` prints one envelope with a
   `schemaVersion` and a `kind` of `review-result`. Progress goes to stderr.
+  When a session's tool reported no cost for its tokens, or a turn was
+  stopped before it reported its usage, `run.cost_unknown` is set and
+  `run.cost_usd` is a floor; the Markdown says "at least $x", or
+  "unreported" when nothing was reported. The field is additive, so
+  `schemaVersion` stays 1.
 - **A run can follow an earlier one**, as "Review again" does in the window
   (D50). `-follows` takes the earlier report's run id. The reviewers get its
   findings with where each stands, and a finding that restates one names it.
