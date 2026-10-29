@@ -78,6 +78,9 @@ func standing(earlier []drafts.Earlier, id string) string {
 		case drafts.StandingFixed:
 			return fmt.Sprintf("which was fixed in `%s`, so the fix may not hold", shortCommit(e.FixedIn))
 		case drafts.StandingDismissed:
+			if e.Reason != "" {
+				return "which the person dismissed: " + oneLine(e.Reason)
+			}
 			return "which the person dismissed"
 		case drafts.StandingKept:
 			return "which the person posted and is not fixed yet"

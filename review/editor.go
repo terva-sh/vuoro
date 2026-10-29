@@ -945,6 +945,61 @@ func (m *Manager) MarkFixed(ctx context.Context, runID, draftID, sha string, src
 	return errors.New("review: that commit is not one vuoro pushed for this review, nor one of the change's since it was reviewed")
 }
 
+// Decided is a decision on a finding of a finished run, recorded from the
+// command line, where there is no Keep or Drop step: fixed in a commit since
+// the reviewed head, or dismissed with a reason.
+type Decided struct {
+	ID       string
+	Standing string // drafts.StandingFixed or drafts.StandingDismissed
+	Commit   string // a fix's commit, or a prefix naming one alone
+	Reason   string // a dismissal's reason
+}
+
+// RecordDecided records decisions on the findings of run runID, so a run
+// that follows it tells its reviewers where each stands. A fix's commit is
+// one MarkFixed would take.
+func (m *Manager) RecordDecided(ctx context.Context, runID string, src *Source, list []Decided) error {
+	r := m.Get(runID)
+	if r == nil {
+		return ErrNoRun
+	}
+	var commits []EditorCommit
+	for _, dec := range list {
+		if d, ok := r.store.Get(dec.ID); !ok || d.ThreadID != "" {
+			return fmt.Errorf("run %s has no finding %s", runID, dec.ID)
+		}
+		switch dec.Standing {
+		case drafts.StandingDismissed:
+			if err := r.store.Dismiss(dec.ID, dec.Reason); err != nil {
+				return err
+			}
+			r.save()
+		case drafts.StandingFixed:
+			if commits == nil {
+				var err error
+				if commits, err = m.FixCommits(ctx, runID, src); err != nil {
+					return err
+				}
+			}
+			var match []string
+			for _, c := range commits {
+				if strings.HasPrefix(c.SHA, dec.Commit) {
+					match = append(match, c.SHA)
+				}
+			}
+			if len(dec.Commit) < 4 || len(match) != 1 {
+				return fmt.Errorf("%s names no one commit since run %s reviewed %s", dec.Commit, runID, short(r.Head))
+			}
+			if err := m.MarkFixed(ctx, runID, dec.ID, match[0], src); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("a finding is decided fixed or dismissed, not %q", dec.Standing)
+		}
+	}
+	return nil
+}
+
 // openStacked opens the stacked change. One the forge opened as an ordinary
 // change keeps its URL, so pushing again updates it rather than opening
 // another, and is reported as not a draft rather than as a failure.

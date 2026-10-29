@@ -571,3 +571,99 @@ func TestReviewRefusesARunItCannotFollow(t *testing.T) {
 		t.Errorf("refusing to follow it rewrote the review's record:\n%s", b)
 	}
 }
+
+// With no Keep or Drop step on the command line, -decided records what the
+// person decided on the earlier run's findings, and the reviewers of the run
+// that follows are told it (TKT-01M64HWQDGVXQCSZCKQD6YP0XK).
+func TestReviewTellsAFollowingRunWhatWasDecided(t *testing.T) {
+	dir := checkout(t)
+	stateDir := t.TempDir()
+	another := map[string]any{"severity": "low", "title": "A is unnamed", "description": "Name it.",
+		"anchor": map[string]any{"path": "a.go", "start_line": 3}}
+	first := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{aFinding, another}}, nil, nil, nil), exitFindings,
+		"-C", dir, "-profile", "code", "main..feature")
+	if len(first.Findings) != 2 {
+		t.Fatalf("findings %+v", first.Findings)
+	}
+	fixedID, dismissedID := first.Findings[0].ID, first.Findings[1].ID
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n\nfunc A() int { return 3 }\n"), 0o644)
+	out, err := exec.Command("git", "-C", dir, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false",
+		"commit", "-q", "-am", "Return three").CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	sha, _ := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	fix := strings.TrimSpace(string(sha))
+
+	firstPath := filepath.Join(stateDir, "runs", first.Run.ID, "run.json")
+	before, _ := os.ReadFile(firstPath)
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-decided", fixedID + "=fixed:" + fix[:8]}, "-decided goes with -follows"},
+		{[]string{"-follows", first.Run.ID, "-decided", fixedID + "=fixed"}, "a fix names its commit"},
+		{[]string{"-follows", first.Run.ID, "-decided", dismissedID + "=dismissed"}, "a dismissal gives its reason"},
+		{[]string{"-follows", first.Run.ID, "-decided", fixedID + "=kept:x"}, "decided fixed or dismissed"},
+		{[]string{"-follows", first.Run.ID, "-decided", "d99=dismissed:no"}, "has no finding d99"},
+		{[]string{"-follows", first.Run.ID, "-decided", fixedID + "=fixed:0000000"}, "names no one commit"},
+	} {
+		var out, errb bytes.Buffer
+		code := testCmdIn(stateDir, fakeTool{}, nil, nil, nil).run(append([]string{"-C", dir, "-profile", "code"}, append(c.args, "main..feature")...), &out, &errb)
+		if code != exitUsage || !strings.Contains(errb.String(), c.want) {
+			t.Errorf("%v: exit %d, want usage saying %q\n%s", c.args, code, c.want, errb.String())
+		}
+	}
+	if after, _ := os.ReadFile(firstPath); !bytes.Equal(after, before) {
+		t.Fatalf("a refused -decided changed the earlier run:\n%s", after)
+	}
+
+	again := map[string]any{"earlier": dismissedID}
+	for k, v := range another {
+		again[k] = v
+	}
+	args := []string{"-C", dir, "-profile", "code", "-follows", first.Run.ID,
+		"-decided", fixedID + "=fixed:" + fix[:8], "-decided", dismissedID + "=dismissed:the name is the package's convention", "main..feature"}
+	next := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil), exitFindings, args...)
+	standings := map[string]drafts.Earlier{}
+	for _, e := range next.Earlier {
+		standings[e.ID] = e
+	}
+	if e := standings[fixedID]; e.Standing != drafts.StandingFixed || e.FixedIn != fix {
+		t.Errorf("the fixed finding %+v", e)
+	}
+	if e := standings[dismissedID]; e.Standing != drafts.StandingDismissed || e.Reason != "the name is the package's convention" {
+		t.Errorf("the dismissed finding %+v", e)
+	}
+	// The draft that restates the dismissed finding comes in dismissed, with
+	// the reason, so the round after this one is told it too.
+	if len(next.Findings) != 1 || next.Findings[0].Decision != drafts.Dropped || next.Findings[0].Dismissed != "the name is the package's convention" {
+		t.Errorf("findings %+v", next.Findings)
+	}
+
+	var rec struct {
+		First string `json:"first_message"`
+	}
+	b, _ := os.ReadFile(filepath.Join(stateDir, "runs", next.Run.ID, "run.json"))
+	json.Unmarshal(b, &rec)
+	for _, want := range []string{
+		`<earlier-finding id="` + fixedID + `" severity="medium" where="a.go:3-3 (head)" standing="fixed" fixed-in="` + fix + `"`,
+		`<earlier-finding id="` + dismissedID + `" severity="low" where="a.go:3-3 (head)" standing="dismissed" reason="the name is the package's convention"`,
+	} {
+		if !strings.Contains(rec.First, want) {
+			t.Errorf("the reviewers were not told %s:\n%s", want, rec.First)
+		}
+	}
+
+	// The decisions are kept in the earlier run's record, so following it
+	// again needs no -decided.
+	var md, errb bytes.Buffer
+	if code := testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil).run(
+		[]string{"-C", dir, "-profile", "code", "-follows", first.Run.ID, "main..feature"}, &md, &errb); code != exitFindings {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	want := "- Raised before: finding `" + dismissedID + "` of run `" + first.Run.ID + "`, which the person dismissed: the name is the package's convention"
+	if !strings.Contains(md.String(), want) {
+		t.Errorf("missing %q in:\n%s", want, md.String())
+	}
+}

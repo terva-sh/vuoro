@@ -84,7 +84,7 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("vuoro review", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "usage: vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run] [range | change-url]")
+		fmt.Fprintln(stderr, "usage: vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run [-decided id=fixed:commit | -decided id=dismissed:reason]...] [range | change-url]")
 		fmt.Fprintln(stderr, "\nReviews a range of local commits, or a change on a forge, and prints the findings. It never posts.")
 		fmt.Fprintln(stderr, "A range is A..B or A...B (B against its merge base with A), or A (A...HEAD). No range means the upstream against HEAD.")
 		fmt.Fprintln(stderr, "Exit status: 0 no findings, 1 findings, 2 usage, 3 a run or session failed or timed out, 130 interrupted.")
@@ -98,6 +98,8 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	asJSON := fs.Bool("json", false, "print one JSON envelope instead of Markdown")
 	timeout := fs.Duration("timeout", 30*time.Minute, "give up on the run after this long")
 	follows := fs.String("follows", "", "an earlier run of the same change or checkout, by id, whose findings the reviewers are given")
+	var decided decidedFlag
+	fs.Var(&decided, "decided", "record a decision on a finding of the -follows run first, as id=fixed:commit or id=dismissed:reason; repeat it for each")
 	// Flags may follow the range, as in vuoro review main..HEAD -json.
 	var positional []string
 	for {
@@ -125,6 +127,8 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		return usage("-model goes with -profile")
 	case *timeout <= 0:
 		return usage("-timeout must be positive")
+	case len(decided) > 0 && *follows == "":
+		return usage("-decided goes with -follows")
 	}
 	target := ""
 	if len(positional) == 1 {
@@ -238,6 +242,11 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 			return usage(fmt.Sprintf("run %s is not a review", *follows))
 		case prev.Kind != ch.Kind || prev.Ref != ch.Ref:
 			return usage(fmt.Sprintf("run %s reviewed another change or checkout", *follows))
+		}
+		// Recorded in the earlier run, as the window's Drop and fix link
+		// are, so the reviewers are told and a later round still knows.
+		if err := a.Runs.RecordDecided(ctx, *follows, &src, decided); err != nil {
+			return usage(err.Error())
 		}
 	}
 	a.ProbeTools()
@@ -363,4 +372,32 @@ func plural(n int) string {
 		return ""
 	}
 	return "s"
+}
+
+// decidedFlag collects -decided: id=fixed:commit or id=dismissed:reason.
+type decidedFlag []review.Decided
+
+func (f *decidedFlag) String() string { return "" }
+
+func (f *decidedFlag) Set(v string) error {
+	id, rest, ok := strings.Cut(v, "=")
+	standing, arg, _ := strings.Cut(rest, ":")
+	arg = strings.TrimSpace(arg)
+	d := review.Decided{ID: strings.TrimSpace(id), Standing: standing}
+	switch {
+	case !ok || d.ID == "":
+		return errors.New("want id=fixed:commit or id=dismissed:reason")
+	case standing == drafts.StandingFixed && arg != "":
+		d.Commit = arg
+	case standing == drafts.StandingDismissed && arg != "":
+		d.Reason = arg
+	case standing == drafts.StandingFixed:
+		return fmt.Errorf("%s: a fix names its commit, as %s=fixed:commit", d.ID, d.ID)
+	case standing == drafts.StandingDismissed:
+		return fmt.Errorf("%s: a dismissal gives its reason, as %s=dismissed:reason", d.ID, d.ID)
+	default:
+		return fmt.Errorf("%s: a finding is decided fixed or dismissed, not %q", d.ID, standing)
+	}
+	*f = append(*f, d)
+	return nil
 }

@@ -101,7 +101,10 @@ type Draft struct {
 	// the agent can no longer change it.
 	Decision string `json:"decision,omitempty"`
 	NoteID   string `json:"note_id,omitempty"`
-	Edited   bool   `json:"edited,omitempty"` // the person changed the text before keeping it
+	// Dismissed is the person's reason for dropping a finding, when they
+	// gave one, which a following review's reviewers are told.
+	Dismissed string `json:"dismissed,omitempty"`
+	Edited    bool   `json:"edited,omitempty"` // the person changed the text before keeping it
 	// Confidence is the verifier's mark, and Override the person's, which
 	// wins. The verifier's stays beside it, so the person can see both.
 	Confidence *Confidence `json:"confidence,omitempty"`
@@ -692,6 +695,26 @@ func (st *Store) Decide(id, decision, noteID string, edited bool) (Draft, error)
 		return *d, nil
 	}
 	return Draft{}, fmt.Errorf("drafts: no draft %s", id)
+}
+
+// Dismiss drops a finding with the person's reason, from the command line,
+// where there is no Drop step. A finding already dropped takes the reason.
+// It is vuoro's call, and no MCP tool reaches it.
+func (st *Store) Dismiss(id, reason string) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	d := st.find(id)
+	switch {
+	case d == nil || d.Status != Pending || d.ThreadID != "":
+		return &RuleError{"draft.finding", "id", "a pending finding"}
+	case st.keeping[id]:
+		return ErrKeeping
+	case d.Decision != "" && d.Decision != Dropped:
+		return fmt.Errorf("drafts: %s is already %s", id, d.Decision)
+	}
+	d.Decision, d.Dismissed = Dropped, strings.TrimSpace(reason)
+	d.Updated = st.now()
+	return nil
 }
 
 // Undecide takes back the person's decision on a draft, around remove,

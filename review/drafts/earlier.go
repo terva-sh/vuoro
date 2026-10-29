@@ -15,6 +15,8 @@ type Earlier struct {
 	FixedSubject string   `json:"fixed_subject,omitempty"`
 	Decision     string   `json:"decision,omitempty"`
 	NoteID       string   `json:"note_id,omitempty"`
+	// Reason is why the person dismissed it, when they said.
+	Reason string `json:"reason,omitempty"`
 }
 
 // Standings of an earlier finding.
@@ -33,7 +35,7 @@ func EarlierOf(shown []Draft) []Earlier {
 		if d.ThreadID != "" {
 			continue
 		}
-		e := Earlier{ID: d.ID, Severity: d.Severity, Title: d.Title, FixedIn: d.FixedIn, FixedSubject: d.FixedSubject, Decision: d.Decision, NoteID: d.NoteID}
+		e := Earlier{ID: d.ID, Severity: d.Severity, Title: d.Title, FixedIn: d.FixedIn, FixedSubject: d.FixedSubject, Decision: d.Decision, NoteID: d.NoteID, Reason: d.Dismissed}
 		if d.Anchor != nil {
 			a := *d.Anchor
 			e.Anchor = &a
@@ -94,6 +96,9 @@ func (st *Store) carry(d *Draft, p Proposal) error {
 	d.Earlier = e.ID
 	if e.Decision != "" {
 		d.Decision, d.NoteID, d.Carried = e.Decision, e.NoteID, true
+		if e.Decision == Dropped {
+			d.Dismissed = e.Reason
+		}
 	}
 	return nil
 }
