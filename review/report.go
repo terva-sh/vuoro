@@ -40,8 +40,9 @@ func Report(v RunView) string {
 	return b.String()
 }
 
-// writeFinding writes one finding as a numbered section.
-func writeFinding(b *strings.Builder, i int, d drafts.Draft) {
+// writeFinding writes one finding as a numbered section, with any extra
+// bullet lines after where it is.
+func writeFinding(b *strings.Builder, i int, d drafts.Draft, extra ...string) {
 	fmt.Fprintf(b, "\n## %d. %s\n\n", i, oneLine(d.Title))
 	fmt.Fprintf(b, "- Severity: %s\n", d.Severity)
 	if a := d.Anchor; a != nil {
@@ -55,6 +56,9 @@ func writeFinding(b *strings.Builder, i int, d drafts.Draft) {
 		fmt.Fprintf(b, "- Where: %s\n", where)
 	} else {
 		b.WriteString("- Where: the change as a whole\n")
+	}
+	for _, l := range extra {
+		b.WriteString(l + "\n")
 	}
 	if c := mark(d); c != nil {
 		who := "the verifier"

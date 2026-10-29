@@ -1440,7 +1440,7 @@ deletes it with the run's, or day-job code lingers there.
 Decided on 2026-10-05 (D35), so that vuoro reviews its own development.
 
 ```text
-vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [target]
+vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run] [target]
 ```
 
 - **The target** is a change URL, opened through the same adapters as the
@@ -1470,6 +1470,17 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
   pending finding the person would work from and its verifier mark. There is
   no keep or drop step in a terminal. `-json` prints one envelope with a
   `schemaVersion` and a `kind` of `review-result`. Progress goes to stderr.
+- **A run can follow an earlier one**, as "Review again" does in the window
+  (D50). `-follows` takes the earlier report's run id. The reviewers get its
+  findings with where each stands, and a finding that restates one names it.
+  The JSON report gives the run it follows and the earlier findings, and the
+  Markdown report says how many were raised again and marks them. The earlier
+  run must be finished and a review of the same change, or for a local range,
+  of the same checkout. Anything else is a usage error and starts nothing. A
+  self-review that runs round after round passes each round the last one's
+  id, so a round does not rediscover what the last one raised. The earlier
+  run's record gains the link forward, which a window already holding that
+  run does not see.
 - **Exit status** is 0 with no findings, 1 with findings, 2 for a usage
   error or a range with nothing to review, and 3 when the run or any of its
   sessions failed, or it timed out. The findings are printed in every case.

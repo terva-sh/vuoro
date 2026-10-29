@@ -51,13 +51,16 @@ func runReview(args []string, stdout, stderr io.Writer) int {
 
 // reviewResult is the -json envelope.
 type reviewResult struct {
-	SchemaVersion int                  `json:"schemaVersion"`
-	Kind          string               `json:"kind"`
-	Run           reviewResultRun      `json:"run"`
-	Findings      []drafts.Draft       `json:"findings"`
-	Outcome       string               `json:"outcome"` // clean, findings, failed, timeout, or interrupted
-	Error         string               `json:"error,omitempty"`
-	Sessions      []review.SessionView `json:"sessions"`
+	SchemaVersion int             `json:"schemaVersion"`
+	Kind          string          `json:"kind"`
+	Run           reviewResultRun `json:"run"`
+	Findings      []drafts.Draft  `json:"findings"`
+	// Earlier are the findings of the run this one follows, with where each
+	// stood. A finding that restates one names it in its earlier field.
+	Earlier  []drafts.Earlier     `json:"earlier,omitempty"`
+	Outcome  string               `json:"outcome"` // clean, findings, failed, timeout, or interrupted
+	Error    string               `json:"error,omitempty"`
+	Sessions []review.SessionView `json:"sessions"`
 }
 
 type reviewResultRun struct {
@@ -70,13 +73,14 @@ type reviewResultRun struct {
 	Base    string    `json:"base"`
 	Status  string    `json:"status"`
 	CostUSD float64   `json:"cost_usd"`
+	Follows string    `json:"follows,omitempty"`
 }
 
 func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("vuoro review", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "usage: vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [range | change-url]")
+		fmt.Fprintln(stderr, "usage: vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run] [range | change-url]")
 		fmt.Fprintln(stderr, "\nReviews a range of local commits, or a change on a forge, and prints the findings. It never posts.")
 		fmt.Fprintln(stderr, "A range is A..B or A...B (B against its merge base with A), or A (A...HEAD). No range means the upstream against HEAD.")
 		fmt.Fprintln(stderr, "Exit status: 0 no findings, 1 findings, 2 usage, 3 a run or session failed or timed out, 130 interrupted.")
@@ -89,6 +93,7 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	model := fs.String("model", "", "the model for -profile")
 	asJSON := fs.Bool("json", false, "print one JSON envelope instead of Markdown")
 	timeout := fs.Duration("timeout", 30*time.Minute, "give up on the run after this long")
+	follows := fs.String("follows", "", "an earlier run of the same change or checkout, by id, whose findings the reviewers are given")
 	// Flags may follow the range, as in vuoro review main..HEAD -json.
 	var positional []string
 	for {
@@ -210,8 +215,25 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return usage(err.Error())
 	}
+	if *follows != "" {
+		// The earlier run was written by another process, so this one reads
+		// it first. Refusing it here, before any session starts, keeps a
+		// wrong id a usage error rather than a failed run.
+		if err := a.Runs.LoadFinished(); err != nil {
+			logf("%v", err)
+			return exitFailed
+		}
+		switch prev := a.Runs.Get(*follows); {
+		case prev == nil:
+			return usage(fmt.Sprintf("no finished run %s to follow", *follows))
+		case prev.Mode != "":
+			return usage(fmt.Sprintf("run %s is not a review", *follows))
+		case prev.Kind != ch.Kind || prev.Ref != ch.Ref:
+			return usage(fmt.Sprintf("run %s reviewed another change", *follows))
+		}
+	}
 	a.ProbeTools()
-	run, err := a.Runs.Start(ch, src, reviewers, synth, verifier)
+	run, err := a.Runs.Follow(ch, src, reviewers, synth, verifier, *follows)
 	if err != nil {
 		logf("%v", err)
 		return exitFailed
@@ -248,8 +270,8 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		res := reviewResult{
 			SchemaVersion: reviewSchemaVersion, Kind: "review-result", Outcome: outcome, Error: v.Error,
 			Run: reviewResultRun{ID: v.ID, Kind: v.Kind, Ref: v.Ref, Title: v.Title, WebURL: v.WebURL,
-				Head: v.Head, Base: v.Base, Status: string(v.Status), CostUSD: v.CostUSD},
-			Findings: shown, Sessions: v.Sessions,
+				Head: v.Head, Base: v.Base, Status: string(v.Status), CostUSD: v.CostUSD, Follows: v.Follows},
+			Findings: shown, Earlier: v.Earlier, Sessions: v.Sessions,
 		}
 		if res.Findings == nil {
 			res.Findings = []drafts.Draft{}

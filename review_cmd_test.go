@@ -81,6 +81,12 @@ func (s *fakeSession) Send(context.Context, string) error {
 func testCmd(t *testing.T, tool fakeTool, cfg *config.Config, dial func(string, string, config.Secret) (forge.Provider, error), src func(*app.App, *forge.Change) (review.Source, error)) (reviewCmd, string) {
 	t.Helper()
 	stateDir := t.TempDir()
+	return testCmdIn(stateDir, tool, cfg, dial, src), stateDir
+}
+
+// testCmdIn is testCmd with its state in stateDir, so a second command sees
+// the runs of the first.
+func testCmdIn(stateDir string, tool fakeTool, cfg *config.Config, dial func(string, string, config.Secret) (forge.Provider, error), src func(*app.App, *forge.Change) (review.Source, error)) reviewCmd {
 	if src == nil {
 		src = (*app.App).Source
 	}
@@ -96,7 +102,7 @@ func testCmd(t *testing.T, tool fakeTool, cfg *config.Config, dial func(string, 
 		},
 		source: src,
 		poll:   10 * time.Millisecond,
-	}, stateDir
+	}
 }
 
 // checkout is a repository whose feature branch changes a.go on main.
@@ -418,5 +424,104 @@ func TestReviewMCPServerIsGuarded(t *testing.T) {
 	sig <- os.Interrupt
 	if code := <-done; code != exitInterrupted {
 		t.Fatalf("exit %d", code)
+	}
+}
+
+// reviewJSON runs cmd with args and -json, and returns the envelope.
+func reviewJSON(t *testing.T, cmd reviewCmd, want int, args ...string) reviewResult {
+	t.Helper()
+	var out, errb bytes.Buffer
+	if code := cmd.run(append(args, "-json"), &out, &errb); code != want {
+		t.Fatalf("%v: exit %d, want %d\n%s", args, code, want, errb.String())
+	}
+	var res reviewResult
+	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
+		t.Fatalf("%v in %s", err, out.String())
+	}
+	return res
+}
+
+func TestReviewFollowsAnEarlierRun(t *testing.T) {
+	dir := checkout(t)
+	stateDir := t.TempDir()
+	first := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{aFinding}}, nil, nil, nil), exitFindings,
+		"-C", dir, "-profile", "code", "main..feature")
+	earlierID := first.Findings[0].ID
+
+	again := map[string]any{"earlier": earlierID}
+	for k, v := range aFinding {
+		again[k] = v
+	}
+	next := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil), exitFindings,
+		"-C", dir, "-profile", "code", "-follows", first.Run.ID, "main..feature")
+	if next.Run.Follows != first.Run.ID {
+		t.Fatalf("follows %q, want %q", next.Run.Follows, first.Run.ID)
+	}
+	if len(next.Earlier) != 1 || next.Earlier[0].ID != earlierID || next.Earlier[0].Standing != drafts.StandingOpen {
+		t.Fatalf("earlier %+v", next.Earlier)
+	}
+	if len(next.Findings) != 1 || next.Findings[0].Earlier != earlierID {
+		t.Fatalf("findings %+v", next.Findings)
+	}
+
+	// The reviewers were told, and the earlier run links forward.
+	var rec struct {
+		First      string   `json:"first_message"`
+		FollowedBy []string `json:"followed_by"`
+	}
+	b, _ := os.ReadFile(filepath.Join(stateDir, "runs", next.Run.ID, "run.json"))
+	json.Unmarshal(b, &rec)
+	if !strings.Contains(rec.First, `<earlier-finding id="`+earlierID+`"`) {
+		t.Errorf("the first message does not list the earlier finding:\n%s", rec.First)
+	}
+	b, _ = os.ReadFile(filepath.Join(stateDir, "runs", first.Run.ID, "run.json"))
+	json.Unmarshal(b, &rec)
+	if len(rec.FollowedBy) != 1 || rec.FollowedBy[0] != next.Run.ID {
+		t.Errorf("the earlier run is followed by %v", rec.FollowedBy)
+	}
+
+	var out, errb bytes.Buffer
+	if code := testCmdIn(stateDir, fakeTool{proposals: []map[string]any{again}}, nil, nil, nil).run(
+		[]string{"-C", dir, "-profile", "code", "-follows", first.Run.ID, "main..feature"}, &out, &errb); code != exitFindings {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	for _, want := range []string{
+		"It follows run `" + first.Run.ID + "`, which had 1 finding; 1 is raised again here.",
+		"- Raised before: finding `" + earlierID + "` of run `" + first.Run.ID + "`",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q in:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestReviewRefusesARunItCannotFollow(t *testing.T) {
+	dir, other := checkout(t), checkout(t)
+	stateDir := t.TempDir()
+	first := reviewJSON(t, testCmdIn(stateDir, fakeTool{proposals: []map[string]any{aFinding}}, nil, nil, nil), exitFindings,
+		"-C", dir, "-profile", "code", "main..feature")
+
+	// A run that is not a review: an Ask conversation about the same commits.
+	var rec map[string]any
+	b, _ := os.ReadFile(filepath.Join(stateDir, "runs", first.Run.ID, "run.json"))
+	json.Unmarshal(b, &rec)
+	rec["id"], rec["mode"] = "askrun", review.AskMode
+	os.MkdirAll(filepath.Join(stateDir, "runs", "askrun"), 0o700)
+	b, _ = json.Marshal(rec)
+	os.WriteFile(filepath.Join(stateDir, "runs", "askrun", "run.json"), b, 0o600)
+
+	for _, c := range []struct{ dir, follows, want string }{
+		{dir, "nope", "no finished run nope to follow"},
+		{dir, "askrun", "run askrun is not a review"},
+		{other, first.Run.ID, "run " + first.Run.ID + " reviewed another change"},
+	} {
+		var out, errb bytes.Buffer
+		code := testCmdIn(stateDir, fakeTool{}, nil, nil, nil).run([]string{"-C", c.dir, "-profile", "code", "-follows", c.follows, "main..feature"}, &out, &errb)
+		if code != exitUsage || !strings.Contains(errb.String(), c.want) {
+			t.Errorf("-follows %s from %s: exit %d, want usage saying %q\n%s", c.follows, c.dir, code, c.want, errb.String())
+		}
+	}
+	if runs, _ := filepath.Glob(filepath.Join(stateDir, "runs", "*", "run.json")); len(runs) != 2 {
+		t.Errorf("a refused follow started a run: %d records", len(runs))
 	}
 }

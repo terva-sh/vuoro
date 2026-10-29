@@ -24,7 +24,17 @@ func Findings(v RunView) string {
 	}
 	fmt.Fprintf(&b, "Title: %s\n", oneLine(v.Title))
 	fmt.Fprintf(&b, "Reviewed at head `%s`, against merge base `%s`.\n", v.Head, v.Base)
-	fmt.Fprintf(&b, "Run `%s`, cost %s.\n\n", v.ID, usd(v.CostUSD))
+	fmt.Fprintf(&b, "Run `%s`, cost %s.\n", v.ID, usd(v.CostUSD))
+	if v.Follows != "" {
+		again := 0
+		for _, d := range shown {
+			if d.Earlier != "" {
+				again++
+			}
+		}
+		fmt.Fprintf(&b, "It follows run `%s`, which had %d finding%s; %d %s raised again here.\n", v.Follows, len(v.Earlier), plural(len(v.Earlier)), again, isAre(again))
+	}
+	b.WriteString("\n")
 	for _, s := range v.Sessions {
 		model := s.Model
 		if model == "" {
@@ -45,9 +55,20 @@ func Findings(v RunView) string {
 	}
 	fmt.Fprintf(&b, "\n%d finding%s, drafted by agents. Read the code before acting on one: a finding can be wrong, and a doubtful mark says the verifier argued against it.\n", len(shown), plural(len(shown)))
 	for i, d := range shown {
-		writeFinding(&b, i+1, d)
+		var extra []string
+		if d.Earlier != "" {
+			extra = append(extra, fmt.Sprintf("- Raised before: finding `%s` of run `%s`", d.Earlier, v.Follows))
+		}
+		writeFinding(&b, i+1, d, extra...)
 	}
 	return b.String()
+}
+
+func isAre(n int) string {
+	if n == 1 {
+		return "is"
+	}
+	return "are"
 }
 
 func usd(v float64) string {
