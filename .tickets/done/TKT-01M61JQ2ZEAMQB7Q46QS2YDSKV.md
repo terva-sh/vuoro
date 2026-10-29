@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-29T16:06:33Z
+updated_at: 2026-10-29T18:40:20Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -40,7 +40,7 @@ Design: docs/plan.md section 6.11, D68.
 
 ## Acceptance criteria
 
-- [ ] Prompt buttons and a question box start a conversation with the chosen tool and model
+- [x] Prompt buttons and a question box start a conversation with the chosen tool and model
 - [x] The change's conversations list with prompt, head, cost and a stale mark
 - [x] The person follows up and stops in the session pane
 - [x] A stale conversation offers the same question on the new head
@@ -59,6 +59,10 @@ The work has landed (through b2d38a5). The ticket stays in progress until a vuor
 **agent:claude-code/ask-20261029** at 2026-10-29T16:06:33Z
 
 Criterion 1 is left unticked for its model half: the tab picks a tool, and a model comes only from a prompt file's front matter (on the tool it names) or the tool's default. A model picker waits for a list of models to pick from. Supersedes the 15:03 note: vuoro review round 6 raised only lows, fixed in 16f5933.
+
+**agent:claude-code/ask-20261029** at 2026-10-29T18:40:20Z
+
+Criterion 1 is now met in full, superseding the note that left its model half open: the Ask tab has a free-text Model field beside Tool, as the preset editor has, and a model typed there wins over a prompt's (da86e6f; web/src/ask.test.tsx asks with tool claude and model opus). vuoro review rounds over c30f479..2192875 ended clean at round 6 (run 20261029-165827-bd3ef3).
 
 ## Summary
 

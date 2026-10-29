@@ -21,7 +21,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:47:33Z
-updated_at: 2026-10-29T16:06:33Z
+updated_at: 2026-10-29T18:40:20Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
@@ -41,7 +41,7 @@ Ask runs (TKT-01M61JQ22E7049NSPR545323DW, done) read their range through the sam
 
 ## Acceptance criteria
 
-- [ ] A change whose patch is over the cap only because of lockfiles or generated files is summarised
+- [x] A change whose patch is over the cap only because of lockfiles or generated files is summarised
 - [x] Each file left out of the patch is named in the first message with its stat, and the summary says it was not read
 - [x] A change still over the cap after that is refused with the reason, never truncated
 
@@ -54,6 +54,10 @@ The work has landed (through b2d38a5). The ticket stays in progress until a vuor
 **agent:claude-code/ask-20261029** at 2026-10-29T16:06:32Z
 
 Criterion 1 is left unticked: a change over the cap only because of a lockfile the forge base already holds, or of generated files, is summarised (TestALockfileIsLeftOutOfTheDiffAndNamed), but one that adds a large lockfile the base lacks is still refused. Counting a new file as a lockfile would let a change choose what is hidden (vuoro review round 5, d7). Closing it needs a way to leave a new lockfile out that the change cannot steer, such as also requiring its manifest to have changed.
+
+**agent:claude-code/ask-20261029** at 2026-10-29T18:40:20Z
+
+Criterion 1 is now met, superseding the note that left it open: D70 (owner, 2026-10-29) stops refusing an ask for its size. Past the cap an ask leaves out lockfiles and generated files first, then the largest other files, so a change that adds a repository's first lockfile is asked, with the lockfile named as left out. Tests: review TestAnOversizedAskLeavesOutTheLargestFilesAndSaysWhich and TestAnAskOverThousandsOfFilesAndHundredsOfCommitsIsAsked. A summary run keeps its refusal, and no new summary can be started. Reviewed over c30f479..2192875; round 6 was clean.
 
 ## Summary
 
