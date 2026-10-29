@@ -253,6 +253,11 @@ After changing `web/src`, run `just web-build` and commit `web/dist`.
 `just ci` fails when the two differ. `just web-setup` installs the locked
 packages first.
 
+Releases are made from a `v*` tag pushed to GitHub, which runs only that
+workflow (D74). `just release-rehearse` builds and verifies a tagged clone
+without publishing, and [docs/releasing.md](docs/releasing.md) is the
+runbook. Never push a tag without the person's say.
+
 `just test` skips the test that opens a window. `just test-gui` runs it. CI
 does not, because CI is linux on the internal runners only (D52).
 

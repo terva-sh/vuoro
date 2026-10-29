@@ -82,6 +82,15 @@ turn: two replies on your threads, 3 days ago".
 - Styles from the shared [terva-sh design](https://github.com/terva-sh/design)
   foundation.
 
+## Installing it
+
+Each [release](https://github.com/terva-sh/vuoro/releases) has an archive for
+macOS, Linux, and Windows. Unpack it and put `vuoro` on your `PATH`;
+[README-release.md](README-release.md), which travels in every archive, says
+what each platform needs, and how to allow the macOS binary, which is not
+signed yet. `vuoro self-update` moves to the newest release.
+[docs/releasing.md](docs/releasing.md) is how a release is made.
+
 ## Working on it
 
 Read [AGENTS.md](AGENTS.md), [docs/plan.md](docs/plan.md),

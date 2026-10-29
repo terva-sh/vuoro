@@ -2176,7 +2176,26 @@ there, and tested only where someone runs `just ci` on one:
 - cross builds for linux, darwin, and windows
 - the frontend typecheck and tests, and a check that `web/dist` matches source
 - `design-tokens export -check`
+- a check that `THIRD_PARTY_LICENSES` covers every dependency that ships
 - `git ticket check --fix --dry-run --strict`
+
+### 9.1 Releases
+
+Decided on 2026-10-29 (D74), and run as [releasing.md](releasing.md) says.
+A person chooses the version and pushes an annotated `v*` tag to GitHub.
+That tag, and only a tag, runs `.github/workflows/release.yml` there: the
+gate's checks that bear on what ships, goreleaser with publishing skipped,
+`scripts/verify-release.py` on the archives, and then the release, whose
+notes are the tag's message. GitHub runs nothing else (D52).
+
+A release is five archives, linux and darwin on amd64 and arm64 and windows
+on amd64, each with the binary, LICENSE, THIRD_PARTY_LICENSES, and
+README-release.md, and `checksums.txt`. The version is the one `go build`
+records from git, so a binary names its tag and commit; a build in a
+shallow checkout or a linked git worktree records none and says `dev`. The
+macOS binary is not signed or notarized until the owner sets that up, and
+README-release.md says how to allow it. `vuoro self-update` moves an
+installed release to the newest one.
 
 ## 10. Roadmap
 
