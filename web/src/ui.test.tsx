@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render } from 'preact'
 import { describe, expect, it } from 'vitest'
-import { CommentBubble, worstSeverity } from './ui'
+import { CommentBubble, cost, unreported, worstSeverity } from './ui'
 
 describe('CommentBubble', () => {
   it('takes the worst open finding, and shows its symbol beside the colour', () => {
@@ -14,5 +14,18 @@ describe('CommentBubble', () => {
     expect(b.textContent).toBe('💬 3 ▲')
     render(<CommentBubble />, root)
     expect(root.querySelector('.bubble')!.className).not.toContain('severity-')
+  })
+})
+
+describe('cost', () => {
+  it('never shows a cost the tool did not report as $0.00', () => {
+    const used = { input: 10, output: 5, cache_read: 0, cache_write: 0, cost_usd: 0 }
+    expect(unreported(used)).toBe(true)
+    expect(unreported({ ...used, cost_usd: 0.02 })).toBe(false)
+    expect(unreported({ ...used, input: 0, output: 0 })).toBe(false) // nothing used yet
+    expect(cost(0, unreported(used))).toBe('cost unknown')
+    expect(cost(0.25, true)).toBe('at least $0.25')
+    expect(cost(0.25)).toBe('$0.25')
+    expect(cost(0)).toBe('$0.00')
   })
 })

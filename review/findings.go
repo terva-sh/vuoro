@@ -26,7 +26,7 @@ func Findings(v RunView) string {
 	}
 	fmt.Fprintf(&b, "Title: %s\n", oneLine(v.Title))
 	fmt.Fprintf(&b, "Reviewed at head `%s`, against merge base `%s`.\n", v.Head, v.Base)
-	fmt.Fprintf(&b, "Run `%s`, cost %s.\n", v.ID, usd(v.CostUSD))
+	fmt.Fprintf(&b, "Run `%s`, cost %s.\n", v.ID, runCost(v))
 	if v.Follows != "" {
 		// Two drafts can restate one earlier finding, so this counts the
 		// earlier findings, not the drafts.
@@ -98,6 +98,18 @@ func isAre(n int) string {
 		return "is"
 	}
 	return "are"
+}
+
+// runCost is what the run cost, never a guess: at least the reported part
+// when a tool reported none for its tokens.
+func runCost(v RunView) string {
+	if v.CostUnknown && v.CostUSD > 0 {
+		return "at least " + usd(v.CostUSD)
+	}
+	if v.CostUnknown {
+		return "unreported"
+	}
+	return usd(v.CostUSD)
 }
 
 func usd(v float64) string {

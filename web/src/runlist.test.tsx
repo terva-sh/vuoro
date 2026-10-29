@@ -49,6 +49,12 @@ describe('the runs card', () => {
     expect(card.querySelector('summary')!.textContent).toBe('Runs3across 2 changes · 2 not closed · $0.45')
   })
 
+  it('says a total is a floor when a run has a cost its tool did not report', () => {
+    act(() => render(<RunList runs={[base, { ...again, cost_usd: 0, cost_unknown: true }]} onOpen={() => {}} />, root))
+    expect(root.querySelector('summary')!.textContent).toContain('· at least $0.10')
+    expect(root.querySelector('tr.run-group')!.textContent).toContain('at least $0.10')
+  })
+
   it("shows one row per change, and a change's earlier runs on demand", () => {
     const opened: string[] = []
     act(() => render(<RunList runs={[base, again, local, { ...local, id: 'r5' }]} onOpen={() => {}} onOpenRun={(id) => opened.push(id)} />, root))

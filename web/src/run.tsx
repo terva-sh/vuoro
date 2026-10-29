@@ -13,7 +13,7 @@ import { SessionPane } from './session'
 import type { Change, Draft, Earlier, Level, Run, Session, Setup } from './types'
 import { refKey } from './types'
 import { WriteContext } from './write'
-import { ago, levelMark, SeverityBadge, short, StatusBadge, usd } from './ui'
+import { ago, cost, levelMark, SeverityBadge, short, StatusBadge, unreported } from './ui'
 
 // useRunPoll reads a run, quickly while anything works and slowly otherwise.
 function useRunPoll(id: string | undefined, onRun: (r: Run) => void) {
@@ -170,7 +170,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
           <h3>Agents</h3>
           <StatusBadge status={run.status} />
           {headState ? <HeadBadge state={headState} /> : <span>reviewed at <span class="mono">{short(run.head)}</span></span>}
-          <span class="muted">total {usd(run.cost_usd)}</span>
+          <span class="muted">total {cost(run.cost_usd, run.cost_unknown)}</span>
           {run.status !== 'closed' && <button class="push" onClick={onClose}>Close the run</button>}
         </header>
         {run.error && <p class="alert" role="alert">⚠ {run.error}</p>}
@@ -180,7 +180,7 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
             <button class={`session-chip ${isOpen(s) ? 'on' : ''}`} key={s.id} aria-expanded={isOpen(s)}
               onClick={() => setOpened({ ...opened, [s.id]: !isOpen(s) })}>
               <strong>{s.profile}{s.target ? ` ${s.target}` : ''}</strong> <StatusBadge status={s.status} />
-              <span class="muted">{s.info?.model ?? s.model ?? ''} · {usd(s.usage.cost_usd)}</span>
+              <span class="muted">{s.info?.model ?? s.model ?? ''} · {cost(s.usage.cost_usd, unreported(s.usage))}</span>
             </button>
           ))}
         </div>

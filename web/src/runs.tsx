@@ -2,7 +2,7 @@
 // the change's earlier runs under its latest one.
 import { useState } from 'preact/hooks'
 import { changeNumber, refKey, type Run } from './types'
-import { ago, short, StatusBadge, usd } from './ui'
+import { ago, cost, short, StatusBadge } from './ui'
 
 export interface RunGroup { key: string; runs: Run[] } // newest run first
 
@@ -40,7 +40,7 @@ export function RunList({ runs, onOpen, onOpenRun }: { runs: Run[]; onOpen: (url
         <h2>Runs</h2>
         <span class="badge">{runs.length}</span>
         <span class="muted">
-          across {groups.length} change{groups.length === 1 ? '' : 's'} · {open} not closed · {usd(total)}
+          across {groups.length} change{groups.length === 1 ? '' : 's'} · {open} not closed · {cost(total, runs.some((r) => r.cost_unknown))}
         </span>
       </summary>
       <div class="runs-scroll">
@@ -68,7 +68,7 @@ export function RunList({ runs, onOpen, onOpenRun }: { runs: Run[]; onOpen: (url
                     ) : 1}
                   </td>
                   <td>{pending(r)}</td>
-                  <td>{usd(rs.reduce((t, x) => t + x.cost_usd, 0))}</td>
+                  <td>{cost(rs.reduce((t, x) => t + x.cost_usd, 0), rs.some((x) => x.cost_unknown))}</td>
                   <td class="muted">{ago(r.created)}</td>
                 </tr>,
                 ...(more && shown ? rs.map((x) => (
@@ -79,7 +79,7 @@ export function RunList({ runs, onOpen, onOpenRun }: { runs: Run[]; onOpen: (url
                     </td>
                     <td />
                     <td>{pending(x)}</td>
-                    <td>{usd(x.cost_usd)}</td>
+                    <td>{cost(x.cost_usd, x.cost_unknown)}</td>
                     <td class="muted">{ago(x.created)}</td>
                   </tr>
                 )) : []),

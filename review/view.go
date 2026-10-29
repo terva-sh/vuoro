@@ -31,9 +31,12 @@ type RunView struct {
 	Status         Status         `json:"status"`
 	Error          string         `json:"error,omitempty"`
 	CostUSD        float64        `json:"cost_usd"`
-	Sessions       []SessionView  `json:"sessions"`
-	Drafts         []drafts.Draft `json:"drafts"`
-	Editor         *EditorState   `json:"editor,omitempty"`
+	// CostUnknown is set when a session used tokens and its tool reported
+	// no cost, so CostUSD is less than the run cost, or nothing is known.
+	CostUnknown bool           `json:"cost_unknown,omitempty"`
+	Sessions    []SessionView  `json:"sessions"`
+	Drafts      []drafts.Draft `json:"drafts"`
+	Editor      *EditorState   `json:"editor,omitempty"`
 	// Waves are the review's earlier editors, oldest first, each pushed.
 	Waves []EditorState `json:"waves,omitempty"`
 	// Follows is the review this run follows, and FollowedBy the runs that
@@ -122,6 +125,10 @@ func (r *Run) View() RunView {
 		v.ReviewComplete = v.ReviewComplete && (s.FirstComplete || s.Role == drafts.Suggester || s.Role == drafts.Editor)
 		role := roleNames[s.Role]
 		v.CostUSD += s.Usage.CostUSD
+		u := s.Usage
+		if u.CostUSD == 0 && u.Input+u.Output+u.CacheRead+u.CacheWrite > 0 {
+			v.CostUnknown = true
+		}
 		v.Sessions = append(v.Sessions, SessionView{
 			ID: s.ID, Profile: s.Profile, Tool: s.Tool, Model: s.Model, Role: role,
 			Status: s.Status, Error: s.Error, Info: s.Info, Usage: s.Usage, FirstComplete: s.FirstComplete, FirstReported: s.reported, Target: s.Target,

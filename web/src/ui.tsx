@@ -2,7 +2,7 @@
 // status and severity also has a symbol and a word.
 import type { ComponentChildren } from 'preact'
 import { Markdown } from './markdown'
-import type { Confidence, Level, Severity, Status } from './types'
+import type { Confidence, Level, Severity, Status, Usage } from './types'
 
 const statusMark: Record<Status, string> = {
   preparing: '…', working: '●', idle: '○', ended: '◌', failed: '⚠', closed: '■', waiting: '⧗', cancelled: '⊘',
@@ -62,6 +62,14 @@ export function ago(iso: string): string {
 export const short = (sha: string) => sha.slice(0, 8)
 
 export const usd = (n: number) => (n < 0.01 && n > 0 ? '<$0.01' : `$${n.toFixed(2)}`)
+
+// cost is what a run or session cost, never a guess. When a tool used tokens
+// and reported no cost, the known part is a floor, and with none it is
+// unknown rather than $0.00.
+export const cost = (n: number, unknown?: boolean) => (!unknown ? usd(n) : n > 0 ? `at least ${usd(n)}` : 'cost unknown')
+
+// unreported says a session used tokens and its tool reported no cost.
+export const unreported = (u: Usage) => !u.cost_usd && u.input + u.output + u.cache_read + u.cache_write > 0
 
 // Prose is what a person or an agent wrote, rendered as Markdown and never
 // parsed as HTML.

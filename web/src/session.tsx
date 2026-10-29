@@ -4,7 +4,7 @@ import { errorText, useAction } from './action'
 import { post } from './api'
 import { TextEditor } from './textedit'
 import type { Entry, Run, Session } from './types'
-import { Prose, StatusBadge, usd } from './ui'
+import { cost, Prose, StatusBadge, unreported } from './ui'
 
 export function SessionPane({ run, session }: { run: Run; session: Session }) {
   const end = useRef<HTMLDivElement>(null)
@@ -22,7 +22,7 @@ export function SessionPane({ run, session }: { run: Run; session: Session }) {
           {i ? `${i.tool} ${i.version} · ${i.model}${i.account ? ` · ${i.account}` : ''}` : `${session.tool}${session.model ? ` · ${session.model}` : ''}`}
         </span>
         <span class="muted push">
-          {usd(session.usage.cost_usd)} · {session.usage.input + session.usage.cache_read + session.usage.cache_write} in, {session.usage.output} out
+          {cost(session.usage.cost_usd, unreported(session.usage))} · {session.usage.input + session.usage.cache_read + session.usage.cache_write} in, {session.usage.output} out
         </span>
       </header>
       {session.error && <p class="alert">⚠ {session.error}</p>}

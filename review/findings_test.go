@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/terva-sh/vuoro/agent"
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/review/drafts"
 )
@@ -73,5 +74,26 @@ func TestARestatedFindingSaysWhereTheEarlierOneStood(t *testing.T) {
 		if got := standing(earlier, id); got != want {
 			t.Errorf("%s: %q, want %q", id, got, want)
 		}
+	}
+}
+
+func TestACostTheToolDidNotReportIsNeverZero(t *testing.T) {
+	used := agent.TurnUsage{Input: 10, Output: 5}
+	r := &Run{store: drafts.NewStore(), sessions: []*Session{{ID: "s1", Usage: used}}}
+	if v := r.View(); !v.CostUnknown || runCost(v) != "unreported" {
+		t.Fatalf("unknown %v, cost %q", v.CostUnknown, runCost(v))
+	}
+	r.sessions = append(r.sessions, &Session{ID: "s2", Usage: agent.TurnUsage{Input: 1, CostUSD: 0.5}})
+	if v := r.View(); runCost(v) != "at least $0.50" {
+		t.Fatalf("cost %q", runCost(v))
+	}
+	r.sessions = r.sessions[1:]
+	if v := r.View(); v.CostUnknown || runCost(v) != "$0.50" {
+		t.Fatalf("unknown %v, cost %q", v.CostUnknown, runCost(v))
+	}
+	// A session that has used nothing yet costs nothing, and that is known.
+	r.sessions = append(r.sessions, &Session{ID: "s3"})
+	if v := r.View(); v.CostUnknown {
+		t.Fatal("an unused session made the cost unknown")
 	}
 }

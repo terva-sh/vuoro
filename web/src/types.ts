@@ -95,6 +95,8 @@ export interface Run {
   review_complete?: boolean; summary?: { scope: "change" | "since_review"; from: string; to: string; review_id?: string }
   id: string; kind: string; ref: Ref; title: string; web_url: string; head: string; base: string
   created: string; status: Status; error?: string; cost_usd: number
+  // cost_unknown: a session used tokens and its tool reported no cost.
+  cost_unknown?: boolean
   sessions: Session[]; drafts: Draft[]
   editor?: EditorState
   waves?: EditorState[] // the editors before this one, each pushed (D50)

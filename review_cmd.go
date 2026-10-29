@@ -73,7 +73,10 @@ type reviewResultRun struct {
 	Base    string    `json:"base"`
 	Status  string    `json:"status"`
 	CostUSD float64   `json:"cost_usd"`
-	Follows string    `json:"follows,omitempty"`
+	// CostUnknown says a session's tool reported no cost for its tokens, so
+	// CostUSD is a floor.
+	CostUnknown bool   `json:"cost_unknown,omitempty"`
+	Follows     string `json:"follows,omitempty"`
 }
 
 func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
@@ -274,7 +277,7 @@ func (c reviewCmd) run(args []string, stdout, stderr io.Writer) int {
 		res := reviewResult{
 			SchemaVersion: reviewSchemaVersion, Kind: "review-result", Outcome: outcome, Error: v.Error,
 			Run: reviewResultRun{ID: v.ID, Kind: v.Kind, Ref: v.Ref, Title: v.Title, WebURL: v.WebURL,
-				Head: v.Head, Base: v.Base, Status: string(v.Status), CostUSD: v.CostUSD, Follows: v.Follows},
+				Head: v.Head, Base: v.Base, Status: string(v.Status), CostUSD: v.CostUSD, CostUnknown: v.CostUnknown, Follows: v.Follows},
 			Findings: shown, Earlier: v.Earlier, Sessions: v.Sessions,
 		}
 		if res.Findings == nil {

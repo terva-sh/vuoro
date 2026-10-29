@@ -9,7 +9,7 @@ import { usePoll } from './poll'
 import { SessionPane } from './session'
 import { TextEditor } from './textedit'
 import { refKey, type Change, type Prompt, type Prompts, type Run, type Setup } from './types'
-import { ago, Prose, short, StatusBadge, usd } from './ui'
+import { ago, cost, Prose, short, StatusBadge } from './ui'
 
 type Props = { change: Change; setup?: Setup }
 
@@ -141,7 +141,7 @@ function AskWorkspace({ change, setup }: Props) {
         {list.map((r) => <li key={r.id}>
           <button class={r.id === selected ? 'ask-item on' : 'ask-item'} aria-current={r.id === selected} onClick={() => { setRun(undefined); setSelected(r.id) }}>
             <span class="ask-item-title">{asked(r)}</span>
-            <span class="muted">{r.ask?.prompt ? r.ask.prompt : 'question'} · {ago(r.created)} · {short(r.head)}{r.head !== change.diff.head ? ' · stale' : ''} · {usd(r.cost_usd)}</span>
+            <span class="muted">{r.ask?.prompt ? r.ask.prompt : 'question'} · {ago(r.created)} · {short(r.head)}{r.head !== change.diff.head ? ' · stale' : ''} · {cost(r.cost_usd, r.cost_unknown)}</span>
           </button>
         </li>)}
       </ul>}
@@ -169,7 +169,7 @@ function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change
   const stale = run.head !== change.diff.head
   const summary = run.mode === 'summary'
   return <section class="section ask-conversation" aria-label={asked(run)}>
-    <div class="run-head"><strong>{asked(run)}</strong><StatusBadge status={run.status} /><HeadBadge state={head} label="asked" /><span class="muted">{usd(run.cost_usd)}</span></div>
+    <div class="run-head"><strong>{asked(run)}</strong><StatusBadge status={run.status} /><HeadBadge state={head} label="asked" /><span class="muted">{cost(run.cost_usd, run.cost_unknown)}</span></div>
     {run.summary && <p class="muted">Range <span class="mono" title={`${run.summary.from}..${run.summary.to}`}>{short(run.summary.from)}..{short(run.summary.to)}</span>{run.summary.scope === 'since_review' ? ' · since the selected Vuoro review' : ' · whole change'}</p>}
     {stale && <p class="ask-stale">Asked at <span class="mono">{short(run.head)}</span>; the change is now at <span class="mono">{short(change.diff.head)}</span>. You can carry on here, or{' '}
       <button disabled={busy || working} onClick={() => onAgain(run)}>ask the same on the new head</button></p>}
