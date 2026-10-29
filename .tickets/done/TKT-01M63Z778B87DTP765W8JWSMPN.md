@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M63Z778B87DTP765W8JWSMPN
 title: "Getting started: teach a new person to use vuoro in the window"
 type: epic
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -17,17 +17,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:claude-code/getting-started
-  branch: tickets/getting-started
-  worktree: /Users/drewshort/.t3/worktrees/vuoro/t3-a510f89e
-  commit: 4223484fa36b7bbd95ab4a7bfe97fe9cfec4cdc3
-  session: null
-  claimed_at: 2026-10-29T14:00:22Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-10-29T13:57:32Z
-updated_at: 2026-10-29T14:21:09Z
+updated_at: 2026-10-29T14:30:08Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -63,3 +56,7 @@ Every child is done on branch tickets/getting-started (not pushed). Levels 1 and
 **agent:claude-code/getting-started** at 2026-10-29T14:21:09Z
 
 Owner confirmed D70 as written on 2026-10-29: the two-part tour and all three rejections stand. Attribution changed to decided by the owner.
+
+## Summary
+
+Levels 1 and 2 are built on tickets/getting-started: hints on six empty or first-time screens, and a two-part tour offered after setup. Both are kept in prefs.json behind the window guard, and Settings can replay them. The owner tested the branch and approved it on 2026-10-29. D70 records the design. D71 defers level 3, the practice review, past v1.0.0.

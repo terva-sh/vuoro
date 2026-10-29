@@ -9,4 +9,3 @@ tickets, and the next fix pass overwrites it.
 | [TKT-01M3W4FGT1GY0X3TWJF81X3XWK](draft/TKT-01M3W4FGT1GY0X3TWJF81X3XWK.md) | vuoro v0.1.0 (MVP): orchestrated GitLab reviews, then the inbox | draft |
 | [TKT-01M3YMSTYMFRDFXD4QSVWHMM8P](draft/TKT-01M3YMSTYMFRDFXD4QSVWHMM8P.md) | vuoro v1.0.0: every forge, the editor agent, and a terva-sh release | draft |
 | [TKT-01M61JPA9TYM392M8XBAZ6RQV4](tickets/TKT-01M61JPA9TYM392M8XBAZ6RQV4.md) | Ask about a change: canned prompts and questions, kept and searchable | ready |
-| [TKT-01M63Z778B87DTP765W8JWSMPN](tickets/TKT-01M63Z778B87DTP765W8JWSMPN.md) | Getting started: teach a new person to use vuoro in the window | in-progress |
