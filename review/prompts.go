@@ -16,7 +16,7 @@ import (
 type Prompt struct {
 	Name    string `json:"name"`
 	Title   string `json:"title"`
-	Scope   string `json:"scope,omitempty"` // change or since_review; empty is change
+	Scope   string `json:"scope,omitempty"` // change or since_review; empty follows the tab's choice
 	Tool    string `json:"tool,omitempty"`
 	Model   string `json:"model,omitempty"`
 	Text    string `json:"text"`

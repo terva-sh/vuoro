@@ -1156,10 +1156,12 @@ lockdown. Triage groups the open threads on the person's own change as must
 fix, discuss, or nit, and drafts replies through the drafts server. None of it
 is posted by an agent.
 
-The Ask tab (section 6.11, D68) replaces the Summary tab described here,
-and keeps its range rules. The change's Summary tab starts a separate,
-single-turn summary session with
-Read/Grep/Glob and no drafts MCP server. Its text streams locally, with saved
+The Ask tab (section 6.11, D68) replaced the Summary tab, and keeps the
+range rules below. The window no longer starts a summary, and no route does:
+the summary runs already recorded are read as Ask conversations. What follows
+is how a summary ran, and how an ask run reads its range. A summary was a
+separate, single-turn session with
+Read/Grep/Glob and no drafts MCP server. Its text streamed locally, with saved
 history, exact range, head status and Stop. The whole-change range is the forge's
 base to its freshly read head. “Since a Vuoro review” selects a completed local
 review run and uses that immutable reviewed head to the freshly read head.
@@ -1886,7 +1888,9 @@ and `start-here`. The person adds their own as Markdown files in
 `prompts/` under vuoro's config directory, such as
 `~/Library/Application Support/vuoro/prompts/` on macOS. Each file is an
 optional front matter of `title`, `scope` (`change` or `since_review`),
-`tool`, and `model`, followed by the prompt. As for presets (D61), theirs
+`tool`, and `model`, followed by the prompt. A prompt's scope wins over the
+tab's choice: `change` drops a selected review, `since_review` is refused when
+no review is chosen, and a prompt with no scope follows the tab. As for presets (D61), theirs
 supplement the shipped ones, one with a shipped name shadows it, and theirs
 sort first. A file vuoro cannot read is listed with the reason, not dropped.
 A repository's own prompts, read at the base commit, are later work, with
@@ -1900,7 +1904,8 @@ fetches it again, and refuses with the reason when the forge no longer has it.
 **In the window.**
 
 - The change's Ask tab shows a row of prompt buttons, a question box, the
-  tool and model to ask, and the change's conversations, newest first, each
+  scope and the tool to ask (the model is the tool's default unless a prompt
+  file names one), and the change's conversations, newest first, each
   with its prompt or question, head, cost, and a stale mark. The selected
   one shows in the session pane, with a box to follow up and Stop.
 - The home page gains an **Asked** tab that lists every conversation across

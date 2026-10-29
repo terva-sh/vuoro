@@ -116,9 +116,9 @@ describe('AskPanel', () => {
     expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ prompt: 'whole', review_id: undefined }))
   })
 
-  it('reads a summary from before Ask, with no follow-up', async () => {
-    const summary = run({ id: 'sum-1', mode: 'summary', ask: { prompt: 'explain', title: 'Explain this change', question: '' }, sessions: [session({ profile: 'summary', status: 'ended' })] })
-    serve([summary], { ...summary, ask: undefined })
+  it('reads a summary from before Ask, with no follow-up, and asks it again as explain', async () => {
+    const summary = run({ id: 'sum-1', mode: 'summary', head: 'head1111111', ask: { prompt: 'explain', title: 'Explain this change', question: '' }, sessions: [session({ profile: 'summary', status: 'ended' })] })
+    serve([summary], { ...summary, ask: undefined }) // the single-run read names no prompt
     const root = document.createElement('div')
     await act(async () => render(<AskPanel change={change} setup={setup} />, root))
     await settle()
@@ -126,5 +126,33 @@ describe('AskPanel', () => {
     expect(root.textContent).toContain('It subtracts on purpose.')
     expect(root.textContent).toContain('takes no follow-up')
     expect(root.querySelector('textarea[aria-label="Ask a follow-up question"]')).toBeNull()
+    vi.mocked(post).mockResolvedValue(run({ id: 'ask-3' }))
+    await act(async () => button(root, 'ask the same on the new head')!.click())
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ prompt: 'explain', review_id: undefined }))
+  })
+
+  it('asks again over the conversation\'s own scope and review, not the tab\'s', async () => {
+    const since = run({ head: 'head1111111', ask: { title: 'What changed?', question: 'What changed?' }, summary: { scope: 'since_review', from: 'rev0000000', to: 'head1111111', review_id: 'review-9' } })
+    serve([since])
+    vi.mocked(post).mockResolvedValue(run({ id: 'ask-4' }))
+    const root = document.createElement('div')
+    await act(async () => render(<AskPanel change={change} setup={setup} />, root))
+    await settle()
+    await act(async () => button(root, 'ask the same on the new head')!.click())
+    expect(post).toHaveBeenCalledWith('/api/asks', expect.objectContaining({ question: 'What changed?', review_id: 'review-9' }))
+  })
+
+  it('sends nothing when the question\'s form is submitted past a disabled Ask', async () => {
+    serve([])
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    await act(async () => render(<AskPanel change={change} setup={{ tools: [] } as unknown as Setup} />, root))
+    await settle()
+    const box = root.querySelector('textarea[aria-label="Your question"]') as HTMLTextAreaElement
+    await act(async () => { box.value = 'Why?'; box.dispatchEvent(new Event('input', { bubbles: true })) })
+    // Cmd+Enter submits the form without its button.
+    await act(async () => { box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true })) })
+    expect(post).not.toHaveBeenCalled()
+    root.remove()
   })
 })

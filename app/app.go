@@ -135,7 +135,6 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /api/runs", a.listRuns)
 	mux.HandleFunc("POST /api/runs", a.startRun)
 	mux.HandleFunc("POST /api/triage", a.startTriage)
-	mux.HandleFunc("POST /api/summaries", a.startSummary)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/edit-reply", a.editReply)
 	mux.HandleFunc("POST /api/runs/{id}/drafts/{did}/discard-reply", a.discardReply)
 	mux.HandleFunc("GET /api/runs/{id}", a.getRun)

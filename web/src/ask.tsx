@@ -70,20 +70,26 @@ function AskWorkspace({ change, setup }: Props) {
     return 1500
   }, [selected])
 
-  const start = async (body: { prompt?: string; question?: string; scope?: string }) => {
-    setBusy(true); setError(undefined)
-    const since = (body.scope ?? scope) === 'since_review' && baseline
+  // starting guards itself as well as its buttons: Cmd+Enter submits the
+  // question's form whatever its button says.
+  const starting = useRef(false)
+  const start = async (body: { prompt?: string; question?: string; scope?: string; review?: string }) => {
+    if (starting.current) return
+    const chosen = body.review ?? baseline
+    const since = (body.scope ?? scope) === 'since_review'
+    if (since && !chosen) { setError('Choose a completed Vuoro review to ask about what changed since it.'); return }
+    starting.current = true; setBusy(true); setError(undefined)
     try {
       const next = await post<Run>('/api/asks', {
         url: change.web_url, prompt: body.prompt, question: body.question,
-        tool: tool ?? tools[0]?.name, review_id: since ? baseline : undefined,
+        tool: tool ?? tools[0]?.name, review_id: since ? chosen : undefined,
       })
       if (!mounted.current) return
       setList((all) => [next, ...all.filter((r) => r.id !== next.id)])
       setRun(next); setSelected(next.id)
       if (body.question) setQuestion('')
     } catch (e) { if (mounted.current) setError(errorText(e)) }
-    finally { if (mounted.current) setBusy(false) }
+    finally { starting.current = false; if (mounted.current) setBusy(false) }
   }
 
   const review = reviews.find((r) => r.id === baseline)
@@ -107,7 +113,7 @@ function AskWorkspace({ change, setup }: Props) {
       <ul>{prompts.errors.map((e) => <li key={e.file}><span class="mono">{e.file}</span>: {e.reason}</li>)}</ul>
       <p class="muted">Your prompts are Markdown files in <span class="mono">{prompts.dir}</span>.</p>
     </details>}
-    <form class="ask-question" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void start({ question }) }}>
+    <form class="ask-question" onSubmit={(e) => { e.preventDefault(); if (!cannot && question.trim()) void start({ question }) }}>
       <TextEditor rows={2} value={question} onInput={setQuestion} label="Your question" placeholder="Ask anything about this change" submitOn="mod-enter" />
       <button class="primary" disabled={cannot || !question.trim()}>{busy ? 'Asking…' : 'Ask'}</button>
     </form>
@@ -134,9 +140,19 @@ function AskWorkspace({ change, setup }: Props) {
           </button>
         </li>)}
       </ul>}
-      {current && <Conversation run={current} change={change} busy={busy} onAgain={(r) => void start(r.ask?.prompt ? { prompt: r.ask.prompt } : { question: r.ask?.question ?? '' })} />}
+      {current && <Conversation run={current} change={change} busy={busy} onAgain={(r) => void start(again(r, list))} />}
     </div>
   </div>
+}
+
+// again is the same question on the change's new head: the same prompt, or
+// the same words, over the same scope and review. A summary from before Ask
+// is asked again as explain; only the listing names its prompt.
+function again(r: Run, list: Run[]) {
+  const ask = r.ask ?? list.find((x) => x.id === r.id)?.ask
+  const prompt = ask?.prompt || (r.mode === 'summary' ? 'explain' : undefined)
+  const scope = r.summary?.scope ?? 'change'
+  return { ...(prompt ? { prompt } : { question: ask?.question ?? '' }), scope, review: r.summary?.review_id }
 }
 
 function Conversation({ run, change, busy, onAgain }: { run: Run; change: Change; busy: boolean; onAgain: (r: Run) => void }) {
