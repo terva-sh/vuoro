@@ -2200,13 +2200,20 @@ A release updates itself (D74), as git-ticket does, through the `update`
 package: it reads the latest GitHub release, downloads this platform's
 archive, checks it against `checksums.txt`, writes the new binary beside the
 running one and renames it into place (on Windows, the running one is moved
-aside first). A build that is not a release, `dev` or a pseudo-version, is
-never updated, and a prerelease is never offered. `vuoro self-update`
+aside first, and put back if the swap fails). A build that is not a release,
+`dev`, a pseudo-version or a prerelease, is never updated, and a prerelease
+is never offered. `vuoro self-update`
 applies it and `-check` only asks. The window asks the server on opening and
 hourly, and the server asks GitHub at most once a day, or an hour after a
 failed question; the header then offers the newer release, which is applied
 only on the person's click, and runs once they reopen vuoro. Both routes,
 `GET` and `POST /api/self-update`, sit behind the window guard.
+
+The checksum proves the download is the archive the release lists, and no
+more: whoever can publish a release can publish a matching `checksums.txt`.
+Until the checksums are signed and self-update verifies the signature, an
+update is as trustworthy as the GitHub release it came from. That gap is
+known and ticketed, and closes with the signing setup.
 
 ## 10. Roadmap
 

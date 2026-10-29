@@ -198,3 +198,25 @@ func TestAFailedAnswerIsAnError(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// On Windows the running binary is moved aside first, and a failed swap
+// puts it back, so a failure never leaves the install path empty.
+func TestAFailedWindowsSwapPutsTheOldBinaryBack(t *testing.T) {
+	target := installed(t)
+	calls := 0
+	rename = func(from, to string) error {
+		calls++
+		if calls == 2 { // the new binary into place
+			return errors.New("locked by antivirus")
+		}
+		return os.Rename(from, to)
+	}
+	defer func() { rename = os.Rename }()
+	err := replace(target, []byte("new"), "windows")
+	if err == nil || !strings.Contains(err.Error(), "locked by antivirus") {
+		t.Fatalf("%v", err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "old" {
+		t.Fatalf("the install path holds %q", b)
+	}
+}

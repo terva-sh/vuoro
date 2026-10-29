@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+# Every action is pinned to a commit, with its tag beside it, because this job
+# holds a token that writes releases, and a tag can be moved. Bump one by
+# resolving its new tag to a commit (git ls-remote), in its own commit.
+
 jobs:
   release:
     # Forgejo Actions also runs .github/workflows and reports the same owner
@@ -32,13 +36,13 @@ jobs:
       - name: Checkout full tag history
         # go build reads the version from the tag reachable at HEAD; a shallow
         # checkout would build binaries that say dev.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: The release gate
@@ -56,7 +60,7 @@ jobs:
           npm run verify:dist
           python3 scripts/third-party-licenses.py --check
       - name: Build without publishing
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           version: '~> v2'
           args: release --clean --skip=publish

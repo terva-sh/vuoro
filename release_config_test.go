@@ -55,6 +55,12 @@ func TestTheReleasePublishesOnlyWhatItVerified(t *testing.T) {
 	if build < 0 || verify < build || publish < verify {
 		t.Errorf("the workflow does not build, then verify, then publish (at %d, %d, %d)", build, verify, publish)
 	}
+	// The job writes releases, so every action it runs is pinned to a commit.
+	for _, use := range regexp.MustCompile(`uses: (\S+)`).FindAllStringSubmatch(wf, -1) {
+		if !regexp.MustCompile(`@[0-9a-f]{40}$`).MatchString(use[1]) {
+			t.Errorf("%s is not pinned to a commit", use[1])
+		}
+	}
 	if !strings.Contains(wf, "fetch-depth: 0") {
 		t.Error("the checkout is shallow, so the binaries would say dev")
 	}

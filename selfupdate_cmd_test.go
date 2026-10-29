@@ -37,7 +37,7 @@ func TestSelfUpdateSaysWhatItWouldDo(t *testing.T) {
 		{"v0.2.0", "v0.2.0", nil, exitClean, "vuoro v0.2.0 is up to date"},
 		{"v0.1.1", "v0.2.0", []string{"-check"}, exitFindings, "vuoro v0.2.0 is available; this is v0.1.1"},
 		{"v0.1.1", "v0.2.0", []string{"-check", "-json"}, exitFindings, `"newer": true`},
-		{"dev", "v0.2.0", nil, exitFailed, "not a release build"},
+		{"dev", "v0.2.0", nil, exitFailed, "a development build or a prerelease"},
 		{"v0.1.1", "v0.2.0", []string{"now"}, exitUsage, "takes no arguments"},
 	} {
 		var out, errb bytes.Buffer

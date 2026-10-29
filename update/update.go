@@ -36,9 +36,10 @@ const latestPath = "/repos/terva-sh/vuoro/releases/latest"
 const maxDownload = 200 << 20
 
 // ErrNotARelease refuses to update a build that is not a release: a dev
-// build, or one past the last tag. Replacing it would destroy that build,
-// and there is no release to compare it with.
-var ErrNotARelease = errors.New("this vuoro is not a release build, so it is not updated; build it from source again, or install a release")
+// build, one past the last tag, or a prerelease such as v0.2.0-rc.1, which
+// is only ever installed by hand. Replacing a build from source would destroy
+// it, and a prerelease has no release line to compare with.
+var ErrNotARelease = errors.New("this vuoro is a development build or a prerelease, so it does not update itself; install a release from https://github.com/terva-sh/vuoro/releases, or build it from source again")
 
 // Release is the part of a GitHub release this package reads.
 type Release struct {
@@ -270,11 +271,14 @@ func extract(name string, archive []byte) ([]byte, error) {
 	}
 }
 
+// rename is os.Rename; a test makes it fail.
+var rename = os.Rename
+
 // replace swaps the binary: it writes the new one beside target, then renames
 // it over target, so a reader sees the old binary or the new one and never
 // half of either. Windows cannot replace a running executable, so there the
 // old one is renamed aside first, to target.old, which the next update
-// removes.
+// removes, and is put back if the new one cannot take its place.
 func replace(target string, bin []byte, goos string) error {
 	tmp, err := os.CreateTemp(filepath.Dir(target), ".vuoro-new-*")
 	if err != nil {
@@ -292,14 +296,20 @@ func replace(target string, bin []byte, goos string) error {
 	if err := os.Chmod(name, 0o755); err != nil {
 		return err
 	}
+	old := ""
 	if goos == "windows" {
-		old := target + ".old"
+		old = target + ".old"
 		os.Remove(old)
-		if err := os.Rename(target, old); err != nil {
+		if err := rename(target, old); err != nil {
 			return fmt.Errorf("moving the running binary aside: %w", err)
 		}
 	}
-	if err := os.Rename(name, target); err != nil {
+	if err := rename(name, target); err != nil {
+		if old != "" {
+			if rerr := rename(old, target); rerr != nil {
+				return fmt.Errorf("replacing %s: %w; and putting the old binary back from %s failed: %v", target, err, old, rerr)
+			}
+		}
 		return fmt.Errorf("replacing %s: %w", target, err)
 	}
 	return nil
