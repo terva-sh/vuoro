@@ -55,6 +55,9 @@ type App struct {
 	// StateDir keeps the person's UI choices, in prefs.json. Empty keeps
 	// none, and every action asks first.
 	StateDir string
+	// PromptsDir holds the person's prompt files; empty is prompts/ beside
+	// the configuration file (section 6.11).
+	PromptsDir string
 	// Notify shows a desktop notification; nil sends none (D55).
 	Notify Notifier
 	// RefreshEvery overrides the configured background refresh interval;
@@ -116,6 +119,7 @@ func (a *App) Handler() http.Handler {
 	a.projectRoutes(mux)
 	a.projectTriageRoutes(mux)
 	a.updateRoutes(mux)
+	a.promptRoutes(mux)
 	mux.HandleFunc("GET /api/about", a.about)
 	mux.HandleFunc("GET /api/inbox", a.getInbox)
 	mux.HandleFunc("POST /api/inbox/refresh", a.refreshInbox)
