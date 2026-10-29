@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M3W4FGT1GY0X3TWJF81X3XWK
 title: "vuoro v0.1.0 (MVP): orchestrated GitLab reviews, then the inbox"
 type: epic
-status: draft
+status: done
 status_reason: null
 priority: high
 due_on: null
@@ -28,7 +28,7 @@ references:
 claim: null
 archive: null
 created_at: 2026-10-01T16:24:07Z
-updated_at: 2026-10-29T18:57:28Z
+updated_at: 2026-10-29T18:59:55Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
@@ -112,3 +112,7 @@ The epic stays open until 6 and 7 are settled, the drafts are done or moved to v
 - TKT-01M3W4HX0 (git-ticket linking spike), TKT-01M3W4HX1 (the change's ticket as context) and TKT-01M3YMSSX (run retention) moved to TKT-01M3YMSTYMFRDFXD4QSVWHMM8P (vuoro v1.0.0) by the owner's decision (D73).
 
 Every criterion is ticked. The epic closes when the owner tags v0.1.0.
+
+## Summary
+
+Released as v0.1.0 on 2026-10-29: orchestrated reviews on GitLab, Forgejo and GitHub, and one whose-turn inbox, for the owner on macOS. Every criterion is met; D73 settled the last two and moved three drafts to v1.0.0. Known gap at release: the tray, the mark, and notifications are unchecked on a desktop (TKT-01M3YMSVB).
