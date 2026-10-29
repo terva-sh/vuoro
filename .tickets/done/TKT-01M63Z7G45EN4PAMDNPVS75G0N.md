@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:41Z
-updated_at: 2026-10-29T14:12:26Z
+updated_at: 2026-10-29T14:44:43Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -48,6 +48,12 @@ Each hint is short, styled by terva-sh/design, and dismissed hints are kept thro
 - [x] A dismissed hint stays dismissed across restarts
 - [x] With no agent tool and no ticket store, every hint still renders and none points at a control that fails
 - [x] web/dist is rebuilt and committed
+
+## Notes
+
+**agent:claude-code/getting-started** at 2026-10-29T14:44:43Z
+
+Supersedes the summary's hint list: after the third vuoro review round there are seven hints. own-findings is the person's own work, split from first-drafts so dismissing one does not hide the other's Submit text. first-drafts says the change is read-only when vuoro cannot post to it, instead of pointing at Keep and Submit. NeedsTool's fallback names only Claude Code, since vuoro drives no other tool yet (D28). Hints and the offer stop their own keys from reaching the inbox.
 
 ## Summary
 

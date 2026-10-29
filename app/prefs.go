@@ -28,7 +28,7 @@ var Tabs = []string{"", "reviews", "local", "projects"}
 
 // Hints are the getting-started hints on empty and first-time screens, each
 // of which the person can dismiss for good (docs/plan.md section 3.4).
-var Hints = []string{"reviews-no-forge", "reviews-quiet", "local-empty", "projects-empty", "change-no-runs", "first-drafts"}
+var Hints = []string{"reviews-no-forge", "reviews-quiet", "local-empty", "projects-empty", "change-no-runs", "first-drafts", "own-findings"}
 
 // TourStates are where the getting-started tour is: not started, on at a
 // step, finished, or turned off.

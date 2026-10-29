@@ -265,7 +265,7 @@ export interface Setup {
 
 // HintID names a getting-started hint on an empty or first-time screen
 // (docs/plan.md section 3.4), which app.Hints lists too.
-export type HintID = 'reviews-no-forge' | 'reviews-quiet' | 'local-empty' | 'projects-empty' | 'change-no-runs' | 'first-drafts'
+export type HintID = 'reviews-no-forge' | 'reviews-quiet' | 'local-empty' | 'projects-empty' | 'change-no-runs' | 'first-drafts' | 'own-findings'
 
 // Tour is the getting-started tour's progress: not started, on with the
 // last step shown, finished, or turned off.

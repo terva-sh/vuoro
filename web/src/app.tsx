@@ -32,6 +32,10 @@ export function App() {
   const [scheme, setScheme] = useState<Scheme>('')
   const [about, setAbout] = useState(false)
   const [settings, setSettings] = useState(false)
+  // Whether the person finished or skipped first run. Home is remounted
+  // when Settings or a change closes, so it is kept here, and a replayed
+  // tour does not land back on setup.
+  const [setupLeft, setSetupLeft] = useState(false)
 
   const guide = useGuideState(setup, setSetup)
 
@@ -111,7 +115,7 @@ export function App() {
         ) : localRun ? (
           <LocalRun id={localRun} key={localRun} />
         ) : (
-          <Home setup={setup} onSetup={setSetup} runs={runs} opening={opening} onOpen={(u) => { setURL(u); void open(u) }} onOpenRun={setLocalRun} />
+          <Home setup={setup} onSetup={setSetup} setupLeft={setupLeft} onSetupLeft={() => setSetupLeft(true)} runs={runs} opening={opening} onOpen={(u) => { setURL(u); void open(u) }} onOpenRun={setLocalRun} />
         )}
       </main>
     </div>
@@ -119,12 +123,15 @@ export function App() {
   )
 }
 
-export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; onOpenRun: (id: string) => void; opening: boolean }) {
+export function Home({ setup, onSetup, setupLeft = false, onSetupLeft, runs, onOpen, onOpenRun, opening }: {
+  setup?: Setup; onSetup: (s: Setup) => void; runs: Run[]; onOpen: (url: string) => void; onOpenRun: (id: string) => void; opening: boolean
+  setupLeft?: boolean; onSetupLeft?: () => void // first run was finished or skipped
+}) {
   // A fresh install, with nowhere to read reviews from, starts at setup. It
   // stays until the person is done, so adding a second forge is one step on.
   const [firstRun, setFirstRun] = useState<boolean>()
   useEffect(() => {
-    if (setup && firstRun === undefined) setFirstRun(setup.editable && !setup.config_error && setup.forges.length === 0)
+    if (setup && firstRun === undefined) setFirstRun(!setupLeft && setup.editable && !setup.config_error && setup.forges.length === 0)
   }, [setup])
   // The tab is the one used last, once setup says which, and Reviews before.
   const [chosen, setChosen] = useState<HomeTab>()
@@ -147,7 +154,7 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
     setChosen(t)
     post('/api/prefs/tab', { tab: t }).catch(() => undefined)
   }
-  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
+  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => { setFirstRun(false); onSetupLeft?.() }} /></div>
   const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local'], ['projects', 'Projects']]
   return (
     <div class="home">

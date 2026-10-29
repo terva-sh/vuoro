@@ -55,6 +55,8 @@ const screens: { id: HintID; routes: Record<string, unknown>; view: (s: Setup) =
   { id: 'local-empty', routes: { '/api/local': emptyLocal }, view: (s) => <LocalTab setup={s} /> },
   { id: 'projects-empty', routes: { '/api/projects': { projects: [], accounts: [] } }, view: () => <ProjectsTab onOpen={() => {}} /> },
   { id: 'change-no-runs', routes: { '/api/runs': [] }, view: (s) => <RunPanel change={change} setup={s} onPick={() => {}} onDrafts={() => {}} /> },
+  { id: 'own-findings', routes: { '/api/runs/': idle, '/api/runs': [idle] },
+    view: (s) => <RunPanel change={change} setup={{ ...s, forges: [{ name: 'Work', url: 'https://lab.test', username: 'author', kind: 'gitlab' }] }} onPick={() => {}} onDrafts={() => {}} /> },
   { id: 'first-drafts', routes: { '/api/runs/': idle, '/api/runs': [idle] }, view: (s) => <RunPanel change={change} setup={s} onPick={() => {}} onDrafts={() => {}} /> },
 ]
 
@@ -95,6 +97,26 @@ describe('getting-started hints', () => {
       expect(hint(screen.id)!.textContent).toContain('needs Fake Tool installed and signed in')
       act(() => render(null, root))
     }
+  })
+
+  it('keeps the person\'s own findings and somebody else\'s drafts apart', async () => {
+    // Dismissing the own-work hint leaves the one that explains Submit.
+    serve({ '/api/runs/': idle, '/api/runs': [idle] })
+    const s = setupWith({ hints: ['own-findings'] })
+    await act(async () => render(<Guided setup={s}>{screens.find((x) => x.id === 'first-drafts')!.view(s)}</Guided>, root))
+    await settle()
+    // No writer: the change is read-only here, so the hint offers no Submit.
+    expect(hint('first-drafts')!.textContent).toContain('vuoro can only read this change')
+    expect(hint('first-drafts')!.textContent).not.toContain('Submit')
+  })
+
+  it('names only a tool vuoro can drive when it knows none', async () => {
+    serve({ '/api/runs': [] })
+    const none = setupWith({ tools: [] })
+    await act(async () => render(<Guided setup={none}><RunPanel change={change} setup={none} onPick={() => {}} onDrafts={() => {}} /></Guided>, root))
+    await settle()
+    expect(hint('change-no-runs')!.textContent).toContain('needs Claude Code installed')
+    expect(hint('change-no-runs')!.textContent).not.toContain('terva')
   })
 
   it('shows none before setup says which were dismissed', async () => {

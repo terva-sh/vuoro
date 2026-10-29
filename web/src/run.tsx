@@ -1,6 +1,6 @@
 // A review run: its agents, its findings, and the hand-back, polled while
 // anything works.
-import { useEffect, useState } from 'preact/hooks'
+import { useContext, useEffect, useState } from 'preact/hooks'
 import { errorText, useAction } from './action'
 import { api, post } from './api'
 import { Editor } from './editor'
@@ -144,6 +144,8 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
   author?: string // the change's author
 }) {
   const self = own || run.kind === 'local'
+  // Without a writer the change is read-only here: no Keep and no Submit.
+  const writer = useContext(WriteContext)
   // The findings to hand the editor: pending and undecided ones above low
   // severity that the verifier did not doubt, until the person changes them.
   const [picks, setPicks] = useState<Record<string, boolean>>({})
@@ -203,11 +205,19 @@ export function RunView({ run, url, own = false, onClose, onPick, onRun, onSelec
           )}
           <span class="muted push">{self ? 'Your own work: nothing here is posted. Pick findings for the editor, or dismiss them.' : 'An agent drafts, and nothing is posted until you keep it and submit.'}</span>
         </header>
-        {shown.length > 0 && <Hint id="first-drafts">
-          {self
-            ? <p><strong>These findings are yours alone.</strong> Nothing here is posted. Pick the ones for the editor to fix, or dismiss them.</p>
-            : <p><strong>These are drafts.</strong> An agent wrote them and nothing has been posted. Keep, edit, or drop each one. A kept draft becomes your pending comment, and it reaches the forge only when you press Submit at the top of the change.</p>}
-        </Hint>}
+        {/* The person's own work and somebody else's change are told
+            apart, so dismissing one does not hide the other's Submit. */}
+        {shown.length > 0 && (self ? (
+          <Hint id="own-findings">
+            <p><strong>These findings are yours alone.</strong> Nothing here is posted. Pick the ones for the editor to fix, or dismiss them.</p>
+          </Hint>
+        ) : (
+          <Hint id="first-drafts">
+            {writer
+              ? <p><strong>These are drafts.</strong> An agent wrote them and nothing has been posted. Keep, edit, or drop each one. A kept draft becomes your pending comment, and it reaches the forge only when you press Submit at the top of the change.</p>
+              : <p><strong>These are drafts.</strong> An agent wrote them and nothing has been posted. vuoro can only read this change, so copy any you want into your own comment on the forge.</p>}
+          </Hint>
+        ))}
         {self ? (
           // Nothing here posts: the findings are picked or dismissed.
           <WriteContext.Provider value={undefined}>

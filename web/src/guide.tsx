@@ -21,7 +21,7 @@ export const useGuide = () => useContext(GuideContext)
 
 // allHints are every hint, which app.Hints lists too. Before setup says
 // which were dismissed, none shows, so a dismissed one does not flash.
-export const allHints: HintID[] = ['reviews-no-forge', 'reviews-quiet', 'local-empty', 'projects-empty', 'change-no-runs', 'first-drafts']
+export const allHints: HintID[] = ['reviews-no-forge', 'reviews-quiet', 'local-empty', 'projects-empty', 'change-no-runs', 'first-drafts', 'own-findings']
 
 // useGuideState keeps the person's progress in setup, and writes each step
 // of it to prefs.json as it happens. A write that fails loses only a hint
@@ -68,7 +68,7 @@ export const keepKeys = (e: KeyboardEvent) => e.stopPropagation()
 // none of which answered.
 export function toolNames(setup?: Setup): string {
   const names = [...new Set(setup?.tools.map((t) => toolLabel(t.tool)) ?? [])]
-  return names.length > 0 ? names.join(' or ') : 'Claude Code or terva'
+  return names.length > 0 ? names.join(' or ') : 'Claude Code'
 }
 
 // NeedsTool is the sentence a hint gives when its screen needs an agent

@@ -200,6 +200,17 @@ describe('the tour', () => {
     expect(step()).toBe('home-tabs')
   })
 
+  it('replays from the home page, not setup, for a person who skipped setup', async () => {
+    serve(setupWith({ forges: [], tour: { state: 'done', step: 'submit' } }))
+    await act(async () => render(<App />, root))
+    await settle()
+    await press('Skip setup for now')
+    await press('⚙ Settings')
+    await press('Replay the tour')
+    expect(root.textContent).not.toContain('Set up vuoro')
+    expect(step()).toBe('home-tabs')
+  })
+
   it('lets an open modal take Esc first', async () => {
     serve(setupWith({ tour: { state: 'on', step: 'home-tabs' } }))
     await act(async () => render(<App />, root))
