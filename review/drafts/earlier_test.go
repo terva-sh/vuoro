@@ -72,3 +72,34 @@ func TestATriageReplyNamesNoEarlierFinding(t *testing.T) {
 		t.Fatalf("a triage reply with an earlier finding: %v", err)
 	}
 }
+
+// A dismissal's reason goes with the dismissal: taken back, it is gone, and
+// a finding that is not dismissed is never told one.
+func TestADismissalsReasonGoesWithIt(t *testing.T) {
+	st := NewStore()
+	d, err := st.Propose(alice, good())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Dismiss(d.ID, "  by design  "); err != nil {
+		t.Fatal(err)
+	}
+	if e := EarlierOf(st.All()); e[0].Standing != StandingDismissed || e[0].Reason != "by design" {
+		t.Fatalf("%+v", e)
+	}
+	if _, err := st.Undecide(d.ID, func(Draft) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.Get(d.ID); got.Dismissed != "" {
+		t.Fatalf("taking the dismissal back kept its reason %q", got.Dismissed)
+	}
+	if e := EarlierOf([]Draft{{ID: "d1", Status: Pending, Decision: Kept, Dismissed: "stale"}}); e[0].Reason != "" {
+		t.Fatalf("a kept finding carries a reason: %+v", e)
+	}
+	if err := st.CiteFix(d.ID, "abc1234", "Fix it", "person", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Dismiss(d.ID, "no"); err == nil {
+		t.Fatal("a fixed finding was dismissed")
+	}
+}

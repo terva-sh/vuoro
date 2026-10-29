@@ -711,6 +711,8 @@ func (st *Store) Dismiss(id, reason string) error {
 		return ErrKeeping
 	case d.Decision != "" && d.Decision != Dropped:
 		return fmt.Errorf("drafts: %s is already %s", id, d.Decision)
+	case d.FixedIn != "":
+		return fmt.Errorf("drafts: %s is already fixed in %s", id, d.FixedIn)
 	}
 	d.Decision, d.Dismissed = Dropped, strings.TrimSpace(reason)
 	d.Updated = st.now()
@@ -757,7 +759,7 @@ func (st *Store) Undecide(id string, remove func(Draft) error) (Draft, error) {
 	if err != nil {
 		return Draft{}, err
 	}
-	d.Decision, d.NoteID, d.Edited = "", "", false
+	d.Decision, d.NoteID, d.Edited, d.Dismissed = "", "", false, ""
 	d.Updated = st.now()
 	return *d, nil
 }

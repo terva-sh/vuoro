@@ -956,24 +956,35 @@ type Decided struct {
 }
 
 // RecordDecided records decisions on the findings of run runID, so a run
-// that follows it tells its reviewers where each stands. A fix's commit is
-// one MarkFixed would take.
+// that follows it tells its reviewers where each stands. Every decision is
+// checked before any is recorded, so a refused one leaves the run as it
+// was. A fix's commit is one MarkFixed would take; a fixed finding stays
+// fixed and cannot be dismissed.
 func (m *Manager) RecordDecided(ctx context.Context, runID string, src *Source, list []Decided) error {
 	r := m.Get(runID)
 	if r == nil {
 		return ErrNoRun
 	}
 	var commits []EditorCommit
+	seen := map[string]bool{}
+	fixes := map[string]string{}
 	for _, dec := range list {
-		if d, ok := r.store.Get(dec.ID); !ok || d.ThreadID != "" {
+		d, ok := r.store.Get(dec.ID)
+		switch {
+		case !ok || d.ThreadID != "" || d.Status != drafts.Pending:
 			return fmt.Errorf("run %s has no finding %s", runID, dec.ID)
+		case seen[dec.ID]:
+			return fmt.Errorf("%s is decided twice", dec.ID)
 		}
+		seen[dec.ID] = true
 		switch dec.Standing {
 		case drafts.StandingDismissed:
-			if err := r.store.Dismiss(dec.ID, dec.Reason); err != nil {
-				return err
+			if d.FixedIn != "" {
+				return fmt.Errorf("%s is already fixed in %s", dec.ID, short(d.FixedIn))
 			}
-			r.save()
+			if d.Decision != "" && d.Decision != drafts.Dropped {
+				return fmt.Errorf("%s is already %s", dec.ID, d.Decision)
+			}
 		case drafts.StandingFixed:
 			if commits == nil {
 				var err error
@@ -990,12 +1001,22 @@ func (m *Manager) RecordDecided(ctx context.Context, runID string, src *Source, 
 			if len(dec.Commit) < 4 || len(match) != 1 {
 				return fmt.Errorf("%s names no one commit since run %s reviewed %s", dec.Commit, runID, short(r.Head))
 			}
-			if err := m.MarkFixed(ctx, runID, dec.ID, match[0], src); err != nil {
-				return err
-			}
+			fixes[dec.ID] = match[0]
 		default:
 			return fmt.Errorf("a finding is decided fixed or dismissed, not %q", dec.Standing)
 		}
+	}
+	for _, dec := range list {
+		if sha, ok := fixes[dec.ID]; ok {
+			if err := m.MarkFixed(ctx, runID, dec.ID, sha, src); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := r.store.Dismiss(dec.ID, dec.Reason); err != nil {
+			return err
+		}
+		r.save()
 	}
 	return nil
 }

@@ -35,7 +35,7 @@ func EarlierOf(shown []Draft) []Earlier {
 		if d.ThreadID != "" {
 			continue
 		}
-		e := Earlier{ID: d.ID, Severity: d.Severity, Title: d.Title, FixedIn: d.FixedIn, FixedSubject: d.FixedSubject, Decision: d.Decision, NoteID: d.NoteID, Reason: d.Dismissed}
+		e := Earlier{ID: d.ID, Severity: d.Severity, Title: d.Title, FixedIn: d.FixedIn, FixedSubject: d.FixedSubject, Decision: d.Decision, NoteID: d.NoteID}
 		if d.Anchor != nil {
 			a := *d.Anchor
 			e.Anchor = &a
@@ -44,7 +44,7 @@ func EarlierOf(shown []Draft) []Earlier {
 		case d.FixedIn != "":
 			e.Standing = StandingFixed
 		case d.Decision == Dropped:
-			e.Standing = StandingDismissed
+			e.Standing, e.Reason = StandingDismissed, d.Dismissed
 		case d.Decision == Kept:
 			e.Standing = StandingKept
 		default:

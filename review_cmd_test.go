@@ -607,6 +607,9 @@ func TestReviewTellsAFollowingRunWhatWasDecided(t *testing.T) {
 		{[]string{"-follows", first.Run.ID, "-decided", fixedID + "=kept:x"}, "decided fixed or dismissed"},
 		{[]string{"-follows", first.Run.ID, "-decided", "d99=dismissed:no"}, "has no finding d99"},
 		{[]string{"-follows", first.Run.ID, "-decided", fixedID + "=fixed:0000000"}, "names no one commit"},
+		// A refusal after a good decision records neither.
+		{[]string{"-follows", first.Run.ID, "-decided", dismissedID + "=dismissed:no", "-decided", fixedID + "=fixed:0000000"}, "names no one commit"},
+		{[]string{"-follows", first.Run.ID, "-decided", dismissedID + "=dismissed:no", "-decided", dismissedID + "=fixed:" + fix[:8]}, "decided twice"},
 	} {
 		var out, errb bytes.Buffer
 		code := testCmdIn(stateDir, fakeTool{}, nil, nil, nil).run(append([]string{"-C", dir, "-profile", "code"}, append(c.args, "main..feature")...), &out, &errb)

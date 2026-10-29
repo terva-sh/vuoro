@@ -1453,7 +1453,7 @@ deletes it with the run's, or day-job code lingers there.
 Decided on 2026-10-05 (D35), so that vuoro reviews its own development.
 
 ```text
-vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run [-decided id=standing:detail]...] [target]
+vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeout d] [-follows run [-decided id=fixed:commit | -decided id=dismissed:reason]...] [target]
 ```
 
 - **The target** is a change URL, opened through the same adapters as the
@@ -1491,11 +1491,16 @@ vuoro review [-C dir] [-preset name | -profile name [-model m]] [-json] [-timeou
 - **A run can follow an earlier one**, as "Review again" does in the window
   (D50). `-follows` takes the earlier report's run id. The reviewers get its
   findings with where each stands, and a finding that restates one names it.
-  The command line has no Keep or Drop step, so `-decided` records the
-  person's decision on an earlier finding first, in the earlier run's
-  record, as the window's Drop and fix link do: `id=fixed:commit`, a commit
-  since the reviewed head, or `id=dismissed:reason`. The reviewers are told
-  the reason, and a restated dismissed finding comes in dismissed with it.
+  The command line has no Keep or Drop step, so `-decided`, which goes only
+  with `-follows`, records the person's decision on an earlier finding
+  first: `id=fixed:commit`, where the commit, or a prefix of at least four
+  characters naming it alone, comes after the reviewed head, or
+  `id=dismissed:reason`. Every decision is checked before any is written,
+  and a fixed finding cannot be dismissed. They are written to the earlier
+  run's record, as the window's Drop and fix link are, so a later round
+  that follows the same run needs no `-decided` again. The reviewers are
+  told the reason, and a restated dismissed finding comes in dismissed with
+  it, so the round after keeps it too.
   The JSON report adds `run.follows`, the run it follows, and `earlier`,
   that run's findings, each with its `standing`: fixed, dismissed, kept, or
   open. A restated finding names the earlier one in its `earlier` field. The
