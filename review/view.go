@@ -17,6 +17,7 @@ type RunView struct {
 	Kind           string         `json:"kind"`
 	Mode           string         `json:"mode,omitempty"`
 	Summary        *SummaryRange  `json:"summary,omitempty"`
+	Ask            *Ask           `json:"ask,omitempty"`
 	ReviewComplete bool           `json:"review_complete,omitempty"`
 	Threads        []forge.Thread `json:"triage_threads,omitempty"`
 	Ref            forge.Ref      `json:"ref"`
@@ -104,6 +105,10 @@ func (r *Run) View() RunView {
 	if r.Summary != nil {
 		sr := *r.Summary
 		v.Summary = &sr
+	}
+	if r.Ask != nil {
+		a := *r.Ask
+		v.Ask = &a
 	}
 	v.ReviewComplete = r.Mode == "" && len(r.sessions) > 0
 	for _, t := range r.Threads {
@@ -198,7 +203,7 @@ func (m *Manager) load(keep func(Status) bool) error {
 		}
 		r := &Run{
 			ID: rec.ID, Kind: rec.Kind, Mode: rec.Mode, Threads: rec.Threads, first: rec.First, Ref: rec.Ref, Title: rec.Title, WebURL: rec.WebURL, Head: rec.Head, Base: rec.Base,
-			Created: rec.Created, Status: rec.Status, Error: rec.Error, Summary: rec.Summary,
+			Created: rec.Created, Status: rec.Status, Error: rec.Error, Summary: rec.Summary, Ask: rec.Ask,
 			dir:        filepath.Join(m.StateDir, "worktrees", rec.ID),
 			repoKey:    rec.Repo,
 			anchors:    rec.Anchors,
@@ -248,6 +253,8 @@ func (m *Manager) load(keep func(Status) bool) error {
 			switch p, ok := m.profile(s.Profile); {
 			case s.Role == drafts.Triage:
 				s.spec = agent.Spec{SystemPrompt: triagePrompt, Model: s.Model}
+			case s.Role == drafts.Summary && r.Mode == AskMode:
+				s.spec = agent.Spec{SystemPrompt: askPrompt, Model: s.Model}
 			case s.Role == drafts.ProjectTriage:
 				s.spec = agent.Spec{SystemPrompt: projectTriagePrompt, Model: s.Model}
 			case s.Role == drafts.Synthesizer:

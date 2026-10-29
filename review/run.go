@@ -111,7 +111,10 @@ type Run struct {
 	Created time.Time
 	Status  Status
 	Error   string
+	// Summary is the exact range a summary or an ask run reads.
 	Summary *SummaryRange
+	// Ask is what a conversation about the change was started with.
+	Ask *Ask
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
 	// Update is an update run's state (section 6.10), and updating is set
@@ -373,8 +376,27 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 		m.prepareUpdate(ctx, r, src)
 		return
 	}
+	if r.Mode == AskMode {
+		// The range is read from the clone and refused whole when too
+		// large, as for a summary, before any agent starts.
+		input, err := m.Repos.summaryInput(ctx, src, r.Summary.From)
+		r.mu.Lock()
+		if err != nil {
+			r.Status, r.Error = Failed, err.Error()
+			for _, s := range r.sessions {
+				s.Status, s.Error = Failed, err.Error()
+			}
+		} else {
+			r.first = r.askFirst(input)
+		}
+		r.mu.Unlock()
+		r.save()
+		if err != nil {
+			return
+		}
+	}
 	for _, s := range r.sessions {
-		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage {
+		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage || s.Role == drafts.Summary && r.Mode == AskMode {
 			m.spawn(func() { m.begin(r, s, r.first) })
 		}
 	}
@@ -523,6 +545,12 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		}
 		spec := m.editorSpec(r, s.spec)
 		spec.Resume = resume
+		r.mu.Unlock()
+		return m.started(r, s, spec)
+	}
+	if s.Role == drafts.Summary { // a conversation: no drafts server, no token
+		spec := s.spec
+		spec.Dir, spec.Resume = r.dir, resume
 		r.mu.Unlock()
 		return m.started(r, s, spec)
 	}

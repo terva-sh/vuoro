@@ -428,14 +428,15 @@ var projectRunRoutes = map[string]bool{"": true, "close": true, "sessions": true
 var updateRunRoutes = map[string]bool{"": true, "close": true, "sessions": true, "update": true}
 
 // keepProjectRuns refuses the generic run routes that a project triage run,
-// or an update run, does not answer.
+// an update run, or a conversation does not answer.
 func (a *App) keepProjectRuns(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/runs/"); ok && a.Runs != nil {
 			id, sub, _ := strings.Cut(rest, "/")
 			sub, _, _ = strings.Cut(sub, "/")
 			run := a.Runs.Get(id)
-			if run != nil && (run.Mode == review.ProjectMode && !projectRunRoutes[sub] || run.Mode == review.UpdateMode && !updateRunRoutes[sub]) {
+			if run != nil && (run.Mode == review.ProjectMode && !projectRunRoutes[sub] || run.Mode == review.UpdateMode && !updateRunRoutes[sub] ||
+				run.Mode == review.AskMode && !askRunRoutes[sub]) {
 				writeError(w, review.ErrNoRun)
 				return
 			}

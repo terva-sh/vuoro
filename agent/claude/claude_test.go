@@ -577,3 +577,41 @@ func TestCancelInterruptsABlockedInputWrite(t *testing.T) {
 		t.Fatal("cancelled process was not reaped")
 	}
 }
+
+// A session with no drafts server, a summary or a conversation about a
+// change (D68), reads and does nothing else: its allowed tools are the read
+// tools, and its MCP configuration names no server.
+func TestASessionWithNoDraftsServerOnlyReads(t *testing.T) {
+	d, argsFile := fake(t, "review.jsonl")
+	s, err := d.Start(context.Background(), agent.Spec{Dir: t.TempDir(), SystemPrompt: "answer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	// The configuration is removed when the process ends, so it is read
+	// as soon as the process has recorded its arguments.
+	var got []string
+	for deadline := time.Now().Add(10 * time.Second); len(got) == 0 && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		b, _ := os.ReadFile(argsFile)
+		_ = json.Unmarshal(b, &got)
+	}
+	for _, want := range [][]string{{"--tools", "Read,Grep,Glob"}, {"--allowedTools", "Read,Grep,Glob"}, {"--restricted"}, {"--strict-mcp-config"}} {
+		if !containsRun(got, want) {
+			t.Errorf("argv lacks %q: %q", want, got)
+		}
+	}
+	cfg, err := os.ReadFile(got[slices.Index(got, "--mcp-config")+1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var servers struct {
+		MCPServers map[string]any `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(cfg, &servers); err != nil || len(servers.MCPServers) != 0 {
+		t.Fatalf("mcp config %s", cfg)
+	}
+	if slices.Contains(got, "--settings") {
+		t.Fatal("a reading session got sandbox settings meant for the editor")
+	}
+	turn(t, s, "Why does Add subtract?")
+}
