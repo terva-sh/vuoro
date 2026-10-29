@@ -1470,3 +1470,33 @@ Decided by the owner on 2026-10-29, to cut v0.1.0 from main.
   git-ticket store and ticket, showing that ticket to the person and the
   reviewers, and keeping runs until the change closes and then 30 days.
   None of them stops the owner using vuoro today.
+
+### D74. vuoro releases from GitHub on a tag, unsigned for now, and updates itself
+
+Decided by the owner on 2026-10-29, after v0.1.0 and v0.1.1 were cut by hand
+and the sibling projects' release tooling was read
+(git-ticket-canvas's `docs/releasing.md`, git-ticket's and terva's
+`.goreleaser.yaml`).
+
+- **GitHub runs release CI/CD, and only that.** A `v*` tag pushed to GitHub
+  builds, verifies, and publishes the release there. It refines D52 rather
+  than reversing it: per-branch and pull-request CI stays on the internal
+  Forgejo runners, because running it on GitHub made work that belonged on
+  those runners. A test holds that the GitHub workflow triggers on tags
+  alone.
+- **vuoro follows the siblings' conventions.** GoReleaser v2 builds linux
+  and darwin on amd64 and arm64, and windows on amd64, with cgo off. Each
+  archive carries the binary, LICENSE, THIRD_PARTY_LICENSES, and
+  README-release.md, with `checksums.txt` beside them. The version is read
+  from the build information `go build` records from git, not stamped at
+  link time, so a release names its own tag and commit. The archives are
+  verified before anything is published, and a person chooses the version
+  and pushes the tag.
+- **The macOS binary is unsigned.** Signing and notarization wait until the
+  owner sets up the certificates. README-release.md says how a person
+  allows the downloaded binary, if they choose to.
+- **vuoro updates itself**, as git-ticket does: it reads the latest GitHub
+  release, checks the archive against `checksums.txt`, and replaces its own
+  binary. tuohi has no self-update to lean on (v0.3.1 was checked). A file
+  vuoro downloads itself carries no quarantine mark, so after the person has
+  allowed the first binary, an update does not ask again.

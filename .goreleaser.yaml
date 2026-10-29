@@ -1,0 +1,74 @@
+# GoReleaser builds the archives a vuoro release publishes (D74). Pushing a v*
+# tag to GitHub runs .github/workflows/release.yml, which builds with
+# publishing skipped, verifies the archives with scripts/verify-release.py,
+# and only then publishes them. `just release-snapshot` and
+# `just release-rehearse` run the same build locally and publish nothing.
+#
+# It follows git-ticket-canvas's config, the closest sibling.
+#
+# Nothing is stamped at link time. go build records the module version and the
+# commit from git, and vuoro reads them back (main.go, buildVersion), so a
+# release names its own tag. That holds only for a build inside a full clone
+# with the tag present: a shallow checkout, or a linked git worktree, records
+# no VCS data and reports dev. The workflow checks out with fetch-depth 0 and
+# the rehearsal builds in a fresh clone for that reason.
+#
+# No `before: hooks:` either. A hook that ran go mod tidy or a frontend build
+# after goreleaser has checked the tree is clean would stamp modified=true into
+# every binary. web/dist is committed, and the release gate checks it matches
+# its source before this runs.
+
+version: 2
+
+project_name: vuoro
+
+builds:
+  - id: vuoro
+    main: .
+    binary: vuoro
+    # No cgo, ever, in what ships (AGENTS.md). tuohi binds the platform's web
+    # view without it.
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    # windows/arm64 is left out, as the siblings leave it out, until someone
+    # asks for it.
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags: [-trimpath]
+    ldflags: [-s -w]
+
+archives:
+  - id: vuoro
+    ids: [vuoro]
+    # vuoro_0.2.0_darwin_arm64.tar.gz, with the binary at the archive root.
+    # vuoro self-update looks for exactly this name.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # The notices travel with every copy of the binary. goreleaser fails on an
+    # entry that matches nothing, so removing one breaks the release rather
+    # than shipping without it.
+    files:
+      - LICENSE
+      - THIRD_PARTY_LICENSES
+      - README-release.md
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  # git, not the forge API, so the notes build the same anywhere.
+  use: git
+  sort: asc
+
+# goreleaser packages and never publishes. The workflow publishes the
+# archives it has verified (D74).
+release:
+  disable: true

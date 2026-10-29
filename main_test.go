@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -170,5 +171,26 @@ func TestChooseFolderAsksForADirectoryAndAnswersEmptyWhenCancelled(t *testing.T)
 	answer, fail = []string{"/x"}, errors.New("no window")
 	if got := choose("Add a folder"); got != "" {
 		t.Fatalf("a chooser that failed answered %q", got)
+	}
+}
+
+// The version is the one go build recorded from git, never a link-time
+// stamp (D74).
+func TestTheVersionIsReadFromTheBuild(t *testing.T) {
+	for _, c := range []struct {
+		main string
+		ok   bool
+		want string
+	}{
+		{"v0.1.1", true, "v0.1.1"},
+		{"v0.1.2-0.20261029191500-efcff53abcde+dirty", true, "v0.1.2-0.20261029191500-efcff53abcde"},
+		{"(devel)", true, "dev"},
+		{"", true, "dev"},
+		{"v0.1.1", false, "dev"},
+	} {
+		info := &debug.BuildInfo{Main: debug.Module{Version: c.main}}
+		if got := buildVersion(info, c.ok); got != c.want {
+			t.Errorf("%q (ok %v): %q, want %q", c.main, c.ok, got, c.want)
+		}
 	}
 }

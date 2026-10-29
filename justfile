@@ -117,8 +117,35 @@ design-check:
 tickets-check:
     git ticket check --fix --dry-run --strict
 
+# Write THIRD_PARTY_LICENSES from the module cache and node_modules (D74).
+third-party-licenses:
+    python3 scripts/third-party-licenses.py
+
+# Fail if THIRD_PARTY_LICENSES differs from what the linked dependencies need.
+notices-check:
+    python3 scripts/third-party-licenses.py --check
+
 # The full gate. CI runs the same steps.
-ci: vet fmt-check test race cross web-typecheck web-test dist-verify design-check tickets-check
+ci: vet fmt-check test race cross web-typecheck web-test dist-verify design-check notices-check tickets-check
+
+# Releasing (D74, docs/plan.md section 9). None of these tags or publishes:
+# a person chooses the version and pushes the tag, and the GitHub workflow
+# publishes. They need goreleaser v2 on PATH.
+
+# Check the goreleaser config and the shipped notices.
+release-check: notices-check
+    goreleaser check
+
+# Build every archive from the working tree into dist/ and verify it. A
+# snapshot is not a release: its version is not a tag.
+release-snapshot: dist-verify release-check
+    goreleaser release --snapshot --clean --skip=publish --parallelism=2
+    python3 scripts/verify-release.py
+
+# Tag a disposable clone of HEAD, build and verify it as the release workflow
+# does, and remove the clone. Commit first: it builds HEAD, not the tree.
+release-rehearse: release-check
+    python3 scripts/rehearse-release.py
 
 # Internal work merges on Forgejo (origin) and outside pull requests merge on
 # GitHub (github), so either main can move ahead of the other. This

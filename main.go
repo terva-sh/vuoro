@@ -27,6 +27,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,8 +47,21 @@ import (
 	"github.com/terva-sh/vuoro/web"
 )
 
-// version is set at release time with -ldflags "-X main.version=...".
-var version = "dev"
+// version is the release this binary was built from, as go build records it
+// from git (D74): the tag at HEAD, or a pseudo-version past the last one.
+var version = buildVersion(debug.ReadBuildInfo())
+
+// buildVersion reads the main module's version from the build information,
+// as git-ticket does, so nothing is stamped at link time and a release names
+// its own tag. Go appends +dirty for a modified tree, which the About pane
+// already says, so it is dropped here. A build with no VCS information, such
+// as go run or a test binary, is dev.
+func buildVersion(info *debug.BuildInfo, ok bool) string {
+	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return "dev"
+	}
+	return strings.TrimSuffix(info.Main.Version, "+dirty")
+}
 
 // checkTimeout bounds -check, so a page that never reports cannot hang CI.
 const checkTimeout = 30 * time.Second

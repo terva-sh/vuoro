@@ -1,0 +1,75 @@
+# vuoro's release CI/CD (D74). A v* tag pushed to GitHub builds every archive,
+# verifies it, and publishes the release. Nothing else runs here: per-branch
+# and pull-request CI stays on the internal Forgejo runners (D52), and
+# release_config_test.go holds that this workflow triggers on tags alone.
+#
+# It follows git-ticket-canvas's public release: goreleaser packages with
+# publishing skipped, scripts/verify-release.py checks the archives, and only
+# then are they uploaded, into a draft made public once every asset arrived.
+# A failed run leaves the tag with no release or a draft to inspect. Never move
+# a published tag to repair a release; fix forward with the next one.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Forgejo Actions also runs .github/workflows and reports the same owner
+    # and name, so only the server tells the two apart.
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      CGO_ENABLED: '0'
+    steps:
+      - name: Checkout full tag history
+        # go build reads the version from the tag reachable at HEAD; a shallow
+        # checkout would build binaries that say dev.
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: The release gate
+        # The internal gate's checks that bear on what ships. The window test
+        # needs a display and stays out, as it does in CI.
+        run: |
+          set -eu
+          for os in linux darwin windows; do GOOS=$os go vet ./...; done
+          test -z "$(gofmt -l . | tee /dev/stderr)"
+          go test ./...
+          go run github.com/terva-sh/design/cmd/design-tokens export -app vuoro -out web/src/styles/design.css -check
+          npm ci
+          npm run typecheck
+          npm run test:unit
+          npm run verify:dist
+          python3 scripts/third-party-licenses.py --check
+      - name: Build without publishing
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: '~> v2'
+          args: release --clean --skip=publish
+      - name: Verify the archives before upload
+        run: python3 scripts/verify-release.py --tag "$TAG"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          args=()
+          case "$TAG" in *-*) args+=(--prerelease);; esac
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "vuoro $TAG" --notes-from-tag "${args[@]}" \
+            dist/*.tar.gz dist/*.zip dist/checksums.txt
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

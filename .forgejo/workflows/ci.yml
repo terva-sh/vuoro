@@ -34,7 +34,7 @@ jobs:
       image: container.local.sothr.com/library/golang:1.27-alpine
     steps:
       - name: Install dependencies
-        run: apk add --no-cache git bash nodejs npm gcc musl-dev
+        run: apk add --no-cache git bash nodejs npm gcc musl-dev python3
 
       - name: Checkout
         uses: Actions-Mirrors/forgejo-actions-checkout@v6
@@ -78,6 +78,9 @@ jobs:
 
       - name: web/dist matches its source
         run: npm run verify:dist
+
+      - name: THIRD_PARTY_LICENSES matches the linked dependencies
+        run: python3 scripts/third-party-licenses.py --check
 
       - name: Ticket store
         run: git ticket check --fix --dry-run --strict
