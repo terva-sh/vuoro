@@ -132,7 +132,7 @@ func (r *Run) View() RunView {
 }
 
 // roleNames are the roles as the view and the record name them.
-var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester", drafts.Editor: "editor", drafts.ProjectTriage: "project-triage"}
+var roleNames = map[drafts.Role]string{drafts.Reviewer: "reviewer", drafts.Synthesizer: "synthesizer", drafts.Verifier: "verifier", drafts.Triage: "triage", drafts.Summary: "summary", drafts.Suggester: "suggester", drafts.Editor: "editor", drafts.ProjectTriage: "project-triage", drafts.Asker: "ask"}
 
 // record is what runs/<id>/run.json holds: the view, and what a reloaded run
 // needs to carry on.
@@ -143,7 +143,8 @@ type record struct {
 	Anchors lineIndex         `json:"anchors"`
 	Resume  map[string]string `json:"resume"` // each session's resume handle
 	Who     *Identity         `json:"editor_identity,omitempty"`
-	Origin  string            `json:"origin,omitempty"` // a local range's checkout
+	Origin  string            `json:"origin,omitempty"`    // a local range's checkout
+	Facts   *AskFacts         `json:"ask_facts,omitempty"` // a conversation's forge read
 }
 
 func (r *Run) record() record {
@@ -152,6 +153,10 @@ func (r *Run) record() record {
 	defer r.mu.Unlock()
 	rec.First = r.first
 	rec.Repo, rec.Anchors, rec.Resume, rec.Origin = r.repoKey, r.anchors, map[string]string{}, r.origin
+	if r.Mode == AskMode {
+		f := r.askFacts
+		rec.Facts = &f
+	}
 	for _, s := range r.sessions {
 		rec.Resume[s.ID] = s.Ref
 	}
@@ -223,6 +228,9 @@ func (m *Manager) load(keep func(Status) bool) error {
 		if r.Mode == "triage" {
 			r.bindThreads()
 		}
+		if r.Mode == AskMode && rec.Facts != nil {
+			r.askFacts = *rec.Facts
+		}
 		if r.Mode == UpdateMode && rec.Update != nil {
 			r.Update = rec.Update
 		}
@@ -253,7 +261,8 @@ func (m *Manager) load(keep func(Status) bool) error {
 			switch p, ok := m.profile(s.Profile); {
 			case s.Role == drafts.Triage:
 				s.spec = agent.Spec{SystemPrompt: triagePrompt, Model: s.Model}
-			case s.Role == drafts.Summary && r.Mode == AskMode:
+			case r.Mode == AskMode && (s.Role == drafts.Asker || s.Role == drafts.Summary):
+				s.Role = drafts.Asker // an ask recorded before it had context tools
 				s.spec = agent.Spec{SystemPrompt: askPrompt, Model: s.Model}
 			case s.Role == drafts.ProjectTriage:
 				s.spec = agent.Spec{SystemPrompt: projectTriagePrompt, Model: s.Model}

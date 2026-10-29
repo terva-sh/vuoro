@@ -56,8 +56,10 @@ type Spec struct {
 	Dir          string // the worktree the reviewer reads, and nothing else
 	SystemPrompt string
 	Model        string // empty for the tool's default
-	// Drafts is the one MCP server the session may use: vuoro's drafts
-	// server. Nil starts a session with no write tool at all.
+	// Drafts is the one MCP server the session may use: vuoro's own, with
+	// the drafts tools of the session's role, or for a conversation about a
+	// change its read-only context tools (section 6.11). Nil starts a
+	// session with no MCP tool at all.
 	Drafts *MCPServer
 	// Resume is the Ref of an earlier session to continue, or empty.
 	Resume string

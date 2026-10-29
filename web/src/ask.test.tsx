@@ -23,7 +23,7 @@ const prompts: Prompts = {
   ],
   errors: [{ file: 'broken.md', reason: 'scope is change or since_review, not "all"' }],
 }
-const session = (over: Partial<Session> = {}) => ({ id: 's1', profile: 'ask', tool: 'claude', role: 'summary', status: 'idle', usage: { cost_usd: 0.02, input: 1, output: 1, cache_read: 0, cache_write: 0 },
+const session = (over: Partial<Session> = {}) => ({ id: 's1', profile: 'ask', tool: 'claude', role: 'ask', status: 'idle', usage: { cost_usd: 0.02, input: 1, output: 1, cache_read: 0, cache_write: 0 },
   log: [{ kind: 'change', text: 'the diff' }, { kind: 'assistant', text: 'It subtracts on purpose.' }], ...over }) as unknown as Session
 const run = (over: Partial<Run> = {}): Run => ({
   id: 'ask-1', kind: 'gitlab', ref: change.ref, title: 't', web_url: change.web_url, head: 'head2222222', base: 'base000000', created: new Date().toISOString(),

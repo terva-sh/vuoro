@@ -113,8 +113,10 @@ type Run struct {
 	Error   string
 	// Summary is the exact range a summary or an ask run reads.
 	Summary *SummaryRange
-	// Ask is what a conversation about the change was started with.
-	Ask *Ask
+	// Ask is what a conversation about the change was started with, and
+	// askFacts the forge read its context tools answer from.
+	Ask      *Ask
+	askFacts AskFacts
 	// Project is what a project triage run may propose about.
 	Project *ProjectTriage
 	// Update is an update run's state (section 6.10), and updating is set
@@ -402,7 +404,7 @@ func (m *Manager) prepare(ctx context.Context, r *Run, src Source) {
 		}
 	}
 	for _, s := range r.sessions {
-		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage || s.Role == drafts.Summary && r.Mode == AskMode {
+		if s.Role == drafts.Reviewer || s.Role == drafts.Triage || s.Role == drafts.ProjectTriage || s.Role == drafts.Asker {
 			m.spawn(func() { m.begin(r, s, r.first) })
 		}
 	}
@@ -554,14 +556,18 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 		r.mu.Unlock()
 		return m.started(r, s, spec)
 	}
-	if s.Role == drafts.Summary { // a conversation: no drafts server, no token
-		spec := s.spec
-		spec.Dir, spec.Resume = r.dir, resume
-		r.mu.Unlock()
-		return m.started(r, s, spec)
-	}
+	tools := drafts.ToolNames(s.Role)
 	if s.token == "" {
-		s.token = m.Drafts.Register(r.store, drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted(), Target: s.Target})
+		sess := drafts.Session{ID: s.ID, Role: s.Role, Drafted: s.drafted(), Target: s.Target}
+		if s.Role == drafts.Asker {
+			// A conversation's only MCP tools are its read-only context
+			// tools (section 6.11); it has no draft access.
+			sess.Context = &askContext{repos: m.Repos, key: r.repoKey, base: r.Summary.From, head: r.Head, facts: r.facts}
+		}
+		s.token = m.Drafts.Register(r.store, sess)
+	}
+	if s.Role == drafts.Asker {
+		tools = ContextToolNames()
 	}
 	spec := s.spec
 	spec.Dir = r.dir
@@ -573,7 +579,7 @@ func (m *Manager) launch(r *Run, s *Session, resume string) error {
 			"url":     m.MCPURL,
 			"headers": map[string]string{"Authorization": "Bearer " + s.token},
 		},
-		Tools: drafts.ToolNames(s.Role),
+		Tools: tools,
 	}
 	r.mu.Unlock()
 	return m.started(r, s, spec)

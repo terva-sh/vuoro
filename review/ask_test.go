@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -34,7 +35,13 @@ func TestAnAskIsReadOnlyAndCarriesOnAcrossARestart(t *testing.T) {
 		asked = append(asked, text)
 		mu.Unlock()
 		if out, isErr := call("list_drafts", nil); !isErr {
-			return "reached a drafts server: " + out
+			return "reached the drafts: " + out
+		}
+		if out, isErr := call("propose_draft", map[string]any{"severity": "low", "title": "x", "description": "y"}); !isErr {
+			return "drafted: " + out
+		}
+		if out, isErr := call("git_log", map[string]any{"max_count": 1}); isErr || !strings.Contains(out, "head") {
+			return "no history: " + out
 		}
 		return "answer " + text[:3]
 	})
@@ -49,7 +56,9 @@ func TestAnAskIsReadOnlyAndCarriesOnAcrossARestart(t *testing.T) {
 	d.mu.Lock()
 	spec := d.specs[0]
 	d.mu.Unlock()
-	if spec.Drafts != nil || spec.Editor != nil || spec.Resume != "" || spec.Dir != r.dir || spec.SystemPrompt != askPrompt {
+	// Its one MCP server is vuoro's, offering the context tools and nothing else.
+	if spec.Drafts == nil || spec.Drafts.Name != "vuoro" || !slices.Equal(spec.Drafts.Tools, ContextToolNames()) ||
+		spec.Editor != nil || spec.Resume != "" || spec.Dir != r.dir || spec.SystemPrompt != askPrompt {
 		t.Fatalf("an ask session got more than reading: %+v", spec)
 	}
 	if got := answers(v)[0]; got != "answer Why" {
@@ -76,7 +85,7 @@ func TestAnAskIsReadOnlyAndCarriesOnAcrossARestart(t *testing.T) {
 	d.mu.Unlock()
 
 	m.Shutdown()
-	loaded := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: map[string]agent.Driver{"fake": d}}
+	loaded := &Manager{StateDir: m.StateDir, Repos: m.Repos, Drivers: map[string]agent.Driver{"fake": d}, Drafts: m.Drafts, MCPURL: m.MCPURL}
 	t.Cleanup(loaded.Shutdown)
 	if err := loaded.Load(); err != nil {
 		t.Fatal(err)
@@ -92,7 +101,7 @@ func TestAnAskIsReadOnlyAndCarriesOnAcrossARestart(t *testing.T) {
 	d.mu.Lock()
 	resumed := d.specs[len(d.specs)-1]
 	d.mu.Unlock()
-	if resumed.Resume != "ref-1" || resumed.Drafts != nil || resumed.Editor != nil || resumed.SystemPrompt != askPrompt {
+	if resumed.Resume != "ref-1" || resumed.Drafts == nil || !slices.Equal(resumed.Drafts.Tools, ContextToolNames()) || resumed.Editor != nil || resumed.SystemPrompt != askPrompt {
 		t.Fatalf("resumed as %+v", resumed)
 	}
 }

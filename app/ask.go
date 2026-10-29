@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/terva-sh/vuoro/forge"
 	"github.com/terva-sh/vuoro/forge/adapters"
@@ -99,6 +101,25 @@ func promptTool(p review.Prompt, tool, model string) (string, string) {
 		model = p.Model
 	}
 	return tool, model
+}
+
+// refreshAsk gives a conversation a fresh forge read of its change before
+// the person's follow-up, so its change, discussion, and pipeline tools
+// answer from now. A read that fails leaves the last one, which says when it
+// was made.
+func (a *App) refreshAsk(ctx context.Context, id string) {
+	if a.Runs == nil {
+		return
+	}
+	run := a.Runs.Get(id)
+	if run == nil || run.Mode != review.AskMode {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if ch, err := a.open(ctx, run.WebURL); err == nil {
+		_ = a.Runs.SetAskFacts(run.ID, ch)
+	}
 }
 
 // listAsks answers the conversations about the change at url, newest first,

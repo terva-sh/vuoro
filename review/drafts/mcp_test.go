@@ -284,3 +284,40 @@ func TestOverMCPNoToolRecordsAFix(t *testing.T) {
 		t.Fatalf("a tool recorded a fix: %+v", d)
 	}
 }
+
+type readOnlyTools struct{ calls []string }
+
+func (r *readOnlyTools) List() []map[string]any {
+	return []map[string]any{{"name": "git_log", "inputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": true}}}
+}
+func (r *readOnlyTools) Call(name string, _ json.RawMessage) (string, bool) {
+	r.calls = append(r.calls, name)
+	return "abc123 head", false
+}
+
+// An asker lists its context tools and nothing of the drafts, and a draft
+// tool it asks for is refused.
+func TestAnAskerListsOnlyItsContextTools(t *testing.T) {
+	st, srv, url := setup(t)
+	tools := &readOnlyTools{}
+	tok := srv.Register(st, Session{ID: "s", Role: Asker, Context: tools})
+	_, out := rpc(t, url, tok, "tools/list", nil)
+	var names []string
+	for _, tool := range out["result"].(map[string]any)["tools"].([]any) {
+		names = append(names, tool.(map[string]any)["name"].(string))
+	}
+	if !slices.Equal(names, []string{"git_log"}) || len(ToolNames(Asker)) != 0 {
+		t.Fatalf("an asker lists %q, and is allowed drafts tools %q", names, ToolNames(Asker))
+	}
+	if text, isErr := callTool(t, url, tok, "git_log", map[string]any{}); isErr || text != "abc123 head" || !slices.Equal(tools.calls, []string{"git_log"}) {
+		t.Fatalf("git_log: %v %q %v", isErr, text, tools.calls)
+	}
+	for _, name := range []string{"list_drafts", "propose_draft"} {
+		if _, isErr := callTool(t, url, tok, name, map[string]any{"severity": "low", "title": "x", "description": "y"}); !isErr {
+			t.Fatalf("an asker called %s", name)
+		}
+	}
+	if len(st.All()) != 0 {
+		t.Fatal("an asker drafted")
+	}
+}

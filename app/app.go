@@ -607,6 +607,7 @@ func (a *App) say(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.probeTools() // a run reloaded after a restart resumes on a probed tool
+	a.refreshAsk(r.Context(), r.PathValue("id"))
 	if err := a.Runs.Say(r.PathValue("id"), r.PathValue("sid"), req.Text); err != nil {
 		writeError(w, err)
 		return

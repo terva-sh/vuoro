@@ -1868,20 +1868,27 @@ lists and searches them across all changes. It replaces the Summary tab.
 **What it may read.** The agent has Read, Grep, and Glob on the head's
 checkout, and no shell, no web access, no extensions, no writing tool, and
 none of the person's MCP servers, the same lockdown as a reviewer
-(section 6.3). It has no drafts server. Instead vuoro serves it one more MCP
-server, `context`, whose tools only read, so it stays read-only by
-construction rather than by policy:
+(section 6.3). It has no draft tools. Instead vuoro's own MCP server, the
+one reviewers draft through, serves its session only the context tools, which
+only read, so it stays read-only by construction rather than by policy:
 
 - `git_log`, `git_show`, `git_blame`, and `git_diff` run in vuoro's clone of
-  the repository. Revisions must be a full commit ID from the run or a name
-  vuoro resolves to one, paths must be relative and inside the repository,
-  every argument goes after `--end-of-options`, diff programs and textconv are
-  off, and output is capped as a summary's patch is.
+  the repository. A revision is `head`, `base`, or a commit ID, whole or
+  abbreviated, optionally with `~N`; branch and tag names, ranges, and
+  anything git reads as an option are refused. Paths must be relative and
+  inside the repository,
+  revisions go after `--end-of-options` (blame, which reads that as a
+  revision, gets a resolved commit ID instead), diff programs and textconv
+  are off, and an answer past 128 KiB is refused with the reason, never cut
+  short. A revision must also be in the history of the change's head or
+  base, so a commit fetched for another change cannot be read.
 - `change` answers with the change's title, description, labels, and state.
-  `discussion` answers with its threads and their comments. `pipeline`
-  answers with the head's pipeline status and failed jobs. All three answer
-  from what vuoro read from the forge when the turn started, and none of
-  them sends a request of its own.
+  `discussion` answers with its threads and their comments, without the
+  forge's own system notes. `pipeline` answers with the head pipeline's
+  status; vuoro does not read its jobs or logs. All three answer from a
+  snapshot of the forge read the conversation started from, refreshed when
+  the person sends a follow-up through the window, which says when it was
+  read. None of them sends a request of its own.
 - Everything these tools return, and the description, threads, commit
   messages, and repository text, is untrusted data, and the system prompt
   says so.
