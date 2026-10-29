@@ -117,8 +117,6 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
   // A fresh install, with nowhere to read reviews from, starts at setup. It
   // stays until the person is done, so adding a second forge is one step on.
   const [firstRun, setFirstRun] = useState<boolean>()
-  // Finishing setup, or leaving it, offers the tour once.
-  const [offer, setOffer] = useState(false)
   useEffect(() => {
     if (setup && firstRun === undefined) setFirstRun(setup.editable && !setup.config_error && setup.forges.length === 0)
   }, [setup])
@@ -143,11 +141,13 @@ export function Home({ setup, onSetup, runs, onOpen, onOpenRun, opening }: { set
     setChosen(t)
     post('/api/prefs/tab', { tab: t }).catch(() => undefined)
   }
-  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => { setFirstRun(false); setOffer(true) }} /></div>
+  if (setup && firstRun) return <div class="home"><FirstRun setup={setup} onSetup={onSetup} onDone={() => setFirstRun(false)} /></div>
   const tabs: [HomeTab, string][] = [['reviews', 'Reviews'], ['local', 'Local'], ['projects', 'Projects']]
   return (
     <div class="home">
-      {offer && <TourOffer />}
+      {/* Offered until answered, so a person who wrote their config by
+          hand, or closed the window before answering, is asked too. */}
+      <TourOffer />
       <Tour surface="home" />
       <nav class="tabs home-tabs" role="tablist" aria-label="Home" data-tour="home-tabs" onKeyDown={(e) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return

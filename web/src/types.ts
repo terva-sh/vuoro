@@ -260,7 +260,7 @@ export interface Setup {
   background: Background
 }
 
-// Hint is a getting-started hint on an empty or first-time screen
+// HintID names a getting-started hint on an empty or first-time screen
 // (docs/plan.md section 3.4), which app.Hints lists too.
 export type HintID = 'reviews-no-forge' | 'reviews-quiet' | 'local-empty' | 'projects-empty' | 'change-no-runs' | 'first-drafts'
 

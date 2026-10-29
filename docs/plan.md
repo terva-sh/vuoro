@@ -235,15 +235,18 @@ levels, cheapest first.
   two sentences with a "Got it" control that dismisses it for good. A hint
   that needs an agent tool names the missing tool instead of pointing at a
   control that will fail.
-- **A tour after setup.** First run's last step offers a short tour, and
-  declining is remembered. Each step is a popover anchored to a `data-tour`
+- **A tour after setup.** The home page offers a short tour once first run
+  is finished or skipped, and until the person answers, so a person who
+  wrote their config by hand is offered it too. Either answer is
+  remembered. Each step is a popover anchored to a `data-tour`
   marker on a real element. The tour is in two parts. The home part shows
   the tabs, opening a change by URL, and Settings. The change part waits
   until the person opens a change themselves, then shows the change's tabs,
-  the Review tab where presets run and reviewers talk, the drafts, and
+  the Review tab, where presets run, reviewers talk, and drafts land, and
   Submit. A step whose element is not on screen is skipped, never shown
-  floating. Esc or "End the tour" ends it at any step. Settings replays it
-  and shows the dismissed hints again.
+  floating. Esc or "End the tour" ends it at any step, and an open modal
+  takes Esc first. A key pressed in the popover reaches nothing behind it.
+  Settings starts the tour at any time and shows the dismissed hints again.
 - **The tour only shows.** No hint or tour step starts a run, opens a
   change, or writes to a forge. Their only writes are the person's own
   progress, and a test holds this.

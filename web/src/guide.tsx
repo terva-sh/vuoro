@@ -35,7 +35,9 @@ export function useGuideState(setup: Setup | undefined, onSetup: (f: (s: Setup |
       onSetup((s) => s && { ...s, hints: [...(s.hints ?? []).filter((x) => x !== h), h] })
       post('/api/prefs/hint', { hint: h, dismissed: true }).catch(() => undefined)
     },
-    tour: tour ?? { state: '' },
+    // Before setup loads the tour reads as answered, so its offer does not
+    // flash for a person who already answered it.
+    tour: setup ? tour ?? { state: '' } : { state: 'done' },
     setTour: (t: Tour) => {
       onSetup((s) => s && { ...s, tour: t })
       post('/api/prefs/tour', t).catch(() => undefined)

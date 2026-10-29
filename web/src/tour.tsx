@@ -98,9 +98,16 @@ export function Tour({ surface }: { surface: Surface }) {
   const end = () => at && setTour({ state: 'off', step: at.step.id })
   useEffect(() => {
     if (!at) return
-    // Esc ends the tour at any step, before anything else hears it.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
+      // A key pressed in the popover is the tour's alone. The inbox and
+      // project lists hear keys on the window, and Enter on Next would
+      // otherwise open their selected change. The button still gets its
+      // own Enter and Space, since nothing prevents the default.
+      const inTour = e.target instanceof Node && !!(e.target as Element).closest?.('.tour')
+      if (inTour) e.stopPropagation()
+      // Esc ends the tour at any step, unless a modal is open, which
+      // closes first.
+      if (e.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return
       e.stopPropagation()
       end()
     }
@@ -129,7 +136,7 @@ export function Tour({ surface }: { surface: Surface }) {
   )
 }
 
-// TourOffer asks, once setup is done, whether the person wants the tour.
+// TourOffer asks whether the person wants the tour, until they answer.
 // Either answer is kept, so it is not asked again; Settings replays it.
 export function TourOffer() {
   const { tour, setTour } = useGuide()

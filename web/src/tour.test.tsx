@@ -139,6 +139,53 @@ describe('the tour', () => {
     expect(step()).toBe('home-tabs')
   })
 
+  it('is offered until answered to a person who never saw first run', async () => {
+    // A config written by hand: forges, so no first run.
+    serve(setupWith())
+    await act(async () => render(<App />, root))
+    await settle()
+    expect(root.textContent).toContain('New to vuoro?')
+    await press('Show me around')
+    expect(tourWrites()).toEqual([{ state: 'on' }])
+    expect(step()).toBe('home-tabs')
+    expect(root.textContent).not.toContain('New to vuoro?')
+  })
+
+  it('keeps Enter on Next from opening the inbox\'s selected change', async () => {
+    serve(setupWith({ tour: { state: 'on' } }))
+    const inbox = { accounts: [{ key: 'gl', name: 'Work', kind: 'gitlab', host: 'lab.test', username: 'me', last_attempt: '', last_success: '' }],
+      mine: [{ ref: change.ref, kind: 'gitlab', account_key: 'gl', account: 'Work', title: 'Review me', web_url: change.web_url, draft: false, roles: ['reviewer'],
+        turn: { owner: 'mine', since: null, last_activity: null, reasons: [{ rule: 'R1', text: 'Your review is requested.', since: null }] } }], theirs: [], snoozed: [] }
+    const base = vi.mocked(api).getMockImplementation()!
+    vi.mocked(api).mockImplementation(async (path: string, init?: RequestInit) => path.startsWith('/api/inbox') ? inbox as never : base(path, init))
+    await act(async () => render(<App />, root))
+    await settle()
+    expect(step()).toBe('home-tabs')
+    expect(root.textContent).toContain('Review me')
+    await act(async () => { button('Next').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) })
+    await settle()
+    // Opening a change posts to /api/changes; nothing did.
+    expect(writes()).not.toContain('/api/changes')
+    // The same key outside the tour still opens it, so the test can fail.
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })) })
+    await settle()
+    expect(writes()).toContain('/api/changes')
+  })
+
+  it('lets an open modal take Esc first', async () => {
+    serve(setupWith({ tour: { state: 'on', step: 'home-tabs' } }))
+    await act(async () => render(<App />, root))
+    await settle()
+    expect(step()).toBe('open-url')
+    await press('vuoro test')
+    expect(document.querySelector('[aria-modal="true"]')).not.toBeNull()
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) })
+    await settle()
+    expect(document.querySelector('[aria-modal="true"]')).toBeNull()
+    expect(step()).toBe('open-url')
+    expect(tourWrites()).toEqual([])
+  })
+
   it('lists the same steps as the server keeps', () => {
     // app.TourSteps in app/prefs.go.
     expect(tourSteps.map((s) => s.id)).toEqual(['home-tabs', 'open-url', 'settings', 'change-tabs', 'review-tab', 'submit'])
