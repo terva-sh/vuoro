@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M61JPA9TYM392M8XBAZ6RQV4
 title: "Ask about a change: canned prompts and questions, kept and searchable"
 type: epic
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-28T15:40:06Z
-updated_at: 2026-10-29T13:53:00Z
+updated_at: 2026-10-29T13:59:18Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""

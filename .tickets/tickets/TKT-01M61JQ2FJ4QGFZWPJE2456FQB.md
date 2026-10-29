@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M61JQ2FJ4QGFZWPJE2456FQB
 title: Serve ask sessions read-only git history and the change over MCP
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-28T15:40:31Z
-updated_at: 2026-10-28T15:40:31Z
+updated_at: 2026-10-29T13:59:18Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""

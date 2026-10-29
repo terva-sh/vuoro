@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M63YYXR9C2DKP4619KT9Q6KP
 title: Test a change in the editor's sandbox, with nothing to push
 type: task
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -23,7 +23,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:53:00Z
-updated_at: 2026-10-29T13:59:05Z
+updated_at: 2026-10-29T13:59:18Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""

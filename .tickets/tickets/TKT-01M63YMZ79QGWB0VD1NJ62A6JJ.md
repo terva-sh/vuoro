@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M63YMZ79QGWB0VD1NJ62A6JJ
 title: Summarise a change whose patch is mostly a lockfile, not refuse it
 type: bug
-status: draft
+status: ready
 status_reason: null
 priority: normal
 due_on: null
@@ -14,13 +14,14 @@ assignees: []
 milestone: null
 parent: null
 origin: null
-dependencies: []
+dependencies:
+  - TKT-01M61JQ22E7049NSPR545323DW
 blocks_on: none
 references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:47:33Z
-updated_at: 2026-10-29T13:53:08Z
+updated_at: 2026-10-29T13:59:18Z
 created_by:
   id: agent:claude-code/ask-plan
   name: ""
