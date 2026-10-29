@@ -22,7 +22,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-10-29T13:57:41Z
-updated_at: 2026-10-29T14:13:03Z
+updated_at: 2026-10-29T14:22:43Z
 created_by:
   id: agent:claude-code/getting-started-tutorial
   name: ""
@@ -70,6 +70,10 @@ Nothing here was measured with a real agent run. The cost figures are an estimat
 ### Recommendation: defer
 
 Defer it, and do not build it for v1.0.0. The practice repository would teach the local flow, not the forge one. Making it teach Keep and Submit means simulating a submit, which D70 rejected. Its remaining value, seeing a run happen, comes from the first real run, which the hints now guide. Reopen it if people who finish the tour still stall at their first run. That would show in feedback, since vuoro has no telemetry. In that case, the smaller build is a "Try a review on your own branch" hint on the Local tab, not a generated repository. The owner decides.
+
+**agent:claude-code/getting-started** at 2026-10-29T14:22:43Z
+
+Owner deferred it on 2026-10-29, recorded as D71; plan 10.3 lists it after v1.0.0.
 
 ## Summary
 

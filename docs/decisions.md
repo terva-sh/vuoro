@@ -1429,3 +1429,22 @@ First run configured vuoro and nothing showed how to use it (section 3.4).
 - **Progress lives in `prefs.json`**, as the person's annotation, never as
   review state, and is written only through the guarded API. Settings
   replays the tour and shows dismissed hints again.
+
+### D71. The practice review is deferred past v1.0.0
+
+Decided by the owner on 2026-10-29, on the recommendation of the spike
+TKT-01M63Z7G86D39B7PXG7XDJVRHD (Spike: a practice review on a generated
+local repository), D70's third level.
+
+- **It would teach the wrong flow.** A generated repository has no forge,
+  so it runs as a local review. Its findings are the person's own (D42),
+  picked for the editor or dismissed, with no Keep, no pending comment, and
+  no Submit. The tour and the hints teach the forge flow.
+- **Teaching Submit there means faking one**, which D70 rejected.
+- **What it adds is seeing a run happen.** The person's first real run
+  gives that, with the change-no-runs and first-drafts hints beside it, and a
+  review of their own local branch is already a first run that posts nothing.
+- **Reopen it** if people who finish the tour still stall at their first
+  run. vuoro has no telemetry, so that shows in feedback. Even then, a Local
+  hint suggesting a review of the person's own branch comes before a
+  generated repository.

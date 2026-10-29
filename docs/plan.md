@@ -252,7 +252,7 @@ levels, cheapest first.
   needs an agent tool. The spike recommends deferring it: a practice
   repository runs as a local review, whose findings are the person's own
   (D42) with no Keep or Submit, so it would teach the local flow, not the
-  forge one. It is built only if the owner decides otherwise.
+  forge one. The owner deferred it past v1.0.0 (D71).
 
 Progress is the person's own annotation, kept in `prefs.json` beside `tab`
 and `waived`: the hints dismissed, and the tour's state (not started,
@@ -2215,6 +2215,9 @@ and a terva-sh release).
 
 - The editor on other people's changes, turning findings into suggested
   patches.
+- A practice review on a generated local repository, deferred by D71
+  (section 3.4). Reopened only if people who finish the tour still stall at
+  their first run.
 
 ### 10.4 Decided against
 
