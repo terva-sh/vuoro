@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:15:15Z
+updated_at: 2026-11-04T07:23:15Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -86,3 +86,11 @@ Created the annotated v0.1.2 tag at that commit with the prepared release notes 
 The first live GitHub workflow ran at https://github.com/terva-sh/vuoro/actions/runs/41790234893. The release gate, GoReleaser builds, and archive verification all passed. Publishing then failed before any release/draft was created: gh reported "using `--notes-from-tag` with `--repo` is not supported". Read the failed job's logs with gh run view --log-failed; the GitHub releases API still reports zero releases. This is a publisher argument bug, not a build or artifact-verification failure.
 
 Removed --repo from gh release create; --notes-from-tag needs the local checkout, whose origin is this GitHub repository under the workflow's GitHub-only server guard. Retained --repo on gh release edit, which has no incompatible tag-notes option. This preserves annotated tag notes and the draft-then-public protocol. Moving or recreating the remote v0.1.2 tag was rejected by the runbook; v0.1.3 will be the first published binaries after the fix lands. Publishing local v0.1.2 artifacts manually was also set aside so the first release proves the complete automated workflow. The previous checked local candidate remains valid evidence, but criterion 1 is reset until the final v0.1.3 tag is verified. New annotated notes are prepared as release-notes-v0.1.3.md under the same task scratch root.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:23:15Z
+
+PR #40 (Fix GitHub release publishing with annotated tag notes), https://git.local.sothr.com/terva-sh/vuoro/pulls/40, received a clean terva-review/code result on e24b61382e0f7bff7c27cfca440f34a3332ca71b (review run 0e7d6a75-036e-4e20-b296-eac01e6fe8c7). No findings required a disposition. The review specifically asked that the checked-out repository context be verified; running gh repo view in the fresh GitHub-origin release checkout returned terva-sh/vuoro, and git confirmed the release tag is annotated.
+
+Hosted CI run 349 then failed after 4m30s. Invoked the required forgejo-job-log helper on its exact job URL first; it exited 3 because this private Forgejo 15 repository has no permitted log route. No alternate credential or web-UI route was attempted. Reproduced the entire gate in a fresh full clone of e24b613 in the documented Go Alpine container, digest sha256:a6c2a4b91494a9f838334a6343d05f541f9aea9f5583b1f72fdb2b901d42f877. Every step passed: vet on three OSes, gofmt, normal/race tests, six cross builds, design, frontend install/typecheck/all 225 tests, committed dist parity, notices and strict ticket checks. The task-owned log is ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/internal-gate-e24b613.log.
+
+The hosted failure has not been reproduced or attributed. No speculative product/test changes are warranted by the available evidence. Commit this evidence as a ticket-only change to trigger a new hosted run, and carry the existing clean review to the new head. Do not merge until the hosted gate is green. The first public release remains v0.1.3 after merge; v0.1.2 remains unchanged and unpublished.
