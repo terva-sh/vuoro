@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T15:06:50Z
+updated_at: 2026-11-04T15:08:34Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -126,6 +126,10 @@ Reproduced the same cleanup error in 8 of 100 focused race runs at 9a846a2 using
 Changed only app/firstrun_test.go: defer Runs.Shutdown while both fake servers are still alive, and wait/assert Settled as well as Idle before examining the review. A shutdown-only first attempt exposed the fake session sending to a channel closed during the pending verifier nudge; waiting for Settled fixes the test's premature completion assumption too. The final focused race run passes 100/100 (11.843s); the baseline had failed 8/100 (9.128s). Logs are task-owned under ~/.cache/agent-scratch/vuoro/first-review-cleanup-xGCRov. Full gate verification follows before submission.
 
 Adding sleeps, retrying RemoveAll and suppressing cleanup errors were rejected because they mask the unjoined writer. No product lifecycle or release artifact changes are needed: v0.1.3 remains published and unchanged. This is follow-up evidence and test maintenance for the completed release investigation, not a claim that the prior full-gate reproductions failed.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T15:08:34Z
+
+The full workstation just ci gate passed on the first-review cleanup fix: vet for native/darwin/windows, gofmt, normal Go tests, the entire race suite, all six cgo-free cross builds, frontend typecheck and all 225 tests across 35 files, committed web/dist parity, shared design and third-party notices checks, and strict ticket validation. The final source changes are confined to app/firstrun_test.go; the release record remains done. This validates the regression fix beyond the focused 100/100 race run. Submit the test and evidence through a new internal PR for hosted CI and model review, without changing v0.1.3.
 
 ## Summary
 
