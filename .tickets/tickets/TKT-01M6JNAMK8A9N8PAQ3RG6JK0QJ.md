@@ -1,7 +1,7 @@
 ---
 schema: 3
 id: TKT-01M6JNAMK8A9N8PAQ3RG6JK0QJ
-title: Publish vuoro v0.1.2 with verified binary archives
+title: Publish vuoro binaries from a verified GitHub release
 type: task
 status: in-progress
 status_reason: null
@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:09:20Z
+updated_at: 2026-11-04T07:15:15Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -39,21 +39,21 @@ extensions: {}
 
 ## Description
 
-The owner requested a release that publishes downloadable binaries. Both remote main branches are at c2ec1c06945ae25ac662a07b889d65956cd49ce5. The latest existing tag is v0.1.1; v0.1.2 is the next unused patch release, with D74 packaging, self-update, and decided findings for follow-up reviews.
+The owner requested a release that publishes downloadable binaries using the D74 GoReleaser/GitHub workflow. Finish the first automated publication as v0.1.3, including all five cgo-free platform archives, checksums, notices and verified public downloads.
 
-Prepare and verify the candidate in a new disposable full clone under ~/.cache/agent-scratch/vuoro, preserve existing working trees, publish the exact annotated tag to both forges, and verify all GitHub artifacts. The owner's request authorizes the release/tag pushes; no existing tag may be moved. The existing release-tooling ticket remains claimed by its previous actor; record the publication evidence without overwriting its claim. Disposable rehearsal clones and generated artifacts may be removed after verification.
+The initial v0.1.2 attempt at cb9b0be passed internal CI, model review, the local tagged build, and GitHub's full release gate, packaging and archive checks. Publishing stopped before creating any release because gh rejects --notes-from-tag with --repo. Keep that tag unchanged, fix the command on main, and cut the next patch tag. The earlier clean-machine merge identity blocker was reproduced and fixed in merged PR #39 (Fix merge preparation on machines without a Git identity).
 
-The current internal CI status is failure (run 344). The required forgejo-job-log helper exits 3 because the repository is private on Forgejo 15 and no permitted log route exists. Reproduce locally rather than trying another credential or web-UI authentication. No release has been published yet.
+The owner's request authorizes release/tag pushes. No existing tag may be moved, and existing working trees must be preserved. Build and verify the final tag in a disposable full clone under ~/.cache/agent-scratch/vuoro and remove only task-owned scratch artifacts afterward. The existing release-tooling ticket still owns its prior claim; add publication evidence without taking over that claim. No remote settings or credentials need to change.
 
 ## Acceptance criteria
 
-- [x] The release candidate passes local checks and a tagged archive verification
-- [ ] The v0.1.2 tag is present on both forges and GitHub publishes five archives plus checksums
+- [ ] The release candidate passes local checks and a tagged archive verification
 - [ ] Downloaded public archives pass checksums and provenance verification
+- [ ] The v0.1.3 tag is present on both forges and GitHub publishes five archives plus checksums
 
 ## Implementation plan
 
-Release the exact checked commit cb9b0be80038a6d197b0cfa777a87874798117c1, fast-forward merged from PR #39 and synchronized to both main branches. The clean-machine merge bug was reproduced in the original Alpine image and fixed before publication; both internal CI and terva-review/code passed with no findings. Build v0.1.2 in a clean full clone, verify every archive before uploading, push the exact annotated tag to both forges, and let the existing GitHub workflow publish. If hosting prevents Actions execution, use the already verified tagged bytes with the same draft-then-public publication protocol, preserving every gate. Download all six public assets and verify checksums, archive documents and binary provenance; smoke-test the native binary and updater's check-only command. Record the exact tag, commit, hashes, hosted results and limitations. Preserve existing tags and working trees; remove only task-owned disposable clones and generated artifacts after verification.
+Fix the GitHub publishing command before the first downloadable release. v0.1.2 at cb9b0be passed the real GitHub release gate, five builds and archive verification, but gh rejected --notes-from-tag together with --repo before creating any release. Remove --repo from gh release create so the checked-out GitHub repository supplies its context; retain the explicit repository on release edit. Land this through an internal PR with CI and model review, synchronize main, build and verify the next unused tag v0.1.3 in a clean full clone, then push that tag to both forges. Leave v0.1.2 unchanged and unpublished, following the fix-forward runbook. Download all six public assets and verify checksums, documents, clean tag/commit provenance, native version and the updater's check-only command. Record exact hashes, hosted results and limitations; close the earned release criteria only after public verification.
 
 ## Notes
 
@@ -80,3 +80,9 @@ A clean tagged release rehearsal of committed source baaeb4b also passed: five a
 PR #39 (Fix merge preparation on machines without a Git identity), https://git.local.sothr.com/terva-sh/vuoro/pulls/39, passed ci / Vet, test and cross-build and terva-review/code on cb9b0be80038a6d197b0cfa777a87874798117c1. Model review run cab8265e-888a-489f-8d5c-2663f99aa2b8 identified no findings; its scope was the diff and issue discussion, not execution. Inspected the review and status before a guarded fast-forward-only merge. The checked SHA is therefore the exact commit on both main branches, rather than an untested merge commit.
 
 Created the annotated v0.1.2 tag at that commit with the prepared release notes and the repository's configured identity. Built the real tag in a new clean full clone under ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/release-source with GoReleaser v2.18.1, CGO_ENABLED=0 and publishing disabled. The verifier passed all five archives, SHA-256 checksums, exact documents, target/module/tag/clean commit provenance, native -version ('vuoro v0.1.2'), and review -h. Pushed the exact tag to origin and github. Both remote tag objects are 90951bc3b6c56d4bb35bf3f85fdc00b1b4eb4343 and peel to cb9b0be80038a6d197b0cfa777a87874798117c1. No existing tag was moved. Awaiting GitHub publication before ticking the public-asset criteria. PR #39 is merged and its watcher has been stopped.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:14:53Z
+
+The first live GitHub workflow ran at https://github.com/terva-sh/vuoro/actions/runs/41790234893. The release gate, GoReleaser builds, and archive verification all passed. Publishing then failed before any release/draft was created: gh reported "using `--notes-from-tag` with `--repo` is not supported". Read the failed job's logs with gh run view --log-failed; the GitHub releases API still reports zero releases. This is a publisher argument bug, not a build or artifact-verification failure.
+
+Removed --repo from gh release create; --notes-from-tag needs the local checkout, whose origin is this GitHub repository under the workflow's GitHub-only server guard. Retained --repo on gh release edit, which has no incompatible tag-notes option. This preserves annotated tag notes and the draft-then-public protocol. Moving or recreating the remote v0.1.2 tag was rejected by the runbook; v0.1.3 will be the first published binaries after the fix lands. Publishing local v0.1.2 artifacts manually was also set aside so the first release proves the complete automated workflow. The previous checked local candidate remains valid evidence, but criterion 1 is reset until the final v0.1.3 tag is verified. New annotated notes are prepared as release-notes-v0.1.3.md under the same task scratch root.

@@ -73,7 +73,9 @@ jobs:
           set -eu
           args=()
           case "$TAG" in *-*) args+=(--prerelease);; esac
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+          # --notes-from-tag reads the local tag and cannot be combined with
+          # --repo. The checkout supplies this GitHub repository's context.
+          gh release create "$TAG" --verify-tag --draft \
             --title "vuoro $TAG" --notes-from-tag "${args[@]}" \
             dist/*.tar.gz dist/*.zip dist/checksums.txt
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
