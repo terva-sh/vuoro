@@ -70,6 +70,8 @@ func TestAFreshInstallReachesAFirstReviewWithoutEditingAFile(t *testing.T) {
 		Tools: map[string]agent.Driver{"fake": agentDriver{}},
 		Dial:  dialFake(forgeSrv.URL),
 	}
+	// Idle is visible before the event pump finishes saving the run.
+	defer a.Runs.Shutdown()
 	h := a.Handler()
 	if v := getSetup(t, h); !v.Editable || v.Base != "" || len(v.Forges) != 0 {
 		t.Fatalf("a fresh install: %+v", v)
@@ -94,11 +96,11 @@ func TestAFreshInstallReachesAFirstReviewWithoutEditingAFile(t *testing.T) {
 	}
 	run := a.Runs.Get(out["id"].(string))
 	deadline := time.Now().Add(20 * time.Second)
-	for run.View().Status != review.Idle && time.Now().Before(deadline) {
+	for !run.Settled() && time.Now().Before(deadline) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	v := run.View()
-	if v.Status != review.Idle || len(v.Drafts) != 2 || v.Head != head {
+	if !run.Settled() || v.Status != review.Idle || len(v.Drafts) != 2 || v.Head != head {
 		t.Fatalf("the first review: status %s %s, head %s, drafts %+v", v.Status, v.Error, v.Head, v.Drafts)
 	}
 	if len(v.Sessions) == 0 || v.Sessions[0].Profile != "code" {

@@ -20,7 +20,7 @@ references: []
 claim: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:35:18Z
+updated_at: 2026-11-04T15:06:50Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -116,6 +116,16 @@ Both remote main branches remain 14c6daf062d2683b7c1cc196d13381419f926dc4. Both 
 ### Limits and record
 
 macOS binaries remain unsigned and unnotarized under D74; checksums are unsigned. Native execution was verified on Linux amd64; the remaining targets were cross-built and their embedded provenance verified, without claiming native GUI validation. Desktop tray/notification live validation remains outside this release verification, as disclosed in the annotated release notes. The public release and these hashes are the durable evidence; local scratch files are disposable. Add the earned publication evidence to TKT-01M3YMSVKKGJ3R8EXZ8QZAMQAJ (Release for macOS, Linux, and Windows, with self-update) without taking over its existing claim.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T15:06:50Z
+
+The owner supplied the previously inaccessible output from Forgejo CI run #349: go test -race failed only in TestAFreshInstallReachesAFirstReviewWithoutEditingAFile with TempDir RemoveAll cleanup: directory not empty. This supersedes the earlier notes that left run #349 unexplained. It was a test lifecycle failure during cleanup, without a Go race-detector report.
+
+Reproduced the same cleanup error in 8 of 100 focused race runs at 9a846a2 using Go 1.27.3 on Linux amd64. The fresh-install test never shut down its review.Manager. review.pump publishes Idle under the run lock before saving its record, so observing Idle does not join its disk writes; moreover Idle can occur between a verifier's first turn and its follow-up nudge. The existing Settled method accounts for that pending nudge. The Manager.Shutdown join already exists (TKT-01M4CPAZX0WNTCCV7R3HJ5MAJP, Wait for a review's goroutines in Shutdown; a local-review test flaked), but this newer test omitted it.
+
+Changed only app/firstrun_test.go: defer Runs.Shutdown while both fake servers are still alive, and wait/assert Settled as well as Idle before examining the review. A shutdown-only first attempt exposed the fake session sending to a channel closed during the pending verifier nudge; waiting for Settled fixes the test's premature completion assumption too. The final focused race run passes 100/100 (11.843s); the baseline had failed 8/100 (9.128s). Logs are task-owned under ~/.cache/agent-scratch/vuoro/first-review-cleanup-xGCRov. Full gate verification follows before submission.
+
+Adding sleeps, retrying RemoveAll and suppressing cleanup errors were rejected because they mask the unjoined writer. No product lifecycle or release artifact changes are needed: v0.1.3 remains published and unchanged. This is follow-up evidence and test maintenance for the completed release investigation, not a claim that the prior full-gate reproductions failed.
 
 ## Summary
 
