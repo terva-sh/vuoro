@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:00:41Z
+updated_at: 2026-11-04T07:09:20Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -47,13 +47,13 @@ The current internal CI status is failure (run 344). The required forgejo-job-lo
 
 ## Acceptance criteria
 
-- [ ] The release candidate passes local checks and a tagged archive verification
+- [x] The release candidate passes local checks and a tagged archive verification
 - [ ] The v0.1.2 tag is present on both forges and GitHub publishes five archives plus checksums
 - [ ] Downloaded public archives pass checksums and provenance verification
 
 ## Implementation plan
 
-Use the synced main c2ec1c0 as the candidate for the next unused patch v0.1.2. The local just ci gate passes again. Reproduce the internal failure with the documented Go Alpine image, without attempting another log credential. Build from a clean full clone tagged v0.1.2, verify all five archives, and use the existing tag-triggered GitHub publisher. If hosting prevents Actions execution, retain the tagged verified bytes and use the same draft-then-public release protocol rather than bypassing any verification. Download all six public assets and verify checksums, archive documents and binary provenance; smoke-test the native binary and self-update check. Record the exact tag, commit, hashes, hosted results and limitations. Preserve existing tags and working trees, and commit the understood runbook correction and ticket progress.
+Release the exact checked commit cb9b0be80038a6d197b0cfa777a87874798117c1, fast-forward merged from PR #39 and synchronized to both main branches. The clean-machine merge bug was reproduced in the original Alpine image and fixed before publication; both internal CI and terva-review/code passed with no findings. Build v0.1.2 in a clean full clone, verify every archive before uploading, push the exact annotated tag to both forges, and let the existing GitHub workflow publish. If hosting prevents Actions execution, use the already verified tagged bytes with the same draft-then-public publication protocol, preserving every gate. Download all six public assets and verify checksums, archive documents and binary provenance; smoke-test the native binary and updater's check-only command. Record the exact tag, commit, hashes, hosted results and limitations. Preserve existing tags and working trees; remove only task-owned disposable clones and generated artifacts after verification.
 
 ## Notes
 
@@ -74,3 +74,9 @@ Proposed v0.1.2 notes: first downloadable cgo-free binaries for macOS/Linux amd6
 The complete gate now passes in the exact internal Go 1.27.1 Alpine image, with no configured user identity: all three vet targets, gofmt, Go tests, race tests, six cross builds, design check, npm ci, frontend typecheck and all 225 tests in 35 files, committed dist parity, generated notices, and strict ticket checks. The successful log is ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/internal-gate-fixed.log. The baseline reproduction log beside it contains the original six failures; neither contains credentials.
 
 A clean tagged release rehearsal of committed source baaeb4b also passed: five archives, SHA-256 checksums, exact notices/documents, target/tag/commit provenance, CGO_ENABLED=0, native -version and review -h. The disposable rehearsal clone and artifacts were removed by the helper. The v0.1.2 notes are prepared in ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/release-notes.md and summarized in the preceding note. Next: internal PR and model review, merge the green fix, sync GitHub main, then create/push the annotated v0.1.2 tag at that merged commit and validate every public asset. Existing v0.1.0 and v0.1.1 are left untouched.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:09:20Z
+
+PR #39 (Fix merge preparation on machines without a Git identity), https://git.local.sothr.com/terva-sh/vuoro/pulls/39, passed ci / Vet, test and cross-build and terva-review/code on cb9b0be80038a6d197b0cfa777a87874798117c1. Model review run cab8265e-888a-489f-8d5c-2663f99aa2b8 identified no findings; its scope was the diff and issue discussion, not execution. Inspected the review and status before a guarded fast-forward-only merge. The checked SHA is therefore the exact commit on both main branches, rather than an untested merge commit.
+
+Created the annotated v0.1.2 tag at that commit with the prepared release notes and the repository's configured identity. Built the real tag in a new clean full clone under ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/release-source with GoReleaser v2.18.1, CGO_ENABLED=0 and publishing disabled. The verifier passed all five archives, SHA-256 checksums, exact documents, target/module/tag/clean commit provenance, native -version ('vuoro v0.1.2'), and review -h. Pushed the exact tag to origin and github. Both remote tag objects are 90951bc3b6c56d4bb35bf3f85fdc00b1b4eb4343 and peel to cb9b0be80038a6d197b0cfa777a87874798117c1. No existing tag was moved. Awaiting GitHub publication before ticking the public-asset criteria. PR #39 is merged and its watcher has been stopped.
