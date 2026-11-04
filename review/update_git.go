@@ -104,7 +104,10 @@ func (r *Repos) mergeStep(ctx context.Context, key, runID, dir string, who Ident
 	if err := r.restore(ctx, dir, onto); err != nil {
 		return step{}, err
 	}
-	_, err = r.gitIn(ctx, dir, nil, "merge", "--no-commit", "--no-ff", "--no-edit", target)
+	// Even with --no-commit, git merge requires a committer identity while
+	// preparing the merge. Use the selected identity rather than depending
+	// on the machine's git configuration.
+	_, err = r.gitIn(ctx, dir, identityEnv(who), "merge", "--no-commit", "--no-ff", "--no-edit", target)
 	return r.finish(ctx, key, runID, dir, who, err, []string{onto, target}, message, "merge")
 }
 

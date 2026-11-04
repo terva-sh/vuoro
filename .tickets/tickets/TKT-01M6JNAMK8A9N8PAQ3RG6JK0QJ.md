@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T06:53:55Z
+updated_at: 2026-11-04T06:58:47Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -54,3 +54,17 @@ The current internal CI status is failure (run 344). The required forgejo-job-lo
 ## Implementation plan
 
 Use the synced main c2ec1c0 as the candidate for the next unused patch v0.1.2. The local just ci gate passes again. Reproduce the internal failure with the documented Go Alpine image, without attempting another log credential. Build from a clean full clone tagged v0.1.2, verify all five archives, and use the existing tag-triggered GitHub publisher. If hosting prevents Actions execution, retain the tagged verified bytes and use the same draft-then-public release protocol rather than bypassing any verification. Download all six public assets and verify checksums, archive documents and binary provenance; smoke-test the native binary and self-update check. Record the exact tag, commit, hashes, hosted results and limitations. Preserve existing tags and working trees, and commit the understood runbook correction and ticket progress.
+
+## Notes
+
+**agent:codex/release-v0.1.2** at 2026-11-04T06:57:17Z
+
+The full workstation just ci gate passed again, but reproduction in the exact container.local.sothr.com/library/golang:1.27-alpine image failed in six merge/update tests. Git merge --no-commit still requires a committer identity, and mergeStep called gitIn with nil environment before finish supplied the selected identity. A configured workstation masks this real clean-machine bug. Fixed mergeStep to pass identityEnv(who) to merge preparation. Strengthened TestACleanMergeNeedsNoAgent to disable global/system Git config and verify both author and committer names/emails. Configuring a global identity in CI was rejected because that would hide the product bug instead of fixing it.
+
+The existing synced main c2ec1c0 is therefore not releaseable unchanged. The fix and the understood runbook correction will land through an internal pull request before tagging v0.1.2. The release will use the resulting green main commit; the proposed notes include the merge identity fix. No new remote tag has been pushed. The owner requested cutting the release, which authorizes publication; existing tags remain untouched.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T06:58:47Z
+
+The regression now explicitly sets user.useConfigOnly=true as well as disabling system/global config, since on some workstations Git can infer a usable email from the hostname. With the production fix removed in the disposable clone, TestACleanMergeNeedsNoAgent fails with 'no email was given and auto-detection is disabled'. With identityEnv(who) supplied during merge preparation, the same test passes. The complete original Alpine gate is being rerun with the fix; the baseline failed six tests.
+
+Proposed v0.1.2 notes: first downloadable cgo-free binaries for macOS/Linux amd64+arm64 and Windows amd64, SHA-256 checksums and notices; CLI and explicit window self-update; decided findings passed into follow-up reviews; release version/commit read from Go build metadata; merge preparation uses the selected committer on a clean machine. Known limits remain unsigned/unnotarized macOS binaries, unsigned checksums, and desktop tray/notification validation outstanding. No recorded owner decision is reopened.

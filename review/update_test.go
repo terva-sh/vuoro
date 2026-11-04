@@ -72,6 +72,13 @@ func cloneGit(t *testing.T, m *Manager, args ...string) string {
 }
 
 func TestACleanMergeNeedsNoAgent(t *testing.T) {
+	// A clean machine has no global git identity. The identity supplied to
+	// the update must cover merge preparation as well as its final commit.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "user.useConfigOnly")
+	t.Setenv("GIT_CONFIG_VALUE_0", "true")
 	m, d, ch, src, target := updateSetup(t, false)
 	r, err := m.StartUpdate(ch, src, UpdateInput{Strategy: Merge, Own: true, Who: pat, Editor: Reviewer{Tool: "fake"}})
 	if err != nil {
@@ -81,8 +88,8 @@ func TestACleanMergeNeedsNoAgent(t *testing.T) {
 	if v.Status != Idle || v.Update.State() != "ready" || len(v.Sessions) != 0 || len(d.specs) != 0 {
 		t.Fatalf("clean merge %+v %+v", v, v.Update)
 	}
-	parents := cloneGit(t, m, "log", "-1", "--format=%P%x00%an%x00%s", v.Update.Result)
-	if parents != ch.Diff.Head+" "+target+"\x00Pat\x00Merge branch 'main' into feature" {
+	parents := cloneGit(t, m, "log", "-1", "--format=%P%x00%an%x00%ae%x00%cn%x00%ce%x00%s", v.Update.Result)
+	if parents != ch.Diff.Head+" "+target+"\x00Pat\x00pat@example.com\x00Pat\x00pat@example.com\x00Merge branch 'main' into feature" {
 		t.Fatalf("merge commit %q", parents)
 	}
 	detail, err := m.UpdateDetail(context.Background(), r.ID)
