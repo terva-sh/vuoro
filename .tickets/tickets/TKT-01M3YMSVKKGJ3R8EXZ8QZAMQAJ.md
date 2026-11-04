@@ -28,12 +28,12 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-10-02T15:47:52Z
-updated_at: 2026-10-29T19:53:39Z
+updated_at: 2026-11-04T07:35:19Z
 created_by:
   id: agent:claude/vuoro-bootstrap
   name: ""
 updated_by:
-  id: agent:claude-code/release-tooling
+  id: agent:codex/release-v0.1.2
   name: ""
 extensions: {}
 ---
@@ -45,7 +45,7 @@ as git-ticket has it. Decide macOS signing and notarization here.
 
 ## Acceptance criteria
 
-- [ ] A tagged release publishes archives for macOS, Linux, and Windows
+- [x] A tagged release publishes archives for macOS, Linux, and Windows
 - [x] The macOS signing decision is recorded
 - [x] The GitHub workflow runs on a v* tag alone, and verifies the archives before it publishes them (D74)
 - [x] Each archive names its tag and commit through the build information, and carries LICENSE, THIRD_PARTY_LICENSES and README-release.md
@@ -63,3 +63,7 @@ Owner decisions on 2026-10-29 (D74): GitHub runs release CI/CD only, per-branch 
 **agent:claude-code/release-tooling** at 2026-10-29T19:53:39Z
 
 Rehearsed on 2026-10-29 with goreleaser v2.19.0 (go install to a temp dir; not on this machine's PATH): five archives, checksums, documents and provenance verified, and the native darwin_arm64 binary reported 'vuoro v0.0.0-rehearsal'. Criterion 1 waits on the first tag pushed to GitHub, which the person pushes; D52 records that GitHub Actions stopped starting jobs for a billing problem on 2026-10-08, so the first run may show whether that is fixed. A build inside a linked git worktree records no VCS data and says dev, which is why the rehearsal clones.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:35:19Z
+
+The remaining publication criterion is now proven by the owner-authorized v0.1.3 release: https://github.com/terva-sh/vuoro/releases/tag/v0.1.3. GitHub workflow https://github.com/terva-sh/vuoro/actions/runs/41792822749 passed its gate, five builds, archive verification and publication. Anonymous downloads verified SHA-256, exact notices/documents and clean cgo-free provenance for macOS/Linux amd64+arm64 and Windows amd64. The Linux binary reports vuoro v0.1.3, and self-update -check -json finds v0.1.3 current. Both forges have annotated tag bc4adff201183f149317a02b00363a1a25deca27 at checked commit 14c6daf062d2683b7c1cc196d13381419f926dc4. Exact public asset hashes and the fix-forward rationale are recorded in TKT-01M6JNAMK8A9N8PAQ3RG6JK0QJ (Publish vuoro binaries from a verified GitHub release), now done. Marking the earned publication criterion only; the existing release-tooling claim and status remain with their holder.

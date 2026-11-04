@@ -3,7 +3,7 @@ schema: 3
 id: TKT-01M6JNAMK8A9N8PAQ3RG6JK0QJ
 title: Publish vuoro binaries from a verified GitHub release
 type: task
-status: in-progress
+status: done
 status_reason: null
 priority: normal
 due_on: null
@@ -17,17 +17,10 @@ origin: null
 dependencies: []
 blocks_on: none
 references: []
-claim:
-  actor: agent:codex/release-v0.1.2
-  branch: t3/github-release-process
-  worktree: /home/sothr/.t3/worktrees/vuoro/t3-afae8ffa
-  commit: 9cde17fad0ce4d6a8a52715922dc5d546d31a2b4
-  session: null
-  claimed_at: 2026-11-04T06:53:55Z
-  expires_at: null
+claim: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:31:49Z
+updated_at: 2026-11-04T07:35:18Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -48,8 +41,8 @@ The owner's request authorizes release/tag pushes. No existing tag may be moved,
 ## Acceptance criteria
 
 - [x] The release candidate passes local checks and a tagged archive verification
-- [ ] Downloaded public archives pass checksums and provenance verification
-- [ ] The v0.1.3 tag is present on both forges and GitHub publishes five archives plus checksums
+- [x] Downloaded public archives pass checksums and provenance verification
+- [x] The v0.1.3 tag is present on both forges and GitHub publishes five archives plus checksums
 
 ## Implementation plan
 
@@ -100,3 +93,30 @@ The hosted failure has not been reproduced or attributed. No speculative product
 PR #40 (Fix GitHub release publishing with annotated tag notes) passed hosted CI on 14c6daf062d2683b7c1cc196d13381419f926dc4 in run 352, and the clean model review was carried to that head because the later commit changed only .tickets/. The first failed CI run 349 remains unexplained; the exact fresh-clone container gate and the hosted retry both passed without product changes. Inspected the status and review result, then fast-forward merged PR #40 with a head-SHA guard. Both main branches now point to the exact reviewed/checked SHA, and the merged PR watcher was stopped.
 
 Created annotated v0.1.3 on 14c6daf062d2683b7c1cc196d13381419f926dc4 and built it from a new clean full clone using GoReleaser v2.18.1 with CGO_ENABLED=0 and publishing disabled. All five archives passed SHA-256, documents/notices, module/tag/commit/target provenance, clean-tree, native -version ('vuoro v0.1.3') and review -h verification. Pushed v0.1.3 to both remotes; both tag objects are bc4adff201183f149317a02b00363a1a25deca27, peeling to 14c6daf062d2683b7c1cc196d13381419f926dc4. v0.1.2 was not moved. Awaiting the corrected GitHub workflow and anonymous asset verification before checking the publication criteria.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:35:18Z
+
+Published v0.1.3 successfully through the corrected tag-triggered GitHub workflow: https://github.com/terva-sh/vuoro/actions/runs/41792822749. Every step passed, including the release gate, five builds, archive verification and draft-to-public publication. Public stable release: https://github.com/terva-sh/vuoro/releases/tag/v0.1.3.
+
+Anonymous downloads of all six assets passed size/API digest checks and scripts/verify-release.py against the clean v0.1.3 checkout: SHA-256 checksums, exact LICENSE/THIRD_PARTY_LICENSES/README-release.md, module/target/tag/commit metadata, clean provenance and CGO_ENABLED=0. The extracted public linux_amd64 binary reports 'vuoro v0.1.3'; self-update -check -json returns current/latest v0.1.3, newer=false and applied=false. This exercises discovery without modifying the executable.
+
+Both remote main branches remain 14c6daf062d2683b7c1cc196d13381419f926dc4. Both remote v0.1.3 tag objects are bc4adff201183f149317a02b00363a1a25deca27 and peel to that exact checked/reviewed commit. Rechecked via git ls-remote after publication. Existing v0.1.2 stays unchanged and unpublished; it exposed the gh argument bug repaired through PR #40.
+
+### Public asset evidence
+
+| Asset | Bytes | SHA-256 |
+| --- | ---: | --- |
+| checksums.txt | 486 | e7046448b8a636651df4dae9cfbe0de221900608f3290315c92aa25eb1ba0e23 |
+| vuoro_0.1.3_darwin_amd64.tar.gz | 4756037 | 12032e2bdee64a80571b4609c21b286029dc89aa261c72b73d612af36dcb04d1 |
+| vuoro_0.1.3_darwin_arm64.tar.gz | 4435582 | 8278c936e9f0840faa4a43bd33635fcdf6ea4ab45e05ea40e7f8abf651730f20 |
+| vuoro_0.1.3_linux_amd64.tar.gz | 5366606 | 48de662ba47ce0a5e8e376a977de5ec652cc91631d733b3b040ccc5185a53963 |
+| vuoro_0.1.3_linux_arm64.tar.gz | 4883655 | 14b0d03ceb9a2b626c55e234b043467cb616cd259dd6e0a10470df69f7656f62 |
+| vuoro_0.1.3_windows_amd64.zip | 4723415 | 69e7b3d2d0fa535799bf24bab6f246519fe04ec2e7a77e67986eb3922ed9bab5 |
+
+### Limits and record
+
+macOS binaries remain unsigned and unnotarized under D74; checksums are unsigned. Native execution was verified on Linux amd64; the remaining targets were cross-built and their embedded provenance verified, without claiming native GUI validation. Desktop tray/notification live validation remains outside this release verification, as disclosed in the annotated release notes. The public release and these hashes are the durable evidence; local scratch files are disposable. Add the earned publication evidence to TKT-01M3YMSVKKGJ3R8EXZ8QZAMQAJ (Release for macOS, Linux, and Windows, with self-update) without taking over its existing claim.
+
+## Summary
+
+Published and anonymously verified v0.1.3 at https://github.com/terva-sh/vuoro/releases/tag/v0.1.3 from checked commit 14c6daf062d2683b7c1cc196d13381419f926dc4. The tag-triggered GitHub workflow passed end to end and publishes five cgo-free archives plus checksums. All public downloads passed checksum, documents and provenance verification; the native Linux binary reports v0.1.3 and self-update correctly reports it current. Main and the annotated tag match on both forges. PR #39 fixed clean-machine merge identity; PR #40 fixed tag-note publishing. v0.1.2 remains unchanged and unpublished. Known unsigned macOS/checksum and GUI validation limits remain documented.
