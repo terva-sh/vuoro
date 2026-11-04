@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T06:58:47Z
+updated_at: 2026-11-04T07:00:41Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -68,3 +68,9 @@ The existing synced main c2ec1c0 is therefore not releaseable unchanged. The fix
 The regression now explicitly sets user.useConfigOnly=true as well as disabling system/global config, since on some workstations Git can infer a usable email from the hostname. With the production fix removed in the disposable clone, TestACleanMergeNeedsNoAgent fails with 'no email was given and auto-detection is disabled'. With identityEnv(who) supplied during merge preparation, the same test passes. The complete original Alpine gate is being rerun with the fix; the baseline failed six tests.
 
 Proposed v0.1.2 notes: first downloadable cgo-free binaries for macOS/Linux amd64+arm64 and Windows amd64, SHA-256 checksums and notices; CLI and explicit window self-update; decided findings passed into follow-up reviews; release version/commit read from Go build metadata; merge preparation uses the selected committer on a clean machine. Known limits remain unsigned/unnotarized macOS binaries, unsigned checksums, and desktop tray/notification validation outstanding. No recorded owner decision is reopened.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:00:41Z
+
+The complete gate now passes in the exact internal Go 1.27.1 Alpine image, with no configured user identity: all three vet targets, gofmt, Go tests, race tests, six cross builds, design check, npm ci, frontend typecheck and all 225 tests in 35 files, committed dist parity, generated notices, and strict ticket checks. The successful log is ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/internal-gate-fixed.log. The baseline reproduction log beside it contains the original six failures; neither contains credentials.
+
+A clean tagged release rehearsal of committed source baaeb4b also passed: five archives, SHA-256 checksums, exact notices/documents, target/tag/commit provenance, CGO_ENABLED=0, native -version and review -h. The disposable rehearsal clone and artifacts were removed by the helper. The v0.1.2 notes are prepared in ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/release-notes.md and summarized in the preceding note. Next: internal PR and model review, merge the green fix, sync GitHub main, then create/push the annotated v0.1.2 tag at that merged commit and validate every public asset. Existing v0.1.0 and v0.1.1 are left untouched.
