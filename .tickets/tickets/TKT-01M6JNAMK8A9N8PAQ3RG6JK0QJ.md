@@ -27,7 +27,7 @@ claim:
   expires_at: null
 archive: null
 created_at: 2026-11-04T06:53:14Z
-updated_at: 2026-11-04T07:23:15Z
+updated_at: 2026-11-04T07:31:49Z
 created_by:
   id: agent:codex/release-v0.1.2
   name: ""
@@ -47,7 +47,7 @@ The owner's request authorizes release/tag pushes. No existing tag may be moved,
 
 ## Acceptance criteria
 
-- [ ] The release candidate passes local checks and a tagged archive verification
+- [x] The release candidate passes local checks and a tagged archive verification
 - [ ] Downloaded public archives pass checksums and provenance verification
 - [ ] The v0.1.3 tag is present on both forges and GitHub publishes five archives plus checksums
 
@@ -94,3 +94,9 @@ PR #40 (Fix GitHub release publishing with annotated tag notes), https://git.loc
 Hosted CI run 349 then failed after 4m30s. Invoked the required forgejo-job-log helper on its exact job URL first; it exited 3 because this private Forgejo 15 repository has no permitted log route. No alternate credential or web-UI route was attempted. Reproduced the entire gate in a fresh full clone of e24b613 in the documented Go Alpine container, digest sha256:a6c2a4b91494a9f838334a6343d05f541f9aea9f5583b1f72fdb2b901d42f877. Every step passed: vet on three OSes, gofmt, normal/race tests, six cross builds, design, frontend install/typecheck/all 225 tests, committed dist parity, notices and strict ticket checks. The task-owned log is ~/.cache/agent-scratch/vuoro/release-v0.1.2-BWNKdZ/internal-gate-e24b613.log.
 
 The hosted failure has not been reproduced or attributed. No speculative product/test changes are warranted by the available evidence. Commit this evidence as a ticket-only change to trigger a new hosted run, and carry the existing clean review to the new head. Do not merge until the hosted gate is green. The first public release remains v0.1.3 after merge; v0.1.2 remains unchanged and unpublished.
+
+**agent:codex/release-v0.1.2** at 2026-11-04T07:31:49Z
+
+PR #40 (Fix GitHub release publishing with annotated tag notes) passed hosted CI on 14c6daf062d2683b7c1cc196d13381419f926dc4 in run 352, and the clean model review was carried to that head because the later commit changed only .tickets/. The first failed CI run 349 remains unexplained; the exact fresh-clone container gate and the hosted retry both passed without product changes. Inspected the status and review result, then fast-forward merged PR #40 with a head-SHA guard. Both main branches now point to the exact reviewed/checked SHA, and the merged PR watcher was stopped.
+
+Created annotated v0.1.3 on 14c6daf062d2683b7c1cc196d13381419f926dc4 and built it from a new clean full clone using GoReleaser v2.18.1 with CGO_ENABLED=0 and publishing disabled. All five archives passed SHA-256, documents/notices, module/tag/commit/target provenance, clean-tree, native -version ('vuoro v0.1.3') and review -h verification. Pushed v0.1.3 to both remotes; both tag objects are bc4adff201183f149317a02b00363a1a25deca27, peeling to 14c6daf062d2683b7c1cc196d13381419f926dc4. v0.1.2 was not moved. Awaiting the corrected GitHub workflow and anonymous asset verification before checking the publication criteria.
